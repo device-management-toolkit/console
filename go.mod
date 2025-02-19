@@ -26,7 +26,7 @@ require (
 	github.com/swaggo/swag v1.16.4
 	go.uber.org/mock v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.34.5
+	modernc.org/sqlite v1.35.0
 	software.sslmate.com/src/go-pkcs12 v0.5.0
 )
 
@@ -44,7 +44,7 @@ require (
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
 	golang.org/x/term v0.28.0 // indirect
-	modernc.org/libc v1.61.4 // indirect
+	modernc.org/libc v1.61.13 // indirect
 )
 
 require (
@@ -103,8 +103,8 @@ require (
 	golang.org/x/tools v0.28.0 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/mathutil v1.6.0 // indirect
-	modernc.org/memory v1.8.0 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.8.2 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
 
