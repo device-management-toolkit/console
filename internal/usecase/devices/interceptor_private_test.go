@@ -686,7 +686,10 @@ func TestHandleAuthenticationSession(t *testing.T) {
 
 			require.IsType(t, tc.expectedResultType, result)
 
-			if len(tc.expectedResultType.([]byte)) > 0 {
+			expectedResult, ok := tc.expectedResultType.([]byte)
+			require.True(t, ok)
+
+			if len(expectedResult) > 0 {
 				require.NotEmpty(t, result)
 			}
 

@@ -18,7 +18,12 @@ type MockDB struct {
 func (mdb *MockDB) Open(driverName, dataSourceName string) (*sql.DB, error) {
 	args := mdb.Called(driverName, dataSourceName)
 
-	return args.Get(0).(*sql.DB), args.Error(1)
+	db, ok := args.Get(0).(*sql.DB)
+	if !ok {
+		return nil, errors.New("failed to cast to *sql.DB") //nolint:err113 // It's a test...
+	}
+
+	return db, args.Error(1)
 }
 
 func TestNew_Postgres(t *testing.T) {

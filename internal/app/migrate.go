@@ -17,6 +17,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source"
 	_ "github.com/golang-migrate/migrate/v4/source/file" // for file source
 	"github.com/golang-migrate/migrate/v4/source/iofs"
+	"github.com/open-amt-cloud-toolkit/console/config"
 	_ "modernc.org/sqlite" // sqlite3 driver
 )
 
@@ -35,9 +36,9 @@ func MigrationError(op string) error {
 	return fmt.Errorf("%w: %s", errMigrate, op)
 }
 
-func Init() error {
-	databaseURL, ok := os.LookupEnv("DB_URL")
-	if !ok || databaseURL == "" {
+func Init(cfg *config.Config) error {
+	databaseURL := cfg.DB.URL
+	if databaseURL == "" {
 		log.Printf("migrate: environment variable not declared: DB_URL -- using embedded database")
 	}
 

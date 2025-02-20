@@ -657,7 +657,7 @@ func TestExecuteCall(t *testing.T) {
 			call: "AMTMessageLog",
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(gomock.Any(), device.GUID, device.TenantID).
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
@@ -666,7 +666,10 @@ func TestExecuteCall(t *testing.T) {
 					Return(amt)
 				amt.EXPECT().
 					GetAMTMessageLog().
-					Return(messagelog.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
+					Return(messagelog.Response{Message: &client.Message{
+						XMLInput:  executeResponse.XMLInput,
+						XMLOutput: executeResponse.XMLOutput,
+					}}, nil)
 			},
 			res: executeResponse,
 			err: nil,
@@ -676,7 +679,7 @@ func TestExecuteCall(t *testing.T) {
 			call: "AMTMessageLog",
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(gomock.Any(), device.GUID, device.TenantID).
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {

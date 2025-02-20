@@ -1,0 +1,17 @@
+{
+  "branches": [
+    {
+      "name": "main"
+    },
+    {
+      "name": "beta",
+      "prerelease": "beta"
+    }
+  ],
+  "plugins": [
+    "@semantic-release/exec",
+    {
+      "verifyReleaseCmd": "echo ${nextRelease.version} > .VERSION"
+    }
+  ]
+}

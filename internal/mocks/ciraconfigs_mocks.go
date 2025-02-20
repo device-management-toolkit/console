@@ -22,6 +22,7 @@ import (
 type MockCIRAConfigsRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockCIRAConfigsRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockCIRAConfigsRepositoryMockRecorder is the mock recorder for MockCIRAConfigsRepository.
@@ -135,6 +136,7 @@ func (mr *MockCIRAConfigsRepositoryMockRecorder) Update(ctx, p any) *gomock.Call
 type MockCIRAConfigsFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockCIRAConfigsFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockCIRAConfigsFeatureMockRecorder is the mock recorder for MockCIRAConfigsFeature.

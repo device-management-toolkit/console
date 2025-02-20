@@ -22,6 +22,7 @@ import (
 type MockProfileWiFiConfigsRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockProfileWiFiConfigsRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockProfileWiFiConfigsRepositoryMockRecorder is the mock recorder for MockProfileWiFiConfigsRepository.
@@ -90,6 +91,7 @@ func (mr *MockProfileWiFiConfigsRepositoryMockRecorder) Insert(ctx, p any) *gomo
 type MockProfileWiFiConfigsFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockProfileWiFiConfigsFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockProfileWiFiConfigsFeatureMockRecorder is the mock recorder for MockProfileWiFiConfigsFeature.

@@ -126,8 +126,9 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 
 func (r *profileRoutes) export(c *gin.Context) {
 	name := c.Param("name")
+	domainName := c.Query("domainName")
 
-	item, key, err := r.t.Export(c.Request.Context(), name, "")
+	item, key, err := r.t.Export(c.Request.Context(), name, domainName, "")
 	if err != nil {
 		r.l.Error(err, "http - v1 - export")
 		ErrorResponse(c, err)

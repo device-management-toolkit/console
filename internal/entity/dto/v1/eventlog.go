@@ -1,5 +1,11 @@
 package dto
 
+// EventLog defines the structure of an event log.
+type EventLogs struct {
+	Records        []EventLog `json:"records"`
+	HasMoreRecords bool       `json:"hasMoreRecords"`
+}
+
 type EventLog struct {
 	DeviceAddress   int    `json:"DeviceAddress"`
 	EventSensorType int    `json:"EventSensorType"`

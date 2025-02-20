@@ -62,6 +62,7 @@ mock: ### run mockgen
 	mockgen -source ./internal/usecase/devices/interfaces.go            -package mocks  -mock_names Repository=MockDeviceManagementRepository,Feature=MockDeviceManagementFeature > ./internal/mocks/devicemanagement_mocks.go
 	mockgen -source ./internal/usecase/amtexplorer/interfaces.go        -package mocks  -mock_names Repository=MockAMTExplorerRepository,Feature=MockAMTExplorerFeature,WSMAN=MockAMTExplorerWSMAN > ./internal/mocks/amtexplorer_mocks.go
 	mockgen -source ./internal/usecase/devices/wsman/interfaces.go      -package mocks  > ./internal/mocks/wsman_mocks.go
+	mockgen -source ./internal/usecase/export/interface.go              -package mocks  > ./internal/mocks/export_mocks.go
 	mockgen -source ./internal/usecase/domains/interfaces.go            -package mocks  -mock_names Repository=MockDomainsRepository,Feature=MockDomainsFeature > ./internal/mocks/domains_mocks.go
 	mockgen -source ./internal/controller/ws/v1/interface.go            -package mocks  > ./internal/mocks/wsv1_mocks.go
 	mockgen -source ./pkg/logger/logger.go                              -package mocks  -mock_names Interface=MockLogger  > ./internal/mocks/logger_mocks.go

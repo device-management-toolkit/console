@@ -644,21 +644,23 @@ func TestGetDomainInformation(t *testing.T) {
 	tests := []struct {
 		name       string
 		activation string
+		domainName string
 		mock       func(domainsMock *mocks.MockDomainsRepository)
-		expected   entity.Domain
+		expected   *entity.Domain
 		err        error
 	}{
 		{
 			name:       "successful retrieval for acmactivate",
 			activation: "acmactivate",
+			domainName: "vpro",
 			mock: func(domainsMock *mocks.MockDomainsRepository) {
 				domainsMock.EXPECT().
-					Get(ctx, 1, 0, tenantID).
-					Return([]entity.Domain{
-						{ProvisioningCertPassword: "encryptedCert"},
+					GetByName(ctx, "vpro", tenantID).
+					Return(&entity.Domain{
+						ProvisioningCertPassword: "encryptedCert",
 					}, nil)
 			},
-			expected: entity.Domain{
+			expected: &entity.Domain{
 				ProvisioningCertPassword: "decrypted",
 			},
 			err: nil,
@@ -666,12 +668,25 @@ func TestGetDomainInformation(t *testing.T) {
 		{
 			name:       "no domains found",
 			activation: "acmactivate",
+			domainName: "domainName",
 			mock: func(domainsMock *mocks.MockDomainsRepository) {
 				domainsMock.EXPECT().
-					Get(ctx, 1, 0, tenantID).
-					Return([]entity.Domain{}, nil)
+					GetByName(ctx, "domainName", tenantID).
+					Return((*entity.Domain)(nil), nil)
 			},
-			expected: entity.Domain{},
+			expected: nil,
+			err:      profiles.ErrNotFound.WrapWithMessage("Export", "uc.domains.Get", "No domains found"),
+		},
+		{
+			name:       "on error",
+			activation: "acmactivate",
+			domainName: "badRequest",
+			mock: func(domainsMock *mocks.MockDomainsRepository) {
+				domainsMock.EXPECT().
+					GetByName(ctx, "badRequest", tenantID).
+					Return(nil, profiles.ErrNotFound)
+			},
+			expected: nil,
 			err:      profiles.ErrNotFound.WrapWithMessage("Export", "uc.domains.Get", "No domains found"),
 		},
 	}
@@ -687,11 +702,11 @@ func TestGetDomainInformation(t *testing.T) {
 
 			useCase := profiles.New(nil, nil, nil, nil, nil, domainsMock, cryptoMock)
 
-			domain, err := useCase.GetDomainInformation(ctx, tc.activation, tenantID)
+			domain, err := useCase.GetDomainInformation(ctx, tc.activation, tc.domainName, tenantID)
 
 			require.Equal(t, tc.expected, domain)
 
-			if tc.err != nil {
+			if tc.err != nil || domain == nil {
 				require.Error(t, err)
 				require.Contains(t, err.Error(), tc.err.Error())
 			} else {
@@ -838,7 +853,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 	tests := []struct {
 		name     string
 		profile  *entity.Profile
-		domain   entity.Domain
+		domain   *entity.Domain
 		wifi     []config.WirelessProfile
 		expected config.Configuration
 	}{
@@ -857,7 +872,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 				IDEREnabled:   true,
 				UserConsent:   "None",
 			},
-			domain: entity.Domain{
+			domain: &entity.Domain{
 				ProvisioningCert:         "testCert",
 				ProvisioningCertPassword: "testCertPwd",
 			},

@@ -320,8 +320,8 @@ func TestDomainRepo_GetByName(t *testing.T) {
 		{
 			name: "Successful retrieval",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert_storage_format, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?)`,
-					"test-domain", "test-suffix", "PEM", "2024-12-31", "tenant1")
+				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+					"test-domain", "test-suffix", "cert", "PEM", "password", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
 			domainName: "test-domain",
@@ -329,7 +329,9 @@ func TestDomainRepo_GetByName(t *testing.T) {
 			expected: &entity.Domain{
 				ProfileName:                   "test-domain",
 				DomainSuffix:                  "test-suffix",
+				ProvisioningCert:              "cert",
 				ProvisioningCertStorageFormat: "PEM",
+				ProvisioningCertPassword:      "password",
 				ExpirationDate:                "2024-12-31",
 				TenantID:                      "tenant1",
 			},

@@ -36,7 +36,7 @@ func (m *MockClient) Send(data []byte) error {
 func (m *MockClient) Receive() ([]byte, error) {
 	args := m.Called()
 
-	return args.Get(0).([]byte), args.Error(1)
+	return args.Get(0).([]byte), args.Error(1) //nolint:errcheck // It's a test...
 }
 
 func (m *MockClient) CloseConnection() error {
@@ -48,25 +48,25 @@ func (m *MockClient) CloseConnection() error {
 func (m *MockClient) Post(msg string) ([]byte, error) {
 	args := m.Called(msg)
 
-	return args.Get(0).([]byte), args.Error(1)
+	return args.Get(0).([]byte), args.Error(1) //nolint:errcheck // It's a test...
 }
 
 func (m *MockClient) Listen() ([]byte, error) {
 	args := m.Called()
 
-	return args.Get(0).([]byte), args.Error(1)
+	return args.Get(0).([]byte), args.Error(1) //nolint:errcheck // It's a test...
 }
 
 func (m *MockClient) IsAuthenticated() bool {
 	args := m.Called()
 
-	return args.Get(0).(bool)
+	return args.Get(0).(bool) //nolint:errcheck // It's a test...
 }
 
 func (m *MockClient) GetServerCertificate() (*tls.Certificate, error) {
 	args := m.Called()
 
-	return args.Get(0).(*tls.Certificate), args.Error(1)
+	return args.Get(0).(*tls.Certificate), args.Error(1) //nolint:errcheck // It's a test...
 }
 
 type wsmanTest struct {

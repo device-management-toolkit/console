@@ -37,7 +37,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Public routes
 	login := v1.NewLoginRoute(cfg)
 	handler.POST("/api/v1/authorize", login.Login)
-
 	// Static files
 	// Serve static assets (js, css, images, etc.)
 	// Create subdirectory view of the embedded file system
@@ -50,7 +49,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.StaticFileFS("/", "./", http.FS(staticFiles)) // Serve static files from "/" route
 	handler.StaticFileFS("/main.js", "./main.js", http.FS(staticFiles))
 	handler.StaticFileFS("/polyfills.js", "./polyfills.js", http.FS(staticFiles))
-	handler.StaticFileFS("/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", "./kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", http.FS(staticFiles))
+	handler.StaticFileFS("/media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", "./media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", http.FS(staticFiles))
 	handler.StaticFileFS("/runtime.js", "./runtime.js", http.FS(staticFiles))
 	handler.StaticFileFS("/styles.css", "./styles.css", http.FS(staticFiles))
 	handler.StaticFileFS("/vendor.js", "./vendor.js", http.FS(staticFiles))
@@ -81,7 +80,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	// Protected routes using JWT middleware
 	var protected *gin.RouterGroup
-	if cfg.App.AuthDisabled {
+	if cfg.Auth.Disabled {
 		protected = handler.Group("/api")
 	} else {
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
@@ -91,7 +90,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	h2 := protected.Group("/v1")
 	{
 		v1.NewDeviceRoutes(h2, t.Devices, l)
-		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, l)
+		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, t.Exporter, l)
 	}
 
 	h := protected.Group("/v1/admin")

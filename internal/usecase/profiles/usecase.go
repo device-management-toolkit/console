@@ -187,21 +187,23 @@ func (uc *UseCase) GetProfileData(ctx context.Context, profileName, tenantID str
 	return data, nil
 }
 
-func (uc *UseCase) GetDomainInformation(ctx context.Context, activation, tenantID string) (entity.Domain, error) {
-	var domain entity.Domain
+func (uc *UseCase) GetDomainInformation(ctx context.Context, activation, domainName, tenantID string) (*entity.Domain, error) {
+	var domain *entity.Domain
 
-	if activation == "acmactivate" {
-		domainsToExport, err := uc.domains.Get(ctx, 1, 0, tenantID)
-		if err != nil || len(domainsToExport) == 0 {
-			return entity.Domain{}, ErrNotFound.WrapWithMessage("Export", "uc.domains.Get", "No domains found")
-		}
+	var err error
 
-		domain = domainsToExport[0]
+	if domainName == "" || activation != "acmactivate" {
+		return nil, nil
+	}
 
-		domain.ProvisioningCertPassword, err = uc.safeRequirements.Decrypt(domain.ProvisioningCertPassword)
-		if err != nil {
-			return entity.Domain{}, err
-		}
+	domain, err = uc.domains.GetByName(ctx, domainName, tenantID)
+	if err != nil || domain == nil {
+		return nil, ErrNotFound.WrapWithMessage("Export", "uc.domains.Get", "No domain found")
+	}
+
+	domain.ProvisioningCertPassword, err = uc.safeRequirements.Decrypt(domain.ProvisioningCertPassword)
+	if err != nil {
+		return nil, err
 	}
 
 	return domain, nil
@@ -257,7 +259,7 @@ func (uc *UseCase) BuildWirelessProfiles(ctx context.Context, wifiConfigs []dto.
 	return wifiProfiles, nil
 }
 
-func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Profile, domainStuff entity.Domain, wifiConfigs []config.WirelessProfile) config.Configuration {
+func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Profile, domainStuff *entity.Domain, wifiConfigs []config.WirelessProfile) config.Configuration {
 	if local.ConsoleConfig == nil {
 		local.ConsoleConfig = &local.Config{
 			EA: local.EA{
@@ -266,6 +268,15 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				Password: "",
 			},
 		}
+	}
+
+	var provisioningCert string
+
+	var provisioningCertPwd string
+
+	if domainStuff != nil {
+		provisioningCert = domainStuff.ProvisioningCert
+		provisioningCertPwd = domainStuff.ProvisioningCertPassword
 	}
 
 	return config.Configuration{
@@ -309,8 +320,8 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				ControlMode:         data.Activation,
 				AdminPassword:       data.AMTPassword,
 				MEBXPassword:        data.MEBXPassword,
-				ProvisioningCert:    domainStuff.ProvisioningCert,
-				ProvisioningCertPwd: domainStuff.ProvisioningCertPassword,
+				ProvisioningCert:    provisioningCert,
+				ProvisioningCertPwd: provisioningCertPwd,
 			},
 		},
 	}
@@ -333,7 +344,7 @@ func (uc *UseCase) SerializeAndEncryptYAML(configuration config.Configuration) (
 }
 
 // Export - will call GetByName and return the profile with the associated wifi configs in YAML format to be downloaded.
-func (uc *UseCase) Export(ctx context.Context, profileName, tenantID string) (encryptedYAML, encryptionKey string, err error) {
+func (uc *UseCase) Export(ctx context.Context, profileName, domainName, tenantID string) (encryptedYAML, encryptionKey string, err error) {
 	data, err := uc.GetProfileData(ctx, profileName, tenantID)
 	if err != nil {
 		return "", "", err
@@ -344,7 +355,7 @@ func (uc *UseCase) Export(ctx context.Context, profileName, tenantID string) (en
 		return "", "", err
 	}
 
-	domainStuff, err := uc.GetDomainInformation(ctx, data.Activation, tenantID)
+	domainStuff, err := uc.GetDomainInformation(ctx, data.Activation, domainName, tenantID)
 	if err != nil {
 		return "", "", err
 	}

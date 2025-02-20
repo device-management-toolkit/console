@@ -139,7 +139,8 @@ func TestNewLogger(t *testing.T) {
 			log := New(tc.level)
 			require.NotNil(t, log)
 
-			assert.Equal(t, tc.expectedLevel, log.(*logger).logger.GetLevel())
+			level := log.(*logger).logger.GetLevel() //nolint:errcheck // It's a test...
+			assert.Equal(t, tc.expectedLevel, level)
 		})
 	}
 }

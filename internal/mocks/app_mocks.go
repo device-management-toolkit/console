@@ -23,6 +23,7 @@ import (
 type MockDB struct {
 	ctrl     *gomock.Controller
 	recorder *MockDBMockRecorder
+	isgomock struct{}
 }
 
 // MockDBMockRecorder is the mock recorder for MockDB.
@@ -100,6 +101,7 @@ func (mr *MockDBMockRecorder) QueryContext(ctx, query any, args ...any) *gomock.
 type MockHTTPServer struct {
 	ctrl     *gomock.Controller
 	recorder *MockHTTPServerMockRecorder
+	isgomock struct{}
 }
 
 // MockHTTPServerMockRecorder is the mock recorder for MockHTTPServer.
@@ -165,6 +167,7 @@ func (mr *MockHTTPServerMockRecorder) Start() *gomock.Call {
 type MockWebSocketUpgrader struct {
 	ctrl     *gomock.Controller
 	recorder *MockWebSocketUpgraderMockRecorder
+	isgomock struct{}
 }
 
 // MockWebSocketUpgraderMockRecorder is the mock recorder for MockWebSocketUpgrader.

@@ -22,6 +22,7 @@ import (
 type MockProfilesRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockProfilesRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockProfilesRepositoryMockRecorder is the mock recorder for MockProfilesRepository.
@@ -135,6 +136,7 @@ func (mr *MockProfilesRepositoryMockRecorder) Update(ctx, p any) *gomock.Call {
 type MockProfilesFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockProfilesFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockProfilesFeatureMockRecorder is the mock recorder for MockProfilesFeature.
@@ -169,9 +171,9 @@ func (mr *MockProfilesFeatureMockRecorder) Delete(ctx, profileName, tenantID any
 }
 
 // Export mocks base method.
-func (m *MockProfilesFeature) Export(ctx context.Context, profileName, tenantID string) (string, string, error) {
+func (m *MockProfilesFeature) Export(ctx context.Context, profileName, domainName, tenantID string) (string, string, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Export", ctx, profileName, tenantID)
+	ret := m.ctrl.Call(m, "Export", ctx, profileName, domainName, tenantID)
 	ret0, _ := ret[0].(string)
 	ret1, _ := ret[1].(string)
 	ret2, _ := ret[2].(error)
@@ -179,9 +181,9 @@ func (m *MockProfilesFeature) Export(ctx context.Context, profileName, tenantID 
 }
 
 // Export indicates an expected call of Export.
-func (mr *MockProfilesFeatureMockRecorder) Export(ctx, profileName, tenantID any) *gomock.Call {
+func (mr *MockProfilesFeatureMockRecorder) Export(ctx, profileName, domainName, tenantID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Export", reflect.TypeOf((*MockProfilesFeature)(nil).Export), ctx, profileName, tenantID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Export", reflect.TypeOf((*MockProfilesFeature)(nil).Export), ctx, profileName, domainName, tenantID)
 }
 
 // Get mocks base method.

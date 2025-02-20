@@ -26,7 +26,7 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 
 	_, _ = config.NewConfig()
 
-	config.ConsoleConfig.AuthDisabled = true
+	config.ConsoleConfig.Disabled = true
 	mockFeature := mocks.NewMockFeature(ctrl)
 	mockUpgrader := mocks.NewMockUpgrader(ctrl)
 	mockLogger := mocks.NewMockLogger(ctrl)

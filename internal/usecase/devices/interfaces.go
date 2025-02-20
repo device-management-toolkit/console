@@ -72,7 +72,7 @@ type (
 		SendPowerAction(ctx context.Context, guid string, action int) (power.PowerActionResponse, error)
 		SetBootOptions(ctx context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error)
 		GetAuditLog(ctx context.Context, startIndex int, guid string) (dto.AuditLog, error)
-		GetEventLog(ctx context.Context, guid string) ([]dto.EventLog, error)
+		GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
 		Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error
 		GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
 		GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)

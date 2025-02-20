@@ -123,48 +123,55 @@ func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (
 	return auditLogResponse, nil
 }
 
-func (uc *UseCase) GetEventLog(c context.Context, guid string) ([]dto.EventLog, error) {
+func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.EventLogs{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.EventLogs{}, ErrNotFound
 	}
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
-	eventLogs, err := device.GetEventLog()
+	eventLogs, err := device.GetEventLog(startIndex, maxReadRecords)
 	if err != nil {
-		return nil, err
+		return dto.EventLogs{}, err
 	}
 
-	events := make([]dto.EventLog, len(eventLogs.RefinedEventData))
+	// Initialize with nil if no records
+	var events []dto.EventLog
+	if len(eventLogs.RefinedEventData) > 0 {
+		events = make([]dto.EventLog, len(eventLogs.RefinedEventData))
 
-	for idx := range eventLogs.RefinedEventData {
-		event := &eventLogs.RefinedEventData[idx]
-		dtoEvent := dto.EventLog{
-			// DeviceAddress:   event.DeviceAddress,
-			// EventSensorType: event.EventSensorType,
-			// EventType:       event.EventType,
-			// EventOffset:     event.EventOffset,
-			// EventSourceType: event.EventSourceType,
-			EventSeverity: event.EventSeverity,
-			// SensorNumber:    event.SensorNumber,
-			Entity: event.Entity,
-			// EntityInstance:  event.EntityInstance,
-			// EventData:       event.EventData,
-			Time: event.TimeStamp.String(),
-			// EntityStr:       event.EntityStr,
-			Description: event.Description,
-			// EventTypeDesc:   event.EventTypeDesc,
+		for idx := range eventLogs.RefinedEventData {
+			event := &eventLogs.RefinedEventData[idx]
+			dtoEvent := dto.EventLog{
+				// DeviceAddress:   event.DeviceAddress,
+				// EventSensorType: event.EventSensorType,
+				// EventType:       event.EventType,
+				// EventOffset:     event.EventOffset,
+				// EventSourceType: event.EventSourceType,
+				EventSeverity: event.EventSeverity,
+				// SensorNumber:    event.SensorNumber,
+				Entity: event.Entity,
+				// EntityInstance:  event.EntityInstance,
+				// EventData:       event.EventData,
+				Time: event.TimeStamp.String(),
+				// EntityStr:       event.EntityStr,
+				Description: event.Description,
+				// EventTypeDesc:   event.EventTypeDesc,
+			}
+
+			events[idx] = dtoEvent
 		}
-
-		events[idx] = dtoEvent
 	}
 
-	return events, nil
+	return dto.EventLogs{
+		Records:        events,
+		HasMoreRecords: !eventLogs.NoMoreRecords,
+	}, nil
 }
 
 func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (interface{}, error) {

@@ -39,6 +39,7 @@ import (
 type MockManagement struct {
 	ctrl     *gomock.Controller
 	recorder *MockManagementMockRecorder
+	isgomock struct{}
 }
 
 // MockManagementMockRecorder is the mock recorder for MockManagement.
@@ -268,18 +269,18 @@ func (mr *MockManagementMockRecorder) GetDiskInfo() *gomock.Call {
 }
 
 // GetEventLog mocks base method.
-func (m *MockManagement) GetEventLog() (messagelog.GetRecordsResponse, error) {
+func (m *MockManagement) GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventLog")
+	ret := m.ctrl.Call(m, "GetEventLog", startIndex, maxReadRecords)
 	ret0, _ := ret[0].(messagelog.GetRecordsResponse)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetEventLog indicates an expected call of GetEventLog.
-func (mr *MockManagementMockRecorder) GetEventLog() *gomock.Call {
+func (mr *MockManagementMockRecorder) GetEventLog(startIndex, maxReadRecords any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockManagement)(nil).GetEventLog))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockManagement)(nil).GetEventLog), startIndex, maxReadRecords)
 }
 
 // GetGeneralSettings mocks base method.

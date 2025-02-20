@@ -9,6 +9,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/export"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/ieee8021xconfigs"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profilewificonfigs"
@@ -28,6 +29,7 @@ type Usecases struct {
 	IEEE8021xProfiles  ieee8021xconfigs.Feature
 	CIRAConfigs        ciraconfigs.Feature
 	WirelessProfiles   wificonfigs.Feature
+	Exporter           export.Exporter
 }
 
 // New -.
@@ -58,5 +60,6 @@ func NewUseCases(database *db.SQL, log logger.Interface) *Usecases {
 		CIRAConfigs:        ciraconfigs.New(ciraRepo, log, safeRequirements),
 		WirelessProfiles:   wificonfig,
 		ProfileWiFiConfigs: pwc,
+		Exporter:           export.NewFileExporter(),
 	}
 }

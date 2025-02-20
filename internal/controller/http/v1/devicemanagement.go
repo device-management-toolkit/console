@@ -1,25 +1,29 @@
 package v1
 
 import (
+	"io"
 	"net/http"
 	"strconv"
 
 	"github.com/gin-gonic/gin"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/amtexplorer"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/export"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
 type deviceManagementRoutes struct {
 	d devices.Feature
 	a amtexplorer.Feature
+	e export.Exporter
 	l logger.Interface
 }
 
-func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.Feature, l logger.Interface) {
-	r := &deviceManagementRoutes{d, amt, l}
+func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.Feature, e export.Exporter, l logger.Interface) {
+	r := &deviceManagementRoutes{d, amt, e, l}
 
 	h := handler.Group("/amt")
 	{
@@ -41,7 +45,9 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.GET("power/capabilities/:guid", r.getPowerCapabilities)
 
 		h.GET("log/audit/:guid", r.getAuditLog)
+		h.GET("log/audit/:guid/download", r.downloadAuditLog)
 		h.GET("log/event/:guid", r.getEventLog)
+		h.GET("log/event/:guid/download", r.downloadEventLog)
 		h.GET("generalSettings/:guid", r.getGeneralSettings)
 
 		h.GET("userConsentCode/cancel/:guid", r.cancelUserConsentCode)
@@ -336,10 +342,63 @@ func (r *deviceManagementRoutes) getAuditLog(c *gin.Context) {
 	c.JSON(http.StatusOK, auditLogs)
 }
 
+func (r *deviceManagementRoutes) downloadAuditLog(c *gin.Context) {
+	guid := c.Param("guid")
+
+	var allRecords []auditlog.AuditLogRecord
+
+	startIndex := 1
+
+	for {
+		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid)
+		if err != nil {
+			r.l.Error(err, "http - v1 - getAuditLog")
+			ErrorResponse(c, err)
+
+			return
+		}
+
+		allRecords = append(allRecords, auditLogs.Records...)
+
+		if len(allRecords) >= auditLogs.TotalCount {
+			break
+		}
+
+		startIndex += len(auditLogs.Records)
+	}
+
+	// Convert logs to CSV
+	csvReader, err := r.e.ExportAuditLogsCSV(allRecords)
+	if err != nil {
+		r.l.Error(err, "http - v1 - downloadAuditLog")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	// Serve the CSV file
+	c.Header("Content-Disposition", "attachment; filename=audit_logs.csv")
+	c.Header("Content-Type", "text/csv")
+
+	_, err = io.Copy(c.Writer, csvReader)
+	if err != nil {
+		r.l.Error(err, "http - v1 - downloadAuditLog")
+		ErrorResponse(c, err)
+	}
+}
+
 func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 	guid := c.Param("guid")
 
-	eventLogs, err := r.d.GetEventLog(c.Request.Context(), guid)
+	var odata OData
+	if err := c.ShouldBindQuery(&odata); err != nil {
+		validationErr := ErrValidationProfile.Wrap("get", "ShouldBindQuery", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getEventLog")
 		ErrorResponse(c, err)
@@ -348,6 +407,55 @@ func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, eventLogs)
+}
+
+func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
+	guid := c.Param("guid")
+
+	var allEventLogs []dto.EventLog
+
+	startIndex := 0
+
+	// Keep fetching logs until NoMoreRecords is true
+	for {
+		eventLogs, err := r.d.GetEventLog(c.Request.Context(), 0, 0, guid)
+		if err != nil {
+			r.l.Error(err, "http - v1 - getEventLog")
+			ErrorResponse(c, err)
+
+			return
+		}
+
+		// Append the current batch of logs
+		allEventLogs = append(allEventLogs, eventLogs.Records...)
+
+		// Break if no more records
+		if eventLogs.HasMoreRecords {
+			break
+		}
+
+		// Update the startIndex for the next batch
+		startIndex += len(eventLogs.Records)
+	}
+
+	// Convert logs to CSV
+	csvReader, err := r.e.ExportEventLogsCSV(allEventLogs)
+	if err != nil {
+		r.l.Error(err, "http - v1 - downloadEventLog")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	// Serve the CSV file
+	c.Header("Content-Disposition", "attachment; filename=event_logs.csv")
+	c.Header("Content-Type", "text/csv")
+
+	_, err = io.Copy(c.Writer, csvReader)
+	if err != nil {
+		r.l.Error(err, "http - v1 - downloadEventLog")
+		ErrorResponse(c, err)
+	}
 }
 
 func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {

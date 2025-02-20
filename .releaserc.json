@@ -4,8 +4,8 @@
       "name": "main"
     },
     {
-      "name": "alpha",
-      "prerelease": "alpha"
+      "name": "beta",
+      "prerelease": "beta"
     }
   ],
   "plugins": [
@@ -21,12 +21,8 @@
             "label": "Linux x64 Console Executable"
           },
           {
-            "path": "console_windows_x64.exe",
+            "path": "dist/windows/console_windows_x64.exe",
             "label": "Windows x64 Console Executable"
-          },
-          {
-            "path": "console_mac_x64.tar.gz",
-            "label": "Mac x64 Console Executable"
           },
           {
             "path": "console_mac_arm64.tar.gz",
@@ -35,13 +31,12 @@
         ]
       }
     ],
-    "@semantic-release/github",
     [
       "@semantic-release/exec",
       {
         "prepareCmd": "./build.sh ${nextRelease.version} ",
         "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version}",
-        "verifyReleaseCmd": "echo v${nextRelease.version} > .nextVersion"
+        "verifyReleaseCmd": "echo v${nextRelease.version} > .VERSION"
       }
     ]
   ]

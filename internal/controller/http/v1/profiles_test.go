@@ -197,6 +197,66 @@ func TestProfileRoutes(t *testing.T) {
 			requestBody:  profileTest,
 			expectedCode: http.StatusBadRequest,
 		},
+		{
+			name:   "export profile successfully",
+			method: http.MethodGet,
+			url:    "/api/v1/admin/profiles/export/profile?domainName=test.com",
+			mock: func(profile *mocks.MockProfilesFeature) {
+				profile.EXPECT().Export(context.Background(), "profile", "test.com", "").Return(
+					"yaml-content",   // content
+					"encryption-key", // key
+					nil,              // error
+				)
+			},
+			response: gin.H{
+				"filename": "profile.yaml",
+				"content":  "yaml-content",
+				"key":      "encryption-key",
+			},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "export profile - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/admin/profiles/export/profile?domainName=test.com",
+			mock: func(profile *mocks.MockProfilesFeature) {
+				profile.EXPECT().Export(
+					context.Background(),
+					"profile",
+					"test.com",
+					"",
+				).Return(
+					"", // empty content
+					"", // empty key
+					profiles.ErrDatabase,
+				)
+			},
+			response:     profiles.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:   "export profile with no domain",
+			method: http.MethodGet,
+			url:    "/api/v1/admin/profiles/export/profile",
+			mock: func(profile *mocks.MockProfilesFeature) {
+				profile.EXPECT().Export(
+					context.Background(),
+					"profile",
+					"",
+					"",
+				).Return(
+					"yaml-content",   // content
+					"encryption-key", // key
+					nil,              // error
+				)
+			},
+			response: gin.H{
+				"filename": "profile.yaml",
+				"content":  "yaml-content",
+				"key":      "encryption-key",
+			},
+			expectedCode: http.StatusOK,
+		},
 	}
 
 	for _, tc := range tests {
@@ -231,8 +291,18 @@ func TestProfileRoutes(t *testing.T) {
 			require.Equal(t, tc.expectedCode, w.Code)
 
 			if tc.expectedCode == http.StatusOK || tc.expectedCode == http.StatusCreated {
-				jsonBytes, _ := json.Marshal(tc.response)
-				require.Equal(t, string(jsonBytes), w.Body.String())
+				if response, ok := tc.response.(gin.H); ok {
+					// For gin.H responses (like from export)
+					var actualResponse gin.H
+					err := json.Unmarshal(w.Body.Bytes(), &actualResponse)
+					require.NoError(t, err)
+					require.Equal(t, response, actualResponse)
+				} else {
+					// For other responses
+					jsonBytes, err := json.Marshal(tc.response)
+					require.NoError(t, err)
+					require.Equal(t, string(jsonBytes), w.Body.String())
+				}
 			}
 		})
 	}

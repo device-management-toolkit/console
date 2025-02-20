@@ -156,7 +156,9 @@ func (r *DomainRepo) GetByName(_ context.Context, domainName, tenantID string) (
 		Select(
 			"name",
 			"domain_suffix",
+			"provisioning_cert",
 			"provisioning_cert_storage_format",
+			"provisioning_cert_key",
 			"expiration_date",
 			"tenant_id",
 		).
@@ -171,7 +173,7 @@ func (r *DomainRepo) GetByName(_ context.Context, domainName, tenantID string) (
 
 	d := entity.Domain{}
 
-	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCertStorageFormat, &d.ExpirationDate, &d.TenantID)
+	err = row.Scan(&d.ProfileName, &d.DomainSuffix, &d.ProvisioningCert, &d.ProvisioningCertStorageFormat, &d.ProvisioningCertPassword, &d.ExpirationDate, &d.TenantID)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return nil, nil

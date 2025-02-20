@@ -22,6 +22,7 @@ import (
 type MockIEEE8021xConfigsRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockIEEE8021xConfigsRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockIEEE8021xConfigsRepositoryMockRecorder is the mock recorder for MockIEEE8021xConfigsRepository.
@@ -150,6 +151,7 @@ func (mr *MockIEEE8021xConfigsRepositoryMockRecorder) Update(ctx, p any) *gomock
 type MockIEEE8021xConfigsFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockIEEE8021xConfigsFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockIEEE8021xConfigsFeatureMockRecorder is the mock recorder for MockIEEE8021xConfigsFeature.

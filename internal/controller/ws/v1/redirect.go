@@ -31,7 +31,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 	tokenString := c.GetHeader("Sec-Websocket-Protocol")
 
 	// validate jwt token in the Sec-Websocket-protocol header
-	if !config.ConsoleConfig.AuthDisabled {
+	if !config.ConsoleConfig.Disabled {
 		if tokenString == "" {
 			http.Error(c.Writer, "request does not contain an access token", http.StatusUnauthorized)
 
@@ -41,7 +41,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		claims := &jwt.MapClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
-			return []byte(config.ConsoleConfig.App.JWTKey), nil
+			return []byte(config.ConsoleConfig.Auth.JWTKey), nil
 		})
 
 		if err != nil || !token.Valid {

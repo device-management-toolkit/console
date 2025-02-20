@@ -50,7 +50,7 @@ type Management interface {
 	SetBootConfigRole(role int) (interface{}, error)
 	ChangeBootOrder(bootSource string) (cimBoot.ChangeBootOrder_OUTPUT, error)
 	GetAuditLog(startIndex int) (auditlog.Response, error)
-	GetEventLog() (messagelog.GetRecordsResponse, error)
+	GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error)
 	GetNetworkSettings() (NetworkResults, error)
 	GetCertificates() (Certificates, error)
 	GetTLSSettingData() ([]tls.SettingDataResponse, error)

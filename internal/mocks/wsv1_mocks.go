@@ -26,6 +26,7 @@ import (
 type MockUpgrader struct {
 	ctrl     *gomock.Controller
 	recorder *MockUpgraderMockRecorder
+	isgomock struct{}
 }
 
 // MockUpgraderMockRecorder is the mock recorder for MockUpgrader.
@@ -64,6 +65,7 @@ func (mr *MockUpgraderMockRecorder) Upgrade(w, r, hdr any) *gomock.Call {
 type MockRedirect struct {
 	ctrl     *gomock.Controller
 	recorder *MockRedirectMockRecorder
+	isgomock struct{}
 }
 
 // MockRedirectMockRecorder is the mock recorder for MockRedirect.
@@ -101,6 +103,7 @@ func (mr *MockRedirectMockRecorder) Redirect(c, conn, host, mode any) *gomock.Ca
 type MockFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockFeatureMockRecorder is the mock recorder for MockFeature.
@@ -344,18 +347,18 @@ func (mr *MockFeatureMockRecorder) GetDistinctTags(ctx, tenantID any) *gomock.Ca
 }
 
 // GetEventLog mocks base method.
-func (m *MockFeature) GetEventLog(ctx context.Context, guid string) ([]dto.EventLog, error) {
+func (m *MockFeature) GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventLog", ctx, guid)
-	ret0, _ := ret[0].([]dto.EventLog)
+	ret := m.ctrl.Call(m, "GetEventLog", ctx, startIndex, maxReadRecords, guid)
+	ret0, _ := ret[0].(dto.EventLogs)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetEventLog indicates an expected call of GetEventLog.
-func (mr *MockFeatureMockRecorder) GetEventLog(ctx, guid any) *gomock.Call {
+func (mr *MockFeatureMockRecorder) GetEventLog(ctx, startIndex, maxReadRecords, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockFeature)(nil).GetEventLog), ctx, guid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockFeature)(nil).GetEventLog), ctx, startIndex, maxReadRecords, guid)
 }
 
 // GetFeatures mocks base method.

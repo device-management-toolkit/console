@@ -25,7 +25,7 @@ services:
       HTTP_HOST: ""
       GIN_MODE: "debug"
       #DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
-      APP_AUTH_DISABLED: true
+      AUTH_DISABLED: true
     ports:
       - 8181:8181
       - 4433:4433

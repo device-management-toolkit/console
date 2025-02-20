@@ -426,22 +426,22 @@ func TestGetEventLog(t *testing.T) {
 
 	tests := []test{
 		{
-			name:   "success",
+			name:   "success - with no more records",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
 					Return(man2)
 				man2.EXPECT().
-					GetEventLog().
-					Return(messagelog.GetRecordsResponse{}, nil)
+					GetEventLog(1, 10).
+					Return(messagelog.GetRecordsResponse{NoMoreRecords: true}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: []dto.EventLog{},
+			res: dto.EventLogs{},
 			err: nil,
 		},
 		{
@@ -453,7 +453,7 @@ func TestGetEventLog(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: []dto.EventLog(nil),
+			res: dto.EventLogs{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -464,7 +464,7 @@ func TestGetEventLog(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), false, true).
 					Return(man2)
 				man2.EXPECT().
-					GetEventLog().
+					GetEventLog(1, 10).
 					Return(messagelog.GetRecordsResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -472,7 +472,7 @@ func TestGetEventLog(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: []dto.EventLog(nil),
+			res: dto.EventLogs{},
 			err: ErrGeneral,
 		},
 	}
@@ -489,7 +489,7 @@ func TestGetEventLog(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetEventLog(context.Background(), device.GUID)
+			res, err := useCase.GetEventLog(context.Background(), 1, 10, device.GUID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)

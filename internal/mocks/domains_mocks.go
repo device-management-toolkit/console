@@ -22,6 +22,7 @@ import (
 type MockDomainsRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockDomainsRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockDomainsRepositoryMockRecorder is the mock recorder for MockDomainsRepository.
@@ -150,6 +151,7 @@ func (mr *MockDomainsRepositoryMockRecorder) Update(ctx, d any) *gomock.Call {
 type MockDomainsFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockDomainsFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockDomainsFeatureMockRecorder is the mock recorder for MockDomainsFeature.

@@ -26,7 +26,7 @@ func main() {
 		log.Fatalf("Config error: %s", err)
 	}
 
-	err = initializeAppFunc()
+	err = initializeAppFunc(cfg)
 	if err != nil {
 		log.Fatalf("App init error: %s", err)
 	}

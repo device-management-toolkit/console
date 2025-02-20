@@ -28,6 +28,7 @@ import (
 type MockWSMAN struct {
 	ctrl     *gomock.Controller
 	recorder *MockWSMANMockRecorder
+	isgomock struct{}
 }
 
 // MockWSMANMockRecorder is the mock recorder for MockWSMAN.
@@ -89,6 +90,7 @@ func (mr *MockWSMANMockRecorder) Worker() *gomock.Call {
 type MockWebSocketConn struct {
 	ctrl     *gomock.Controller
 	recorder *MockWebSocketConnMockRecorder
+	isgomock struct{}
 }
 
 // MockWebSocketConnMockRecorder is the mock recorder for MockWebSocketConn.
@@ -156,6 +158,7 @@ func (mr *MockWebSocketConnMockRecorder) WriteMessage(messageType, data any) *go
 type MockRedirection struct {
 	ctrl     *gomock.Controller
 	recorder *MockRedirectionMockRecorder
+	isgomock struct{}
 }
 
 // MockRedirectionMockRecorder is the mock recorder for MockRedirection.
@@ -250,6 +253,7 @@ func (mr *MockRedirectionMockRecorder) SetupWsmanClient(device, isRedirection, l
 type MockDeviceManagementRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockDeviceManagementRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockDeviceManagementRepositoryMockRecorder is the mock recorder for MockDeviceManagementRepository.
@@ -408,6 +412,7 @@ func (mr *MockDeviceManagementRepositoryMockRecorder) Update(ctx, d any) *gomock
 type MockDeviceManagementFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockDeviceManagementFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockDeviceManagementFeatureMockRecorder is the mock recorder for MockDeviceManagementFeature.
@@ -651,18 +656,18 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetDistinctTags(ctx, tenantID
 }
 
 // GetEventLog mocks base method.
-func (m *MockDeviceManagementFeature) GetEventLog(ctx context.Context, guid string) ([]dto.EventLog, error) {
+func (m *MockDeviceManagementFeature) GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetEventLog", ctx, guid)
-	ret0, _ := ret[0].([]dto.EventLog)
+	ret := m.ctrl.Call(m, "GetEventLog", ctx, startIndex, maxReadRecords, guid)
+	ret0, _ := ret[0].(dto.EventLogs)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetEventLog indicates an expected call of GetEventLog.
-func (mr *MockDeviceManagementFeatureMockRecorder) GetEventLog(ctx, guid any) *gomock.Call {
+func (mr *MockDeviceManagementFeatureMockRecorder) GetEventLog(ctx, startIndex, maxReadRecords, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetEventLog), ctx, guid)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEventLog", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetEventLog), ctx, startIndex, maxReadRecords, guid)
 }
 
 // GetFeatures mocks base method.

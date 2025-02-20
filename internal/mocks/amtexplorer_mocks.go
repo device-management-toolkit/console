@@ -66,6 +66,7 @@ import (
 type MockAMTExplorer struct {
 	ctrl     *gomock.Controller
 	recorder *MockAMTExplorerMockRecorder
+	isgomock struct{}
 }
 
 // MockAMTExplorerMockRecorder is the mock recorder for MockAMTExplorer.
@@ -914,6 +915,7 @@ func (mr *MockAMTExplorerMockRecorder) GetIPSOptInService() *gomock.Call {
 type MockAMTExplorerFeature struct {
 	ctrl     *gomock.Controller
 	recorder *MockAMTExplorerFeatureMockRecorder
+	isgomock struct{}
 }
 
 // MockAMTExplorerFeatureMockRecorder is the mock recorder for MockAMTExplorerFeature.
@@ -966,6 +968,7 @@ func (mr *MockAMTExplorerFeatureMockRecorder) GetExplorerSupportedCalls() *gomoc
 type MockAMTExplorerRepository struct {
 	ctrl     *gomock.Controller
 	recorder *MockAMTExplorerRepositoryMockRecorder
+	isgomock struct{}
 }
 
 // MockAMTExplorerRepositoryMockRecorder is the mock recorder for MockAMTExplorerRepository.
@@ -1004,6 +1007,7 @@ func (mr *MockAMTExplorerRepositoryMockRecorder) GetByID(ctx, guid, tenantID any
 type MockAMTExplorerWSMAN struct {
 	ctrl     *gomock.Controller
 	recorder *MockAMTExplorerWSMANMockRecorder
+	isgomock struct{}
 }
 
 // MockAMTExplorerWSMANMockRecorder is the mock recorder for MockAMTExplorerWSMAN.

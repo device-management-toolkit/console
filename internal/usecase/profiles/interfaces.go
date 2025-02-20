@@ -24,6 +24,6 @@ type (
 		Delete(ctx context.Context, profileName, tenantID string) error
 		Update(ctx context.Context, p *dto.Profile) (*dto.Profile, error)
 		Insert(ctx context.Context, p *dto.Profile) (*dto.Profile, error)
-		Export(ctx context.Context, profileName, tenantID string) (string, string, error)
+		Export(ctx context.Context, profileName, domainName, tenantID string) (string, string, error)
 	}
 )
