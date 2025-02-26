@@ -7,13 +7,44 @@ import (
 
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/amterror"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
+
+var ErrOCRNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("One Click Recovery Unsupported")}
+
+func determineOCRStatus(bootSourceSettings *cimBoot.Response, bootService *cimBoot.BootService) (isOCREnabled, isOCRSupported bool) {
+	const targetInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
+
+	for _, setting := range bootSourceSettings.Body.PullResponse.BootSourceSettingItems {
+		if strings.HasPrefix(setting.InstanceID, targetInstanceID) {
+			isOCRSupported = true
+
+			break
+		}
+	}
+
+	if bootService != nil {
+		enabledState := bootService.EnabledState
+
+		switch {
+		case !isOCRSupported:
+			isOCRSupported = false
+		case enabledState == 32769 || enabledState == 32771:
+			isOCREnabled = true
+		default:
+			isOCREnabled = false
+		}
+	}
+
+	return isOCREnabled, isOCRSupported
+}
 
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
 	item, err := uc.repo.GetByID(c, guid, "")
@@ -57,6 +88,22 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	// translate v2 features to v1 - remove this once v1 is deprecated
 	settingsResults.EnableKVM = settingsResultsV2.EnableKVM
 	settingsResults.KVMAvailable = settingsResultsV2.KVMAvailable
+
+	bootService, err := device.GetBootService()
+	if err != nil {
+		return dto.Features{}, dtov2.Features{}, err
+	}
+
+	bootSourceSettings, err := device.GetCIMBootSourceSetting()
+	if err != nil {
+		return dto.Features{}, dtov2.Features{}, err
+	}
+
+	ocrStatus, ocrSupported := determineOCRStatus(&bootSourceSettings, &bootService)
+	settingsResults.HTTPBoot = ocrStatus
+	settingsResults.HTTPBootSupport = ocrSupported
+	settingsResultsV2.HTTPBoot = ocrStatus
+	settingsResultsV2.HTTPBootSupport = ocrSupported
 
 	return settingsResults, settingsResultsV2, nil
 }
@@ -111,7 +158,56 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	settingsResults.UserConsent = features.UserConsent
 	settingsResultsV2.UserConsent = features.UserConsent
 
+	// Configure OCR settings
+	err = uc.configureOCRSettings(device, features, &settingsResults, &settingsResultsV2)
+	if err != nil {
+		return settingsResults, settingsResultsV2, err
+	}
+
 	return settingsResults, settingsResultsV2, err
+}
+
+func (uc *UseCase) configureOCRSettings(device wsman.Management, features dto.Features, settingsResults *dto.Features, settingsResultsV2 *dtov2.Features,
+) error {
+	// Get current boot settings to check OCR support
+	bootSourceSettings, err := device.GetCIMBootSourceSetting()
+	if err != nil {
+		return err
+	}
+
+	_, ocrSupported := determineOCRStatus(&bootSourceSettings, nil)
+
+	// Determine requested state based on OCR setting
+	var requestedState int
+
+	switch {
+	case !ocrSupported:
+		return ErrOCRNotSupportedUseCase
+	case features.HTTPBoot:
+		requestedState = 32769
+	default:
+		requestedState = 32768
+	}
+
+	// Change boot service state
+	_, err = device.BootServiceStateChange(requestedState)
+	if err != nil {
+		return err
+	}
+
+	// Get updated boot service to return current status
+	updatedBootService, err := device.GetBootService()
+	if err != nil {
+		return err
+	}
+
+	ocrStatus, ocrSupported := determineOCRStatus(&bootSourceSettings, &updatedBootService)
+	settingsResults.HTTPBoot = ocrStatus
+	settingsResults.HTTPBootSupport = ocrSupported
+	settingsResultsV2.HTTPBoot = ocrStatus
+	settingsResultsV2.HTTPBootSupport = ocrSupported
+
+	return nil
 }
 
 func handleAMTKVMError(err error, results *dtov2.Features) bool {
