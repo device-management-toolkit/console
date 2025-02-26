@@ -71,6 +71,8 @@ type (
 		SendConsentCode(ctx context.Context, code dto.UserConsentCode, guid string) (dto.UserConsentMessage, error)
 		SendPowerAction(ctx context.Context, guid string, action int) (power.PowerActionResponse, error)
 		SetBootOptions(ctx context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error)
+		GetBootFeatures(ctx context.Context, guid string) (dto.BootFeatures, error)
+		SetBootFeatures(c context.Context, guid string, bootFeatures dto.BootFeaturesRequest) (dto.BootFeatures, error)
 		GetAuditLog(ctx context.Context, startIndex int, guid string) (dto.AuditLog, error)
 		GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
 		Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error

@@ -44,6 +44,9 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("power/bootoptions/:guid", r.setBootOptions)
 		h.GET("power/capabilities/:guid", r.getPowerCapabilities)
 
+		h.GET("boot/features/:guid", r.getBootFeatures)
+		h.POST("boot/features/:guid", r.setBootFeatures)
+
 		h.GET("log/audit/:guid", r.getAuditLog)
 		h.GET("log/audit/:guid/download", r.downloadAuditLog)
 		h.GET("log/event/:guid", r.getEventLog)
@@ -477,6 +480,41 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, features)
+}
+
+func (r *deviceManagementRoutes) getBootFeatures(c *gin.Context) {
+	guid := c.Param("guid")
+
+	bootService, err := r.d.GetBootFeatures(c.Request.Context(), guid)
+	if err != nil {
+		r.l.Error(err, "http - v1 - getBootFeatures")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, bootService)
+}
+
+func (r *deviceManagementRoutes) setBootFeatures(c *gin.Context) {
+	guid := c.Param("guid")
+
+	var features dto.BootFeaturesRequest
+	if err := c.ShouldBindJSON(&features); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	bootFeatures, err := r.d.SetBootFeatures(c.Request.Context(), guid, features)
+	if err != nil {
+		r.l.Error(err, "http - v1 - setBootFeatures")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, bootFeatures)
 }
 
 func (r *deviceManagementRoutes) getNetworkSettings(c *gin.Context) {

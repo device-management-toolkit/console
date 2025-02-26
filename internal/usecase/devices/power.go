@@ -11,7 +11,10 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
+
+var ErrOCRNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("One Click Recovery Unsupported")}
 
 func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (power.PowerActionResponse, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
@@ -125,6 +128,115 @@ func determinePowerCapabilities(amtversion int, capabilities boot.BootCapabiliti
 	response.PowerOnToPXE = 401
 
 	return response
+}
+
+func determineOCRStatus(bootSourceSettings *cimBoot.Response, bootService *cimBoot.BootService) (bool, bool) {
+	const targetInstanceID = "Intel(r) AMT: Force OCR UEFI Boot"
+	ocrSupported := false
+
+	for _, setting := range bootSourceSettings.Body.PullResponse.BootSourceSettingItems {
+		if strings.HasPrefix(setting.InstanceID, targetInstanceID) {
+			ocrSupported = true
+			break
+		}
+	}
+
+	var ocrStatus bool
+	if bootService != nil {
+		enabledState := bootService.EnabledState
+
+		if !ocrSupported {
+			ocrStatus = false
+		} else if enabledState == 32769 || enabledState == 32771 {
+			ocrStatus = true
+		} else {
+			ocrStatus = false
+		}
+	}
+
+	return ocrStatus, ocrSupported
+}
+
+func (uc *UseCase) GetBootFeatures(c context.Context, guid string) (dto.BootFeatures, error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	if item == nil || item.GUID == "" {
+		return dto.BootFeatures{}, ErrNotFound
+	}
+
+	device := uc.device.SetupWsmanClient(*item, false, true)
+
+	bootService, err := device.GetBootService()
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	bootSourceSettings, err := device.GetCIMBootSourceSetting()
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	ocrStatus, ocrSupported := determineOCRStatus(&bootSourceSettings, &bootService)
+
+	return dto.BootFeatures{
+		HTTPBoot: ocrStatus,
+		HTTPBootSupport: ocrSupported,
+	}, nil
+}
+
+func (uc *UseCase) SetBootFeatures(c context.Context, guid string, bootFeatures dto.BootFeaturesRequest) (dto.BootFeatures, error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	if item == nil || item.GUID == "" {
+		return dto.BootFeatures{}, ErrNotFound
+	}
+
+	device := uc.device.SetupWsmanClient(*item, false, true)
+
+	// Get current boot settings to check OCR support
+	bootSourceSettings, err := device.GetCIMBootSourceSetting()
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	_, ocrSupported := determineOCRStatus(&bootSourceSettings, nil)
+
+	// Determine requested state based on OCR setting
+	var requestedState int
+
+	switch {
+	case !ocrSupported:
+		return dto.BootFeatures{}, ErrOCRNotSupportedUseCase
+	case bootFeatures.HTTPBoot:
+		requestedState = 32769
+	default:
+		requestedState = 32768
+	}
+
+	// Change boot service state
+	_, err = device.BootServiceStateChange(requestedState)
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	// Get updated boot service to return current status
+	updatedBootService, err := device.GetBootService()
+	if err != nil {
+		return dto.BootFeatures{}, err
+	}
+
+	ocrStatus, ocrSupported := determineOCRStatus(&bootSourceSettings, &updatedBootService)
+
+	return dto.BootFeatures{
+		HTTPBoot: ocrStatus,
+		HTTPBootSupport: ocrSupported,
+	}, nil
 }
 
 func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
