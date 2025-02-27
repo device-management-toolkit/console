@@ -535,6 +535,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetAuditLog(ctx, startIndex, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootFeatures mocks base method.
+func (m *MockDeviceManagementFeature) GetBootFeatures(ctx context.Context, guid string) (dto.BootFeatures, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootFeatures", ctx, guid)
+	ret0, _ := ret[0].(dto.BootFeatures)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootFeatures indicates an expected call of GetBootFeatures.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetBootFeatures(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootFeatures", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetBootFeatures), ctx, guid)
+}
+
 // GetByColumn mocks base method.
 func (m *MockDeviceManagementFeature) GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -864,6 +879,21 @@ func (m *MockDeviceManagementFeature) SendPowerAction(ctx context.Context, guid 
 func (mr *MockDeviceManagementFeatureMockRecorder) SendPowerAction(ctx, guid, action any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendPowerAction", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SendPowerAction), ctx, guid, action)
+}
+
+// SetBootFeatures mocks base method.
+func (m *MockDeviceManagementFeature) SetBootFeatures(c context.Context, guid string, bootFeatures dto.BootFeatures) (dto.BootFeatures, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetBootFeatures", c, guid, bootFeatures)
+	ret0, _ := ret[0].(dto.BootFeatures)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetBootFeatures indicates an expected call of SetBootFeatures.
+func (mr *MockDeviceManagementFeatureMockRecorder) SetBootFeatures(c, guid, bootFeatures any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBootFeatures", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetBootFeatures), c, guid, bootFeatures)
 }
 
 // SetBootOptions mocks base method.
