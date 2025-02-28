@@ -4,7 +4,10 @@
 # Config
 .env
 .DS_store
-*.pem
+#certs
+**/*.pem
+**/*.crt
+**/*.key
 **/*.yml
 **/*.yaml
 !config/config.yml

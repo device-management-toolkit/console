@@ -4,7 +4,7 @@ go 1.22.0
 
 toolchain go1.23.1
 
-// replace github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
+replace github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
