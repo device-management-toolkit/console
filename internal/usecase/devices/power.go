@@ -2,6 +2,8 @@ package devices
 
 import (
 	"context"
+	"encoding/base64"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -172,24 +174,48 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 
 	// boot on ider
 	// boot on floppy
-	determineIDERBootDevice(bootSetting, &newData)
-	// force boot mode
-	_, err = device.SetBootConfigRole(1)
+	err = determineBootDevice(bootSetting, &newData)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
 
+	// force boot mode
+	// _, err = device.SetBootConfigRole(1)
+	// if err != nil {
+	// 	return power.PowerActionResponse{}, err
+	// }
+
 	bootSource := getBootSource(bootSetting)
-	if bootSource != "" {
+	if bootSetting.Action == 105 {
+		_, err = device.ChangeBootOrder("")
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+	} else if bootSource != "" {
 		_, err = device.ChangeBootOrder(bootSource)
 		if err != nil {
 			return power.PowerActionResponse{}, err
 		}
 	}
 
-	_, err = device.SetBootData(newData)
+	result, err := device.SetBootData(newData)
+	fmt.Println(result)
 	if err != nil {
 		return power.PowerActionResponse{}, err
+	}
+
+	if bootSetting.Action == 105 {
+		// set boot config role
+		_, err = device.SetBootConfigRole(1)
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+
+		_, err = device.ChangeBootOrder(bootSource)
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+
 	}
 
 	// reset
@@ -204,12 +230,66 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 	return powerActionResult, nil
 }
 
-func determineIDERBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) {
-	if bootSetting.Action == 202 || bootSetting.Action == 203 {
+func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) error {
+	if bootSetting.Action == 105 {
+		typeLengthValueBuffer, err := validateHttpBootParams(bootSetting.Value)
+		if err != nil {
+			return err
+		}
+		newData.BIOSLastStatus = nil
+		newData.UseIDER = false
+		newData.BIOSSetup = false
+		newData.UseSOL = false
+		newData.BootMediaIndex = 0
+		newData.UserPasswordBypass = false
+		newData.UefiBootNumberOfParams = 2
+		newData.UefiBootParametersArray = base64.StdEncoding.EncodeToString(typeLengthValueBuffer)
+		newData.ForcedProgressEvents = true
+	} else if bootSetting.Action == 202 || bootSetting.Action == 203 {
 		newData.IDERBootDevice = 1
 	} else {
 		newData.IDERBootDevice = 0
 	}
+
+	return nil
+}
+func validateHttpBootParams(url string) ([]byte, error) {
+	// Example: Create TLV parameters for HTTPS boot
+	parameters := []boot.TLVParameter{}
+	// Create a network device path (URI to HTTPS server)
+	networkPathParam, err := boot.NewStringParameter(
+		boot.OCR_EFI_NETWORK_DEVICE_PATH,
+		url,
+	)
+	if err != nil {
+		return nil, err
+	}
+	parameters = append(parameters, networkPathParam)
+
+	// Set sync Root CA flag to true
+	syncRootCAParam := boot.NewBoolParameter(
+		boot.OCR_HTTPS_CERT_SYNC_ROOT_CA,
+		true,
+	)
+	parameters = append(parameters, syncRootCAParam)
+
+	// Validate the parameters before creating the buffer
+	valid, errors := boot.ValidateParameters(parameters)
+	if !valid {
+		fmt.Println("Parameter validation failed:")
+		for _, err := range errors {
+			fmt.Printf("  - %s\n", err)
+		}
+		return nil, fmt.Errorf("parameter validation failed")
+	}
+
+	// Create the TLV buffer
+	tlvBuffer, err := boot.CreateTLVBuffer(parameters)
+	if err != nil {
+		fmt.Printf("Error creating TLV buffer: %v\n", err)
+		return nil, err
+	}
+	return tlvBuffer, nil
 }
 
 // "Intel(r) AMT: Force PXE Boot".
@@ -219,13 +299,15 @@ func getBootSource(bootSetting dto.BootSetting) string {
 		return string(cimBoot.PXE)
 	} else if bootSetting.Action == 202 || bootSetting.Action == 203 {
 		return string(cimBoot.CD)
+	} else if bootSetting.Action == 105 {
+		return string(cimBoot.OCRUEFIHTTPS)
 	}
 
 	return ""
 }
 
 func determineBootAction(bootSetting *dto.BootSetting) {
-	if bootSetting.Action == 101 || bootSetting.Action == 200 || bootSetting.Action == 202 || bootSetting.Action == 301 || bootSetting.Action == 400 {
+	if bootSetting.Action == 101 || bootSetting.Action == 105 || bootSetting.Action == 200 || bootSetting.Action == 202 || bootSetting.Action == 301 || bootSetting.Action == 400 {
 		bootSetting.Action = int(power.MasterBusReset)
 	} else {
 		bootSetting.Action = int(power.PowerOn)
