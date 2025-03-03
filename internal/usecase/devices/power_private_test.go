@@ -126,7 +126,7 @@ func TestDetermineIDERBootDevice(t *testing.T) {
 				IDERBootDevice: 999,
 			}
 
-			determineIDERBootDevice(tc.bootSettings, &result)
+			determineBootDevice(tc.bootSettings, &result)
 
 			require.Equal(t, tc.res, result)
 		})
