@@ -47,6 +47,7 @@ type Management interface {
 	SendPowerAction(action int) (power.PowerActionResponse, error)
 	GetBootData() (boot.BootSettingDataResponse, error)
 	SetBootData(data boot.BootSettingDataRequest) (interface{}, error)
+	GetBootService() (cimBoot.BootService, error)
 	SetBootConfigRole(role int) (interface{}, error)
 	ChangeBootOrder(bootSource string) (cimBoot.ChangeBootOrder_OUTPUT, error)
 	GetAuditLog(startIndex int) (auditlog.Response, error)
@@ -58,4 +59,6 @@ type Management interface {
 	GetConcreteDependencies() ([]concrete.ConcreteDependency, error)
 	GetDiskInfo() (interface{}, error)
 	GetDeviceCertificate() (*gotls.Certificate, error)
+	GetCIMBootSourceSetting() (cimBoot.Response, error)
+	BootServiceStateChange(requestedState int) (cimBoot.BootService, error)
 }

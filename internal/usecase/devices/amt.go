@@ -31,3 +31,18 @@ func (e ExplorerError) Wrap(call, function string, err error) error {
 
 	return e
 }
+
+type NotSupportedError struct {
+	Console consoleerrors.InternalError
+}
+
+func (e NotSupportedError) Error() string {
+	return e.Console.Error()
+}
+
+func (e NotSupportedError) Wrap(call, function, message string) error {
+	_ = e.Console.Wrap(call, function, nil)
+	e.Console.Message = message
+
+	return e
+}

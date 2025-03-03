@@ -611,7 +611,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"userConsent\": \"none\",\r\n    \"enableSOL\": false,\r\n    \"enableIDER\": false,\r\n    \"enableKVM\": false\r\n}",
+							"raw": "{\r\n    \"userConsent\": \"none\",\r\n    \"enableSOL\": false,\r\n    \"enableIDER\": false,\r\n    \"enableKVM\": false,\r\n    \"httpBoot\": false,\r\n\t\"remoteErase\": false\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"

@@ -561,6 +561,24 @@ func (g *ConnectionEntry) SetBootData(data boot.BootSettingDataRequest) (interfa
 	return bootSettingData.Body, nil
 }
 
+func (g *ConnectionEntry) GetBootService() (cimBoot.BootService, error) {
+	bootService, err := g.WsmanMessages.CIM.BootService.Get()
+	if err != nil {
+		return cimBoot.BootService{}, err
+	}
+
+	return bootService.Body.ServiceGetResponse, nil
+}
+
+func (g *ConnectionEntry) BootServiceStateChange(requestedState int) (cimBoot.BootService, error) {
+	bootService, err := g.WsmanMessages.CIM.BootService.RequestStateChange(requestedState)
+	if err != nil {
+		return cimBoot.BootService{}, err
+	}
+
+	return bootService.Body.ServiceGetResponse, nil
+}
+
 func (g *ConnectionEntry) SetBootConfigRole(role int) (interface{}, error) {
 	response, err := g.WsmanMessages.CIM.BootService.SetBootConfigRole("Intel(r) AMT: Boot Configuration 0", role)
 	if err != nil {

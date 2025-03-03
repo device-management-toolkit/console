@@ -59,6 +59,21 @@ func (m *MockManagement) EXPECT() *MockManagementMockRecorder {
 	return m.recorder
 }
 
+// BootServiceStateChange mocks base method.
+func (m *MockManagement) BootServiceStateChange(requestedState int) (boot0.BootService, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "BootServiceStateChange", requestedState)
+	ret0, _ := ret[0].(boot0.BootService)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// BootServiceStateChange indicates an expected call of BootServiceStateChange.
+func (mr *MockManagementMockRecorder) BootServiceStateChange(requestedState any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "BootServiceStateChange", reflect.TypeOf((*MockManagement)(nil).BootServiceStateChange), requestedState)
+}
+
 // CancelUserConsentRequest mocks base method.
 func (m *MockManagement) CancelUserConsentRequest() (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
@@ -191,6 +206,36 @@ func (m *MockManagement) GetBootData() (boot.BootSettingDataResponse, error) {
 func (mr *MockManagementMockRecorder) GetBootData() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootData", reflect.TypeOf((*MockManagement)(nil).GetBootData))
+}
+
+// GetBootService mocks base method.
+func (m *MockManagement) GetBootService() (boot0.BootService, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootService")
+	ret0, _ := ret[0].(boot0.BootService)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootService indicates an expected call of GetBootService.
+func (mr *MockManagementMockRecorder) GetBootService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootService", reflect.TypeOf((*MockManagement)(nil).GetBootService))
+}
+
+// GetCIMBootSourceSetting mocks base method.
+func (m *MockManagement) GetCIMBootSourceSetting() (boot0.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCIMBootSourceSetting")
+	ret0, _ := ret[0].(boot0.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCIMBootSourceSetting indicates an expected call of GetCIMBootSourceSetting.
+func (mr *MockManagementMockRecorder) GetCIMBootSourceSetting() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCIMBootSourceSetting", reflect.TypeOf((*MockManagement)(nil).GetCIMBootSourceSetting))
 }
 
 // GetCertificates mocks base method.

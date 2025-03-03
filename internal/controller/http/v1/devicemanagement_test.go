@@ -73,7 +73,20 @@ func TestDeviceManagement(t *testing.T) {
 					Return(dto.Features{}, dtov2.Features{}, nil)
 			},
 			expectedCode: http.StatusOK,
-			response:     map[string]interface{}{"IDER": false, "KVM": false, "SOL": false, "kvmAvailable": false, "redirection": false, "optInState": 0, "userConsent": ""},
+			response: map[string]interface{}{
+				"IDER":                  false,
+				"KVM":                   false,
+				"SOL":                   false,
+				"httpsBootSupported":    false,
+				"kvmAvailable":          false,
+				"localPBABootSupported": false,
+				"ocr":                   false,
+				"optInState":            0,
+				"redirection":           false,
+				"remoteErase":           false,
+				"userConsent":           "",
+				"winREBootSupported":    false,
+			},
 		},
 		{
 			name:        "setFeatures - successful setting",
