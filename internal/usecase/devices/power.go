@@ -2,6 +2,8 @@ package devices
 
 import (
 	"context"
+	"encoding/binary"
+	"fmt"
 	"strconv"
 	"strings"
 
@@ -172,7 +174,11 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 
 	// boot on ider
 	// boot on floppy
-	determineIDERBootDevice(bootSetting, &newData)
+	err = determineBootDevice(bootSetting, &newData)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
 	// force boot mode
 	_, err = device.SetBootConfigRole(1)
 	if err != nil {
@@ -204,12 +210,59 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 	return powerActionResult, nil
 }
 
-func determineIDERBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) {
-	if bootSetting.Action == 202 || bootSetting.Action == 203 {
+func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) error {
+	if bootSetting.Action == 105 {
+		typeLengthValueBuffer, err := validateHttpBootParams(bootSetting.Value)
+		if err != nil {
+			return err
+		}
+		newData.UefiBootNumberOfParams = 2
+		newData.UEFIBootParametersArray = typeLengthValueBuffer
+	} else if bootSetting.Action == 202 || bootSetting.Action == 203 {
 		newData.IDERBootDevice = 1
 	} else {
 		newData.IDERBootDevice = 0
 	}
+
+	return nil
+}
+func validateHttpBootParams(url string) ([]byte, error) {
+	// Example: Create TLV parameters for HTTPS boot
+	parameters := []boot.TLVParameter{}
+	// Create a network device path (URI to HTTPS server)
+	networkPathParam, err := boot.NewStringParameter(
+		boot.OCR_EFI_NETWORK_DEVICE_PATH,
+		url,
+	)
+	if err != nil {
+		return nil, err
+	}
+	parameters = append(parameters, networkPathParam)
+
+	// Set sync Root CA flag to true
+	syncRootCAParam := boot.NewBoolParameter(
+		boot.OCR_HTTPS_CERT_SYNC_ROOT_CA,
+		true,
+	)
+	parameters = append(parameters, syncRootCAParam)
+
+	// Validate the parameters before creating the buffer
+	valid, errors := boot.ValidateParameters(parameters)
+	if !valid {
+		fmt.Println("Parameter validation failed:")
+		for _, err := range errors {
+			fmt.Printf("  - %s\n", err)
+		}
+		return nil, fmt.Errorf("parameter validation failed")
+	}
+
+	// Create the TLV buffer
+	tlvBuffer, err := boot.CreateTLVBuffer(parameters)
+	if err != nil {
+		fmt.Printf("Error creating TLV buffer: %v\n", err)
+		return nil, err
+	}
+	return tlvBuffer, nil
 }
 
 // "Intel(r) AMT: Force PXE Boot".
@@ -219,13 +272,15 @@ func getBootSource(bootSetting dto.BootSetting) string {
 		return string(cimBoot.PXE)
 	} else if bootSetting.Action == 202 || bootSetting.Action == 203 {
 		return string(cimBoot.CD)
+	} else if bootSetting.Action == 105 {
+		return string(cimBoot.OCRUEFIHTTPS)
 	}
 
 	return ""
 }
 
 func determineBootAction(bootSetting *dto.BootSetting) {
-	if bootSetting.Action == 101 || bootSetting.Action == 200 || bootSetting.Action == 202 || bootSetting.Action == 301 || bootSetting.Action == 400 {
+	if bootSetting.Action == 101 || bootSetting.Action == 105 || bootSetting.Action == 200 || bootSetting.Action == 202 || bootSetting.Action == 301 || bootSetting.Action == 400 {
 		bootSetting.Action = int(power.MasterBusReset)
 	} else {
 		bootSetting.Action = int(power.PowerOn)
@@ -249,4 +304,135 @@ func parseVersion(version []software.SoftwareIdentity) (int, error) {
 	}
 
 	return amtversion, nil
+}
+
+func (uc *UseCase) SetHTTPSBootConfig(c context.Context, guid, url string) (bool, error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return false, err
+	}
+
+	if item == nil || item.GUID == "" {
+		return false, ErrNotFound
+	}
+
+	device := uc.device.SetupWsmanClient(*item, false, true)
+
+	// Example: Create TLV parameters for HTTPS boot
+	parameters := []boot.TLVParameter{}
+	// Create a network device path (URI to HTTPS server)
+	networkPathParam, err := boot.NewStringParameter(
+		boot.OCR_EFI_NETWORK_DEVICE_PATH,
+		url,
+	)
+	if err != nil {
+		return false, err
+	}
+	parameters = append(parameters, networkPathParam)
+
+	// Set sync Root CA flag to true
+	syncRootCAParam := boot.NewBoolParameter(
+		boot.OCR_HTTPS_CERT_SYNC_ROOT_CA,
+		true,
+	)
+	parameters = append(parameters, syncRootCAParam)
+
+	// Validate the parameters before creating the buffer
+	valid, errors := boot.ValidateParameters(parameters)
+	if !valid {
+		fmt.Println("Parameter validation failed:")
+		for _, err := range errors {
+			fmt.Printf("  - %s\n", err)
+		}
+		return false, fmt.Errorf("parameter validation failed")
+	}
+
+	// Create the TLV buffer
+	tlvBuffer, err := boot.CreateTLVBuffer(parameters)
+	if err != nil {
+		fmt.Printf("Error creating TLV buffer: %v\n", err)
+		return false, err
+	}
+
+	// ocrtlv, tlen, err := getOCRHttpTLV(url)
+	// if err != nil {
+	// 	return false, err
+	// }
+
+	bootSettings, err := device.GetBootData()
+	if err != nil {
+		return false, err
+	}
+
+	// bootSettings.UEFIBootParametersArray = tlvBuffer
+	// bootSettings.UefiBootNumberOfParams = len(parameters)
+	// bootSettings.EnforceSecureBoot = true
+	// bootSettings.BootMediaIndex = 0
+
+	bootSettingsRequest := boot.BootSettingDataRequest{
+		BIOSLastStatus:           bootSettings.BIOSLastStatus,
+		BIOSPause:                bootSettings.BIOSPause,
+		BIOSSetup:                bootSettings.BIOSSetup,
+		BootMediaIndex:           0,
+		BootguardStatus:          bootSettings.BootguardStatus,
+		ConfigurationDataReset:   bootSettings.ConfigurationDataReset,
+		ElementName:              bootSettings.ElementName,
+		EnforceSecureBoot:        true,
+		FirmwareVerbosity:        bootSettings.FirmwareVerbosity,
+		ForcedProgressEvents:     bootSettings.ForcedProgressEvents,
+		IDERBootDevice:           bootSettings.IDERBootDevice,
+		InstanceID:               bootSettings.InstanceID,
+		LockKeyboard:             bootSettings.LockKeyboard,
+		LockPowerButton:          bootSettings.LockPowerButton,
+		LockResetButton:          bootSettings.LockResetButton,
+		LockSleepButton:          bootSettings.LockSleepButton,
+		OptionsCleared:           bootSettings.OptionsCleared,
+		OwningEntity:             bootSettings.OwningEntity,
+		PlatformErase:            bootSettings.PlatformErase,
+		RPEEnabled:               bootSettings.RPEEnabled,
+		RSEPassword:              bootSettings.RSEPassword,
+		ReflashBIOS:              bootSettings.ReflashBIOS,
+		SecureBootControlEnabled: bootSettings.SecureBootControlEnabled,
+		SecureErase:              bootSettings.SecureErase,
+		UEFIHTTPSBootEnabled:     bootSettings.UEFIHTTPSBootEnabled,
+		UEFIBootParametersArray:  tlvBuffer,
+		UEFILocalPBABootEnabled:  bootSettings.UEFILocalPBABootEnabled,
+		UefiBootNumberOfParams:   len(parameters),
+		UseIDER:                  bootSettings.UseIDER,
+		UseSOL:                   bootSettings.UseSOL,
+		UseSafeMode:              bootSettings.UseSafeMode,
+		UserPasswordBypass:       bootSettings.UserPasswordBypass,
+		WinREBootEnabled:         bootSettings.WinREBootEnabled,
+	}
+
+	_, err = device.ChangeBootOrder("")
+	if err != nil {
+		return false, err
+	}
+
+	_, err = device.SetBootData(bootSettingsRequest)
+
+	return true, nil
+}
+
+func getOCRHttpTLV(url string) ([]byte, int, error) {
+	typeLengthValue := make([]byte, 0)
+
+	tlen := 0
+
+	buf := []byte{}
+	buf = binary.LittleEndian.AppendUint16(buf, 0x8086) // default vendor Intel
+	buf = binary.LittleEndian.AppendUint16(buf, 1)      // param type 1: OCR_EFI_NETWORK_DEVICE_PATH
+	buf = binary.LittleEndian.AppendUint32(buf, uint32(len(url)))
+	buf = append(buf, []byte(url)...)
+	typeLengthValue = append(typeLengthValue, buf...)
+	tlen += 1
+	buf = []byte{}
+	buf = binary.LittleEndian.AppendUint16([]byte{}, 0x8086) // default vendor Intel
+	buf = binary.LittleEndian.AppendUint16(buf, 20)          // param type 20: OCR_HTTPS_CERT_SYNC_ROOT_CA
+	buf = binary.LittleEndian.AppendUint32(buf, 1)           // len = 1 bytes
+	buf = append(buf, 1)                                     // true
+	typeLengthValue = append(typeLengthValue, buf...)
+	tlen += 1
+	return typeLengthValue, tlen, nil
 }
