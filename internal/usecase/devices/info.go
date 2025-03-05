@@ -21,7 +21,10 @@ func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v
 		return v1, v2, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
+	if device == nil {
+		return v1, v2, ErrCancelled
+	}
 
 	softwareIdentity, err := device.GetAMTVersion()
 	if err != nil {
@@ -69,7 +72,7 @@ func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (interface{},
 		return nil, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	hwInfo, err := device.GetHardwareInfo()
 	if err != nil {
@@ -89,7 +92,7 @@ func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (interface{}, err
 		return nil, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	diskInfo, err := device.GetDiskInfo()
 	if err != nil {
@@ -109,7 +112,7 @@ func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (
 		return dto.AuditLog{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	response, err := device.GetAuditLog(startIndex)
 	if err != nil {
@@ -133,7 +136,7 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 		return dto.EventLogs{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	eventLogs, err := device.GetEventLog(startIndex, maxReadRecords)
 	if err != nil {
@@ -184,7 +187,10 @@ func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (interface
 		return nil, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
+	if device == nil {
+		return nil, ErrCancelled
+	}
 
 	generalSettings, err := device.GetGeneralSettings()
 	if err != nil {

@@ -159,7 +159,7 @@ func (uc *UseCase) GetCertificates(c context.Context, guid string) (dto.Security
 		return dto.SecuritySettings{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	response, err := device.GetCertificates()
 	if err != nil {
@@ -253,7 +253,7 @@ func (uc *UseCase) GetDeviceCertificate(c context.Context, guid string) (dto.Cer
 		return dto.Certificate{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	cert1, err := device.GetDeviceCertificate()
 	if err != nil {

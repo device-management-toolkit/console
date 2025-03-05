@@ -17,7 +17,7 @@ func (uc *UseCase) CancelUserConsent(c context.Context, guid string) (dto.UserCo
 		return dto.UserConsentMessage{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	response, err := device.CancelUserConsentRequest()
 	if err != nil {
@@ -37,7 +37,7 @@ func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.GetUs
 		return dto.GetUserConsentMessage{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	code, err := device.GetUserConsentCode()
 	if err != nil {
@@ -64,7 +64,7 @@ func (uc *UseCase) SendConsentCode(c context.Context, userConsent dto.UserConsen
 		return dto.UserConsentMessage{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	consentCode, _ := strconv.Atoi(userConsent.ConsentCode)
 
