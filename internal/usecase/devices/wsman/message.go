@@ -118,7 +118,11 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 	// Queue the request
 	requestQueue <- func() {
 		device.Password, _ = g.safeRequirements.Decrypt(device.Password)
-		resultChan <- g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
+		if device.MPSUsername != "" {
+			resultChan <- Connections[device.GUID]
+		} else {
+			resultChan <- g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
+		}
 	}
 
 	return <-resultChan

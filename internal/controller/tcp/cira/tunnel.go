@@ -10,8 +10,11 @@ import (
 	"sync"
 	"time"
 
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
 	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/apf"
+	wsman2 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 )
 
 const (
@@ -29,9 +32,10 @@ type Server struct {
 	certificates tls.Certificate
 	notify       chan error
 	listener     net.Listener
+	devices      devices.Feature
 }
 
-func NewServer(certFile, keyFile string) (*Server, error) {
+func NewServer(certFile, keyFile string, d devices.Feature) (*Server, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
@@ -40,6 +44,7 @@ func NewServer(certFile, keyFile string) (*Server, error) {
 	s := &Server{
 		certificates: cert,
 		notify:       make(chan error, 1),
+		devices:      d,
 	}
 
 	s.start()
@@ -59,52 +64,68 @@ func (s *Server) Notify() <-chan error {
 }
 
 func (s *Server) ListenAndServe() error {
-
 	config := &tls.Config{
 		Certificates:       []tls.Certificate{s.certificates},
 		InsecureSkipVerify: true,
-		CipherSuites:       nil,
-		// []uint16{
-		// 	tls.TLS_ECDHE_RSA_WITH_AES_256_GCM_SHA384,
-		// 	tls.TLS_RSA_WITH_AES_256_GCM_SHA384,
-		// 	tls.TLS_ECDHE_ECDSA_WITH_AES_256_GCM_SHA384,
-		// 	tls.TLS_AES_256_GCM_SHA384,
-		// 	tls.TLS_AES_128_GCM_SHA256,
-		// },
-		MinVersion: tls.VersionTLS12,
+		MinVersion:         tls.VersionTLS12,
 	}
+
+	defaultCipherSuites := tls.CipherSuites()
+	config.CipherSuites = make([]uint16, 0, len(defaultCipherSuites)+3)
+
+	for _, suite := range defaultCipherSuites {
+		config.CipherSuites = append(config.CipherSuites, suite.ID)
+	}
+	// add the weak cipher suites
+	config.CipherSuites = append(config.CipherSuites,
+		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
+	)
+
 	listener, err := tls.Listen("tcp", ":"+port, config)
 	if err != nil {
 		return err
 	}
+
 	s.listener = listener
+
 	log.Printf("Server running on port %s\n", port)
+
 	for {
 		conn, err := listener.Accept()
 		if err != nil {
 			return err
 		}
+
 		go s.handleConnection(conn)
 	}
 }
 
 func (s *Server) handleConnection(conn net.Conn) {
 	defer conn.Close()
+
 	tlsConn, ok := conn.(*tls.Conn)
 	if !ok {
 		log.Println("Failed to cast connection to TLS connection")
+
 		return
 	}
+
 	log.Println("New TLS connection detected")
 
 	// Initialize a new ConnectedDevice and handle the connection
 	deviceID := generateDeviceID()
+	clientParams := client.Parameters{}
 	device := &wsman.ConnectionEntry{
-		IsCIRA: true,
-		Conny:  conn,
-		Timer:  time.NewTimer(maxIdleTime),
+		IsCIRA:        true,
+		Conny:         conn,
+		Timer:         time.NewTimer(maxIdleTime),
+		WsmanMessages: wsman2.NewMessages(clientParams),
 	}
+
 	session := apf.Session{}
+
 	mu.Lock()
 	wsman.Connections[deviceID] = device
 	mu.Unlock()
@@ -117,21 +138,28 @@ func (s *Server) handleConnection(conn net.Conn) {
 
 	for {
 		conn.SetDeadline(time.Now().Add(maxIdleTime))
+
 		buf := make([]byte, 4096)
+
 		n, err := tlsConn.Read(buf)
 		if err != nil && n == 0 {
 			if errors.Is(err, net.ErrClosed) {
 				log.Printf("Connection closed for device %s\n", deviceID)
+
 				break
 			}
+
 			log.Printf("Read error for device %s: %v\n", deviceID, err)
+
 			break
 		}
 
 		data := buf[:n]
+
 		err = s.processData(tlsConn, data, session)
 		if err != nil {
 			log.Printf("Data processing error for device %s: %v\n", deviceID, err)
+
 			break
 		}
 	}
@@ -147,15 +175,18 @@ func (s *Server) processData(conn net.Conn, data []byte, session apf.Session) er
 	if err != nil {
 		return err
 	}
+
 	return nil
 }
 
 func generateDeviceID() string {
 	data := make([]byte, 16)
+
 	_, err := rand.Read(data)
 	if err != nil {
 		log.Fatal(err)
 	}
+
 	return hex.EncodeToString(data)
 }
 

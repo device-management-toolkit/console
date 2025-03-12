@@ -76,7 +76,7 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 
 	// Save to files (optional)
-	certOut, err := os.Create("root_cert.pem")
+	certOut, err := os.Create("config/root_cert.pem")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -88,7 +88,7 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 
 	certOut.Close()
 
-	keyOut, err := os.Create("root_key.pem")
+	keyOut, err := os.Create("config/root_key.pem")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -178,7 +178,7 @@ func IssueWebServerCertificate(rootCert CertAndKeyType, addThumbPrintToName bool
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 
 	// Save to files (optional)
-	certOut, err := os.Create(commonName + "_cert.pem")
+	certOut, err := os.Create("config/" + commonName + "_cert.pem")
 	if err != nil {
 		return nil, nil, err
 	}
@@ -190,7 +190,7 @@ func IssueWebServerCertificate(rootCert CertAndKeyType, addThumbPrintToName bool
 
 	certOut.Close()
 
-	keyOut, err := os.Create(commonName + "_key.pem")
+	keyOut, err := os.Create("config/" + commonName + "_key.pem")
 	if err != nil {
 		return nil, nil, err
 	}
