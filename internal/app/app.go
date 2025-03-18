@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"runtime"
 	"syscall"
 
 	"github.com/gin-contrib/cors"
@@ -24,8 +25,29 @@ import (
 
 var Version = "DEVELOPMENT"
 
+// hideTerminal hides the terminal window based on the platform.
+func hideTerminal() {
+	switch runtime.GOOS {
+	case "windows":
+		hideTerminalWindows()
+	case "darwin", "linux":
+		hideTerminalUnix()
+	}
+}
+
+// Default (no-op) function for non-Windows platforms
+func hideTerminalWindows() {
+	// Do nothing on non-Windows platforms
+}
+func hideTerminalUnix() {
+	if os.Getppid() != 1 { // Not already detached
+		syscall.Setsid()
+	}
+}
+
 // Run creates objects via constructors.
 func Run(cfg *config.Config) {
+	hideTerminal()
 	log := logger.New(cfg.Log.Level)
 	cfg.App.Version = Version
 	log.Info("app - Run - version: " + cfg.App.Version)
