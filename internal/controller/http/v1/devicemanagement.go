@@ -58,8 +58,11 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 
 		h.GET("explorer", r.getCallList)
 		h.GET("explorer/:guid/:call", r.executeCall)
-		h.GET("certificates/:guid", r.getCertificates)
 		h.GET("tls/:guid", r.getTLSSettingData)
+
+		//certificates
+		h.GET("certificates/:guid", r.getCertificates)
+		h.POST("certificates/:guid", r.addCertificate)
 	}
 }
 
@@ -549,6 +552,28 @@ func (r *deviceManagementRoutes) getCertificates(c *gin.Context) {
 
 	c.JSON(http.StatusOK, certs)
 }
+
+func (r *deviceManagementRoutes) addCertificate(c *gin.Context) {
+	guid := c.Param("guid")
+
+	var certInfo dto.CertInfo
+	if err := c.ShouldBindJSON(&certInfo); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+
+	certs, err := r.d.AddCertificate(c.Request.Context(), guid, certInfo)
+	if err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, certs)
+}
+
 
 func (r *deviceManagementRoutes) getTLSSettingData(c *gin.Context) {
 	guid := c.Param("guid")
