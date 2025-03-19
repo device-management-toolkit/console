@@ -89,13 +89,18 @@ func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 	}
 
 	v1Features := map[string]interface{}{
-		"redirection":  features.Redirection,
-		"KVM":          features.EnableKVM,
-		"SOL":          features.EnableSOL,
-		"IDER":         features.EnableIDER,
-		"optInState":   features.OptInState,
-		"userConsent":  features.UserConsent,
-		"kvmAvailable": features.KVMAvailable,
+		"redirection":           features.Redirection,
+		"KVM":                   features.EnableKVM,
+		"SOL":                   features.EnableSOL,
+		"IDER":                  features.EnableIDER,
+		"optInState":            features.OptInState,
+		"userConsent":           features.UserConsent,
+		"kvmAvailable":          features.KVMAvailable,
+		"ocr":                   features.OCR,
+		"httpsBootSupported":    features.HTTPSBootSupported,
+		"winREBootSupported":    features.WinREBootSupported,
+		"localPBABootSupported": features.LocalPBABootSupported,
+		"remoteErase":           features.RemoteErase,
 	}
 
 	c.JSON(http.StatusOK, v1Features)

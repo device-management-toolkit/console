@@ -3,6 +3,7 @@ app:
   repo: open-amt-cloud-toolkit/console
   version: DEVELOPMENT
   encryption_key: ""
+  allow_insecure_ciphers: false
 http:
   host: localhost
   port: "8181"

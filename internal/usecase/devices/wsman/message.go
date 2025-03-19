@@ -54,6 +54,7 @@ import (
 	ipsIEEE8021x "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
+	"github.com/open-amt-cloud-toolkit/console/config"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
@@ -130,14 +131,15 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 
 func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) *ConnectionEntry {
 	clientParams := client.Parameters{
-		Target:            device.Hostname,
-		Username:          device.Username,
-		Password:          device.Password,
-		UseDigest:         true,
-		UseTLS:            device.UseTLS,
-		SelfSignedAllowed: device.AllowSelfSigned,
-		LogAMTMessages:    logAMTMessages,
-		IsRedirection:     isRedirection,
+		Target:                    device.Hostname,
+		Username:                  device.Username,
+		Password:                  device.Password,
+		UseDigest:                 true,
+		UseTLS:                    device.UseTLS,
+		SelfSignedAllowed:         device.AllowSelfSigned,
+		LogAMTMessages:            logAMTMessages,
+		IsRedirection:             isRedirection,
+		AllowInsecureCipherSuites: config.ConsoleConfig.AllowInsecureCiphers,
 	}
 
 	if device.CertHash != nil && *device.CertHash != "" {
@@ -569,6 +571,24 @@ func (g *ConnectionEntry) SetBootData(data boot.BootSettingDataRequest) (interfa
 	}
 
 	return bootSettingData.Body, nil
+}
+
+func (g *ConnectionEntry) GetBootService() (cimBoot.BootService, error) {
+	bootService, err := g.WsmanMessages.CIM.BootService.Get()
+	if err != nil {
+		return cimBoot.BootService{}, err
+	}
+
+	return bootService.Body.ServiceGetResponse, nil
+}
+
+func (g *ConnectionEntry) BootServiceStateChange(requestedState int) (cimBoot.BootService, error) {
+	bootService, err := g.WsmanMessages.CIM.BootService.RequestStateChange(requestedState)
+	if err != nil {
+		return cimBoot.BootService{}, err
+	}
+
+	return bootService.Body.ServiceGetResponse, nil
 }
 
 func (g *ConnectionEntry) SetBootConfigRole(role int) (interface{}, error) {

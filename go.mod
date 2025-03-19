@@ -1,15 +1,15 @@
 module github.com/open-amt-cloud-toolkit/console
 
-go 1.22.0
+go 1.23.0
 
-toolchain go1.23.1
+toolchain go1.24.0
 
 replace github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.12.0
-	github.com/gin-contrib/cors v1.7.3
+	github.com/gin-contrib/cors v1.7.4
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-xmlfmt/xmlfmt v1.1.3
 	github.com/golang-jwt/jwt/v5 v5.2.1
@@ -17,8 +17,8 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.7.2
-	github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 v2.18.0
-	github.com/prometheus/client_golang v1.21.0
+	github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 v2.21.0
+	github.com/prometheus/client_golang v1.21.1
 	github.com/rs/zerolog v1.33.0
 	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/files v1.0.1
@@ -26,7 +26,7 @@ require (
 	github.com/swaggo/swag v1.16.4
 	go.uber.org/mock v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.34.5
+	modernc.org/sqlite v1.36.1
 	software.sslmate.com/src/go-pkcs12 v0.5.0
 )
 
@@ -35,7 +35,7 @@ require (
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/dvsekhvalnov/jose2go v1.8.0 // indirect
-	github.com/go-jose/go-jose/v4 v4.0.2 // indirect
+	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
 	github.com/klauspost/compress v1.17.11 // indirect
@@ -43,8 +43,8 @@ require (
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
 	golang.org/x/exp v0.0.0-20241217172543-b2144cdd0a67 // indirect
 	golang.org/x/oauth2 v0.24.0 // indirect
-	golang.org/x/term v0.28.0 // indirect
-	modernc.org/libc v1.61.4 // indirect
+	golang.org/x/term v0.30.0 // indirect
+	modernc.org/libc v1.61.13 // indirect
 )
 
 require (
@@ -95,16 +95,16 @@ require (
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.2.12 // indirect
 	golang.org/x/arch v0.12.0 // indirect
-	golang.org/x/crypto v0.32.0 // indirect
-	golang.org/x/net v0.34.0 // indirect
-	golang.org/x/sync v0.10.0 // indirect
-	golang.org/x/sys v0.29.0 // indirect
-	golang.org/x/text v0.21.0 // indirect
+	golang.org/x/crypto v0.36.0 // indirect
+	golang.org/x/net v0.37.0 // indirect
+	golang.org/x/sync v0.12.0 // indirect
+	golang.org/x/sys v0.31.0 // indirect
+	golang.org/x/text v0.23.0 // indirect
 	golang.org/x/tools v0.28.0 // indirect
 	google.golang.org/protobuf v1.36.1 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
-	modernc.org/mathutil v1.6.0 // indirect
-	modernc.org/memory v1.8.0 // indirect
+	modernc.org/mathutil v1.7.1 // indirect
+	modernc.org/memory v1.8.2 // indirect
 	olympos.io/encoding/edn v0.0.0-20201019073823-d3554ca0b0a3 // indirect
 )
 
