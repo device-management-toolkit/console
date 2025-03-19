@@ -2,6 +2,7 @@ package wsman
 
 import (
 	gotls "crypto/tls"
+	"net"
 	"sync"
 	"time"
 
@@ -65,7 +66,7 @@ const (
 )
 
 var (
-	connections         = make(map[string]*ConnectionEntry)
+	Connections         = make(map[string]*ConnectionEntry)
 	connectionsMu       sync.Mutex
 	waitForAuthTickTime = 1 * time.Second
 	queueTickTime       = 500 * time.Millisecond
@@ -77,6 +78,8 @@ var (
 
 type ConnectionEntry struct {
 	WsmanMessages wsman.Messages
+	IsCIRA        bool
+	Conny         net.Conn
 	Timer         *time.Timer
 }
 
@@ -93,7 +96,7 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
-	if entry, ok := connections[device.GUID]; ok {
+	if entry, ok := Connections[device.GUID]; ok {
 		entry.Timer.Stop()
 		removeConnection(device.GUID)
 	}
@@ -116,7 +119,11 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 	// Queue the request
 	requestQueue <- func() {
 		device.Password, _ = g.safeRequirements.Decrypt(device.Password)
-		resultChan <- g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
+		if device.MPSUsername != "" {
+			resultChan <- Connections[device.GUID]
+		} else {
+			resultChan <- g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
+		}
 	}
 
 	return <-resultChan
@@ -143,14 +150,17 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 		removeConnection(device.GUID)
 	})
 
-	if entry, ok := connections[device.GUID]; ok {
-		if entry.WsmanMessages.Client.IsAuthenticated() {
+	if entry, ok := Connections[device.GUID]; ok {
+		if !entry.IsCIRA && entry.WsmanMessages.Client.IsAuthenticated() {
 			entry.Timer.Stop() // Stop the previous timer
 			entry.Timer = time.AfterFunc(expireAfter, func() {
 				removeConnection(device.GUID)
 			})
 
-			return connections[device.GUID]
+			return Connections[device.GUID]
+		} else if entry.IsCIRA {
+			Connections[device.GUID].WsmanMessages = wsman.NewMessages(clientParams)
+			return Connections[device.GUID]
 		}
 
 		ticker := time.NewTicker(waitForAuthTickTime)
@@ -164,17 +174,17 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 			case <-ticker.C:
 				if entry.WsmanMessages.Client.IsAuthenticated() {
 					// Your logic when the function check is successful
-					return connections[device.GUID]
+					return Connections[device.GUID]
 				}
 			case <-timeout:
 				connectionsMu.Lock()
-				connections[device.GUID] = &ConnectionEntry{
+				Connections[device.GUID] = &ConnectionEntry{
 					WsmanMessages: wsman.NewMessages(clientParams),
 					Timer:         timer,
 				}
 				connectionsMu.Unlock()
 
-				return connections[device.GUID]
+				return Connections[device.GUID]
 			}
 		}
 	}
@@ -182,20 +192,20 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	wsmanMsgs := wsman.NewMessages(clientParams)
 
 	connectionsMu.Lock()
-	connections[device.GUID] = &ConnectionEntry{
+	Connections[device.GUID] = &ConnectionEntry{
 		WsmanMessages: wsmanMsgs,
 		Timer:         timer,
 	}
-	connections[device.GUID].WsmanMessages.Client.IsAuthenticated()
+	Connections[device.GUID].WsmanMessages.Client.IsAuthenticated()
 	connectionsMu.Unlock()
 
-	return connections[device.GUID]
+	return Connections[device.GUID]
 }
 
 func removeConnection(guid string) {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
-	delete(connections, guid)
+	delete(Connections, guid)
 }
 
 func (g *ConnectionEntry) GetAMTVersion() ([]software.SoftwareIdentity, error) {
