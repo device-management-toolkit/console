@@ -241,20 +241,20 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	}
 
 	_, err = device.BootServiceStateChange(requestedState)
-	if err != nil {
+	if err == nil {
+		// Get OCR settings
+		err = getOneClickRecoverySettings(&settingsResultsV2, device)
+		if err != nil {
+			return dto.Features{}, dtov2.Features{}, err
+		}
+
+		settingsResults.OCR = settingsResultsV2.OCR
+		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
+		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
+		settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+
 		return settingsResults, settingsResultsV2, err
 	}
-
-	// Get OCR settings
-	err = getOneClickRecoverySettings(&settingsResultsV2, device)
-	if err != nil {
-		return dto.Features{}, dtov2.Features{}, err
-	}
-
-	settingsResults.OCR = settingsResultsV2.OCR
-	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
-	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
-	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
 
 	return settingsResults, settingsResultsV2, err
 }
