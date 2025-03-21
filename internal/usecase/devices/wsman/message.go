@@ -503,13 +503,15 @@ func (g *ConnectionEntry) GetPowerCapabilities() (boot.BootCapabilitiesResponse,
 	return response.Body.BootCapabilitiesGetResponse, nil
 }
 
-func (g *ConnectionEntry) GetGeneralSettings() (interface{}, error) {
-	response, err := g.WsmanMessages.AMT.GeneralSettings.Get()
-	if err != nil {
-		return nil, err
-	}
+func (g *ConnectionEntry) GetGeneralSettings() (dto.GeneralSettings, error) {
+	//response, err := g.WsmanMessages.AMT.GeneralSettings.Get()
+	// if err != nil {
+	// 	return dto.GeneralSettings{}, err
+	// }
 
-	return response.Body.GetResponse, nil
+	return dto.GeneralSettings{ //response.Body.GetResponse
+
+	}, nil
 }
 
 func (g *ConnectionEntry) CancelUserConsentRequest() (dto.UserConsentMessage, error) {

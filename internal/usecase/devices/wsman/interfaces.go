@@ -40,7 +40,7 @@ type Management interface {
 	GetHardwareInfo() (interface{}, error)
 	GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
-	GetGeneralSettings() (interface{}, error)
+	GetGeneralSettings() (dto.GeneralSettings, error)
 	CancelUserConsentRequest() (dto.UserConsentMessage, error)
 	GetUserConsentCode() (optin.StartOptIn_OUTPUT, error)
 	SendConsentCode(code int) (dto.UserConsentMessage, error)

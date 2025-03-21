@@ -65,7 +65,7 @@ type (
 		GetHardwareInfo(ctx context.Context, guid string) (interface{}, error)
 		GetPowerState(ctx context.Context, guid string) (dto.PowerState, error)
 		GetPowerCapabilities(ctx context.Context, guid string) (dto.PowerCapabilities, error)
-		GetGeneralSettings(ctx context.Context, guid string) (interface{}, error)
+		GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error)
 		CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error)
 		GetUserConsentCode(ctx context.Context, guid string) (dto.GetUserConsentMessage, error)
 		SendConsentCode(ctx context.Context, code dto.UserConsentCode, guid string) (dto.UserConsentMessage, error)
