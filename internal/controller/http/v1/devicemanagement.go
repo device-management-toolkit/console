@@ -186,7 +186,7 @@ func (r *deviceManagementRoutes) deleteAlarmOccurrences(c *gin.Context) {
 func (r *deviceManagementRoutes) getHardwareInfo(c *gin.Context) {
 	guid := c.Param("guid")
 
-	hwInfo, err := r.d.GetHardwareInfo(c.Request.Context(), guid)
+	hwInfo, _, err := r.d.GetHardwareInfo(c.Request.Context(), guid)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getHardwareInfo")
 		ErrorResponse(c, err)

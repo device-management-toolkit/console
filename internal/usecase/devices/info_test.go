@@ -8,14 +8,24 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/computer"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
+	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	v2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
 	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
 	devices "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
 
@@ -271,14 +281,28 @@ func TestGetHardwareInfo(t *testing.T) {
 					Return(man2)
 				man2.EXPECT().
 					GetHardwareInfo().
-					Return(gomock.Any(), nil)
+					Return(wsman.HWResults{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: gomock.Any(),
+			// res: dto.HardwareInfoResults{},
+			res: dto.HardwareInfoResults{CIMComputerSystemPackage: dto.CIMComputerSystemPackage{Response: "", Responses: ""}, CIMSystemPackage: dto.CIMSystemPackage{Responses: []dto.CIMSystemPackagingResponses(nil)}, CIMChassis: dto.CIMChassis{Response: dto.CIMChassisResponse{Version: "", SerialNumber: "", Model: "", Manufacturer: "", ElementName: "", CreationClassName: "", Tag: "", OperationalStatus: []int(nil), PackageType: 0, ChassisPackageType: 0}, Responses: []interface{}(nil)}, CIMChip: dto.CIMChips{Responses: []dto.CIMChipGet{{CanBeFRUed: false, CreationClassName: "", ElementName: "", Manufacturer: "", OperationalStatus: []int(nil), Tag: "", Version: ""}}}, CIMCard: dto.CIMCard{Response: dto.CIMCardResponseGet{CanBeFRUed: false, CreationClassName: "", ElementName: "", Manufacturer: "", Model: "", OperationalStatus: []int(nil), PackageType: 0, SerialNumber: "", Tag: "", Version: ""}, Responses: []interface{}(nil)}, CIMBIOSElement: dto.CIMBIOSElement{Response: dto.CIMBIOSElementResponse{TargetOperatingSystem: 0, SoftwareElementID: "", SoftwareElementState: 0, Name: "", OperationalStatus: []int(nil), ElementName: "", Version: "", Manufacturer: "", PrimaryBIOS: false, ReleaseDate: dto.Time{DateTime: ""}}, Responses: []interface{}(nil)}, CIMProcessor: dto.CIMProcessor{Responses: []dto.CIMProcessorResponse{{DeviceID: "", CreationClassName: "", SystemName: "", SystemCreationClassName: "", ElementName: "", OperationalStatus: []int(nil), HealthState: 0, EnabledState: 0, RequestedState: 0, Role: "", Family: 0, OtherFamilyDescription: "", UpgradeMethod: 0, MaxClockSpeed: 0, CurrentClockSpeed: 0, Stepping: "", CPUStatus: 0, ExternalBusClockSpeed: 0}}}, CIMPhysicalPackage: dto.CIMPhysicalPackage{Responses: []dto.CIMPhysicalPackageResponses(nil)}, CIMPhysicalMemory: dto.CIMPhysicalMemory{Responses: []dto.CIMPhysicalMemoryResponse(nil)}, CIMMediaAccessDevice: dto.CIMMediaAccessDevice{Pull: []interface{}(nil), Get: struct {
+				Capabilities            []int
+				CreationClassName       string
+				DeviceID                string
+				ElementName             string
+				EnabledDefault          int
+				EnabledState            int
+				MaxMediaSize            int
+				OperationalStatus       []int
+				RequestedState          int
+				Security                int
+				SystemCreationClassName string
+				SystemName              string
+			}{Capabilities: []int(nil), CreationClassName: "", DeviceID: "", ElementName: "", EnabledDefault: 0, EnabledState: 0, MaxMediaSize: 0, OperationalStatus: []int(nil), RequestedState: 0, Security: 0, SystemCreationClassName: "", SystemName: ""}}},
 			err: nil,
 		},
 		{
@@ -290,7 +314,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.HardwareInfoResults{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -302,14 +326,14 @@ func TestGetHardwareInfo(t *testing.T) {
 					Return(man2)
 				man2.EXPECT().
 					GetHardwareInfo().
-					Return(nil, ErrGeneral)
+					Return(wsman.HWResults{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.HardwareInfoResults{},
 			err: ErrGeneral,
 		},
 	}
@@ -326,7 +350,7 @@ func TestGetHardwareInfo(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetHardwareInfo(context.Background(), device.GUID)
+			res, _, err := useCase.GetHardwareInfo(context.Background(), device.GUID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -656,4 +680,343 @@ func TestGetDiskInfo(t *testing.T) {
 			require.IsType(t, tc.err, err)
 		})
 	}
+}
+
+func TestChipItemsToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := []chip.PackageResponse{{CanBeFRUed: false, CreationClassName: "", ElementName: "", Manufacturer: "", OperationalStatus: nil, Tag: "", Version: ""}}
+
+	res := []v2.ChipItems{{CanBeFRUed: false, CreationClassName: "", ElementName: "", Manufacturer: "", OperationalStatus: []int(nil), Tag: "", Version: ""}}
+
+	x := devices.ChipItemsToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestCardItemsToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := []card.PackageResponse{{CanBeFRUed: false, CreationClassName: "", ElementName: "", Manufacturer: "", Model: "", OperationalStatus: nil, PackageType: 0, SerialNumber: "", Tag: "", Version: ""}}
+	res := []v2.CardItems{{CanBeFRUed: false, CreationClassName: "", ElementName: "", Manufacturer: "", Model: "", OperationalStatus: []int(nil), PackageType: 0, SerialNumber: "", Tag: "", Version: ""}}
+
+	x := devices.CardItemsToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestProcessorItemsToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := []processor.PackageResponse{{DeviceID: "", CreationClassName: "", SystemName: "", SystemCreationClassName: "", ElementName: "", OperationalStatus: nil, HealthState: 0, EnabledState: 0, RequestedState: 0, Role: "", Family: 0, OtherFamilyDescription: "", UpgradeMethod: 0, MaxClockSpeed: 0, CurrentClockSpeed: 0, Stepping: "", CPUStatus: 0, ExternalBusClockSpeed: 0}}
+	res := []v2.ProcessorItems{{DeviceID: "", CreationClassName: "", SystemName: "", SystemCreationClassName: "", ElementName: "", OperationalStatus: []int(nil), HealthState: 0, EnabledState: 0, RequestedState: 0, Role: "", Family: 0, OtherFamilyDescription: "", UpgradeMethod: 0, MaxClockSpeed: 0, CurrentClockSpeed: 0, Stepping: "", CPUStatus: 0, ExternalBusClockSpeed: 0}}
+
+	x := devices.ProcessorItemsToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestPhysicalMemoryToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := []physical.PhysicalMemory{{
+		PartNumber:                 "",
+		SerialNumber:               "",
+		Manufacturer:               "",
+		ElementName:                "",
+		CreationClassName:          "",
+		Tag:                        "",
+		OperationalStatus:          nil,
+		FormFactor:                 0,
+		MemoryType:                 0,
+		Speed:                      0,
+		Capacity:                   0,
+		BankLabel:                  "",
+		ConfiguredMemoryClockSpeed: 0,
+		IsSpeedInMhz:               false,
+		MaxMemorySpeed:             0,
+	}}
+	res := []v2.PhysicalMemory{{
+		PartNumber:                 "",
+		SerialNumber:               "",
+		Manufacturer:               "",
+		ElementName:                "",
+		CreationClassName:          "",
+		Tag:                        "",
+		OperationalStatus:          []int(nil),
+		FormFactor:                 0,
+		MemoryType:                 0,
+		Speed:                      0,
+		Capacity:                   0,
+		BankLabel:                  "",
+		ConfiguredMemoryClockSpeed: 0,
+		IsSpeedInMhz:               false,
+		MaxMemorySpeed:             0,
+	}}
+
+	x := devices.PhysicalMemoryToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestPpPullResponseCardToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := physical.PullResponse{
+		XMLName:     xml.Name{},
+		MemoryItems: []physical.PhysicalMemory{},
+		Card:        []card.PackageResponse{},
+		PhysicalPackage: []physical.PhysicalPackage{
+			{
+				CanBeFRUed:           false,
+				VendorEquipmentType:  "",
+				ManufactureDate:      "",
+				OtherIdentifyingInfo: "",
+				SerialNumber:         "",
+				SKU:                  "",
+				Model:                "",
+				Manufacturer:         "",
+				ElementName:          "",
+				CreationClassName:    "",
+				Tag:                  "",
+				OperationalStatus:    nil,
+				PackageType:          0,
+			},
+		},
+		Chassis:       []chassis.PackageResponse{},
+		EndOfSequence: xml.Name{},
+	}
+	res := []v2.CardItems{{
+		CanBeFRUed:        false,
+		CreationClassName: "",
+		ElementName:       "",
+		Manufacturer:      "",
+		Model:             "",
+		OperationalStatus: []int(nil),
+		PackageType:       0,
+		SerialNumber:      "",
+		Tag:               "",
+	}}
+
+	x := devices.PpPullResponseCardToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestPpPullResponseMemoryToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := physical.PullResponse{
+		XMLName: xml.Name{},
+		MemoryItems: []physical.PhysicalMemory{
+			{
+				PartNumber:                 "",
+				SerialNumber:               "",
+				Manufacturer:               "",
+				ElementName:                "",
+				CreationClassName:          "",
+				Tag:                        "",
+				OperationalStatus:          nil,
+				FormFactor:                 0,
+				MemoryType:                 0,
+				Speed:                      0,
+				Capacity:                   0,
+				BankLabel:                  "",
+				ConfiguredMemoryClockSpeed: 0,
+				IsSpeedInMhz:               false,
+				MaxMemorySpeed:             0,
+			},
+		},
+		Card:            []card.PackageResponse{},
+		PhysicalPackage: []physical.PhysicalPackage{},
+		Chassis:         []chassis.PackageResponse{},
+		EndOfSequence:   xml.Name{},
+	}
+	res := []v2.PhysicalMemory{{
+		PartNumber:                 "",
+		SerialNumber:               "",
+		Manufacturer:               "",
+		ElementName:                "",
+		CreationClassName:          "",
+		Tag:                        "",
+		OperationalStatus:          []int(nil),
+		FormFactor:                 0,
+		MemoryType:                 0,
+		Speed:                      0,
+		Capacity:                   0,
+		BankLabel:                  "",
+		ConfiguredMemoryClockSpeed: 0,
+		IsSpeedInMhz:               false,
+		MaxMemorySpeed:             0,
+	}}
+
+	x := devices.PpPullResponseMemoryToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestMediaAccessDeviceToDTOv2(t *testing.T) {
+	t.Parallel()
+
+	d := []mediaaccess.MediaAccessDevice{{
+		CreationClassName:       "",
+		DeviceID:                "",
+		ElementName:             "",
+		EnabledDefault:          0,
+		EnabledState:            0,
+		MaxMediaSize:            0,
+		OperationalStatus:       nil,
+		RequestedState:          0,
+		Security:                0,
+		SystemCreationClassName: "",
+		SystemName:              "",
+	}}
+	res := []v2.MediaAccessDevice{{
+		CreationClassName:       "",
+		DeviceID:                "",
+		ElementName:             "",
+		EnabledDefault:          0,
+		EnabledState:            0,
+		MaxMediaSize:            0,
+		OperationalStatus:       []int(nil),
+		RequestedState:          0,
+		Security:                0,
+		SystemCreationClassName: "",
+		SystemName:              "",
+	}}
+
+	x := devices.MediaAccessDeviceToDTOv2(d)
+
+	require.Equal(t, x, res)
+}
+
+func TestCimChipArray(t *testing.T) {
+	t.Parallel()
+
+	d := wsman.HWResults{
+		CSPResult:             computer.Response{},
+		ChassisResult:         chassis.Response{},
+		ChipResult:            chip.Response{},
+		CardResult:            card.Response{},
+		PhysicalMemoryResult:  physical.Response{},
+		MediaAccessPullResult: mediaaccess.Response{},
+		PPPullResult:          physical.Response{},
+		BiosResult:            bios.Response{},
+		ProcessorResult:       processor.Response{},
+	}
+
+	res := []dto.CIMChipGet{{
+		CanBeFRUed:        false,
+		CreationClassName: "",
+		ElementName:       "",
+		Manufacturer:      "",
+		OperationalStatus: []int(nil),
+		Tag:               "",
+		Version:           "",
+	}}
+
+	x := devices.CimChipArray(&d)
+
+	require.Equal(t, x, res)
+}
+
+func TestCimPhysicalMemoryArray(t *testing.T) {
+	t.Parallel()
+
+	d := wsman.HWResults{
+		CSPResult:     computer.Response{},
+		ChassisResult: chassis.Response{},
+		ChipResult:    chip.Response{},
+		CardResult:    card.Response{},
+		PhysicalMemoryResult: physical.Response{
+			Body: physical.Body{
+				PullResponse: physical.PullResponse{
+					MemoryItems: []physical.PhysicalMemory{{
+						PartNumber:                 "",
+						SerialNumber:               "",
+						Manufacturer:               "",
+						ElementName:                "",
+						CreationClassName:          "",
+						Tag:                        "",
+						OperationalStatus:          nil,
+						FormFactor:                 0,
+						MemoryType:                 0,
+						Speed:                      0,
+						Capacity:                   0,
+						BankLabel:                  "",
+						ConfiguredMemoryClockSpeed: 0,
+						IsSpeedInMhz:               false,
+						MaxMemorySpeed:             0,
+					}},
+				},
+			},
+		},
+		MediaAccessPullResult: mediaaccess.Response{},
+		PPPullResult:          physical.Response{},
+		BiosResult:            bios.Response{},
+		ProcessorResult:       processor.Response{},
+	}
+
+	res := []dto.CIMPhysicalMemoryResponse{{
+		PartNumber:                 "",
+		SerialNumber:               "",
+		Manufacturer:               "",
+		ElementName:                "",
+		CreationClassName:          "",
+		Tag:                        "",
+		OperationalStatus:          []int(nil),
+		FormFactor:                 0,
+		MemoryType:                 0,
+		Speed:                      0,
+		Capacity:                   0,
+		BankLabel:                  "",
+		ConfiguredMemoryClockSpeed: 0,
+		IsSpeedInMhz:               false,
+		MaxMemorySpeed:             0,
+	}}
+
+	x := devices.CimPhysicalMemoryArray(&d)
+
+	require.Equal(t, x, res)
+}
+
+func TestProcessorArray(t *testing.T) {
+	t.Parallel()
+
+	d := wsman.HWResults{
+		CSPResult:             computer.Response{},
+		ChassisResult:         chassis.Response{},
+		ChipResult:            chip.Response{},
+		CardResult:            card.Response{},
+		PhysicalMemoryResult:  physical.Response{},
+		MediaAccessPullResult: mediaaccess.Response{},
+		PPPullResult:          physical.Response{},
+		BiosResult:            bios.Response{},
+		ProcessorResult:       processor.Response{},
+	}
+
+	res := []dto.CIMProcessorResponse{{
+		DeviceID:                "",
+		CreationClassName:       "",
+		SystemName:              "",
+		SystemCreationClassName: "",
+		ElementName:             "",
+		OperationalStatus:       nil,
+		HealthState:             0,
+		EnabledState:            0,
+		RequestedState:          0,
+		Role:                    "",
+		Family:                  0,
+		OtherFamilyDescription:  "",
+		UpgradeMethod:           0,
+		MaxClockSpeed:           0,
+		CurrentClockSpeed:       0,
+		Stepping:                "",
+		CPUStatus:               0,
+		ExternalBusClockSpeed:   0,
+	}}
+
+	x := devices.CimProcessorArray(&d)
+
+	require.Equal(t, x, res)
 }

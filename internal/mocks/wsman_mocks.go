@@ -344,10 +344,10 @@ func (mr *MockManagementMockRecorder) GetGeneralSettings() *gomock.Call {
 }
 
 // GetHardwareInfo mocks base method.
-func (m *MockManagement) GetHardwareInfo() (any, error) {
+func (m *MockManagement) GetHardwareInfo() (wsman.HWResults, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHardwareInfo")
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(wsman.HWResults)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

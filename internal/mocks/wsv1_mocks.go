@@ -393,12 +393,13 @@ func (mr *MockFeatureMockRecorder) GetGeneralSettings(ctx, guid any) *gomock.Cal
 }
 
 // GetHardwareInfo mocks base method.
-func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (any, error) {
+func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfoResults, v2.HardwareInfoResults, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHardwareInfo", ctx, guid)
-	ret0, _ := ret[0].(any)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret0, _ := ret[0].(dto.HardwareInfoResults)
+	ret1, _ := ret[1].(v2.HardwareInfoResults)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // GetHardwareInfo indicates an expected call of GetHardwareInfo.

@@ -42,7 +42,7 @@ type Feature interface {
 	GetAlarmOccurrences(ctx context.Context, guid string) ([]dto.AlarmClockOccurrence, error)
 	CreateAlarmOccurrences(ctx context.Context, guid string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error)
 	DeleteAlarmOccurrences(ctx context.Context, guid, instanceID string) error
-	GetHardwareInfo(ctx context.Context, guid string) (interface{}, error)
+	GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfoResults, dtov2.HardwareInfoResults, error)
 	GetPowerState(ctx context.Context, guid string) (dto.PowerState, error)
 	GetPowerCapabilities(ctx context.Context, guid string) (dto.PowerCapabilities, error)
 	GetGeneralSettings(ctx context.Context, guid string) (interface{}, error)

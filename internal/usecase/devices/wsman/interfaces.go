@@ -37,7 +37,7 @@ type Management interface {
 	GetAlarmOccurrences() ([]ipsAlarmClock.AlarmClockOccurrence, error)
 	CreateAlarmOccurrences(name string, startTime time.Time, interval int, deleteOnCompletion bool) (alarmclock.AddAlarmOutput, error)
 	DeleteAlarmOccurrences(instanceID string) error
-	GetHardwareInfo() (interface{}, error)
+	GetHardwareInfo() (HWResults, error)
 	GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
