@@ -43,6 +43,7 @@ jobs:
           npx semantic-release --dry-run --no-ci --branches main,$GITHUB_REF
           version=$(cat .VERSION)
           echo "version=$version" >> $GITHUB_OUTPUT
+
       - name: Version
         run: echo "The next version is ${{ steps.semantic-release.outputs.version }}"
 
@@ -81,6 +82,7 @@ jobs:
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
           node-version: 22.x
+
       - run: npm ci
         working-directory: ./temp
 
@@ -96,7 +98,7 @@ jobs:
 
       - name: Version
         run: echo "The next version is ${{ needs.prepare.outputs.version }}"
-        
+
       - shell: bash
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
@@ -104,17 +106,17 @@ jobs:
       - shell: bash
         if: matrix.os == 'ubuntu-latest'
         run: |
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app/main.go
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app/main.go
 
       - shell: bash
         if: matrix.os == 'windows-latest'
         run: |
-          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app/main.go
+          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app/main.go
 
       - shell: bash
         if: matrix.os == 'macos-latest'
         run: |
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app/main.go
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app/main.go
 
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         if: matrix.os == 'ubuntu-latest'
@@ -139,59 +141,33 @@ jobs:
     permissions:
       contents: write # for Git to git push
     runs-on: ubuntu-latest
-    needs: prepare
+    needs: build
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
         with:
           egress-policy: audit
 
-      - name: Checkout Console
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
-        with:
-          persist-credentials: false
-
       # copy the caches from prepare
       - shell: bash
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
+
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: dist/linux
           key: linux-${{ env.sha_short }}
+
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: dist/darwin
           key: darwin-${{ env.sha_short }}
+
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
           path: dist/windows
           key: windows-${{ env.sha_short }}
           enableCrossOsArchive: true
-      - run: |
-          ls -l dist
-          ls -l
-
-      - name: Use Node.js 22.x
-        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
-        with:
-          node-version: 22.x
-
-      - name: Check out Sample Web UI
-        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # master
-        with:
-          repository: open-amt-cloud-toolkit/sample-web-ui
-          ref: main
-          path: ./temp
-
-      - run: npm ci
-        working-directory: ./temp
-
-      - run: npm run build-enterprise
-        working-directory: ./temp
-
-      - name: move files
-        run: mv ./temp/ui/* ./internal/controller/http/ui
 
       - name: Docker Login
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
