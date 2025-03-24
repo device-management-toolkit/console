@@ -10,11 +10,51 @@ name: Semantic-Release CI
 on:
   push:
     branches: [main, beta]
+
 permissions:
   contents: read
 
 jobs:
   prepare:
+    runs-on: ubuntu-latest
+    outputs:
+      version: ${{ steps.semantic-release.outputs.version }}
+    steps:
+      - name: Checkout Console
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          persist-credentials: false
+
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          go-version: ">=1.23.0"
+
+      - name: Install `@semantic-release/exec` plugin
+        run: npm install @semantic-release/exec @semantic-release/changelog
+
+      - name: Semantic Release dry-run
+        id: semantic-release
+        env:
+          GITHUB_REF: ${{ github.head_ref || github.ref_name }}
+          GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
+        run: |
+          # unset GITHUB_ACTIONS
+          # git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
+          npx semantic-release --dry-run --no-ci --branches main,$GITHUB_REF
+          version=$(cat .VERSION)
+          echo "version=$version" >> $GITHUB_OUTPUT
+      - name: Version
+        run: echo "The next version is ${{ steps.semantic-release.outputs.version }}"
+
+      - name: Fail if version is empty
+        run: |
+          if [ -z "${{ steps.semantic-release.outputs.version }}" ]; then
+            echo "Version output is empty. Failing the job."
+            exit 1
+          fi
+
+  build:
+    needs: prepare
     strategy:
       matrix:
         os: [ubuntu-latest, macos-latest, windows-latest]
@@ -36,6 +76,7 @@ jobs:
           repository: open-amt-cloud-toolkit/sample-web-ui
           ref: main
           path: ./temp
+
       - name: Use Node.js 22.x
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
         with:
@@ -52,19 +93,10 @@ jobs:
       - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ">=1.23.0"
-      - name: 🔬 Check semantic versioning
-        id: semantic-release
-        shell: bash
-        env:
-          GITHUB_REF: ${{ github.head_ref || github.ref_name }}
-          GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
-        run: |
-          # unset GITHUB_ACTIONS
-          # git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
-          npx semantic-release@24 --no-ci --dry-run --plugins @semantic-release/commit-analyzer --branches main,$GITHUB_REF
-          test -e .VERSION || (echo $(git describe --abbrev=0 --tags | tr -d v) > .VERSION && touch .NORELEASE)
-          echo "Determined Version $(cat .VERSION)"
-          echo "VERSION=$VERSION" >> $GITHUB_ENV
+
+      - name: Version
+        run: echo "The next version is ${{ needs.prepare.outputs.version }}"
+        
       - shell: bash
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
