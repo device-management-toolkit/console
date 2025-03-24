@@ -10,7 +10,6 @@ name: Semantic-Release CI
 on:
   push:
     branches: [main, beta]
-  pull_request:
 permissions:
   contents: read
 
@@ -60,9 +59,9 @@ jobs:
           GITHUB_REF: ${{ github.head_ref || github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
-          unset GITHUB_ACTIONS
-          git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
-          npx semantic-release@24 --no-ci --dry-run --plugins @semantic-release/commit-analyzer --branches main,$GITHUB_REF,ciFix
+          # unset GITHUB_ACTIONS
+          # git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
+          npx semantic-release@24 --no-ci --dry-run --plugins @semantic-release/commit-analyzer --branches main,$GITHUB_REF
           test -e .VERSION || (echo $(git describe --abbrev=0 --tags | tr -d v) > .VERSION && touch .NORELEASE)
           echo "Determined Version $(cat .VERSION)"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
