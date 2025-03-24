@@ -35,9 +35,10 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: golangci-lint
-        uses: reviewdog/action-golangci-lint@dd3fda91790ca90e75049e5c767509dc0ec7d99b # v2.7.0
+        uses: reviewdog/action-golangci-lint@3dfdce20f5ca12d264c214abb993dbb40834da90 # v2.7.2
         with:
           fail_level: error
+          golangci_lint_version: v1.64.8 # pin golangci-lint version
           golangci_lint_flags: "--config=.github/.golangci.yml ./..."
 
   yamllint:
