@@ -10,7 +10,7 @@ name: Semantic-Release CI
 on:
   push:
     branches: [main, beta]
-
+  pull_request:
 permissions:
   contents: read
 
@@ -37,7 +37,10 @@ jobs:
           repository: open-amt-cloud-toolkit/sample-web-ui
           ref: main
           path: ./temp
-
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 22.x
       - run: npm ci
         working-directory: ./temp
 
@@ -57,8 +60,11 @@ jobs:
           GITHUB_REF: ${{ github.head_ref || github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
-          npx semantic-release@21 --no-ci --dry-run --plugins @semantic-release/commit-analyzer --branches main
-          VERSION=$(cat .VERSION)
+          unset GITHUB_ACTIONS
+          git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
+          npx semantic-release@24 --no-ci --dry-run --plugins @semantic-release/commit-analyzer --branches main,$GITHUB_REF,ciFix
+          test -e .VERSION || (echo $(git describe --abbrev=0 --tags | tr -d v) > .VERSION && touch .NORELEASE)
+          echo "Determined Version $(cat .VERSION)"
           echo "VERSION=$VERSION" >> $GITHUB_ENV
       - shell: bash
         run: |
