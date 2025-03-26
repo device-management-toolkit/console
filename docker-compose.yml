@@ -1,17 +1,17 @@
 services:
-  postgres:
-    container_name: postgres
-    image: postgres
-    networks:
-      - openamtnetwork1
-    volumes:
-      - pg-data:/var/lib/postgresql/data
-    environment:
-      POSTGRES_USER: "postgresadmin"
-      POSTGRES_PASSWORD: "admin123"
-      POSTGRES_DB: "rpsdb"
-    ports:
-      - 5432:5432
+  # postgres:
+  #   container_name: postgres
+  #   image: postgres
+  #   networks:
+  #     - openamtnetwork1
+  #   volumes:
+  #     - pg-data:/var/lib/postgresql/data
+  #   environment:
+  #     POSTGRES_USER: "postgresadmin"
+  #     POSTGRES_PASSWORD: "admin123"
+  #     POSTGRES_DB: "rpsdb"
+  #   ports:
+  #     - 5432:5432
   app:
     build: .
     container_name: app
@@ -24,12 +24,13 @@ services:
       APP_ENCRYPTION_KEY: "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL" # This is a test encryption key for the app
       HTTP_HOST: ""
       GIN_MODE: "debug"
-      DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
+      #DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
       AUTH_DISABLED: true
     ports:
       - 8181:8181
-    depends_on:
-      - postgres
+      - 4433:4433
+    # depends_on:
+    #   - postgres
   # integration:
   #   build:
   #     context: .
