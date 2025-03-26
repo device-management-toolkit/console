@@ -29,7 +29,7 @@ var content embed.FS
 // @version     1.0
 // @host        localhost:8181
 // @BasePath    /v1
-func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
+func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) { //nolint:funlen // This function is responsible for setting up the router, so it's expected to be long
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())

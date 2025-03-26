@@ -72,12 +72,12 @@ var profileTest = dto.Profile{
 	Version:                    "1.0",
 }
 
-func TestProfileRoutes(t *testing.T) {
+func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test function
 	t.Parallel()
 
 	tests := []testProfiles{
 		{
-			name:   "get all profiless",
+			name:   "get all profiles",
 			method: http.MethodGet,
 			url:    "/api/v1/admin/profiles",
 			mock: func(profile *mocks.MockProfilesFeature) {

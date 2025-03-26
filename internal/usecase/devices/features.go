@@ -256,7 +256,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 		return settingsResults, settingsResultsV2, err
 	}
 
-	return settingsResults, settingsResultsV2, err
+	return settingsResults, settingsResultsV2, nil
 }
 
 func handleAMTKVMError(err error, results *dtov2.Features) bool {

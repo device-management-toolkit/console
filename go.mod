@@ -12,21 +12,21 @@ require (
 	github.com/gin-contrib/cors v1.7.4
 	github.com/gin-gonic/gin v1.10.0
 	github.com/go-xmlfmt/xmlfmt v1.1.3
-	github.com/golang-jwt/jwt/v5 v5.2.1
+	github.com/golang-jwt/jwt/v5 v5.2.2
 	github.com/golang-migrate/migrate/v4 v4.18.2
 	github.com/gorilla/websocket v1.5.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/jackc/pgx/v5 v5.7.2
-	github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 v2.21.0
+	github.com/jackc/pgx/v5 v5.7.4
+	github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 v2.25.0
 	github.com/prometheus/client_golang v1.21.1
-	github.com/rs/zerolog v1.33.0
+	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.4
 	go.uber.org/mock v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.36.1
+	modernc.org/sqlite v1.36.2
 	software.sslmate.com/src/go-pkcs12 v0.5.0
 )
 
