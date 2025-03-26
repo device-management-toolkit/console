@@ -52,6 +52,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsIEEE8021x "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	screensettings "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
 	"github.com/open-amt-cloud-toolkit/console/config"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
@@ -1757,4 +1758,18 @@ func (g *ConnectionEntry) GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	}
 
 	return tlsSettingDataResponse.Body.PullResponse.SettingDataItems, nil
+}
+
+func (g *ConnectionEntry) GetIPSScreenSettingData() (screensettings.Response, error) {
+	enumResp, err := g.WsmanMessages.IPS.ScreenSettingData.Enumerate()
+	if err != nil {
+		return screensettings.Response{}, err
+	}
+
+	pullResp, err := g.WsmanMessages.IPS.ScreenSettingData.Pull(enumResp.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return screensettings.Response{}, err
+	}
+
+	return pullResp, nil
 }

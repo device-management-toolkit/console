@@ -46,6 +46,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsIEEE8021x "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	screensettings "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
@@ -53,7 +54,6 @@ import (
 
 type (
 	AMTExplorer interface {
-		// SetupWsmanClient(device dto.Device, isRedirection, logAMTMessages bool) *wsmanAPI.ConnectionEntry
 		GetAMT8021xCredentialContext() (ieee8021x.Response, error)
 		GetAMT8021xProfile() (ieee8021x.Response, error)
 		GetAMTAlarmClockService() (alarmclock.Response, error)
@@ -109,6 +109,7 @@ type (
 		GetIPSHostBasedSetupService() (hostbasedsetup.Response, error)
 		GetIPSIEEE8021xSettings() (ipsIEEE8021x.Response, error)
 		GetIPSOptInService() (optin.Response, error)
+		GetIPSScreenSettingData() (screensettings.Response, error)
 	}
 	Feature interface {
 		GetExplorerSupportedCalls() []string

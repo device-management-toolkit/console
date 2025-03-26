@@ -20,6 +20,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	ipsAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	screensettings "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
 )
@@ -61,4 +62,5 @@ type Management interface {
 	GetDeviceCertificate() (*gotls.Certificate, error)
 	GetCIMBootSourceSetting() (cimBoot.Response, error)
 	BootServiceStateChange(requestedState int) (cimBoot.BootService, error)
+	GetIPSScreenSettingData() (screensettings.Response, error)
 }
