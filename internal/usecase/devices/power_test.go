@@ -312,7 +312,7 @@ func TestSetBootOptions(t *testing.T) {
 	t.Parallel()
 
 	bootResponse := boot.BootSettingDataResponse{
-		BIOSLastStatus:           []int{2, 0},
+		BIOSLastStatus:           []uint16{2, 0},
 		BIOSPause:                false,
 		BIOSSetup:                false,
 		BootMediaIndex:           0,
