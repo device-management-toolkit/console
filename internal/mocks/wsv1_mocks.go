@@ -123,6 +123,21 @@ func (m *MockFeature) EXPECT() *MockFeatureMockRecorder {
 	return m.recorder
 }
 
+// AddCertificate mocks base method.
+func (m *MockFeature) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCertificate", c, guid, certInfo)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddCertificate indicates an expected call of AddCertificate.
+func (mr *MockFeatureMockRecorder) AddCertificate(c, guid, certInfo any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockFeature)(nil).AddCertificate), c, guid, certInfo)
+}
+
 // CancelUserConsent mocks base method.
 func (m *MockFeature) CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()

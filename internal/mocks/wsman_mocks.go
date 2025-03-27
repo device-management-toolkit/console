@@ -59,6 +59,36 @@ func (m *MockManagement) EXPECT() *MockManagementMockRecorder {
 	return m.recorder
 }
 
+// AddClientCert mocks base method.
+func (m *MockManagement) AddClientCert(clientCert string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddClientCert", clientCert)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddClientCert indicates an expected call of AddClientCert.
+func (mr *MockManagementMockRecorder) AddClientCert(clientCert any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddClientCert", reflect.TypeOf((*MockManagement)(nil).AddClientCert), clientCert)
+}
+
+// AddTrustedRootCert mocks base method.
+func (m *MockManagement) AddTrustedRootCert(caCert string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTrustedRootCert", caCert)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddTrustedRootCert indicates an expected call of AddTrustedRootCert.
+func (mr *MockManagementMockRecorder) AddTrustedRootCert(caCert any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTrustedRootCert", reflect.TypeOf((*MockManagement)(nil).AddTrustedRootCert), caCert)
+}
+
 // BootServiceStateChange mocks base method.
 func (m *MockManagement) BootServiceStateChange(requestedState int) (boot0.BootService, error) {
 	m.ctrl.T.Helper()

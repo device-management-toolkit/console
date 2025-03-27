@@ -25,6 +25,8 @@ import (
 )
 
 type Management interface {
+	AddTrustedRootCert(caCert string) (string, error)
+	AddClientCert(clientCert string) (string, error)
 	GetAMTVersion() ([]software.SoftwareIdentity, error)
 	GetSetupAndConfiguration() ([]setupandconfiguration.SetupAndConfigurationServiceResponse, error)
 	GetAMTRedirectionService() (redirection.Response, error)

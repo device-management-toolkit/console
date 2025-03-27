@@ -2,6 +2,7 @@ package devices
 
 import (
 	"context"
+	"encoding/base64"
 	"strconv"
 	"strings"
 
@@ -11,7 +12,21 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
+
+const (
+	BootActionHTTPSBoot         = 105
+	BootActionResetToIDERCDROM  = 202
+	BootActionPowerOnIDERCDROM  = 203
+	BootActionResetToBIOS       = 101
+	BootActionResetToPXE        = 400
+	BootActionPowerOnToPXE      = 401
+	BootActionResetToDiag       = 301
+	BootActionResetToIDERFloppy = 200
+)
+
+var ErrValidationUseCase = ValidationError{Console: consoleerrors.CreateConsoleError("parameter validation failed")}
 
 func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (power.PowerActionResponse, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
@@ -172,22 +187,30 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 
 	// boot on ider
 	// boot on floppy
-	determineIDERBootDevice(bootSetting, &newData)
-	// force boot mode
-	_, err = device.SetBootConfigRole(1)
+	err = determineBootDevice(bootSetting, &newData)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
 
 	bootSource := getBootSource(bootSetting)
-	if bootSource != "" {
-		_, err = device.ChangeBootOrder(bootSource)
-		if err != nil {
-			return power.PowerActionResponse{}, err
-		}
+
+	_, err = device.ChangeBootOrder("")
+	if err != nil {
+		return power.PowerActionResponse{}, err
 	}
 
 	_, err = device.SetBootData(newData)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	// set boot config role
+	_, err = device.SetBootConfigRole(1)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	_, err = device.ChangeBootOrder(bootSource)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -204,30 +227,117 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 	return powerActionResult, nil
 }
 
-func determineIDERBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) {
-	if bootSetting.Action == 202 || bootSetting.Action == 203 {
+func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) error {
+	switch bootSetting.Action {
+	case BootActionHTTPSBoot:
+		typeLengthValueBuffer, params, err := validateHTTPBootParams(bootSetting.BootDetails.URL, bootSetting.BootDetails.Username, bootSetting.BootDetails.Password)
+		if err != nil {
+			return err
+		}
+
+		newData.BIOSLastStatus = nil
+		newData.UseIDER = false
+		newData.BIOSSetup = false
+		newData.UseSOL = false
+		newData.BootMediaIndex = 0
+		newData.EnforceSecureBoot = bootSetting.BootDetails.EnforceSecureBoot
+		newData.UserPasswordBypass = false
+		newData.UefiBootNumberOfParams = params
+		newData.UefiBootParametersArray = base64.StdEncoding.EncodeToString(typeLengthValueBuffer)
+		newData.ForcedProgressEvents = true
+	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM:
 		newData.IDERBootDevice = 1
-	} else {
+	default:
 		newData.IDERBootDevice = 0
 	}
+
+	return nil
+}
+
+func validateHTTPBootParams(url, username, password string) (buffer []byte, paramCount int, err error) {
+	// Example: Create TLV parameters for HTTPS boot
+	parameters := []boot.TLVParameter{}
+
+	// Create a network device path (URI to HTTPS server)
+	networkPathParam, err := boot.NewStringParameter(
+		boot.OCR_EFI_NETWORK_DEVICE_PATH,
+		url,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	parameters = append(parameters, networkPathParam)
+
+	// Set sync Root CA flag to true
+	syncRootCAParam := boot.NewBoolParameter(
+		boot.OCR_HTTPS_CERT_SYNC_ROOT_CA,
+		true,
+	)
+	parameters = append(parameters, syncRootCAParam)
+
+	// user name
+	if username != "" {
+		usernameParam, err := boot.NewStringParameter(
+			boot.OCR_HTTPS_USER_NAME,
+			username,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		parameters = append(parameters, usernameParam)
+	}
+
+	// password
+	if password != "" {
+		passwordParam, err := boot.NewStringParameter(
+			boot.OCR_HTTPS_PASSWORD,
+			password,
+		)
+		if err != nil {
+			return nil, 0, err
+		}
+
+		parameters = append(parameters, passwordParam)
+	}
+
+	// Validate the parameters before creating the buffer
+	valid, _ := boot.ValidateParameters(parameters)
+	if !valid {
+		return nil, 0, ErrValidationUseCase
+	}
+
+	// Create the TLV buffer
+	tlvBuffer, err := boot.CreateTLVBuffer(parameters)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return tlvBuffer, len(parameters), nil
 }
 
 // "Intel(r) AMT: Force PXE Boot".
 // "Intel(r) AMT: Force CD/DVD Boot".
 func getBootSource(bootSetting dto.BootSetting) string {
-	if bootSetting.Action == 400 || bootSetting.Action == 401 {
+	switch bootSetting.Action {
+	case BootActionResetToPXE, BootActionPowerOnToPXE:
 		return string(cimBoot.PXE)
-	} else if bootSetting.Action == 202 || bootSetting.Action == 203 {
+	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM:
 		return string(cimBoot.CD)
+	case BootActionHTTPSBoot:
+		return string(cimBoot.OCRUEFIHTTPS)
+	default:
+		return ""
 	}
-
-	return ""
 }
 
 func determineBootAction(bootSetting *dto.BootSetting) {
-	if bootSetting.Action == 101 || bootSetting.Action == 200 || bootSetting.Action == 202 || bootSetting.Action == 301 || bootSetting.Action == 400 {
+	switch bootSetting.Action {
+	case BootActionResetToBIOS, BootActionHTTPSBoot, BootActionResetToIDERFloppy,
+		BootActionResetToIDERCDROM, BootActionResetToDiag, BootActionResetToPXE:
 		bootSetting.Action = int(power.MasterBusReset)
-	} else {
+	default:
 		bootSetting.Action = int(power.PowerOn)
 	}
 }

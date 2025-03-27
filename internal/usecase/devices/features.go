@@ -157,7 +157,7 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 
 	result := findBootSettingInstances(ocrData.bootSourceSettings)
 
-	// AMT_BootSettingData.UEFIHTTPSBootEnabled is is read-only. AMT_BootCapabilities instance is read-only.
+	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
 	// So, these cannot be updated
 	isHTTPSBootSupported := false
 	if result.isHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled {
@@ -234,7 +234,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 
 	// Configure OCR settings
 	requestedState := 0
-	if features.OCR {
+	if features.HTTPSBootSupported {
 		requestedState = 32769
 	} else {
 		requestedState = 32768

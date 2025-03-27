@@ -309,3 +309,30 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 		PublicKeySize:      publicKeySize,
 	}
 }
+
+func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return "", err
+	}
+
+	if item == nil || item.GUID == "" {
+		return "", ErrNotFound
+	}
+
+	device := uc.device.SetupWsmanClient(*item, false, true)
+
+	if certInfo.IsTrusted {
+		handle, err = device.AddTrustedRootCert(certInfo.Cert)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		handle, err = device.AddClientCert(certInfo.Cert)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return handle, nil
+}

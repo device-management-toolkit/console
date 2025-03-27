@@ -369,14 +369,17 @@ func TestSetBootOptions(t *testing.T) {
 					GetBootData().
 					Return(bootResponse, nil)
 				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
 					SetBootConfigRole(1).
 					Return(powerActionRes, nil)
 				hmm.EXPECT().
 					ChangeBootOrder(string(cimBoot.PXE)).
 					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
-				hmm.EXPECT().
-					SetBootData(gomock.Any()).
-					Return(nil, nil)
 				hmm.EXPECT().
 					SendPowerAction(10).
 					Return(powerActionRes, nil)
@@ -419,7 +422,7 @@ func TestSetBootOptions(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name: "SetBootConfigRole fails",
+			name: "First ChangeBootOrder fails",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
@@ -428,31 +431,7 @@ func TestSetBootOptions(t *testing.T) {
 					GetBootData().
 					Return(bootResponse, nil)
 				hmm.EXPECT().
-					SetBootConfigRole(1).
-					Return(powerActionRes, ErrGeneral)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			res: power.PowerActionResponse{},
-			err: ErrGeneral,
-		},
-		{
-			name: "ChangeBootOrder fails",
-			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
-				hmm.EXPECT().
-					GetBootData().
-					Return(bootResponse, nil)
-				hmm.EXPECT().
-					SetBootConfigRole(1).
-					Return(powerActionRes, nil)
-				hmm.EXPECT().
-					ChangeBootOrder(string(cimBoot.PXE)).
+					ChangeBootOrder("").
 					Return(cimBoot.ChangeBootOrder_OUTPUT{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -473,10 +452,7 @@ func TestSetBootOptions(t *testing.T) {
 					GetBootData().
 					Return(bootResponse, nil)
 				hmm.EXPECT().
-					SetBootConfigRole(1).
-					Return(powerActionRes, nil)
-				hmm.EXPECT().
-					ChangeBootOrder(string(cimBoot.PXE)).
+					ChangeBootOrder("").
 					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
 				hmm.EXPECT().
 					SetBootData(gomock.Any()).
@@ -491,7 +467,7 @@ func TestSetBootOptions(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name: "GetPowerCapabilities fails",
+			name: "SetBootConfigRole fails",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
@@ -500,14 +476,74 @@ func TestSetBootOptions(t *testing.T) {
 					GetBootData().
 					Return(bootResponse, nil)
 				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
+					SetBootConfigRole(1).
+					Return(powerActionRes, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: power.PowerActionResponse{},
+			err: ErrGeneral,
+		},
+		{
+			name: "Second ChangeBootOrder fails",
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetBootData().
+					Return(bootResponse, nil)
+				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
+					SetBootConfigRole(1).
+					Return(powerActionRes, nil)
+				hmm.EXPECT().
+					ChangeBootOrder(string(cimBoot.PXE)).
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: power.PowerActionResponse{},
+			err: ErrGeneral,
+		},
+		{
+			name: "SendPowerAction fails",
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetBootData().
+					Return(bootResponse, nil)
+				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
 					SetBootConfigRole(1).
 					Return(powerActionRes, nil)
 				hmm.EXPECT().
 					ChangeBootOrder(string(cimBoot.PXE)).
 					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
-				hmm.EXPECT().
-					SetBootData(gomock.Any()).
-					Return(nil, nil)
 				hmm.EXPECT().
 					SendPowerAction(10).
 					Return(powerActionRes, ErrGeneral)

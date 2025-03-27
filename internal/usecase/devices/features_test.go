@@ -789,7 +789,7 @@ func TestSetFeatures(t *testing.T) {
 		EnableKVM:             true,
 		Redirection:           true,
 		OCR:                   false,
-		HTTPSBootSupported:    true,
+		HTTPSBootSupported:    false,
 		WinREBootSupported:    true,
 		LocalPBABootSupported: true,
 	}
@@ -998,7 +998,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					BootServiceStateChange(32768). // OCR disabled
+					BootServiceStateChange(32768).
 					Return(cimBoot.BootService{}, nil)
 				man2.EXPECT().
 					GetBootService().

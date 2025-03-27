@@ -52,7 +52,9 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 
 		h.GET("explorer", r.getCallList)
 		h.GET("explorer/:guid/:call", r.executeCall)
-		h.GET("certificates/:guid", r.getCertificates)
 		h.GET("tls/:guid", r.getTLSSettingData)
+
+		h.GET("certificates/:guid", r.getCertificates)
+		h.POST("certificates/:guid", r.addCertificate)
 	}
 }

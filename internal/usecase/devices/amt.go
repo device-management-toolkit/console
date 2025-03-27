@@ -46,3 +46,18 @@ func (e NotSupportedError) Wrap(call, function, message string) error {
 
 	return e
 }
+
+type ValidationError struct {
+	Console consoleerrors.InternalError
+}
+
+func (e ValidationError) Error() string {
+	return e.Console.Error()
+}
+
+func (e ValidationError) Wrap(call, function, message string) error {
+	_ = e.Console.Wrap(call, function, nil)
+	e.Console.Message = message
+
+	return e
+}

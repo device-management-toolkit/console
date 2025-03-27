@@ -261,6 +261,65 @@ func TestDeviceManagement(t *testing.T) {
 			expectedCode: http.StatusInternalServerError,
 			response:     []dto.SettingDataResponse{},
 		},
+		{
+			name:   "addCertificate - successful addition",
+			url:    "/api/v1/amt/certificates/valid-guid",
+			method: http.MethodPost,
+			requestBody: dto.CertInfo{
+				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				IsTrusted: true,
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().AddCertificate(
+					context.Background(),
+					"valid-guid",
+					dto.CertInfo{
+						Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+						IsTrusted: true,
+					},
+				).Return("Intel(r) AMT Certificate: Handle: 0", nil)
+			},
+			expectedCode: http.StatusOK,
+			response:     "Intel(r) AMT Certificate: Handle: 0",
+		},
+		{
+			name:   "addCertificate - service failure",
+			url:    "/api/v1/amt/certificates/valid-guid",
+			method: http.MethodPost,
+			requestBody: dto.CertInfo{
+				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				IsTrusted: true,
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().AddCertificate(
+					context.Background(),
+					"valid-guid",
+					dto.CertInfo{
+						Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+						IsTrusted: true,
+					},
+				).Return("", ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:   "addCertificate - missing required field",
+			url:    "/api/v1/amt/certificates/valid-guid",
+			method: http.MethodPost,
+			requestBody: map[string]interface{}{
+				"isTrusted": true,
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().AddCertificate(
+					context.Background(),
+					"valid-guid",
+					gomock.Any(),
+				).Return("", ErrGeneral).AnyTimes()
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
 	}
 
 	for _, tc := range tests {
