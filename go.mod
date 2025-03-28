@@ -2,7 +2,7 @@ module github.com/open-amt-cloud-toolkit/console
 
 go 1.23.0
 
-toolchain go1.24.0
+toolchain go1.24.1
 
 // replace github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
@@ -26,7 +26,7 @@ require (
 	github.com/swaggo/swag v1.16.4
 	go.uber.org/mock v0.5.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.36.2
+	modernc.org/sqlite v1.36.3
 	software.sslmate.com/src/go-pkcs12 v0.5.0
 )
 
