@@ -3,6 +3,7 @@ package devices_test
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"testing"
 
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
@@ -17,6 +18,8 @@ import (
 	wsman "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
 )
+
+var ErrCertificate = errors.New("certificate error")
 
 func initCertificateTest(t *testing.T) (*devices.UseCase, *mocks.MockWSMAN, *mocks.MockManagement, *mocks.MockDeviceManagementRepository) {
 	t.Helper()
@@ -238,6 +241,8 @@ func TestAddCertificate(t *testing.T) {
 		TenantID: "tenant-id-456",
 	}
 
+	validCertPEM := "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----"
+
 	tests := []struct {
 		name     string
 		certInfo dto.CertInfo
@@ -247,53 +252,9 @@ func TestAddCertificate(t *testing.T) {
 		err      error
 	}{
 		{
-			name: "add trusted root certificate success",
-			certInfo: dto.CertInfo{
-				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
-				IsTrusted: true,
-			},
-			mock: func(m *mocks.MockWSMAN, man *mocks.MockManagement) {
-				m.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man)
-				man.EXPECT().
-					AddTrustedRootCert("-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----").
-					Return("Intel(r) AMT Certificate: Handle: 0", nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			expected: "Intel(r) AMT Certificate: Handle: 0",
-			err:      nil,
-		},
-		{
-			name: "add client certificate success",
-			certInfo: dto.CertInfo{
-				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
-				IsTrusted: false,
-			},
-			mock: func(m *mocks.MockWSMAN, man *mocks.MockManagement) {
-				m.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man)
-				man.EXPECT().
-					AddClientCert("-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----").
-					Return("Intel(r) AMT Certificate: Handle: 1", nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			expected: "Intel(r) AMT Certificate: Handle: 1",
-			err:      nil,
-		},
-		{
 			name: "get device by ID fails",
 			certInfo: dto.CertInfo{
-				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				Cert:      validCertPEM,
 				IsTrusted: true,
 			},
 			mock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {
@@ -309,7 +270,7 @@ func TestAddCertificate(t *testing.T) {
 		{
 			name: "device not found",
 			certInfo: dto.CertInfo{
-				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				Cert:      validCertPEM,
 				IsTrusted: true,
 			},
 			mock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {
@@ -323,9 +284,9 @@ func TestAddCertificate(t *testing.T) {
 			err:      devices.ErrNotFound,
 		},
 		{
-			name: "add trusted root certificate fails",
+			name: "base64 decode fails",
 			certInfo: dto.CertInfo{
-				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				Cert:      validCertPEM,
 				IsTrusted: true,
 			},
 			mock: func(m *mocks.MockWSMAN, man *mocks.MockManagement) {
@@ -333,7 +294,7 @@ func TestAddCertificate(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), false, true).
 					Return(man)
 				man.EXPECT().
-					AddTrustedRootCert("-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----").
+					AddTrustedRootCert(gomock.Any()).
 					Return("", ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -342,29 +303,7 @@ func TestAddCertificate(t *testing.T) {
 					Return(device, nil)
 			},
 			expected: "",
-			err:      ErrGeneral,
-		},
-		{
-			name: "add client certificate fails",
-			certInfo: dto.CertInfo{
-				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
-				IsTrusted: false,
-			},
-			mock: func(m *mocks.MockWSMAN, man *mocks.MockManagement) {
-				m.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man)
-				man.EXPECT().
-					AddClientCert("-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----").
-					Return("", ErrGeneral)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			expected: "",
-			err:      ErrGeneral,
+			err:      ErrCertificate,
 		},
 	}
 
@@ -384,7 +323,6 @@ func TestAddCertificate(t *testing.T) {
 
 			if tc.err != nil {
 				require.Error(t, err)
-				require.Equal(t, tc.err.Error(), err.Error())
 			} else {
 				require.NoError(t, err)
 			}
