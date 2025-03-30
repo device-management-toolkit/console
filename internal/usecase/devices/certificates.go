@@ -7,11 +7,14 @@ import (
 	"crypto/sha1" //nolint:gosec // SHA-1 is used for thumbprint not signature
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publickey"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publicprivate"
@@ -311,6 +314,7 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 }
 
 func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
+	var certData []byte
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return "", err
@@ -320,15 +324,52 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 		return "", ErrNotFound
 	}
 
+	// Decode base64 certificate
+	certData, err = base64.StdEncoding.DecodeString(certInfo.Cert)
+	if err != nil {
+		return "", err
+	}
+
+	// Try to decode as PEM
+	block, _ := pem.Decode(certData)
+	if block != nil {
+		if block.Type != "CERTIFICATE" {
+			return "", err
+		}
+
+		certData = block.Bytes
+	}
+
+	cert, err := x509.ParseCertificate(certData)
+	if err != nil {
+		return "", err
+	}
+
+	if cert.NotAfter.Before(time.Now()) {
+		return "", err
+	}
+
+	pemCert := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+
+	block, _ = pem.Decode(pemCert)
+	if block == nil {
+		return "", err
+	}
+
+	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
+
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
 	if certInfo.IsTrusted {
-		handle, err = device.AddTrustedRootCert(certInfo.Cert)
+		handle, err = device.AddTrustedRootCert(cleanedCert)
 		if err != nil {
 			return "", err
 		}
 	} else {
-		handle, err = device.AddClientCert(certInfo.Cert)
+		handle, err = device.AddClientCert(cleanedCert)
 		if err != nil {
 			return "", err
 		}
