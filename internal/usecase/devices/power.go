@@ -17,6 +17,7 @@ import (
 
 const (
 	BootActionHTTPSBoot         = 105
+	BootActionPowerOnHTTPSBoot  = 106
 	BootActionResetToIDERCDROM  = 202
 	BootActionPowerOnIDERCDROM  = 203
 	BootActionResetToBIOS       = 101
@@ -229,7 +230,7 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 
 func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) error {
 	switch bootSetting.Action {
-	case BootActionHTTPSBoot:
+	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
 		typeLengthValueBuffer, params, err := validateHTTPBootParams(bootSetting.BootDetails.URL, bootSetting.BootDetails.Username, bootSetting.BootDetails.Password)
 		if err != nil {
 			return err
@@ -325,7 +326,7 @@ func getBootSource(bootSetting dto.BootSetting) string {
 		return string(cimBoot.PXE)
 	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM:
 		return string(cimBoot.CD)
-	case BootActionHTTPSBoot:
+	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
 		return string(cimBoot.OCRUEFIHTTPS)
 	default:
 		return ""
