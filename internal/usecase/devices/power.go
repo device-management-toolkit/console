@@ -29,7 +29,7 @@ const (
 	BootActionResetToIDERFloppy = 200
 	OsToFullPower               = 500
 	OsToPowerSaving             = 501
-	CIM_PMS_Power_On            = 2 // CIM > Power Management Service > Power On
+	CIMPMSPowerOn               = 2 // CIM > Power Management Service > Power On
 )
 
 var ErrValidationUseCase = ValidationError{Console: consoleerrors.CreateConsoleError("parameter validation failed")}
@@ -54,8 +54,11 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 		return response, nil
 	}
 
-	if action == CIM_PMS_Power_On {
-		ensureFullPowerBeforeReset(device)
+	if action == CIMPMSPowerOn {
+		_, err := ensureFullPowerBeforeReset(device)
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
 	}
 
 	response, err := device.SendPowerAction(action)
