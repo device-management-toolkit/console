@@ -50,9 +50,9 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 		response, err := handleOSPowerSavingStateChange(device, action)
 		if err != nil {
 			return power.PowerActionResponse{}, err
-		} else {
-			return response, nil
 		}
+
+		return response, nil
 	}
 
 	if action == CIMPMSPowerOn {
