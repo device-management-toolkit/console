@@ -29,6 +29,7 @@ const (
 	BootActionResetToIDERFloppy = 200
 	OsToFullPower               = 500
 	OsToPowerSaving             = 501
+	CIM_PMS_Power_On            = 2 // CIM > Power Management Service > Power On
 )
 
 var ErrValidationUseCase = ValidationError{Console: consoleerrors.CreateConsoleError("parameter validation failed")}
@@ -46,10 +47,14 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
 	if action == OsToFullPower || action == OsToPowerSaving {
-		return handleOSPowerSavingStateChange(device, action)
+		response, err := handleOSPowerSavingStateChange(device, action)
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+		return response, nil
 	}
 
-	if action == 2 {
+	if action == CIM_PMS_Power_On {
 		ensureFullPowerBeforeReset(device)
 	}
 
@@ -91,8 +96,13 @@ func handleOSPowerSavingStateChange(device wsman.Management, action int) (power.
 	}, nil
 }
 
-func ensureFullPowerBeforeReset(device wsman.Management) {
-	handleOSPowerSavingStateChange(device, OsToFullPower)
+func ensureFullPowerBeforeReset(device wsman.Management) (power.PowerActionResponse, error) {
+	res, err := handleOSPowerSavingStateChange(device, OsToFullPower)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	return res, nil
 }
 
 func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState, error) {
@@ -116,7 +126,7 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 	if err != nil {
 		return dto.PowerState{
 			PowerState:         int(state[0].PowerState),
-			OSPowerSavingState: 0, //UNKNOWN
+			OSPowerSavingState: 0, // UNKNOWN
 		}, err
 	}
 
@@ -124,7 +134,6 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 		PowerState:         int(state[0].PowerState),
 		OSPowerSavingState: int(stateOS),
 	}, nil
-
 }
 
 func (uc *UseCase) GetPowerCapabilities(c context.Context, guid string) (dto.PowerCapabilities, error) {

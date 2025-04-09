@@ -98,7 +98,7 @@ func TestSendPowerAction(t *testing.T) {
 					Return(hmm)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
-					Return(ipspower.OSPowerSavingState(3), nil) //It emulates to be in SAVING MODE
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
 				hmm.EXPECT().
 					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)).
 					Return(ipsPowerActionRes, nil)
@@ -123,7 +123,7 @@ func TestSendPowerAction(t *testing.T) {
 					Return(hmm)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
-					Return(ipspower.OSPowerSavingState(3), nil) //It emulates to be in SAVING MODE
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
 				hmm.EXPECT().
 					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)).
 					Return(ipsPowerActionRes, nil)
@@ -145,7 +145,7 @@ func TestSendPowerAction(t *testing.T) {
 					Return(hmm)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
-					Return(ipspower.OSPowerSavingState(2), nil) //It emulates to be in FULL POWER
+					Return(ipspower.OSPowerSavingState(2), nil) // It emulates to be in FULL POWER
 				hmm.EXPECT().
 					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(3)).
 					Return(ipsPowerActionRes, nil)
@@ -201,9 +201,9 @@ func TestSendPowerAction(t *testing.T) {
 					Return(power.PowerActionResponse{}, ErrGeneral)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
-					Return(ipspower.OSPowerSavingState(3), nil) //It emulates to be in SAVING MODE
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
 				hmm.EXPECT().
-					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)). //Go to FULL POWER
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)). // Go to FULL POWER
 					Return(ipspower.PowerActionResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -223,9 +223,9 @@ func TestSendPowerAction(t *testing.T) {
 					Return(hmm)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
-					Return(ipspower.OSPowerSavingState(3), nil) //It emulates to be in SAVING MODE
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
 				hmm.EXPECT().
-					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)). //Go to FULL POWER
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)). // Go to FULL POWER
 					Return(ipspower.PowerActionResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -245,9 +245,9 @@ func TestSendPowerAction(t *testing.T) {
 					Return(hmm)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
-					Return(ipspower.OSPowerSavingState(2), nil) //It emulates to be in FULL POWER
+					Return(ipspower.OSPowerSavingState(2), nil) // It emulates to be in FULL POWER
 				hmm.EXPECT().
-					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(3)). //Go to SAVING MODE
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(3)). // Go to SAVING MODE
 					Return(ipspower.PowerActionResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -363,7 +363,7 @@ func TestGetPowerState(t *testing.T) {
 			},
 			res: dto.PowerState{
 				PowerState:         0,
-				OSPowerSavingState: 0, //UNKNOWN
+				OSPowerSavingState: 0, // UNKNOWN
 			},
 			err: ErrGeneral,
 		},
