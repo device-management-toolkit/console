@@ -20,6 +20,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	ipsAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	ipspower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
 )
@@ -41,6 +42,9 @@ type Management interface {
 	DeleteAlarmOccurrences(instanceID string) error
 	GetHardwareInfo() (interface{}, error)
 	GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error)
+	GetOSPowerSavingState() (ipspower.OSPowerSavingState, error)
+	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
+	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
 	CancelUserConsentRequest() (dto.UserConsentMessage, error)

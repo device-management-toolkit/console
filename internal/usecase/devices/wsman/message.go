@@ -52,6 +52,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsIEEE8021x "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	ipspower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 
 	"github.com/open-amt-cloud-toolkit/console/config"
 	"github.com/open-amt-cloud-toolkit/console/internal/entity"
@@ -492,6 +493,33 @@ func (g *ConnectionEntry) GetPowerState() ([]service.CIM_AssociatedPowerManageme
 	}
 
 	return response.Body.PullResponse.AssociatedPowerManagementService, nil
+}
+
+func (g *ConnectionEntry) GetOSPowerSavingState() (ipspower.OSPowerSavingState, error) {
+	response, err := g.GetIPSPowerManagementService()
+	if err != nil {
+		return 0, err
+	}
+
+	return response.OSPowerSavingState, nil
+}
+
+func (g *ConnectionEntry) GetIPSPowerManagementService() (ipspower.PowerManagementService, error) {
+	response, err := g.WsmanMessages.IPS.PowerManagementService.Get()
+	if err != nil {
+		return ipspower.PowerManagementService{}, err
+	}
+
+	return response.Body.GetResponse, nil
+}
+
+func (g *ConnectionEntry) RequestOSPowerSavingStateChange(newOSPowerStavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error) {
+	response, err := g.WsmanMessages.IPS.PowerManagementService.RequestOSPowerSavingStateChange(newOSPowerStavingState)
+	if err != nil {
+		return ipspower.PowerActionResponse{}, err
+	}
+
+	return response.Body.RequestOSPowerSavingStateChangeResponse, nil
 }
 
 func (g *ConnectionEntry) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {

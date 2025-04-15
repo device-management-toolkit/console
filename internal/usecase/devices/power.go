@@ -10,8 +10,10 @@ import (
 	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	ipsPower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 
 	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
 )
 
@@ -25,6 +27,9 @@ const (
 	BootActionPowerOnToPXE      = 401
 	BootActionResetToDiag       = 301
 	BootActionResetToIDERFloppy = 200
+	OsToFullPower               = 500
+	OsToPowerSaving             = 501
+	CIMPMSPowerOn               = 2 // CIM > Power Management Service > Power On
 )
 
 var ErrValidationUseCase = ValidationError{Console: consoleerrors.CreateConsoleError("parameter validation failed")}
@@ -41,12 +46,67 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
+	if action == OsToFullPower || action == OsToPowerSaving {
+		response, err := handleOSPowerSavingStateChange(device, action)
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+
+		return response, nil
+	}
+
+	if action == CIMPMSPowerOn {
+		_, err := ensureFullPowerBeforeReset(device)
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+	}
+
 	response, err := device.SendPowerAction(action)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
 
 	return response, nil
+}
+
+func handleOSPowerSavingStateChange(device wsman.Management, action int) (power.PowerActionResponse, error) {
+	var targetStateValue int
+
+	if action == OsToFullPower {
+		targetStateValue = 2
+	} else {
+		targetStateValue = 3
+	}
+
+	currentState, err := device.GetOSPowerSavingState()
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	if int(currentState) == targetStateValue {
+		return power.PowerActionResponse{
+			ReturnValue: power.ReturnValue(0),
+		}, nil
+	}
+
+	response, err := device.RequestOSPowerSavingStateChange(ipsPower.OSPowerSavingState(targetStateValue))
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	return power.PowerActionResponse{
+		ReturnValue: power.ReturnValue(response.ReturnValue),
+	}, nil
+}
+
+func ensureFullPowerBeforeReset(device wsman.Management) (power.PowerActionResponse, error) {
+	res, err := handleOSPowerSavingStateChange(device, OsToFullPower)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	return res, nil
 }
 
 func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState, error) {
@@ -66,8 +126,17 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 		return dto.PowerState{}, err
 	}
 
+	stateOS, err := device.GetOSPowerSavingState()
+	if err != nil {
+		return dto.PowerState{
+			PowerState:         int(state[0].PowerState),
+			OSPowerSavingState: 0, // UNKNOWN
+		}, err
+	}
+
 	return dto.PowerState{
-		PowerState: int(state[0].PowerState),
+		PowerState:         int(state[0].PowerState),
+		OSPowerSavingState: int(stateOS),
 	}, nil
 }
 
