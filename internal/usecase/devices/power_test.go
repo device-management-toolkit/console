@@ -10,6 +10,7 @@ import (
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	ipspower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
@@ -61,12 +62,16 @@ func TestSendPowerAction(t *testing.T) {
 	}
 
 	powerActionRes := power.PowerActionResponse{
-		ReturnValue: 0,
+		ReturnValue: power.ReturnValue(0),
+	}
+
+	ipsPowerActionRes := ipspower.PowerActionResponse{
+		ReturnValue: ipspower.ReturnValue(0),
 	}
 
 	tests := []test{
 		{
-			name:   "success",
+			name:   "success for Action 0",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
@@ -75,6 +80,75 @@ func TestSendPowerAction(t *testing.T) {
 				hmm.EXPECT().
 					SendPowerAction(0).
 					Return(powerActionRes, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: powerActionRes,
+			err: nil,
+		},
+		{
+			name:   "success for Action 2",
+			action: 2,
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
+				hmm.EXPECT().
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)).
+					Return(ipsPowerActionRes, nil)
+				hmm.EXPECT().
+					SendPowerAction(2).
+					Return(powerActionRes, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: powerActionRes,
+			err: nil,
+		},
+		{
+			name:   "success for Action 500 (OSToFullPower)",
+			action: 500,
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
+				hmm.EXPECT().
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)).
+					Return(ipsPowerActionRes, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: powerActionRes,
+			err: nil,
+		},
+		{
+			name:   "success for Action 501 (OSToPowerSaving)",
+			action: 501,
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(2), nil) // It emulates to be in FULL POWER
+				hmm.EXPECT().
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(3)).
+					Return(ipsPowerActionRes, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -114,6 +188,75 @@ func TestSendPowerAction(t *testing.T) {
 			},
 			res: power.PowerActionResponse{},
 			err: ErrGeneral,
+		},
+		{
+			name:   "SendPowerAction fails (action = 2)",
+			action: 2,
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					SendPowerAction(2).
+					Return(power.PowerActionResponse{}, ErrGeneral)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
+				hmm.EXPECT().
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)). // Go to FULL POWER
+					Return(ipspower.PowerActionResponse{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: powerActionRes,
+			err: nil,
+		},
+		{
+			name:   "SendPowerAction fails (OSToFullPower, action = 500)",
+			action: 500,
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
+				hmm.EXPECT().
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(2)). // Go to FULL POWER
+					Return(ipspower.PowerActionResponse{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: power.PowerActionResponse{},
+			err: ErrGeneral,
+		},
+		{
+			name:   "SendPowerAction fails (OSToPowerSaving, action = 501)",
+			action: 501,
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(2), nil) // It emulates to be in FULL POWER
+				hmm.EXPECT().
+					RequestOSPowerSavingStateChange(ipspower.OSPowerSavingState(3)). // Go to SAVING MODE
+					Return(ipspower.PowerActionResponse{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: powerActionRes,
+			err: nil,
 		},
 	}
 
@@ -156,6 +299,9 @@ func TestGetPowerState(t *testing.T) {
 				hmm.EXPECT().
 					GetPowerState().
 					Return([]service.CIM_AssociatedPowerManagementService{{PowerState: 0}}, nil)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(3), nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -163,7 +309,8 @@ func TestGetPowerState(t *testing.T) {
 					Return(device, nil)
 			},
 			res: dto.PowerState{
-				PowerState: 0,
+				PowerState:         0,
+				OSPowerSavingState: 3,
 			},
 			err: nil,
 		},
@@ -194,6 +341,30 @@ func TestGetPowerState(t *testing.T) {
 					Return(device, nil)
 			},
 			res: dto.PowerState{},
+			err: ErrGeneral,
+		},
+		{
+			name: "GetOSPowerSavingState fails",
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm)
+				hmm.EXPECT().
+					GetPowerState().
+					Return([]service.CIM_AssociatedPowerManagementService{{PowerState: 0}}, nil)
+				hmm.EXPECT().
+					GetOSPowerSavingState().
+					Return(ipspower.OSPowerSavingState(0), ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.PowerState{
+				PowerState:         0,
+				OSPowerSavingState: 0, // UNKNOWN
+			},
 			err: ErrGeneral,
 		},
 	}
