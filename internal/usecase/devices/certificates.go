@@ -315,6 +315,7 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 
 func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
 	var certData []byte
+
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return "", err
