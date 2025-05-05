@@ -98,9 +98,9 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.22.x, 1.23.x]
+        go-version: [1.23.x, 1.24.x]
         os:
-          [windows-2019, windows-2022, ubuntu-22.04, ubuntu-20.04, ubuntu-24.04]
+          [windows-2019, windows-2022, ubuntu-22.04, ubuntu-24.04]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
