@@ -6,6 +6,9 @@ import (
 	"io/fs"
 	"log"
 	"net/http"
+	"os"
+	"path/filepath"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
@@ -42,12 +45,14 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Create subdirectory view of the embedded file system
 	staticFiles, err := fs.Sub(content, "ui")
 	if err != nil {
-		log.Fatal(err)
+		l.Fatal(err)
 	}
 
-	// Set up HTTP server to handle requests
 	handler.StaticFileFS("/", "./", http.FS(staticFiles)) // Serve static files from "/" route
-	handler.StaticFileFS("/main.js", "./main.js", http.FS(staticFiles))
+
+	modifiedMainJS := injectConfigToMainJS(l, cfg)
+	handler.StaticFile("/main.js", modifiedMainJS)
+
 	handler.StaticFileFS("/polyfills.js", "./polyfills.js", http.FS(staticFiles))
 	handler.StaticFileFS("/media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", "./media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", http.FS(staticFiles))
 	handler.StaticFileFS("/runtime.js", "./runtime.js", http.FS(staticFiles))
@@ -112,4 +117,63 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.NoRoute(func(c *gin.Context) {
 		c.FileFromFS("./", http.FS(staticFiles)) // Serve static files from "/" route
 	})
+}
+
+func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
+	data, err := fs.ReadFile(content, "ui/main.js")
+	if err != nil {
+		l.Warn("Could not read embedded main.js: %v", err)
+
+		return ""
+	}
+
+	protocol := "http://"
+
+	requireHTTPSReplacement := ",requireHttps:!1"
+	if cfg.Auth.UI.RequireHTTPS {
+		requireHTTPSReplacement = ",requireHttps:!0"
+		protocol = "https://"
+	}
+
+	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
+	if cfg.Auth.ClientID != "" {
+		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
+		if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
+			strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
+		}
+
+		data = injectPlaceholders(data, map[string]string{
+			",useOAuth:!1,":                         ",useOAuth:!0,",
+			",requireHttps:!0":                      requireHTTPSReplacement,
+			",strictDiscoveryDocumentValidation:!0": strictDiscoveryReplacement,
+			"##CLIENTID##":                          cfg.Auth.UI.ClientID,
+			"##ISSUER##":                            cfg.Auth.UI.Issuer,
+			"##SCOPE##":                             cfg.Auth.UI.Scope,
+			"##REDIRECTURI##":                       cfg.Auth.UI.RedirectURI,
+		})
+	}
+
+	data = injectPlaceholders(data, map[string]string{
+		"##CONSOLE_SERVER_API##": protocol + cfg.HTTP.Host + ":" + cfg.HTTP.Port,
+	})
+
+	// Write to /tmp
+	permissions := 0o600
+
+	tempFile := filepath.Join(os.TempDir(), "main.js")
+
+	if err := os.WriteFile(tempFile, data, os.FileMode(permissions)); err != nil {
+		log.Fatalf("Could not write modified main.js: %v", err)
+	}
+
+	return tempFile
+}
+
+func injectPlaceholders(content []byte, replacements map[string]string) []byte {
+	result := string(content)
+	for placeholder, value := range replacements {
+		result = strings.ReplaceAll(result, placeholder, value)
+	}
+
+	return []byte(result)
 }

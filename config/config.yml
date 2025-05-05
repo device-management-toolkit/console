@@ -29,3 +29,12 @@ auth:
   redirectionJWTExpiration: 5m0s
   clientId: ""
   issuer: ""
+  ui: 
+    clientId: ""
+    issuer: ""
+    scope: ""
+    redirectUri: ""
+    responseType: "code"
+    requireHttps: false
+    strictDiscoveryDocumentValidation: true
+
