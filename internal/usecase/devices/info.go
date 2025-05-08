@@ -174,28 +174,19 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 	}, nil
 }
 
-func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (dto.GeneralSettings, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.GeneralSettings{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.GeneralSettings{}, ErrNotFound
 	}
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
-	generalSettings, err := device.GetGeneralSettings()
-	if err != nil {
-		return nil, err
-	}
-
-	response := map[string]interface{}{
-		"Body": generalSettings,
-	}
-
-	return response, nil
+	return device.GetGeneralSettings()
 }
 
 func (uc *UseCase) softwareIdentityEntityToDTOv1(d *software.SoftwareIdentity) *dto.SoftwareIdentity {

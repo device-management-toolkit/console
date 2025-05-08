@@ -46,7 +46,7 @@ type Management interface {
 	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
 	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
-	GetGeneralSettings() (interface{}, error)
+	GetGeneralSettings() (dto.GeneralSettings, error)
 	CancelUserConsentRequest() (dto.UserConsentMessage, error)
 	GetUserConsentCode() (optin.StartOptIn_OUTPUT, error)
 	SendConsentCode(code int) (dto.UserConsentMessage, error)
