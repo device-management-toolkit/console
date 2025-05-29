@@ -74,7 +74,7 @@ jobs:
       - name: Check out Sample Web UI
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # master
         with:
-          repository: open-amt-cloud-toolkit/sample-web-ui
+          repository: device-management-toolkit/sample-web-ui
           ref: main
           path: ./temp
 
