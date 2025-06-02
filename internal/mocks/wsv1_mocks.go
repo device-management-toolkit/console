@@ -14,12 +14,12 @@ import (
 	http "net/http"
 	reflect "reflect"
 
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	v2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	gin "github.com/gin-gonic/gin"
 	websocket "github.com/gorilla/websocket"
-	dto "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	v2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	power "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	ipspower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	gomock "go.uber.org/mock/gomock"
 )
 

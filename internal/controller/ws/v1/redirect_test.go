@@ -11,8 +11,8 @@ import (
 	"github.com/stretchr/testify/assert"
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/mocks"
 )
 
 var (

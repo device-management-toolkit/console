@@ -15,11 +15,11 @@ import (
 	swaggerFiles "github.com/swaggo/files"
 	ginSwagger "github.com/swaggo/gin-swagger"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	v1 "github.com/open-amt-cloud-toolkit/console/internal/controller/http/v1"
-	v2 "github.com/open-amt-cloud-toolkit/console/internal/controller/http/v2"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/config"
+	v1 "github.com/device-management-toolkit/console/internal/controller/http/v1"
+	v2 "github.com/device-management-toolkit/console/internal/controller/http/v2"
+	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 //go:embed all:ui

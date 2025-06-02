@@ -5,11 +5,11 @@ import (
 	"testing"
 	"time"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/stretchr/testify/assert"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/export"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/export"
 )
 
 func TestExportAuditLogsCSV(t *testing.T) {

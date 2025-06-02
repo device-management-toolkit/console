@@ -4,12 +4,12 @@ import (
 	"context"
 	"net/http"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 )
 
 // Upgrader defines the interface for upgrading an HTTP connection to a WebSocket connection.

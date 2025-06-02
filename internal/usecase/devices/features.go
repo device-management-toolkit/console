@@ -5,17 +5,17 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/amterror"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
-	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/amterror"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 var ErrOCRNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("One Click Recovery Unsupported")}

@@ -4,14 +4,14 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	wsmanAPI "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 var (

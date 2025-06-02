@@ -7,10 +7,10 @@ import (
 	"os/exec"
 	"runtime"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/app"
 )
 
 // Function pointers for better testability.

@@ -1,6 +1,6 @@
 app:
   name: console
-  repo: open-amt-cloud-toolkit/console
+  repo: device-management-toolkit/console
   version: DEVELOPMENT
   encryption_key: ""
   allow_insecure_ciphers: false

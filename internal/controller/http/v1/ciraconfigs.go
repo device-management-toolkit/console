@@ -5,9 +5,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/ciraconfigs"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type ciraConfigRoutes struct {

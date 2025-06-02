@@ -3,11 +3,11 @@ package devices
 import (
 	"context"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity"
 )
 
 type Redirector struct {

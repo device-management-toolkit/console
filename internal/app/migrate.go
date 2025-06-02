@@ -19,7 +19,7 @@ import (
 	"github.com/golang-migrate/migrate/v4/source/iofs"
 	_ "modernc.org/sqlite" // sqlite3 driver
 
-	"github.com/open-amt-cloud-toolkit/console/config"
+	"github.com/device-management-toolkit/console/config"
 )
 
 const (

@@ -1,14 +1,15 @@
-module github.com/open-amt-cloud-toolkit/console
+module github.com/device-management-toolkit/console
 
 go 1.23.0
 
 toolchain go1.24.1
 
-// replace github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
+// replace github.com/device-management-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.14.1
+	github.com/device-management-toolkit/go-wsman-messages/v2 v2.26.2
 	github.com/gin-contrib/cors v1.7.5
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-xmlfmt/xmlfmt v1.1.3
@@ -17,7 +18,6 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/ilyakaznacheev/cleanenv v1.5.0
 	github.com/jackc/pgx/v5 v5.7.5
-	github.com/open-amt-cloud-toolkit/go-wsman-messages/v2 v2.26.1
 	github.com/prometheus/client_golang v1.22.0
 	github.com/rs/zerolog v1.34.0
 	github.com/stretchr/testify v1.10.0

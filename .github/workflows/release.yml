@@ -106,17 +106,17 @@ jobs:
       - shell: bash
         if: matrix.os == 'ubuntu-latest'
         run: |
-          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app/main.go
+          CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app/main.go
 
       - shell: bash
         if: matrix.os == 'windows-latest'
         run: |
-          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app/main.go
+          CGO_ENABLED=1 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app/main.go
 
       - shell: bash
         if: matrix.os == 'macos-latest'
         run: |
-          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/open-amt-cloud-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app/main.go
+          CGO_ENABLED=1 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app/main.go
 
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         if: matrix.os == 'ubuntu-latest'

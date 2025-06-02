@@ -1,11 +1,11 @@
 package amtexplorer
 
 import (
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 var ErrDatabase = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}

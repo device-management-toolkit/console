@@ -90,7 +90,7 @@ func NewConfig() (*Config, error) {
 	ConsoleConfig = &Config{
 		App: App{
 			Name:                 "console",
-			Repo:                 "open-amt-cloud-toolkit/console",
+			Repo:                 "device-management-toolkit/console",
 			Version:              "DEVELOPMENT",
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,

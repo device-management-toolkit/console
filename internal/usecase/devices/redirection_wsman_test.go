@@ -6,11 +6,11 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips"
 	"github.com/stretchr/testify/mock"
 	"github.com/stretchr/testify/require"
 )

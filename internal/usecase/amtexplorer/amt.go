@@ -1,6 +1,6 @@
 package amtexplorer
 
-import "github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+import "github.com/device-management-toolkit/console/pkg/consoleerrors"
 
 type AMTError struct {
 	Console consoleerrors.InternalError

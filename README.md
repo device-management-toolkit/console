@@ -1,6 +1,6 @@
-![Build](https://img.shields.io/github/actions/workflow/status/open-amt-cloud-toolkit/console/ci.yml?style=for-the-badge&label=Build&logo=github)
-![Codecov](https://img.shields.io/codecov/c/github/open-amt-cloud-toolkit/console?style=for-the-badge&logo=codecov)
-[![OSSF-Scorecard Score](https://img.shields.io/ossf-scorecard/github.com/open-amt-cloud-toolkit/console?style=for-the-badge&label=OSSF%20Score)](https://api.securityscorecards.dev/projects/github.com/open-amt-cloud-toolkit/console)
+![Build](https://img.shields.io/github/actions/workflow/status/device-management-toolkit/console/ci.yml?style=for-the-badge&label=Build&logo=github)
+![Codecov](https://img.shields.io/codecov/c/github/device-management-toolkit/console?style=for-the-badge&logo=codecov)
+[![OSSF-Scorecard Score](https://img.shields.io/ossf-scorecard/github.com/device-management-toolkit/console?style=for-the-badge&label=OSSF%20Score)](https://api.securityscorecards.dev/projects/github.com/device-management-toolkit/console)
 [![Discord](https://img.shields.io/discord/1063200098680582154?style=for-the-badge&label=Discord&logo=discord&logoColor=white&labelColor=%235865F2&link=https%3A%2F%2Fdiscord.gg%2FDKHeUNEWVH)](https://discord.gg/DKHeUNEWVH)
 # Console
 
@@ -19,7 +19,7 @@ Console is an application that provides a 1:1, direct connection for AMT devices
 
 ### For Users
 
-1. Find the latest release of Console under [Github Releases](https://github.com/open-amt-cloud-toolkit/console/releases/latest).
+1. Find the latest release of Console under [Github Releases](https://github.com/device-management-toolkit/console/releases/latest).
 
 2. Download the appropriate binary assets for your OS and Architecture under the *Assets* dropdown section.
 
@@ -65,7 +65,7 @@ Ensure that the environment file has cloud set to `false` and that the URLs for 
 
 <!-- - Looking to contribute? [Find more information here about contribution guidelines and practices](.\CONTRIBUTING.md). -->
 
-- Find a bug? Or have ideas for new features? [Open a new Issue](https://github.com/open-amt-cloud-toolkit/console/issues).
+- Find a bug? Or have ideas for new features? [Open a new Issue](https://github.com/device-management-toolkit/console/issues).
 
 - Need additional support or want to get the latest news and events about Open AMT? Connect with the team directly through Discord.
 

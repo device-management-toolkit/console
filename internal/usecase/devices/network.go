@@ -4,10 +4,10 @@ import (
 	"context"
 	"strings"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 func (uc *UseCase) GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error) {

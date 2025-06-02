@@ -3,10 +3,10 @@ package v1
 import (
 	"github.com/gin-gonic/gin"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/amtexplorer"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/export"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/usecase/amtexplorer"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/export"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type deviceManagementRoutes struct {

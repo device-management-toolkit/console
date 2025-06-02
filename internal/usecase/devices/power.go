@@ -6,15 +6,15 @@ import (
 	"strconv"
 	"strings"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
-	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
-	ipsPower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	ipsPower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 const (

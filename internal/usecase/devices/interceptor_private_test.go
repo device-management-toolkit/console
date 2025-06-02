@@ -8,7 +8,7 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 	"github.com/stretchr/testify/require"
 )
 

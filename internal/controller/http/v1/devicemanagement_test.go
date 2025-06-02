@@ -9,15 +9,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/gin-gonic/gin"
-	power "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 var ErrGeneral = errors.New("general error")

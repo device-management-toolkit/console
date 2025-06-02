@@ -13,15 +13,15 @@ import (
 	context "context"
 	reflect "reflect"
 
+	entity "github.com/device-management-toolkit/console/internal/entity"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	v2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	wsman0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	websocket "github.com/gorilla/websocket"
-	entity "github.com/open-amt-cloud-toolkit/console/internal/entity"
-	dto "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	v2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	devices "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	wsman "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	wsman0 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	power "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	ipspower "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	gomock "go.uber.org/mock/gomock"
 )
 
