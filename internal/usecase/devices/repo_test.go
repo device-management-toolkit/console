@@ -99,12 +99,12 @@ func TestGet(t *testing.T) {
 		{
 			GUID:     "guid-123",
 			TenantID: "tenant-id-456",
-			Tags:     nil,
+			Tags:     []string{},
 		},
 		{
 			GUID:     "guid-456",
 			TenantID: "tenant-id-456",
-			Tags:     nil,
+			Tags:     []string{},
 		},
 	}
 
@@ -183,7 +183,7 @@ func TestGetByID(t *testing.T) {
 	deviceDTO := &dto.Device{
 		GUID:     "device-guid-123",
 		TenantID: "tenant-id-456",
-		Tags:     nil,
+		Tags:     []string{},
 	}
 
 	tests := []testUsecase{

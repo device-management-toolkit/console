@@ -114,6 +114,8 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 	var tags []string
 	if d.Tags != "" {
 		tags = strings.Split(d.Tags, ",")
+	} else {
+		tags = []string{}
 	}
 
 	d1 := &dto.Device{
