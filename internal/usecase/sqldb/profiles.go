@@ -92,6 +92,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 			"p.ip_sync_enabled",
 			"p.local_wifi_sync_enabled",
 			"p.ieee8021x_profile_name",
+			"p.uefi_wifi_sync_enabled",
 			"e.auth_protocol",
 			"e.pxe_timeout",
 			"e.wired_interface",
@@ -118,6 +119,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 			"p.ip_sync_enabled",
 			"p.local_wifi_sync_enabled",
 			"p.ieee8021x_profile_name",
+			"p.uefi_wifi_sync_enabled",
 			"e.auth_protocol",
 			"e.pxe_timeout",
 			"e.wired_interface",
@@ -148,7 +150,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 		err = rows.Scan(&p.ProfileName, &p.Activation, &p.GenerateRandomPassword, &p.CIRAConfigName,
 			&p.GenerateRandomMEBxPassword, &p.Tags, &p.DHCPEnabled, &p.TenantID, &p.TLSMode,
 			&p.UserConsent, &p.IDEREnabled, &p.KVMEnabled, &p.SOLEnabled, &p.TLSSigningAuthority,
-			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
+			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.UEFIWiFiSyncEnabled, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
 		if err != nil {
 			return nil, ErrProfileDatabase.Wrap("Get", "rows.Scan", err)
 		}
@@ -183,6 +185,7 @@ func (r *ProfileRepo) GetByName(_ context.Context, profileName, tenantID string)
 			"p.ip_sync_enabled",
 			"p.local_wifi_sync_enabled",
 			"p.ieee8021x_profile_name",
+			"p.uefi_wifi_sync_enabled",
 			"e.auth_protocol",
 			"e.pxe_timeout",
 			"e.wired_interface",
@@ -215,7 +218,7 @@ func (r *ProfileRepo) GetByName(_ context.Context, profileName, tenantID string)
 			&p.CIRAConfigName,
 			&p.GenerateRandomMEBxPassword, &p.Tags, &p.DHCPEnabled, &p.TenantID, &p.TLSMode,
 			&p.UserConsent, &p.IDEREnabled, &p.KVMEnabled, &p.SOLEnabled, &p.TLSSigningAuthority,
-			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
+			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.UEFIWiFiSyncEnabled, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
 		if err != nil {
 			return p, ErrProfileDatabase.Wrap("GetByName", "rows.Scan", err)
 		}
@@ -276,6 +279,7 @@ func (r *ProfileRepo) Update(_ context.Context, p *entity.Profile) (bool, error)
 		Set("ieee8021x_profile_name", p.IEEE8021xProfileName).
 		Set("ip_sync_enabled", p.IPSyncEnabled).
 		Set("local_wifi_sync_enabled", p.LocalWiFiSyncEnabled).
+		Set("uefi_wifi_sync_enabled", p.UEFIWiFiSyncEnabled).
 		Where("profile_name = ? AND tenant_id = ?", p.ProfileName, p.TenantID).
 		ToSql()
 	if err != nil {
@@ -316,8 +320,8 @@ func (r *ProfileRepo) Insert(_ context.Context, p *entity.Profile) (string, erro
 
 	insertBuilder := r.Builder.
 		Insert("profiles").
-		Columns("profile_name", "activation", "amt_password", "generate_random_password", "cira_config_name", "mebx_password", "generate_random_mebx_password", "tags", "dhcp_enabled", "tls_mode", "user_consent", "ider_enabled", "kvm_enabled", "sol_enabled", "tls_signing_authority", "ieee8021x_profile_name", "ip_sync_enabled", "local_wifi_sync_enabled", "tenant_id").
-		Values(p.ProfileName, p.Activation, p.AMTPassword, p.GenerateRandomPassword, ciraConfigName, p.MEBXPassword, p.GenerateRandomMEBxPassword, p.Tags, p.DHCPEnabled, p.TLSMode, p.UserConsent, p.IDEREnabled, p.KVMEnabled, p.SOLEnabled, p.TLSSigningAuthority, ieee8021xProfileName, p.IPSyncEnabled, p.LocalWiFiSyncEnabled, p.TenantID)
+		Columns("profile_name", "activation", "amt_password", "generate_random_password", "cira_config_name", "mebx_password", "generate_random_mebx_password", "tags", "dhcp_enabled", "tls_mode", "user_consent", "ider_enabled", "kvm_enabled", "sol_enabled", "tls_signing_authority", "ieee8021x_profile_name", "ip_sync_enabled", "local_wifi_sync_enabled", "tenant_id", "uefi_wifi_sync_enabled").
+		Values(p.ProfileName, p.Activation, p.AMTPassword, p.GenerateRandomPassword, ciraConfigName, p.MEBXPassword, p.GenerateRandomMEBxPassword, p.Tags, p.DHCPEnabled, p.TLSMode, p.UserConsent, p.IDEREnabled, p.KVMEnabled, p.SOLEnabled, p.TLSSigningAuthority, ieee8021xProfileName, p.IPSyncEnabled, p.LocalWiFiSyncEnabled, p.TenantID, p.UEFIWiFiSyncEnabled)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")

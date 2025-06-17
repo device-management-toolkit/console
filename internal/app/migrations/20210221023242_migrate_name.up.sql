@@ -87,6 +87,7 @@ CREATE TABLE IF NOT EXISTS profiles(
   ip_sync_enabled BOOLEAN NOT NULL, 
   local_wifi_sync_enabled BOOLEAN NOT NULL, 
   ieee8021x_profile_name TEXT,
+  uefi_wifi_sync_enabled BOOLEAN NOT NULL,
   FOREIGN KEY (ieee8021x_profile_name, tenant_id) REFERENCES ieee8021xconfigs(profile_name, tenant_id),
   FOREIGN KEY (cira_config_name, tenant_id) REFERENCES ciraconfigs(cira_config_name, tenant_id),
   PRIMARY KEY (profile_name, tenant_id)

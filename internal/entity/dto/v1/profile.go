@@ -33,6 +33,7 @@ type Profile struct {
 	IEEE8021xProfileName       *string              `json:"ieee8021xProfileName,omitempty" example:"My Profile"`
 	IEEE8021xProfile           *IEEE8021xConfig     `json:"ieee8021xProfile,omitempty"`
 	Version                    string               `json:"version,omitempty" example:"1.0.0"`
+	UEFIWiFiSyncEnabled        bool                 `json:"uefiWifiSyncEnabled" example:"true"`
 }
 
 var ValidateCIRAOrTLS validator.Func = func(fl validator.FieldLevel) bool {

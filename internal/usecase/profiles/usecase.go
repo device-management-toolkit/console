@@ -294,8 +294,9 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 					SharedStaticIP: false,
 				},
 				Wireless: config.Wireless{
-					WiFiSyncEnabled: data.LocalWiFiSyncEnabled,
-					Profiles:        wifiConfigs,
+					WiFiSyncEnabled:     data.LocalWiFiSyncEnabled,
+					UEFIWiFiSyncEnabled: data.UEFIWiFiSyncEnabled,
+					Profiles:            wifiConfigs,
 				},
 			},
 			Redirection: config.Redirection{
@@ -587,6 +588,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Profile) *entity.Profile {
 		SOLEnabled:                 d.SOLEnabled,
 		IEEE8021xProfileName:       d.IEEE8021xProfileName,
 		Version:                    d.Version,
+		UEFIWiFiSyncEnabled:        d.UEFIWiFiSyncEnabled,
 	}
 
 	d1.AMTPassword, _ = uc.safeRequirements.Encrypt(d.AMTPassword)
@@ -622,6 +624,7 @@ func (uc *UseCase) entityToDTO(d *entity.Profile) *dto.Profile {
 		SOLEnabled:                 d.SOLEnabled,
 		IEEE8021xProfileName:       d.IEEE8021xProfileName,
 		Version:                    d.Version,
+		UEFIWiFiSyncEnabled:        d.UEFIWiFiSyncEnabled,
 	}
 
 	if d.IEEE8021xProfileName != nil && *d.IEEE8021xProfileName != "" {
