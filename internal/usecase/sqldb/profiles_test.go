@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS profiles(
   ip_sync_enabled BOOLEAN NOT NULL, 
   local_wifi_sync_enabled BOOLEAN NOT NULL, 
   ieee8021x_profile_name TEXT,
+  uefi_wifi_sync_enabled BOOLEAN NOT NULL,
   FOREIGN KEY (ieee8021x_profile_name, tenant_id) REFERENCES ieee8021xconfigs(profile_name, tenant_id),
   FOREIGN KEY (cira_config_name, tenant_id) REFERENCES ciraconfigs(cira_config_name, tenant_id),
   PRIMARY KEY (profile_name, tenant_id)
@@ -155,13 +156,13 @@ func TestProfileRepo_GetCount(t *testing.T) {
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					 activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode, 
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-					
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
+					uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true,
+					"authority1", "consent1", true, true, true, true,
 				)
 				require.NoError(t, err)
 			},
@@ -312,13 +313,13 @@ func TestProfileRepo_Get(t *testing.T) {
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-					
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
+					uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true,
+					"authority1", "consent1", true, true, true, true,
 				)
 				require.NoError(t, err)
 			},
@@ -348,6 +349,7 @@ func TestProfileRepo_Get(t *testing.T) {
 					KVMEnabled:                 true,
 					SOLEnabled:                 true,
 					IEEE8021xProfileName:       StringPtr("ieee1"),
+					UEFIWiFiSyncEnabled:        true,
 				},
 			},
 			err: nil,
@@ -420,13 +422,13 @@ func TestProfileRepo_GetByName(t *testing.T) {
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
 					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
-					ieee8021x_profile_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					ieee8021x_profile_name, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
 					"authority1", "consent1", true, true, true,
-					"ieee1")
+					"ieee1", true)
 				require.NoError(t, err)
 			},
 			profileName: "profile1",
@@ -478,6 +480,7 @@ func TestProfileRepo_GetByName(t *testing.T) {
 				ActiveInS0:                 true,
 				PXETimeout:                 IntPtr(10),
 				WiredInterface:             BoolPtr(true),
+				UEFIWiFiSyncEnabled:        true,
 			},
 			expectError: false,
 		},
@@ -543,8 +546,8 @@ func TestProfileRepo_Delete(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO profiles (profile_name, activation, generate_random_password, generate_random_mebx_password, tags, dhcp_enabled, tenant_id, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ip_sync_enabled, local_wifi_sync_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-					"profile1", true, true, true, "tag1", true, "tenant1", "tls", true, true, true, true, "authority", true, true)
+				_, err := dbConn.Exec(`INSERT INTO profiles (profile_name, activation, generate_random_password, generate_random_mebx_password, tags, dhcp_enabled, tenant_id, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ip_sync_enabled, local_wifi_sync_enabled, uefi_wifi_sync_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"profile1", true, true, true, "tag1", true, "tenant1", "tls", true, true, true, true, "authority", true, true, true)
 				require.NoError(t, err)
 			},
 			profileName: "profile1",
@@ -636,13 +639,13 @@ func TestProfileRepo_Update(t *testing.T) {
 					cira_config_name, activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
 					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
-					ieee8021x_profile_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					ieee8021x_profile_name, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"cira1", "activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
 					"authority1", "consent1", true, true, true,
-					"ieee1")
+					"ieee1", true)
 				require.NoError(t, err)
 			},
 			profile: &entity.Profile{
@@ -675,6 +678,7 @@ func TestProfileRepo_Update(t *testing.T) {
 				ActiveInS0:                 false,
 				PXETimeout:                 IntPtr(20),
 				WiredInterface:             BoolPtr(false),
+				UEFIWiFiSyncEnabled:        true,
 			},
 			expected:    true,
 			expectError: false,
@@ -816,9 +820,9 @@ func TestProfileRepo_Insert(t *testing.T) {
 				require.NoError(t, err)
 
 				_, err = dbConn.Exec(`
-				INSERT INTO profiles (profile_name, activation, amt_password, generate_random_password, cira_config_name, mebx_password, generate_random_mebx_password, tags, dhcp_enabled, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ieee8021x_profile_name, ip_sync_enabled, local_wifi_sync_enabled, tenant_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-					"profile1", "activation1", "password1", true, "cira1", "mebx1", true, "tags1", true, 1, "consent1", true, true, true, "authority1", "ieee1", true, true, "tenant1")
+				INSERT INTO profiles (profile_name, activation, amt_password, generate_random_password, cira_config_name, mebx_password, generate_random_mebx_password, tags, dhcp_enabled, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ieee8021x_profile_name, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, uefi_wifi_sync_enabled)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+					"profile1", "activation1", "password1", true, "cira1", "mebx1", true, "tags1", true, 1, "consent1", true, true, true, "authority1", "ieee1", true, true, "tenant1", true)
 				require.NoError(t, err)
 			},
 			profile: &entity.Profile{
