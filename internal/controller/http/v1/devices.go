@@ -7,11 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type deviceRoutes struct {

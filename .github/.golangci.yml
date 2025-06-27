@@ -1,6 +1,6 @@
 linters-settings:
   gci:
-    local-prefixes: github.com/open-amt-cloud-toolkit/console
+    local-prefixes: github.com/device-management-toolkit/console
   errorlint:
     errorf: true
   errcheck:

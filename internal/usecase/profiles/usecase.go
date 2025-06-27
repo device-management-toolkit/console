@@ -5,20 +5,20 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/config"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"gopkg.in/yaml.v2"
 
-	local "github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/ieee8021xconfigs"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profilewificonfigs"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	local "github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
+	"github.com/device-management-toolkit/console/internal/usecase/profilewificonfigs"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/usecase/wificonfigs"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // UseCase -.

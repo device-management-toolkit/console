@@ -27,7 +27,7 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 
 	// Verify default values
 	assert.Equal(t, "console", cfg.App.Name)
-	assert.Equal(t, "open-amt-cloud-toolkit/console", cfg.App.Repo)
+	assert.Equal(t, "device-management-toolkit/console", cfg.App.Repo)
 	assert.Equal(t, "DEVELOPMENT", cfg.App.Version)
 	assert.Equal(t, "test", cfg.App.EncryptionKey)
 

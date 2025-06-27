@@ -13,8 +13,8 @@ import (
 	context "context"
 	reflect "reflect"
 
-	entity "github.com/open-amt-cloud-toolkit/console/internal/entity"
-	dto "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	entity "github.com/device-management-toolkit/console/internal/entity"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	gomock "go.uber.org/mock/gomock"
 )
 

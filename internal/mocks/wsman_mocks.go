@@ -14,24 +14,25 @@ import (
 	reflect "reflect"
 	time "time"
 
-	dto "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	wsman "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	alarmclock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
-	auditlog "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
-	boot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
-	messagelog "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
-	redirection "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
-	setupandconfiguration "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
-	tls0 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
-	boot0 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
-	concrete "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
-	credential "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
-	kvm "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
-	power "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	service "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
-	software "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
-	alarmclock0 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
-	optin "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	alarmclock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
+	auditlog "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
+	boot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	messagelog "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
+	redirection "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	setupandconfiguration "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	tls0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
+	boot0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	concrete "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
+	credential "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	kvm "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	service "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
+	software "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	alarmclock0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
+	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -57,6 +58,36 @@ func NewMockManagement(ctrl *gomock.Controller) *MockManagement {
 // EXPECT returns an object that allows the caller to indicate expected use.
 func (m *MockManagement) EXPECT() *MockManagementMockRecorder {
 	return m.recorder
+}
+
+// AddClientCert mocks base method.
+func (m *MockManagement) AddClientCert(clientCert string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddClientCert", clientCert)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddClientCert indicates an expected call of AddClientCert.
+func (mr *MockManagementMockRecorder) AddClientCert(clientCert any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddClientCert", reflect.TypeOf((*MockManagement)(nil).AddClientCert), clientCert)
+}
+
+// AddTrustedRootCert mocks base method.
+func (m *MockManagement) AddTrustedRootCert(caCert string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddTrustedRootCert", caCert)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddTrustedRootCert indicates an expected call of AddTrustedRootCert.
+func (mr *MockManagementMockRecorder) AddTrustedRootCert(caCert any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTrustedRootCert", reflect.TypeOf((*MockManagement)(nil).AddTrustedRootCert), caCert)
 }
 
 // BootServiceStateChange mocks base method.
@@ -358,6 +389,21 @@ func (mr *MockManagementMockRecorder) GetHardwareInfo() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockManagement)(nil).GetHardwareInfo))
 }
 
+// GetIPSPowerManagementService mocks base method.
+func (m *MockManagement) GetIPSPowerManagementService() (ipspower.PowerManagementService, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIPSPowerManagementService")
+	ret0, _ := ret[0].(ipspower.PowerManagementService)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIPSPowerManagementService indicates an expected call of GetIPSPowerManagementService.
+func (mr *MockManagementMockRecorder) GetIPSPowerManagementService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSPowerManagementService", reflect.TypeOf((*MockManagement)(nil).GetIPSPowerManagementService))
+}
+
 // GetIPSOptInService mocks base method.
 func (m *MockManagement) GetIPSOptInService() (optin.Response, error) {
 	m.ctrl.T.Helper()
@@ -401,6 +447,21 @@ func (m *MockManagement) GetNetworkSettings() (wsman.NetworkResults, error) {
 func (mr *MockManagementMockRecorder) GetNetworkSettings() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworkSettings", reflect.TypeOf((*MockManagement)(nil).GetNetworkSettings))
+}
+
+// GetOSPowerSavingState mocks base method.
+func (m *MockManagement) GetOSPowerSavingState() (ipspower.OSPowerSavingState, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOSPowerSavingState")
+	ret0, _ := ret[0].(ipspower.OSPowerSavingState)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOSPowerSavingState indicates an expected call of GetOSPowerSavingState.
+func (mr *MockManagementMockRecorder) GetOSPowerSavingState() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOSPowerSavingState", reflect.TypeOf((*MockManagement)(nil).GetOSPowerSavingState))
 }
 
 // GetPowerCapabilities mocks base method.
@@ -492,6 +553,21 @@ func (m *MockManagement) RequestAMTRedirectionServiceStateChange(ider, sol bool)
 func (mr *MockManagementMockRecorder) RequestAMTRedirectionServiceStateChange(ider, sol any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestAMTRedirectionServiceStateChange", reflect.TypeOf((*MockManagement)(nil).RequestAMTRedirectionServiceStateChange), ider, sol)
+}
+
+// RequestOSPowerSavingStateChange mocks base method.
+func (m *MockManagement) RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestOSPowerSavingStateChange", osPowerSavingState)
+	ret0, _ := ret[0].(ipspower.PowerActionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestOSPowerSavingStateChange indicates an expected call of RequestOSPowerSavingStateChange.
+func (mr *MockManagementMockRecorder) RequestOSPowerSavingStateChange(osPowerSavingState interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestOSPowerSavingStateChange", reflect.TypeOf((*MockManagement)(nil).RequestOSPowerSavingStateChange), osPowerSavingState)
 }
 
 // SendConsentCode mocks base method.

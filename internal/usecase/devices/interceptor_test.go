@@ -5,15 +5,15 @@ import (
 	"sync"
 	"testing"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/gorilla/websocket"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	devices "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func TestRedirect(t *testing.T) {

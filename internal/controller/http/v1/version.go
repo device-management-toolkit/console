@@ -8,9 +8,9 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/github"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity/github"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 var (

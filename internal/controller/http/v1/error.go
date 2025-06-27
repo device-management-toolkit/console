@@ -9,10 +9,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
 
 type response struct {

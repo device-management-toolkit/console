@@ -1,7 +1,7 @@
 package dto
 
 import (
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 type NotValidError struct {

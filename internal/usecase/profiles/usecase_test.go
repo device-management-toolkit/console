@@ -4,16 +4,16 @@ import (
 	"context"
 	"testing"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/config"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	local "github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	local "github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type test struct {

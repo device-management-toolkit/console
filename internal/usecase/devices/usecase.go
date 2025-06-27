@@ -3,12 +3,12 @@ package devices
 import (
 	"strings"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 const (

@@ -3,8 +3,8 @@ package profiles
 import (
 	"context"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 type (

@@ -1,6 +1,6 @@
 package sqldb
 
-import "github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+import "github.com/device-management-toolkit/console/pkg/consoleerrors"
 
 type DatabaseError struct {
 	Console consoleerrors.InternalError

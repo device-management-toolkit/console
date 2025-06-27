@@ -9,15 +9,15 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/gin-gonic/gin"
-	power "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 var ErrGeneral = errors.New("general error")
@@ -260,6 +260,65 @@ func TestDeviceManagement(t *testing.T) {
 			},
 			expectedCode: http.StatusInternalServerError,
 			response:     []dto.SettingDataResponse{},
+		},
+		{
+			name:   "addCertificate - successful addition",
+			url:    "/api/v1/amt/certificates/valid-guid",
+			method: http.MethodPost,
+			requestBody: dto.CertInfo{
+				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				IsTrusted: true,
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().AddCertificate(
+					context.Background(),
+					"valid-guid",
+					dto.CertInfo{
+						Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+						IsTrusted: true,
+					},
+				).Return("Intel(r) AMT Certificate: Handle: 0", nil)
+			},
+			expectedCode: http.StatusOK,
+			response:     "Intel(r) AMT Certificate: Handle: 0",
+		},
+		{
+			name:   "addCertificate - service failure",
+			url:    "/api/v1/amt/certificates/valid-guid",
+			method: http.MethodPost,
+			requestBody: dto.CertInfo{
+				Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+				IsTrusted: true,
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().AddCertificate(
+					context.Background(),
+					"valid-guid",
+					dto.CertInfo{
+						Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
+						IsTrusted: true,
+					},
+				).Return("", ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:   "addCertificate - missing required field",
+			url:    "/api/v1/amt/certificates/valid-guid",
+			method: http.MethodPost,
+			requestBody: map[string]interface{}{
+				"isTrusted": true,
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().AddCertificate(
+					context.Background(),
+					"valid-guid",
+					gomock.Any(),
+				).Return("", ErrGeneral).AnyTimes()
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
 		},
 	}
 

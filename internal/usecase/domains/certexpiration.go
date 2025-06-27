@@ -1,6 +1,6 @@
 package domains
 
-import "github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+import "github.com/device-management-toolkit/console/pkg/consoleerrors"
 
 const certExpired = "certificate has expired"
 

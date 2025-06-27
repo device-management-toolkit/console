@@ -4,11 +4,11 @@ import (
 	"context"
 	"strconv"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 )
 
 func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v2 dtov2.Version, err error) {

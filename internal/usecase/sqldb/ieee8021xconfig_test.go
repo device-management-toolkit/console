@@ -11,10 +11,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/pkg/db"
 )
 
 func setupIEEE8021xTable(t *testing.T) *sql.DB {

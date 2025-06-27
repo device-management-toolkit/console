@@ -60,17 +60,28 @@ type (
 		Password string `yaml:"password" env:"EA_PASSWORD"`
 	}
 
+	// Auth -.
 	Auth struct {
-		Disabled bool `yaml:"disabled" env:"AUTH_DISABLED"`
-		// BASIC
+		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
 		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
-		// OAUTH
-		ClientID string `yaml:"clientId" env:"AUTH_CLIENT_ID"`
-		Issuer   string `yaml:"issuer" env:"AUTH_ISSUER"`
+		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
+		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
+		UI                       UIAuthConfig  `yaml:"ui"`
+	}
+
+	// UIAuthConfig -.
+	UIAuthConfig struct {
+		ClientID                          string `yaml:"clientId"`
+		Issuer                            string `yaml:"issuer"`
+		RedirectURI                       string `yaml:"redirectUri"`
+		Scope                             string `yaml:"scope"`
+		ResponseType                      string `yaml:"responseType"`
+		RequireHTTPS                      bool   `yaml:"requireHttps"`
+		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation"`
 	}
 )
 
@@ -80,7 +91,7 @@ func NewConfig() (*Config, error) {
 	ConsoleConfig = &Config{
 		App: App{
 			Name:                 "console",
-			Repo:                 "open-amt-cloud-toolkit/console",
+			Repo:                 "device-management-toolkit/console",
 			Version:              "DEVELOPMENT",
 			CommonName:           "localhost",
 			EncryptionKey:        "",
@@ -113,6 +124,15 @@ func NewConfig() (*Config, error) {
 			// OAUTH CONFIG, if provided will not use basic auth
 			ClientID: "",
 			Issuer:   "",
+			UI: UIAuthConfig{
+				ClientID:                          "",
+				Issuer:                            "",
+				RedirectURI:                       "",
+				Scope:                             "",
+				ResponseType:                      "",
+				RequireHTTPS:                      false,
+				StrictDiscoveryDocumentValidation: true,
+			},
 		},
 	}
 

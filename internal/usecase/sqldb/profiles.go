@@ -5,10 +5,10 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // ProfileRepo -.

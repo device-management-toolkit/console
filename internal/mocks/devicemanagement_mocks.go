@@ -13,14 +13,15 @@ import (
 	context "context"
 	reflect "reflect"
 
+	entity "github.com/device-management-toolkit/console/internal/entity"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	v2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	wsman0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	websocket "github.com/gorilla/websocket"
-	entity "github.com/open-amt-cloud-toolkit/console/internal/entity"
-	dto "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	v2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	devices "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	wsman "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	wsman0 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	power "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -432,6 +433,21 @@ func (m *MockDeviceManagementFeature) EXPECT() *MockDeviceManagementFeatureMockR
 	return m.recorder
 }
 
+// AddCertificate mocks base method.
+func (m *MockDeviceManagementFeature) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddCertificate", c, guid, certInfo)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddCertificate indicates an expected call of AddCertificate.
+func (mr *MockDeviceManagementFeatureMockRecorder) AddCertificate(c, guid, certInfo any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockDeviceManagementFeature)(nil).AddCertificate), c, guid, certInfo)
+}
+
 // CancelUserConsent mocks base method.
 func (m *MockDeviceManagementFeature) CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
@@ -716,6 +732,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetHardwareInfo(ctx, guid any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetHardwareInfo), ctx, guid)
 }
 
+// GetIPSPowerManagementService mocks base method.
+func (m *MockDeviceManagementFeature) GetIPSPowerManagementService() (ipspower.PowerManagementService, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIPSPowerManagementService")
+	ret0, _ := ret[0].(ipspower.PowerManagementService)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIPSPowerManagementService indicates an expected call of GetIPSPowerManagementService.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetIPSPowerManagementService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSPowerManagementService", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetIPSPowerManagementService))
+}
+
 // GetNetworkSettings mocks base method.
 func (m *MockDeviceManagementFeature) GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error) {
 	m.ctrl.T.Helper()
@@ -729,6 +760,21 @@ func (m *MockDeviceManagementFeature) GetNetworkSettings(c context.Context, guid
 func (mr *MockDeviceManagementFeatureMockRecorder) GetNetworkSettings(c, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworkSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetNetworkSettings), c, guid)
+}
+
+// GetOSPowerSavingState mocks base method.
+func (m *MockDeviceManagementFeature) GetOSPowerSavingState() (ipspower.OSPowerSavingState, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetOSPowerSavingState")
+	ret0, _ := ret[0].(ipspower.OSPowerSavingState)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetOSPowerSavingState indicates an expected call of GetOSPowerSavingState.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetOSPowerSavingState() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOSPowerSavingState", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetOSPowerSavingState))
 }
 
 // GetPowerCapabilities mocks base method.
@@ -834,6 +880,21 @@ func (m *MockDeviceManagementFeature) Redirect(ctx context.Context, conn *websoc
 func (mr *MockDeviceManagementFeatureMockRecorder) Redirect(ctx, conn, guid, mode any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Redirect", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Redirect), ctx, conn, guid, mode)
+}
+
+// RequestOSPowerSavingStateChange mocks base method.
+func (m *MockDeviceManagementFeature) RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestOSPowerSavingStateChange", osPowerSavingState)
+	ret0, _ := ret[0].(ipspower.PowerActionResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestOSPowerSavingStateChange indicates an expected call of RequestOSPowerSavingStateChange.
+func (mr *MockDeviceManagementFeatureMockRecorder) RequestOSPowerSavingStateChange(osPowerSavingState interface{}) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestOSPowerSavingStateChange", reflect.TypeOf((*MockDeviceManagementFeature)(nil).RequestOSPowerSavingStateChange), osPowerSavingState)
 }
 
 // SendConsentCode mocks base method.

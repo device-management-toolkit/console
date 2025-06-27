@@ -1,6 +1,6 @@
 package devices
 
-import "github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+import "github.com/device-management-toolkit/console/pkg/consoleerrors"
 
 type AMTError struct {
 	Console consoleerrors.InternalError
@@ -41,6 +41,21 @@ func (e NotSupportedError) Error() string {
 }
 
 func (e NotSupportedError) Wrap(call, function, message string) error {
+	_ = e.Console.Wrap(call, function, nil)
+	e.Console.Message = message
+
+	return e
+}
+
+type ValidationError struct {
+	Console consoleerrors.InternalError
+}
+
+func (e ValidationError) Error() string {
+	return e.Console.Error()
+}
+
+func (e ValidationError) Wrap(call, function, message string) error {
 	_ = e.Console.Wrap(call, function, nil)
 	e.Console.Message = message
 
