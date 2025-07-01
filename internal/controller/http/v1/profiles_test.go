@@ -70,6 +70,7 @@ var profileTest = dto.Profile{
 	IEEE8021xProfileName:       nil,
 	IEEE8021xProfile:           nil,
 	Version:                    "1.0",
+	UEFIWiFiSyncEnabled:        false,
 }
 
 func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test function

@@ -51,13 +51,13 @@ func TestProfileWiFiConfigsRepo_GetByProfileName(t *testing.T) {
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					 activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode, 
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-					
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, 
+					uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true,
+					"authority1", "consent1", true, true, true, true,
 				)
 				require.NoError(t, err)
 
@@ -154,12 +154,12 @@ func TestProfileWiFiConfigsRepo_DeleteByProfileName(t *testing.T) {
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true)
+					"authority1", "consent1", true, true, true, true)
 				require.NoError(t, err)
 
 				_, err = dbConn.Exec(`INSERT INTO profiles_wirelessconfigs (profile_name, wireless_profile_name, priority, tenant_id) VALUES (?, ?, ?, ?)`,
@@ -235,12 +235,12 @@ func TestProfileWiFiConfigsRepo_Insert(t *testing.T) {
           			profile_name, amt_password, creation_date, created_by, generate_random_password,
           			activation, mebx_password, generate_random_mebx_password, tags,
           			dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-          			tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-          		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          			tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, uefi_wifi_sync_enabled
+          		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true)
+					"authority1", "consent1", true, true, true, true, true)
 				require.NoError(t, err)
 			},
 			profile: &entity.ProfileWiFiConfigs{
@@ -263,12 +263,12 @@ func TestProfileWiFiConfigsRepo_Insert(t *testing.T) {
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true)
+					"authority1", "consent1", true, true, true, true)
 				require.NoError(t, err)
 
 				_, err = dbConn.Exec(`

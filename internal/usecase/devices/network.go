@@ -54,6 +54,7 @@ func (uc *UseCase) GetNetworkSettings(c context.Context, guid string) (dto.Netwo
 			ns.Wireless.WiFiNetworks = uc.processWiFiSettings(response)
 			ns.Wireless.IEEE8021xSettings = uc.processIEEE8021xSettings(response)
 			ns.Wireless.WiFiPortConfigService = uc.processWiFiPortConfigService(response)
+			// To Do: Add WiFi Capabilities AMT_BootCapabilities.UEFIWiFiCoExistenceAndProfileShare
 		}
 	}
 
