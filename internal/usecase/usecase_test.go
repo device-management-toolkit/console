@@ -67,6 +67,7 @@ func TestUsecases(t *testing.T) {
 					profilewificonfigs.New(sqldb.NewProfileWiFiConfigsRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),
 					ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil),
 					sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
+					sqldb.NewCIRARepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					safeRequirements,
 				),
 				IEEE8021xProfiles:  ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),
