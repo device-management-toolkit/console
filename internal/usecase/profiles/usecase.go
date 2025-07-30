@@ -12,6 +12,7 @@ import (
 	local "github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
 	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
 	"github.com/device-management-toolkit/console/internal/usecase/profilewificonfigs"
@@ -26,6 +27,7 @@ type UseCase struct {
 	repo              Repository
 	wifiConfig        wificonfigs.Repository
 	profileWifiConfig profilewificonfigs.Feature
+	cira              ciraconfigs.Repository
 	ieee              ieee8021xconfigs.Feature
 	log               logger.Interface
 	domains           domains.Repository
@@ -40,10 +42,11 @@ var (
 )
 
 // New -.
-func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Repository, safeRequirements security.Cryptor) *UseCase {
+func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Repository, c ciraconfigs.Repository, safeRequirements security.Cryptor) *UseCase {
 	return &UseCase{
 		repo:              r,
 		wifiConfig:        wifiConfig,
+		cira:              c,
 		profileWifiConfig: w,
 		ieee:              i,
 		log:               log,
@@ -259,7 +262,7 @@ func (uc *UseCase) BuildWirelessProfiles(ctx context.Context, wifiConfigs []dto.
 	return wifiProfiles, nil
 }
 
-func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Profile, domainStuff *entity.Domain, wifiConfigs []config.WirelessProfile) config.Configuration {
+func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Profile, domainStuff *entity.Domain, wifiConfigs []config.WirelessProfile, cira *entity.CIRAConfig) config.Configuration {
 	if local.ConsoleConfig == nil {
 		local.ConsoleConfig = &local.Config{
 			EA: local.EA{
@@ -271,12 +274,30 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 	}
 
 	var provisioningCert string
-
 	var provisioningCertPwd string
 
 	if domainStuff != nil {
 		provisioningCert = domainStuff.ProvisioningCert
 		provisioningCertPwd = domainStuff.ProvisioningCertPassword
+	}
+
+	var ciraConfig config.CIRA
+	if cira != nil {
+		ciraConfig = config.CIRA{
+			MPSUsername:          cira.Username,
+			MPSPassword:          cira.Password,
+			MPSAddress:           cira.MPSAddress,
+			MPSCert:              cira.MPSRootCertificate,
+			EnvironmentDetection: []string{},
+		}
+	} else {
+		ciraConfig = config.CIRA{
+			MPSUsername:          "",
+			MPSPassword:          "",
+			MPSAddress:           "",
+			MPSCert:              "",
+			EnvironmentDetection: []string{},
+		}
 	}
 
 	return config.Configuration{
@@ -300,6 +321,7 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				},
 			},
 			Redirection: config.Redirection{
+				Enabled: data.KVMEnabled || data.SOLEnabled || data.IDEREnabled,
 				Services: config.Services{
 					KVM:  data.KVMEnabled,
 					SOL:  data.SOLEnabled,
@@ -308,6 +330,7 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				UserConsent: data.UserConsent,
 			},
 			TLS: config.TLS{
+				SigningAuthority:     data.TLSSigningAuthority,
 				MutualAuthentication: data.TLSMode == 3 || data.TLSMode == 4,
 				Enabled:              data.TLSMode >= 1,
 				AllowNonTLS:          data.TLSMode == 2 || data.TLSMode == 4,
@@ -323,6 +346,7 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				MEBXPassword:        data.MEBXPassword,
 				ProvisioningCert:    provisioningCert,
 				ProvisioningCertPwd: provisioningCertPwd,
+				CIRA:                ciraConfig,
 			},
 		},
 	}
@@ -371,7 +395,15 @@ func (uc *UseCase) Export(ctx context.Context, profileName, domainName, tenantID
 		return "", "", err
 	}
 
-	configuration := uc.BuildConfigurationObject(profileName, data, domainStuff, wifiProfiles)
+	var cira *entity.CIRAConfig
+	if data.CIRAConfigName != nil && *data.CIRAConfigName != "" {
+		cira, err = uc.cira.GetByName(ctx, *data.CIRAConfigName, tenantID)
+		if err != nil {
+			return "", "", err
+		}
+	}
+
+	configuration := uc.BuildConfigurationObject(profileName, data, domainStuff, wifiProfiles, cira)
 
 	err = uc.HandleIEEE8021xSettings(ctx, data, &configuration, tenantID)
 	if err != nil {

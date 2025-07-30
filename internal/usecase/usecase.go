@@ -55,7 +55,7 @@ func NewUseCases(database *db.SQL, log logger.Interface) *Usecases {
 		Domains:            domains1,
 		Devices:            devices.New(deviceRepo, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements),
 		AMTExplorer:        amtexplorer.New(deviceRepo, wsman2, log, safeRequirements),
-		Profiles:           profiles.New(profileRepo, wifiConfigRepo, pwc, ieee, log, domainRepo, safeRequirements),
+		Profiles:           profiles.New(profileRepo, wifiConfigRepo, pwc, ieee, log, domainRepo, ciraRepo, safeRequirements),
 		IEEE8021xProfiles:  ieee,
 		CIRAConfigs:        ciraconfigs.New(ciraRepo, log, safeRequirements),
 		WirelessProfiles:   wificonfig,
