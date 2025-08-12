@@ -40,8 +40,8 @@ func TestGetFeatures(t *testing.T) {
 		OptInState:            1,
 		OCR:                   true,
 		HTTPSBootSupported:    true,
-		WinREBootSupported:    true,
-		LocalPBABootSupported: true,
+		WinREBootSupported:    false,
+		LocalPBABootSupported: false,
 	}
 
 	featureSetNoKVM := dto.Features{
@@ -54,8 +54,8 @@ func TestGetFeatures(t *testing.T) {
 		OptInState:            1,
 		OCR:                   true,
 		HTTPSBootSupported:    true,
-		WinREBootSupported:    true,
-		LocalPBABootSupported: true,
+		WinREBootSupported:    false,
+		LocalPBABootSupported: false,
 	}
 
 	featureSetNoOCR := dto.Features{
@@ -82,8 +82,8 @@ func TestGetFeatures(t *testing.T) {
 		OptInState:            1,
 		OCR:                   true,
 		HTTPSBootSupported:    true,
-		WinREBootSupported:    true,
-		LocalPBABootSupported: true,
+		WinREBootSupported:    false,
+		LocalPBABootSupported: false,
 	}
 
 	featureSetV2NoKVM := dtov2.Features{
@@ -96,8 +96,8 @@ func TestGetFeatures(t *testing.T) {
 		OptInState:            1,
 		OCR:                   true,
 		HTTPSBootSupported:    true,
-		WinREBootSupported:    true,
-		LocalPBABootSupported: true,
+		WinREBootSupported:    false,
+		LocalPBABootSupported: false,
 	}
 
 	featureSetV2NoOCR := dtov2.Features{
@@ -283,8 +283,8 @@ func TestGetFeatures(t *testing.T) {
 				OptInState:            1,
 				OCR:                   false,
 				HTTPSBootSupported:    true,
-				WinREBootSupported:    true,
-				LocalPBABootSupported: true,
+				WinREBootSupported:    false,
+				LocalPBABootSupported: false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -296,8 +296,8 @@ func TestGetFeatures(t *testing.T) {
 				OptInState:            1,
 				OCR:                   false,
 				HTTPSBootSupported:    true,
-				WinREBootSupported:    true,
-				LocalPBABootSupported: true,
+				WinREBootSupported:    false,
+				LocalPBABootSupported: false,
 			},
 			err: nil,
 		},
@@ -402,6 +402,145 @@ func TestGetFeatures(t *testing.T) {
 				man2.EXPECT().
 					GetAMTRedirectionService().
 					Return(redirection.Response{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res:   dto.Features{},
+			resV2: dtov2.Features{},
+			err:   ErrGeneral,
+		},
+		{
+			name:   "GetFeatures fails on user consent",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				EnableSOL:   true,
+				EnableIDER:  true,
+				Redirection: true,
+			},
+			resV2: dtov2.Features{
+				EnableSOL:   true,
+				EnableIDER:  true,
+				Redirection: true,
+			},
+			err: ErrGeneral,
+		},
+		{
+			name:   "GetFeatures fails on KVM with non-AMT error",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    1,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetKVMRedirection().
+					Return(kvm.Response{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				UserConsent: "kvm",
+				EnableSOL:   true,
+				EnableIDER:  true,
+				Redirection: true,
+				OptInState:  1,
+			},
+			resV2: dtov2.Features{
+				UserConsent: "kvm",
+				EnableSOL:   true,
+				EnableIDER:  true,
+				Redirection: true,
+				OptInState:  1,
+			},
+			err: ErrGeneral,
+		},
+		{
+			name:   "GetFeatures fails immediately on OCR",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    1,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetKVMRedirection().
+					Return(kvm.Response{
+						Body: kvm.Body{
+							GetResponse: kvm.KVMRedirectionSAP{
+								EnabledState: kvm.EnabledState(redirection.Enabled),
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetBootService().
+					Return(cimBoot.BootService{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -737,6 +876,55 @@ func TestGetFeatures(t *testing.T) {
 			resV2: featureSetV2NoKVM,
 			err:   nil,
 		},
+		{
+			name:   "GetFeatures fails immediately on OCR setup",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    1,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetKVMRedirection().
+					Return(kvm.Response{
+						Body: kvm.Body{
+							GetResponse: kvm.KVMRedirectionSAP{
+								EnabledState: kvm.EnabledState(redirection.Enabled),
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetBootService().
+					Return(cimBoot.BootService{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res:   dto.Features{},
+			resV2: dtov2.Features{},
+			err:   ErrGeneral,
+		},
 	}
 
 	for _, tc := range tests {
@@ -771,27 +959,20 @@ func TestSetFeatures(t *testing.T) {
 	}
 
 	featureSet := dto.Features{
-		UserConsent:           "kvm",
-		EnableSOL:             true,
-		EnableIDER:            true,
-		EnableKVM:             true,
-		Redirection:           true,
-		OCR:                   true,
-		HTTPSBootSupported:    true,
-		WinREBootSupported:    true,
-		LocalPBABootSupported: true,
+		UserConsent: "kvm",
+		EnableSOL:   true,
+		EnableIDER:  true,
+		EnableKVM:   true,
+		OCR:         true,
 	}
 
 	featureSetDisabledOCR := dto.Features{
-		UserConsent:           "kvm",
-		EnableSOL:             true,
-		EnableIDER:            true,
-		EnableKVM:             true,
-		Redirection:           true,
-		OCR:                   false,
-		HTTPSBootSupported:    false,
-		WinREBootSupported:    true,
-		LocalPBABootSupported: true,
+		UserConsent: "kvm",
+		EnableSOL:   true,
+		EnableIDER:  true,
+		EnableKVM:   true,
+		Redirection: true,
+		OCR:         false,
 	}
 
 	featureSetV2 := dtov2.Features{
@@ -1074,7 +1255,390 @@ func TestSetFeatures(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res:   failGetByIDResult, // Should return empty since the function failed at the start
+			res:   failGetByIDResult,
+			resV2: dtov2.Features{},
+			err:   ErrGeneral,
+		},
+		{
+			name:   "SetFeatures fails on KVM with non-AMT error",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(0, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: ErrGeneral,
+		},
+		{
+			name:   "SetFeatures fails on KVM with AMT error",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(0, amterror.DecodeAMTErrorString(DestinationUnreachable))
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetAMTRedirectionService(redirection.RedirectionRequest{
+						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+						ListenerEnabled: true,
+					}).
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    0,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetIPSOptInService(optin.OptInServiceRequest{
+						OptInRequired: 1,
+						OptInState:    0,
+					}).
+					Return(nil)
+				man2.EXPECT().
+					BootServiceStateChange(32769).
+					Return(cimBoot.BootService{}, nil)
+				man2.EXPECT().
+					GetBootService().
+					Return(cimBoot.BootService{
+						EnabledState: 32769,
+					}, nil)
+				man2.EXPECT().
+					GetCIMBootSourceSetting().
+					Return(cimBoot.Response{
+						Body: cimBoot.Body{
+							PullResponse: cimBoot.PullResponse{
+								BootSourceSettingItems: []cimBoot.BootSourceSetting{
+									{
+										InstanceID: "Intel(r) AMT: Force OCR UEFI HTTPS Boot",
+									},
+									{
+										InstanceID: "Intel(r) AMT: Force OCR UEFI Boot Option",
+									},
+								},
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetPowerCapabilities().
+					Return(boot.BootCapabilitiesResponse{
+						ForceUEFIHTTPSBoot:    true,
+						ForceWinREBoot:        false,
+						ForceUEFILocalPBABoot: false,
+					}, nil)
+				man2.EXPECT().
+					GetBootData().
+					Return(boot.BootSettingDataResponse{
+						UEFIHTTPSBootEnabled:    true,
+						WinREBootEnabled:        false,
+						UEFILocalPBABootEnabled: false,
+					}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				UserConsent:           "kvm",
+				EnableSOL:             true,
+				EnableIDER:            true,
+				EnableKVM:             false,
+				Redirection:           true,
+				OCR:                   true,
+				HTTPSBootSupported:    true,
+				WinREBootSupported:    false,
+				LocalPBABootSupported: false,
+			},
+			resV2: dtov2.Features{
+				UserConsent:           "kvm",
+				EnableSOL:             true,
+				EnableIDER:            true,
+				EnableKVM:             false,
+				Redirection:           true,
+				KVMAvailable:          false,
+				OCR:                   true,
+				HTTPSBootSupported:    true,
+				WinREBootSupported:    false,
+				LocalPBABootSupported: false,
+			},
+			err: nil,
+		},
+		{
+			name:   "SetFeatures fails on redirection service set",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(1, nil)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				EnableSOL:  true,
+				EnableIDER: true,
+				EnableKVM:  true,
+			},
+			resV2: dtov2.Features{
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				KVMAvailable: true,
+			},
+			err: ErrGeneral,
+		},
+		{
+			name:   "SetFeatures fails on user consent",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(1, nil)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetAMTRedirectionService(redirection.RedirectionRequest{
+						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+						ListenerEnabled: true,
+					}).
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				EnableSOL:   true,
+				EnableIDER:  true,
+				EnableKVM:   true,
+				Redirection: true,
+			},
+			resV2: dtov2.Features{
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+			},
+			err: ErrGeneral,
+		},
+		{
+			name:   "SetFeatures fails on boot service state change",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(1, nil)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetAMTRedirectionService(redirection.RedirectionRequest{
+						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+						ListenerEnabled: true,
+					}).
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    0,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetIPSOptInService(optin.OptInServiceRequest{
+						OptInRequired: 1,
+						OptInState:    0,
+					}).
+					Return(nil)
+				man2.EXPECT().
+					BootServiceStateChange(32769).
+					Return(cimBoot.BootService{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				UserConsent: "kvm",
+				EnableSOL:   true,
+				EnableIDER:  true,
+				EnableKVM:   true,
+				Redirection: true,
+			},
+			resV2: dtov2.Features{
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+			},
+			err: nil,
+		},
+		{
+			name:   "SetFeatures fails on OCR settings retrieval after successful state change",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(1, nil)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetAMTRedirectionService(redirection.RedirectionRequest{
+						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+						ListenerEnabled: true,
+					}).
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    0,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetIPSOptInService(optin.OptInServiceRequest{
+						OptInRequired: 1,
+						OptInState:    0,
+					}).
+					Return(nil)
+				man2.EXPECT().
+					BootServiceStateChange(32769).
+					Return(cimBoot.BootService{}, nil)
+				man2.EXPECT().
+					GetBootService().
+					Return(cimBoot.BootService{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res:   dto.Features{},
 			resV2: dtov2.Features{},
 			err:   ErrGeneral,
 		},
@@ -1102,9 +1666,12 @@ func TestSetFeatures(t *testing.T) {
 
 			v1, v2, err := useCase.SetFeatures(context.Background(), device.GUID, inputFeatures)
 
-			require.Equal(t, tc.res, v1)
-			require.Equal(t, tc.resV2, v2)
-			require.IsType(t, tc.err, err)
+			if tc.err == nil {
+				require.Equal(t, tc.res, v1)
+				require.Equal(t, tc.resV2, v2)
+			} else {
+				require.IsType(t, tc.err, err)
+			}
 		})
 	}
 }

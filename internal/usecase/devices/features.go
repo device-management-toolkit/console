@@ -29,7 +29,8 @@ type OCRData struct {
 
 type BootSettings struct {
 	isHTTPSBootExists bool
-	isPBAWinREExists  bool
+	isPBAExists       bool
+	isWinREExists     bool
 }
 
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
@@ -127,16 +128,21 @@ func findBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) Bo
 
 	for _, setting := range bootSourceSettings {
 		instanceID := setting.InstanceID
+		biosBootString := setting.BIOSBootString
 
 		if strings.HasPrefix(instanceID, targetHTTPSBootInstanceID) {
 			result.isHTTPSBootExists = true
 		}
 
-		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) {
-			result.isPBAWinREExists = true
+		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "WinRe") {
+			result.isWinREExists = true
 		}
 
-		if result.isHTTPSBootExists && result.isPBAWinREExists {
+		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "PBA") {
+			result.isPBAExists = true
+		}
+
+		if result.isHTTPSBootExists && result.isPBAExists && result.isWinREExists {
 			break
 		}
 	}
@@ -165,12 +171,12 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 	}
 
 	isWinREBootSupported := false
-	if result.isPBAWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot {
+	if result.isWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot {
 		isWinREBootSupported = true
 	}
 
 	isLocalPBABootSupported := false
-	if result.isPBAWinREExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot {
+	if result.isPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot {
 		isLocalPBABootSupported = true
 	}
 
@@ -234,7 +240,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 
 	// Configure OCR settings
 	requestedState := 0
-	if features.HTTPSBootSupported {
+	if features.OCR {
 		requestedState = 32769
 	} else {
 		requestedState = 32768
