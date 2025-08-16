@@ -29,6 +29,7 @@ type (
 		Name                 string `env-required:"true" yaml:"name" env:"APP_NAME"`
 		Repo                 string `env-required:"true" yaml:"repo" env:"APP_REPO"`
 		Version              string `env-required:"true"`
+		CommonName           string `env-required:"true" yaml:"common_name" env:"APP_COMMON_NAME"`
 		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
 	}
@@ -92,6 +93,7 @@ func NewConfig() (*Config, error) {
 			Name:                 "console",
 			Repo:                 "device-management-toolkit/console",
 			Version:              "DEVELOPMENT",
+			CommonName:           "localhost",
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,
 		},
