@@ -360,7 +360,7 @@ func setRedirectionService(state redirection.EnabledState, listenerEnabled, kvmL
 		return err
 	}
 
-	request := redirection.RedirectionRequest{
+	request := &redirection.RedirectionRequest{
 		CreationClassName:       currentRedirection.Body.GetAndPutResponse.CreationClassName,
 		ElementName:             currentRedirection.Body.GetAndPutResponse.ElementName,
 		EnabledState:            state,

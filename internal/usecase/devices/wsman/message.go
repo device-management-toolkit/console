@@ -910,10 +910,6 @@ func (g *ConnectionEntry) RequestKVMStateChange(requestedState kvm.KVMRedirectio
 	return g.WsmanMessages.CIM.KVMRedirectionSAP.RequestStateChange(requestedState)
 }
 
-func (g *ConnectionEntry) PutRedirectionState(requestedState redirection.RedirectionRequest) (response redirection.Response, err error) {
-	return g.WsmanMessages.AMT.RedirectionService.Put(requestedState)
-}
-
 func (g *ConnectionEntry) GetRedirectionService() (response redirection.Response, err error) {
 	return g.WsmanMessages.AMT.RedirectionService.Get()
 }
@@ -1242,7 +1238,7 @@ func (g *ConnectionEntry) GetAMTRedirectionService() (redirection.Response, erro
 	return get, nil
 }
 
-func (g *ConnectionEntry) SetAMTRedirectionService(request redirection.RedirectionRequest) (redirection.Response, error) {
+func (g *ConnectionEntry) SetAMTRedirectionService(request *redirection.RedirectionRequest) (redirection.Response, error) {
 	response, err := g.WsmanMessages.AMT.RedirectionService.Put(request)
 	if err != nil {
 		return redirection.Response{}, err
