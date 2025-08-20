@@ -1040,7 +1040,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					SetAMTRedirectionService(redirection.RedirectionRequest{
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
 						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
 						ListenerEnabled: true,
 					}).
@@ -1150,7 +1150,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					SetAMTRedirectionService(redirection.RedirectionRequest{
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
 						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
 						ListenerEnabled: true,
 					}).
@@ -1304,7 +1304,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					SetAMTRedirectionService(redirection.RedirectionRequest{
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
 						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
 						ListenerEnabled: true,
 					}).
@@ -1460,7 +1460,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					SetAMTRedirectionService(redirection.RedirectionRequest{
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
 						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
 						ListenerEnabled: true,
 					}).
@@ -1520,7 +1520,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					SetAMTRedirectionService(redirection.RedirectionRequest{
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
 						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
 						ListenerEnabled: true,
 					}).
@@ -1598,7 +1598,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					SetAMTRedirectionService(redirection.RedirectionRequest{
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
 						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
 						ListenerEnabled: true,
 					}).
