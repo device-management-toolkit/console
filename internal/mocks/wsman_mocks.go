@@ -601,7 +601,7 @@ func (mr *MockManagementMockRecorder) SendPowerAction(action any) *gomock.Call {
 }
 
 // SetAMTRedirectionService mocks base method.
-func (m *MockManagement) SetAMTRedirectionService(arg0 redirection.RedirectionRequest) (redirection.Response, error) {
+func (m *MockManagement) SetAMTRedirectionService(arg0 *redirection.RedirectionRequest) (redirection.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetAMTRedirectionService", arg0)
 	ret0, _ := ret[0].(redirection.Response)

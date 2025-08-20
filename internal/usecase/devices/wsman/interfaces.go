@@ -31,7 +31,7 @@ type Management interface {
 	GetAMTVersion() ([]software.SoftwareIdentity, error)
 	GetSetupAndConfiguration() ([]setupandconfiguration.SetupAndConfigurationServiceResponse, error)
 	GetAMTRedirectionService() (redirection.Response, error)
-	SetAMTRedirectionService(redirection.RedirectionRequest) (redirection.Response, error)
+	SetAMTRedirectionService(*redirection.RedirectionRequest) (redirection.Response, error)
 	RequestAMTRedirectionServiceStateChange(ider, sol bool) (redirection.RequestedState, int, error)
 	GetIPSOptInService() (optin.Response, error)
 	SetIPSOptInService(optin.OptInServiceRequest) error
