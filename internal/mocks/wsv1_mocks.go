@@ -257,18 +257,18 @@ func (mr *MockFeatureMockRecorder) GetByColumn(ctx, columnName, queryValue, tena
 }
 
 // GetByID mocks base method.
-func (m *MockFeature) GetByID(ctx context.Context, guid, tenantID string) (*dto.Device, error) {
+func (m *MockFeature) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByID", ctx, guid, tenantID)
+	ret := m.ctrl.Call(m, "GetByID", ctx, guid, tenantID, includeSecrets)
 	ret0, _ := ret[0].(*dto.Device)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetByID indicates an expected call of GetByID.
-func (mr *MockFeatureMockRecorder) GetByID(ctx, guid, tenantID any) *gomock.Call {
+func (mr *MockFeatureMockRecorder) GetByID(ctx, guid, tenantID, includeSecrets any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockFeature)(nil).GetByID), ctx, guid, tenantID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockFeature)(nil).GetByID), ctx, guid, tenantID, includeSecrets)
 }
 
 // GetByTags mocks base method.

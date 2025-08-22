@@ -48,7 +48,7 @@ type (
 		// Repository/Database Calls
 		GetCount(context.Context, string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
-		GetByID(ctx context.Context, guid, tenantID string) (*dto.Device, error)
+		GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error)
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 		GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) error

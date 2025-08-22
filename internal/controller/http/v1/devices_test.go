@@ -86,7 +86,7 @@ func TestDevicesRoutes(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/api/v1/devices/123e4567-e89b-12d3-a456-426614174000",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
-				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "").Return(&dto.Device{
+				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "", false).Return(&dto.Device{
 					GUID: "123e4567-e89b-12d3-a456-426614174000", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
 				}, nil)
 			},
@@ -98,7 +98,7 @@ func TestDevicesRoutes(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/api/v1/devices/123e4567-e89b-12d3-a456-426614174000",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
-				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "").Return(nil, devices.ErrDatabase)
+				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "", false).Return(nil, devices.ErrDatabase)
 			},
 			response:     devices.ErrDatabase,
 			expectedCode: http.StatusBadRequest,

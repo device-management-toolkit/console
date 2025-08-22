@@ -222,7 +222,7 @@ func TestGetByID(t *testing.T) {
 
 			tc.mock(repo, management)
 
-			got, err := useCase.GetByID(context.Background(), tc.guid, tc.tenantID)
+			got, err := useCase.GetByID(context.Background(), tc.guid, tc.tenantID, false)
 
 			if tc.err != nil {
 				require.Error(t, err)
