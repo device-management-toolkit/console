@@ -7,6 +7,8 @@ app:
 http:
   host: localhost
   port: "8181"
+  # set to true for WAN settings where bandwidth is a concern, false for LAN/low latency/high bandwidth
+  ws_compression: false
   allowed_origins:
     - "*"
   allowed_headers:

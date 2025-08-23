@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"compress/flate"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -63,6 +64,15 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		http.Error(c.Writer, "Could not open websocket connection", http.StatusInternalServerError)
 
 		return
+	}
+
+	// Optimize websocket data path for streaming; respect config compression toggle
+	if config.ConsoleConfig.HTTP.WSCompression {
+		conn.EnableWriteCompression(true)
+		_ = conn.SetCompressionLevel(flate.BestSpeed)
+	} else {
+		conn.EnableWriteCompression(false)
+		_ = conn.SetCompressionLevel(flate.NoCompression)
 	}
 
 	r.l.Info("Websocket connection opened")

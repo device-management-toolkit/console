@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"time"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
@@ -86,7 +87,11 @@ func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceCon
 	conn := deviceConnection.Conn // This is now of type WebSocketConnInterface
 
 	for {
+		// Measure time blocked waiting for device data
+		recvStart := time.Now()
 		data, err := uc.redirection.RedirectListen(c, deviceConnection)
+		kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(recvStart).Seconds())
+
 		if err != nil {
 			break
 		}
@@ -100,7 +105,17 @@ func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceCon
 			toSend, deviceConnection.Direct = processDeviceData(toSend, &deviceConnection.Challenge)
 		}
 
+		// metrics: device -> browser
+		start := time.Now()
+
+		kvmDevicePayloadBytes.WithLabelValues(deviceConnection.Mode).Observe(float64(len(toSend)))
+		kvmDeviceToBrowserBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(toSend)))
+		kvmDeviceToBrowserMessages.WithLabelValues(deviceConnection.Mode).Inc()
+
 		err = conn.WriteMessage(websocket.BinaryMessage, toSend)
+
+		kvmDeviceToBrowserWriteSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(start).Seconds())
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				_ = fmt.Errorf("interceptor - listenToDevice - websocket closed unexpectedly (writing to browser): %w", err)
@@ -116,7 +131,10 @@ func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceCon
 
 func (uc *UseCase) ListenToBrowser(c context.Context, deviceConnection *DeviceConnection) {
 	for {
+		readStart := time.Now()
 		_, msg, err := deviceConnection.Conn.ReadMessage()
+		kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(readStart).Seconds())
+
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				_ = fmt.Errorf("interceptor - listenToBrowser - websocket closed unexpectedly (reading from browser): %w", err)
@@ -132,8 +150,21 @@ func (uc *UseCase) ListenToBrowser(c context.Context, deviceConnection *DeviceCo
 		if !deviceConnection.Direct {
 			toSend = processBrowserData(msg, &deviceConnection.Challenge)
 		}
+
+		if len(toSend) == 0 {
+			continue
+		}
+
+		// metrics: browser -> device
+		start := time.Now()
+
+		kvmBrowserPayloadBytes.WithLabelValues(deviceConnection.Mode).Observe(float64(len(toSend)))
+		kvmBrowserToDeviceBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(toSend)))
+		kvmBrowserToDeviceMessages.WithLabelValues(deviceConnection.Mode).Inc()
 		// Send the message to the TCP Connection on the device
 		err = uc.redirection.RedirectSend(c, deviceConnection, toSend) // calls send
+		kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(start).Seconds())
+
 		if err != nil {
 			_ = fmt.Errorf("interceptor - listenToBrowser - error sending message to device: %w", err)
 		}

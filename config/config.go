@@ -39,6 +39,7 @@ type (
 		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
 	}
 
 	// Log -.
@@ -100,6 +101,7 @@ func NewConfig() (*Config, error) {
 			Port:           "8181",
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},
+			WSCompression:  true,
 		},
 		Log: Log{
 			Level: "info",

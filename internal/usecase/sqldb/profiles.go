@@ -12,7 +12,6 @@ import (
 )
 
 // ProfileRepo -.
-
 type ProfileRepo struct {
 	*db.SQL
 	log logger.Interface
@@ -24,13 +23,11 @@ var (
 )
 
 // New -.
-
 func NewProfileRepo(database *db.SQL, log logger.Interface) *ProfileRepo {
 	return &ProfileRepo{database, log}
 }
 
 // GetCount -.
-
 func (r *ProfileRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 	sqlQuery, _, err := r.Builder.
 		Select("COUNT(*) OVER() AS total_count").
@@ -56,6 +53,8 @@ func (r *ProfileRepo) GetCount(_ context.Context, tenantID string) (int, error) 
 }
 
 // Get -.
+//
+//nolint:funlen // 2 lines ain't enough
 func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]entity.Profile, error) {
 	const defaultTop = 100
 
@@ -300,7 +299,6 @@ func (r *ProfileRepo) Update(_ context.Context, p *entity.Profile) (bool, error)
 }
 
 // Insert -.
-
 func (r *ProfileRepo) Insert(_ context.Context, p *entity.Profile) (string, error) {
 	ciraConfigName := p.CIRAConfigName
 

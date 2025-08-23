@@ -274,6 +274,7 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 	}
 
 	var provisioningCert string
+
 	var provisioningCertPwd string
 
 	if domainStuff != nil {

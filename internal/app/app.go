@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/gin-contrib/cors"
+	ginpprof "github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
@@ -53,14 +54,22 @@ func Run(cfg *config.Config) {
 	handler.Use(cors.New(defaultConfig))
 	consolehttp.NewRouter(handler, log, *usecases, cfg)
 
+	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
+	if os.Getenv("ENABLE_PPROF") == "true" {
+		// Register pprof handlers under /debug/pprof without exposing DefaultServeMux
+		ginpprof.Register(handler, "debug/pprof")
+		log.Info("pprof enabled at /debug/pprof/")
+	}
+
 	upgrader := &websocket.Upgrader{
-		ReadBufferSize:  4096,
-		WriteBufferSize: 4096,
+		// Larger buffers reduce per-frame overhead and syscalls for KVM streaming
+		ReadBufferSize:  64 * 1024,
+		WriteBufferSize: 64 * 1024,
 		Subprotocols:    []string{"direct"},
 		CheckOrigin: func(_ *http.Request) bool {
 			return true
 		},
-		EnableCompression: false,
+		EnableCompression: cfg.HTTP.WSCompression,
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
