@@ -11,6 +11,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.15.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.30.4
 	github.com/gin-contrib/cors v1.7.6
+	github.com/gin-contrib/pprof v1.5.0
 	github.com/gin-gonic/gin v1.10.1
 	github.com/go-xmlfmt/xmlfmt v1.1.3
 	github.com/golang-jwt/jwt/v5 v5.3.0
@@ -20,7 +21,7 @@ require (
 	github.com/jackc/pgx/v5 v5.7.5
 	github.com/prometheus/client_golang v1.23.0
 	github.com/rs/zerolog v1.34.0
-	github.com/stretchr/testify v1.10.0
+	github.com/stretchr/testify v1.11.0
 	github.com/swaggo/files v1.0.1
 	github.com/swaggo/gin-swagger v1.6.0
 	github.com/swaggo/swag v1.16.6
@@ -35,7 +36,6 @@ require (
 	github.com/99designs/keyring v1.2.2 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
 	github.com/dvsekhvalnov/jose2go v1.8.0 // indirect
-	github.com/gin-contrib/pprof v1.5.0 // indirect
 	github.com/go-jose/go-jose/v4 v4.0.5 // indirect
 	github.com/godbus/dbus v0.0.0-20190726142602-4481cbc300e2 // indirect
 	github.com/gsterjov/go-libsecret v0.0.0-20161001094733-a6f4afe4910c // indirect
