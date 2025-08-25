@@ -50,7 +50,7 @@ linter-dotenv: ### check by dotenv linter
 .PHONY: linter-dotenv
 
 test: ### run test
-	go test -v -cover -race ./internal/...
+	go test -v -cover -race ./...
 .PHONY: test
 
 integration-test: ### run integration-test

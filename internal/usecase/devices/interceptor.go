@@ -11,6 +11,7 @@ import (
 	"io"
 	"log"
 	"math"
+	"sync"
 	"time"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
@@ -25,6 +26,9 @@ const (
 	ContentLengthPadding       = 8
 	RedirectSessionLengthBytes = 13
 	RedirectionSessionReply    = 4
+	ConnectionTimeout          = 5 * time.Minute
+	InactivityTimeout          = 30 * time.Second // Close connection if no data for 30 seconds
+	HeartbeatInterval          = 30 * time.Second // Check connection health every 30 seconds
 )
 
 type DeviceConnection struct {
@@ -34,10 +38,15 @@ type DeviceConnection struct {
 	Direct        bool
 	Mode          string
 	Challenge     client.AuthChallenge
+	ctx           context.Context
+	cancel        context.CancelFunc
+	lastActivity  time.Time
+	lastDataRecv  time.Time // Track last data received from device
+	mu            sync.RWMutex
+	healthTicker  *time.Ticker
 }
 
 func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode string) error {
-	// grab device info from db
 	device, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return err
@@ -48,48 +57,157 @@ func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode 
 	}
 
 	key := device.GUID + "-" + mode
-	// setup wsman messages with support for talking on 16994 over tcp
-	var deviceConnection *DeviceConnection
-	if _, ok := uc.redirConnections[key]; ok {
-		deviceConnection = uc.redirConnections[key]
-	} else {
-		wsmanConnection := uc.redirection.SetupWsmanClient(*device, true, true)
 
-		device.Password, _ = uc.safeRequirements.Decrypt(device.Password)
-
-		deviceConnection = &DeviceConnection{
-			Conn:          conn,
-			wsmanMessages: wsmanConnection,
-			Device:        *device,
-			Direct:        false,
-			Mode:          mode,
-			Challenge: client.AuthChallenge{
-				Username: device.Username,
-				Password: device.Password,
-			},
-		}
-		uc.redirConnections[key] = deviceConnection
-	}
-
-	err = uc.redirection.RedirectConnect(c, deviceConnection)
+	deviceConnection, err := uc.getOrCreateConnection(c, conn, key, device)
 	if err != nil {
 		return err
 	}
 
-	// To Do: scoop the errors out of this for logging
-	go uc.ListenToDevice(c, deviceConnection)
-	go uc.ListenToBrowser(c, deviceConnection)
+	err = uc.redirection.RedirectConnect(c, deviceConnection)
+	if err != nil {
+		deviceConnection.cancel()
+
+		uc.redirMutex.Lock()
+		delete(uc.redirConnections, key)
+		uc.redirMutex.Unlock()
+
+		return err
+	}
+
+	uc.updateConnectionActivity(deviceConnection)
+	uc.startConnectionGoroutines(c, deviceConnection, key)
 
 	return nil
 }
 
-func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceConnection) {
-	conn := deviceConnection.Conn // This is now of type WebSocketConnInterface
+func (uc *UseCase) getOrCreateConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
+	uc.redirMutex.RLock()
+	existingConn, ok := uc.redirConnections[key]
+	uc.redirMutex.RUnlock()
+
+	if ok {
+		// Check if existing connection is still valid
+		existingConn.mu.RLock()
+		isExpired := time.Since(existingConn.lastActivity) > ConnectionTimeout
+		existingConn.mu.RUnlock()
+
+		if isExpired {
+			// Clean up expired connection
+			existingConn.cancel()
+			uc.redirection.RedirectClose(c, existingConn)
+
+			uc.redirMutex.Lock()
+			delete(uc.redirConnections, key)
+			uc.redirMutex.Unlock()
+		} else {
+			existingConn.Conn = conn // Update websocket connection
+
+			return existingConn, nil
+		}
+	}
+
+	return uc.createNewConnection(c, conn, key, device)
+}
+
+func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
+	wsmanConnection := uc.redirection.SetupWsmanClient(*device, true, true)
+
+	device.Password, _ = uc.safeRequirements.Decrypt(device.Password)
+
+	ctx, cancel := context.WithCancel(c)
+	now := time.Now()
+	deviceConnection := &DeviceConnection{
+		Conn:          conn,
+		wsmanMessages: wsmanConnection,
+		Device:        *device,
+		Direct:        false,
+		Mode:          key[len(device.GUID)+1:], // Extract mode from key
+		Challenge: client.AuthChallenge{
+			Username: device.Username,
+			Password: device.Password,
+		},
+		ctx:          ctx,
+		cancel:       cancel,
+		lastActivity: now,
+		lastDataRecv: now,
+		healthTicker: time.NewTicker(HeartbeatInterval),
+	}
+
+	uc.redirMutex.Lock()
+	uc.redirConnections[key] = deviceConnection
+	uc.redirMutex.Unlock()
+
+	return deviceConnection, nil
+}
+
+func (uc *UseCase) updateConnectionActivity(deviceConnection *DeviceConnection) {
+	deviceConnection.mu.Lock()
+	deviceConnection.lastActivity = time.Now()
+	deviceConnection.mu.Unlock()
+}
+
+func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection *DeviceConnection, key string) {
+	var wg sync.WaitGroup
+
+	const numGoroutines = 3 // Device listener, Browser listener, Health monitor
+
+	wg.Add(numGoroutines)
+
+	go func() {
+		defer wg.Done()
+		uc.ListenToDevice(deviceConnection)
+	}()
+
+	go func() {
+		defer wg.Done()
+		uc.ListenToBrowser(deviceConnection)
+	}()
+
+	go func() {
+		defer wg.Done()
+		uc.MonitorConnectionHealth(deviceConnection, key)
+	}()
+
+	// Start cleanup goroutine
+	go func() {
+		wg.Wait()
+		// All goroutines finished, clean up
+		if deviceConnection.healthTicker != nil {
+			deviceConnection.healthTicker.Stop()
+		}
+
+		deviceConnection.cancel()
+		uc.redirection.RedirectClose(c, deviceConnection)
+
+		uc.redirMutex.Lock()
+		delete(uc.redirConnections, key)
+		uc.redirMutex.Unlock()
+	}()
+}
+
+func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
+	conn := deviceConnection.Conn
+
+	defer func() {
+		// Clean up on exit
+		deviceConnection.cancel()
+	}()
 
 	for {
+		select {
+		case <-deviceConnection.ctx.Done():
+			return
+		default:
+		}
+
+		// Update last activity time
+		deviceConnection.mu.Lock()
+		deviceConnection.lastActivity = time.Now()
+		deviceConnection.mu.Unlock()
+
 		// Measure time blocked waiting for device data
 		recvStart := time.Now()
-		data, err := uc.redirection.RedirectListen(c, deviceConnection)
+		data, err := uc.redirection.RedirectListen(deviceConnection.ctx, deviceConnection)
 		kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(recvStart).Seconds())
 
 		if err != nil {
@@ -99,6 +217,11 @@ func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceCon
 		if len(data) == 0 {
 			continue
 		}
+
+		// Update last data received timestamp
+		deviceConnection.mu.Lock()
+		deviceConnection.lastDataRecv = time.Now()
+		deviceConnection.mu.Unlock()
 
 		toSend := data
 		if !deviceConnection.Direct {
@@ -119,9 +242,6 @@ func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceCon
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				_ = fmt.Errorf("interceptor - listenToDevice - websocket closed unexpectedly (writing to browser): %w", err)
-
-				uc.redirection.RedirectClose(c, deviceConnection)
-				delete(uc.redirConnections, deviceConnection.Device.GUID+"-"+deviceConnection.Mode)
 			}
 
 			return
@@ -129,8 +249,24 @@ func (uc *UseCase) ListenToDevice(c context.Context, deviceConnection *DeviceCon
 	}
 }
 
-func (uc *UseCase) ListenToBrowser(c context.Context, deviceConnection *DeviceConnection) {
+func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
+	defer func() {
+		// Clean up on exit
+		deviceConnection.cancel()
+	}()
+
 	for {
+		select {
+		case <-deviceConnection.ctx.Done():
+			return
+		default:
+		}
+
+		// Update last activity time
+		deviceConnection.mu.Lock()
+		deviceConnection.lastActivity = time.Now()
+		deviceConnection.mu.Unlock()
+
 		readStart := time.Now()
 		_, msg, err := deviceConnection.Conn.ReadMessage()
 		kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(readStart).Seconds())
@@ -138,12 +274,9 @@ func (uc *UseCase) ListenToBrowser(c context.Context, deviceConnection *DeviceCo
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				_ = fmt.Errorf("interceptor - listenToBrowser - websocket closed unexpectedly (reading from browser): %w", err)
-
-				uc.redirection.RedirectClose(c, deviceConnection)
-				delete(uc.redirConnections, deviceConnection.Device.GUID+"-"+deviceConnection.Mode)
 			}
 
-			break
+			return
 		}
 
 		toSend := msg
@@ -162,11 +295,43 @@ func (uc *UseCase) ListenToBrowser(c context.Context, deviceConnection *DeviceCo
 		kvmBrowserToDeviceBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(toSend)))
 		kvmBrowserToDeviceMessages.WithLabelValues(deviceConnection.Mode).Inc()
 		// Send the message to the TCP Connection on the device
-		err = uc.redirection.RedirectSend(c, deviceConnection, toSend) // calls send
+		err = uc.redirection.RedirectSend(deviceConnection.ctx, deviceConnection, toSend)
 		kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(start).Seconds())
 
 		if err != nil {
 			_ = fmt.Errorf("interceptor - listenToBrowser - error sending message to device: %w", err)
+
+			return
+		}
+	}
+}
+
+func (uc *UseCase) MonitorConnectionHealth(deviceConnection *DeviceConnection, key string) {
+	defer func() {
+		// Clean up on exit
+		deviceConnection.cancel()
+	}()
+
+	for {
+		select {
+		case <-deviceConnection.ctx.Done():
+			return
+		case <-deviceConnection.healthTicker.C:
+			deviceConnection.mu.RLock()
+			lastDataTime := deviceConnection.lastDataRecv
+			deviceConnection.mu.RUnlock()
+
+			// Check if device has been inactive for too long
+			if time.Since(lastDataTime) > InactivityTimeout {
+				// Device appears unresponsive, force close connection
+				deviceConnection.cancel()
+
+				uc.redirMutex.Lock()
+				delete(uc.redirConnections, key)
+				uc.redirMutex.Unlock()
+
+				return
+			}
 		}
 	}
 }

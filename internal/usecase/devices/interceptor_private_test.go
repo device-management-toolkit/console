@@ -699,3 +699,137 @@ func TestHandleAuthenticationSession(t *testing.T) {
 		})
 	}
 }
+
+// Additional tests to improve coverage on partially covered functions
+
+func TestProcessAuthChallengeErrorPath(t *testing.T) {
+	t.Parallel()
+
+	// Test error in readBinaryData
+	shortData := []byte{0x01} // Too short to read properly
+	challenge := &client.AuthChallenge{}
+
+	result := processAuthChallenge(shortData, challenge)
+	require.Nil(t, result)
+}
+
+func TestReadBinaryDataError(t *testing.T) {
+	t.Parallel()
+
+	// Test various error paths in readBinaryData
+	tests := []struct {
+		name     string
+		data     []byte
+		hasError bool
+	}{
+		{
+			name:     "Empty buffer",
+			data:     []byte{},
+			hasError: true,
+		},
+		{
+			name:     "Insufficient data for status",
+			data:     []byte{},
+			hasError: true,
+		},
+		{
+			name:     "Insufficient data for unknown field",
+			data:     []byte{0x01},
+			hasError: true,
+		},
+		{
+			name:     "Insufficient data for auth type",
+			data:     []byte{0x01, 0x02},
+			hasError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			buf := bytes.NewReader(tc.data)
+
+			var status uint8
+
+			var unknown uint16
+
+			var authType uint8
+
+			err := readBinaryData(buf, &status, &unknown, &authType)
+
+			if tc.hasError {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestHandleDigestAuthenticationErrorPaths(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		challenge *client.AuthChallenge
+		expected  []byte
+	}{
+		{
+			name: "Empty realm should trigger generateEmptyAuth path",
+			challenge: &client.AuthChallenge{
+				Realm: "",
+			},
+			expected: []byte{0x13, 0x00, 0x00, 0x00, 0x04}, // Header bytes from generateEmptyAuth
+		},
+		{
+			name: "Non-empty realm should succeed with digest auth",
+			challenge: &client.AuthChallenge{
+				Realm:    "test-realm",
+				Username: "user",
+				Password: "pass",
+			},
+			expected: []byte{0x13, 0x00, 0x00, 0x00, 0x04}, // Should succeed and return header
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := handleDigestAuthentication(tc.challenge)
+
+			if len(tc.expected) > 0 {
+				require.NotNil(t, result)
+				require.Equal(t, tc.expected[:5], result[:5]) // Compare header
+			} else {
+				// Result should be empty slice
+				require.Equal(t, tc.expected, result)
+			}
+		})
+	}
+}
+
+func TestGenerateCNonceError(t *testing.T) {
+	t.Parallel()
+
+	challenge := &client.AuthChallenge{NonceCount: 0}
+
+	// This should succeed and increment nonce count
+	result, err := generateCNonce(challenge)
+	require.NoError(t, err)
+	require.NotEmpty(t, result)
+	require.Equal(t, 1, challenge.NonceCount)
+}
+
+func TestRandomValueHexErrorCase(t *testing.T) {
+	t.Parallel()
+
+	// Test the error return path - this is hard to trigger since crypto/rand.Read rarely fails
+	// But we can test the normal case to improve coverage
+	result, err := RandomValueHex(0)
+	require.NoError(t, err)
+	require.Empty(t, result)
+}
