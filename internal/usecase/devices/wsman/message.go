@@ -1811,5 +1811,4 @@ func (g *ConnectionEntry) GetIPSScreenSettingData() (screensetting.Response, err
 	}
 
 	return pull, nil
-
 }
