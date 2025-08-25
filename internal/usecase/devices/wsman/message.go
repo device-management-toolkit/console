@@ -51,8 +51,10 @@ import (
 	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsIEEE8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
@@ -1781,4 +1783,32 @@ func (g *ConnectionEntry) GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	}
 
 	return tlsSettingDataResponse.Body.PullResponse.SettingDataItems, nil
+}
+
+func (g *ConnectionEntry) GetIPSKVMRedirectionSettings() (kvmredirection.Response, error) {
+	enum, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Enumerate()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) GetIPSScreenSettingData() (screensetting.Response, error) {
+	enum, err := g.WsmanMessages.IPS.ScreenSettingData.Enumerate()
+	if err != nil {
+		return screensetting.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.ScreenSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return screensetting.Response{}, err
+	}
+
+	return pull, nil
 }
