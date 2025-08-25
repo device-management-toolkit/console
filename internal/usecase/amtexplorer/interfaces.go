@@ -45,7 +45,9 @@ import (
 	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsIEEE8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -109,6 +111,8 @@ type (
 		GetIPSHostBasedSetupService() (hostbasedsetup.Response, error)
 		GetIPSIEEE8021xSettings() (ipsIEEE8021x.Response, error)
 		GetIPSOptInService() (optin.Response, error)
+		GetIPSKVMRedirectionSettings() (kvmredirection.Response, error)
+		GetIPSScreenSettingData() (screensetting.Response, error)
 	}
 	Feature interface {
 		GetExplorerSupportedCalls() []string
