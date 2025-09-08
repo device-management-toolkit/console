@@ -33,8 +33,7 @@ chmod +x console_linux_x64
 
 **Important**: You'll see `"Warning: Key Not Found, Generate new key? Y/N"` on first run - this is normal. Simply type `Y` and press Enter.
 
-**Linux Users**: If you see  `"Object does not exist at path '/' " after answering 'Y'` indicates lack of a built-in keychain. 
-Manually install any keychain and restart the application to use the system keychain instead of prompting for local key generation.
+**Linux Users**: If you see  `"Object does not exist at path '/' " after answering 'Y'` indicates lack of a built-in keychain. Manually install any keychain and restart the application to use the system keychain.
 
 4. Run Console.
 
