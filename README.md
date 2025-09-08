@@ -21,20 +21,78 @@ Console is an application that provides a 1:1, direct connection for AMT devices
 
 2. Download the appropriate binary assets for your OS and Architecture under the *Assets* dropdown section.
 
-3. Run Console.
+3. Make sure you have enough permission to run the application. For example, 
+
+```sh
+# Extract the archive
+tar -xzf console_linux_x64.tar.gz
+
+# Make executable
+chmod +x console_linux_x64
+```
+
+**Important**: You'll see `"Warning: Key Not Found, Generate new key? Y/N"` on first run - this is normal. Simply type `Y` and press Enter.
+
+**Linux Users**: If you see  `"Object does not exist at path '/' " after answering 'Y'` indicates lack of a built-in keychain. 
+Manually install any keychain and restart the application to use the system keychain instead of prompting for local key generation.
+
+4. Run Console.
 
 ### For Developers
 
 Local development (in Linux or WSL):
 
-To start the service with Postgres: 
+#### Environment Setup:
+
+1. Clone the repository:
 
 ```sh
-# Postgres
+git clone https://github.com/device-management-toolkit/console.git
+cd console
+```
+
+2. Copy the environment template
+
+```sh
+cp .env.example .env
+```
+
+3. Change the GIN_MODE to debug in the environment template
+
+```sh
+DISABLE_SWAGGER_HTTP_HANDLER=true
+GIN_MODE=debug
+# DB_URL=postgres://postgresadmin:admin123@localhost:5432/rpsdb  # Commented out for SQLite
+# OAUTH CONFIGURATION
+AUTH_CLIENT_ID=""
+AUTH_ISSUER=""
+```
+
+#### Running Options
+
+1. Running with SQLite (Default - Recommended for Development)
+
+```sh
+# Install dependencies and run
+go mod tidy && go mod download
+
+# Run the application directly
+go run ./cmd/app/main.go
+```
+
+**Important**: When prompted with `"Generate new key? Y/N"`, type `Y` and press Enter.
+The SQLite database will be automatically created at `~/.config/device-management-toolkit/console.db`.
+
+2. Running with PostgreSQL
+
+```sh
+# Start PostgreSQL with Docker
 $ make compose-up
 # Run app with migrations
 $ make run
 ```
+
+3. Sample Web UI
 
 Download and check out the sample-web-ui:
 ```
@@ -43,6 +101,8 @@ git clone https://github.com/device-management-toolkit/sample-web-ui
 
 Ensure that the environment file has cloud set to `false` and that the URLs for RPS and MPS are pointing to where you have `Console` running. The default is `http://localhost:8181`. Follow the instructions for launching and running the UI in the sample-web-ui readme.
 
+**Note**: To contribute to code base, make sure you go through the [Console Architecture](https://github.com/device-management-toolkit/console/wiki/Architecture-Overview).
+For detailed information about database schema and data storage, see [Console Data Storage](https://github.com/device-management-toolkit/console/wiki/Console-Data-Storage)
 
 ## Dev tips for passing CI Checks
 
