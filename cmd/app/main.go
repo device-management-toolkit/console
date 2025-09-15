@@ -61,7 +61,7 @@ func handleEncryptionKey(cfg *config.Config) {
 		return
 	}
 
-	if err.Error() != "The specified item could not be found in the keyring" {
+	if err.Error() != "secret not found in keyring" {
 		log.Fatal(err)
 
 		return
