@@ -20,6 +20,14 @@ import (
 
 var ErrOCRNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("One Click Recovery Unsupported")}
 
+// AMT BootService EnabledState constants.
+const (
+	// EnabledState values.
+	enabledStateEnabled           = 32769
+	enabledStateEnabledButOffline = 32771
+	enabledStateDisabled          = 32768
+)
+
 type OCRData struct {
 	bootService        cimBoot.BootService
 	bootSourceSettings []cimBoot.BootSourceSetting
@@ -156,29 +164,17 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 		return err
 	}
 
-	isOCR := false
-	if ocrData.bootService.EnabledState == 32769 || ocrData.bootService.EnabledState == 32771 {
-		isOCR = true
-	}
+	isOCR := ocrData.bootService.EnabledState == enabledStateEnabled || ocrData.bootService.EnabledState == enabledStateEnabledButOffline
 
 	result := findBootSettingInstances(ocrData.bootSourceSettings)
 
 	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
 	// So, these cannot be updated
-	isHTTPSBootSupported := false
-	if result.isHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled {
-		isHTTPSBootSupported = true
-	}
+	isHTTPSBootSupported := result.isHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
 
-	isWinREBootSupported := false
-	if result.isWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot {
-		isWinREBootSupported = true
-	}
+	isWinREBootSupported := result.isWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
 
-	isLocalPBABootSupported := false
-	if result.isPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot {
-		isLocalPBABootSupported = true
-	}
+	isLocalPBABootSupported := result.isPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
 
 	settingsResultsV2.OCR = isOCR
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
@@ -241,9 +237,9 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	// Configure OCR settings
 	requestedState := 0
 	if features.OCR {
-		requestedState = 32769
+		requestedState = enabledStateEnabled
 	} else {
-		requestedState = 32768
+		requestedState = enabledStateDisabled
 	}
 
 	_, err = device.BootServiceStateChange(requestedState)

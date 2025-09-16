@@ -3,10 +3,11 @@ package devices
 import (
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
-	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )

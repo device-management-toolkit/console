@@ -41,7 +41,7 @@ func (r *DomainRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
@@ -89,7 +89,7 @@ func (r *DomainRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 		return nil, ErrDomainDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrDomainDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -134,7 +134,7 @@ func (r *DomainRepo) GetDomainByDomainSuffix(_ context.Context, domainSuffix, te
 		return nil, ErrDomainDatabase.Wrap("GetDomainByDomainSuffix", "r.Builder: ", err)
 	}
 
-	row := r.Pool.QueryRow(sqlQuery)
+	row := r.Pool.QueryRowContext(context.Background(), sqlQuery)
 
 	d := entity.Domain{}
 
@@ -169,7 +169,7 @@ func (r *DomainRepo) GetByName(_ context.Context, domainName, tenantID string) (
 		return nil, ErrDomainDatabase.Wrap("GetByName", "r.Builder: ", err)
 	}
 
-	row := r.Pool.QueryRow(sqlQuery, args...)
+	row := r.Pool.QueryRowContext(context.Background(), sqlQuery, args...)
 
 	d := entity.Domain{}
 
@@ -195,7 +195,7 @@ func (r *DomainRepo) Delete(_ context.Context, domainName, tenantID string) (boo
 		return false, ErrDomainDatabase.Wrap("Delete", "r.Builder: ", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrDomainDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
@@ -224,7 +224,7 @@ func (r *DomainRepo) Update(_ context.Context, d *entity.Domain) (bool, error) {
 		return false, ErrDomainDatabase.Wrap("Update", "r.Builder: ", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		if db.CheckNotUnique(err) {
 			return false, ErrProfileNotUnique.Wrap(err.Error())
@@ -260,9 +260,9 @@ func (r *DomainRepo) Insert(_ context.Context, d *entity.Domain) (string, error)
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {

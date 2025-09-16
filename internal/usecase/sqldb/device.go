@@ -41,7 +41,7 @@ func (r *DeviceRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
@@ -97,7 +97,7 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -150,7 +150,7 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, guid, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, guid, tenantID)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -191,7 +191,7 @@ func (r *DeviceRepo) GetDistinctTags(_ context.Context, tenantID string) ([]stri
 		return []string{}, ErrDeviceDatabase.Wrap("GetDistinctTags", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return []string{}, ErrDeviceDatabase.Wrap("GetDistinctTags", "r.Pool.Query", err)
 	}
@@ -275,7 +275,7 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 		return nil, ErrDeviceDatabase.Wrap("GetByTags", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, args...)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("GetByTags", "r.Pool.QueryContext", err)
 	}
@@ -309,7 +309,7 @@ func (r *DeviceRepo) Delete(_ context.Context, guid, tenantID string) (bool, err
 		return false, ErrDeviceDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, guid, tenantID)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, guid, tenantID)
 	if err != nil {
 		return false, ErrDeviceDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
@@ -347,7 +347,7 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		return false, ErrDeviceDatabase.Wrap("Update", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrDeviceDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
@@ -379,9 +379,9 @@ func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error)
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {
@@ -420,7 +420,7 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, queryValue, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, queryValue, tenantID)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Pool.Query", err)
 	}

@@ -23,7 +23,7 @@ func setupIEEE8021xTable(t *testing.T) *sql.DB {
 	dbConn, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 
-	_, err = dbConn.Exec(schema)
+	_, err = dbConn.ExecContext(context.Background(), schema)
 	require.NoError(t, err)
 
 	return dbConn
@@ -51,7 +51,7 @@ func TestIEEE8021xRepo_CheckProfileExists(t *testing.T) {
 		{
 			name: "Query execution error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`DROP TABLE ieee8021xconfigs`)
+				_, err := dbConn.ExecContext(context.Background(), `DROP TABLE ieee8021xconfigs`)
 				require.NoError(t, err)
 			},
 			profileName: "profile1",
@@ -62,12 +62,12 @@ func TestIEEE8021xRepo_CheckProfileExists(t *testing.T) {
 		{
 			name: "Profile exists",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name,wired_interface, tenant_id) VALUES (?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name,wired_interface, tenant_id) VALUES (?, ?, ?)`,
 					"profile1", 1, "tenant1")
 				require.NoError(t, err)
 
 				var count int
-				err = dbConn.QueryRow(`SELECT COUNT(*) FROM ieee8021xconfigs WHERE profile_name = ? AND tenant_id = ?`, "profile1", "tenant1").Scan(&count)
+				err = dbConn.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM ieee8021xconfigs WHERE profile_name = ? AND tenant_id = ?`, "profile1", "tenant1").Scan(&count)
 				require.NoError(t, err)
 				require.Equal(t, 1, count)
 			},
@@ -123,7 +123,7 @@ func TestIEEE8021xRepo_GetCount(t *testing.T) {
 		{
 			name: "Successful count",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", "auth1", 30, "wired1", "tenant1")
 				require.NoError(t, err)
 			},
@@ -260,7 +260,7 @@ func TestIEEE8021xRepo_Get(t *testing.T) {
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
 				pxeTimeout := 30
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", 1, pxeTimeout, true, "tenant1")
 				require.NoError(t, err)
 			},
@@ -300,7 +300,7 @@ func TestIEEE8021xRepo_Get(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", "not-an-int", "not-an-int", "not-a-bool", "tenant1")
 			},
 			top:      10,
@@ -356,7 +356,7 @@ func TestIEEE8021xRepo_GetByName(t *testing.T) {
 			name: "Successful retrieval",
 			setup: func(dbConn *sql.DB) {
 				pxeTimeout := 30
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", 1, pxeTimeout, true, "tenant1")
 				require.NoError(t, err)
 			},
@@ -383,7 +383,7 @@ func TestIEEE8021xRepo_GetByName(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", "not-an-int", "not-an-int", "not-a-bool", "tenant1")
 			},
 			profileName: "profile1",
@@ -441,7 +441,7 @@ func TestIEEE8021xRepo_Delete(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", 1, 30, true, "tenant1")
 				require.NoError(t, err)
 			},
@@ -461,7 +461,7 @@ func TestIEEE8021xRepo_Delete(t *testing.T) {
 		{
 			name: "Query execution error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`CREATE TABLE ieee8021xconfigs (profile_name TEXT NOT NULL)`)
+				_, _ = dbConn.ExecContext(context.Background(), `CREATE TABLE ieee8021xconfigs (profile_name TEXT NOT NULL)`)
 			},
 			profileName: "profile1",
 			tenantID:    "tenant1",
@@ -519,7 +519,7 @@ func TestIEEE8021xRepo_Update(t *testing.T) {
 		{
 			name: "Successful update",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", 1, 30, true, "tenant1")
 				require.NoError(t, err)
 			},
@@ -649,7 +649,7 @@ func TestIEEE8021xRepo_Insert(t *testing.T) {
 		{
 			name: "Insert with not unique error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, auth_protocol, pxe_timeout, wired_interface, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"profile1", 1, 30, true, "tenant1")
 				require.NoError(t, err)
 			},

@@ -20,24 +20,24 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 
 	cfg, err := NewConfig()
 
-	cfg.App.EncryptionKey = "test" // Added to pass the test
+	cfg.EncryptionKey = "test" // Added to pass the test
 
 	assert.NoError(t, err)
 	assert.NotNil(t, cfg)
 
 	// Verify default values
-	assert.Equal(t, "console", cfg.App.Name)
-	assert.Equal(t, "device-management-toolkit/console", cfg.App.Repo)
-	assert.Equal(t, "DEVELOPMENT", cfg.App.Version)
-	assert.Equal(t, "test", cfg.App.EncryptionKey)
+	assert.Equal(t, "console", cfg.Name)
+	assert.Equal(t, "device-management-toolkit/console", cfg.Repo)
+	assert.Equal(t, "DEVELOPMENT", cfg.Version)
+	assert.Equal(t, "test", cfg.EncryptionKey)
 
-	assert.Equal(t, "8181", cfg.HTTP.Port)
-	assert.Equal(t, []string{"*"}, cfg.HTTP.AllowedOrigins)
-	assert.Equal(t, []string{"*"}, cfg.HTTP.AllowedHeaders)
+	assert.Equal(t, "8181", cfg.Port)
+	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
+	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)
 
-	assert.Equal(t, "info", cfg.Log.Level)
+	assert.Equal(t, "info", cfg.Level)
 
-	assert.Equal(t, 2, cfg.DB.PoolMax)
+	assert.Equal(t, 2, cfg.PoolMax)
 }
 
 func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
@@ -55,10 +55,10 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	assert.NotNil(t, cfg)
 
 	// Verify environment variable values
-	assert.Equal(t, "testApp", cfg.App.Name)
-	assert.Equal(t, "9090", cfg.HTTP.Port)
-	assert.Equal(t, "debug", cfg.Log.Level)
-	assert.Equal(t, 10, cfg.DB.PoolMax)
+	assert.Equal(t, "testApp", cfg.Name)
+	assert.Equal(t, "9090", cfg.Port)
+	assert.Equal(t, "debug", cfg.Level)
+	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://user:password@localhost:5432/testdb", cfg.DB.URL)
 }
 
@@ -97,9 +97,9 @@ postgres:
 	assert.NotNil(t, cfg)
 
 	// Verify environment variable values override file values
-	assert.Equal(t, "envApp", cfg.App.Name)
-	assert.Equal(t, "9090", cfg.HTTP.Port)
-	assert.Equal(t, "debug", cfg.Log.Level)
-	assert.Equal(t, 10, cfg.DB.PoolMax)
+	assert.Equal(t, "envApp", cfg.Name)
+	assert.Equal(t, "9090", cfg.Port)
+	assert.Equal(t, "debug", cfg.Level)
+	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
 }

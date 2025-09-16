@@ -20,7 +20,7 @@ func (mdb *MockDB) Open(driverName, dataSourceName string) (*sql.DB, error) {
 
 	db, ok := args.Get(0).(*sql.DB)
 	if !ok {
-		return nil, errors.New("failed to cast to *sql.DB") //nolint:err113 // It's a test...
+		return nil, errors.New("failed to cast to *sql.DB")
 	}
 
 	return db, args.Error(1)

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"errors"
@@ -108,7 +109,7 @@ func setupLocalDB(migrationsSource source.Driver) error {
 		}
 	}
 
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	_, err = db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
 	if err != nil {
 		return err
 	}

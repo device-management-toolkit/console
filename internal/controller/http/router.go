@@ -86,7 +86,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	// Protected routes using JWT middleware
 	var protected *gin.RouterGroup
-	if cfg.Auth.Disabled {
+	if cfg.Disabled {
 		protected = handler.Group("/api")
 	} else {
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
@@ -130,15 +130,15 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	protocol := "http://"
 
 	requireHTTPSReplacement := ",requireHttps:!1"
-	if cfg.Auth.UI.RequireHTTPS {
+	if cfg.UI.RequireHTTPS {
 		requireHTTPSReplacement = ",requireHttps:!0"
 		protocol = "https://"
 	}
 
 	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
-	if cfg.Auth.ClientID != "" {
+	if cfg.ClientID != "" {
 		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
-		if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
+		if cfg.UI.StrictDiscoveryDocumentValidation {
 			strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
 		}
 
@@ -146,15 +146,15 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 			",useOAuth:!1,":                         ",useOAuth:!0,",
 			",requireHttps:!0":                      requireHTTPSReplacement,
 			",strictDiscoveryDocumentValidation:!0": strictDiscoveryReplacement,
-			"##CLIENTID##":                          cfg.Auth.UI.ClientID,
-			"##ISSUER##":                            cfg.Auth.UI.Issuer,
-			"##SCOPE##":                             cfg.Auth.UI.Scope,
-			"##REDIRECTURI##":                       cfg.Auth.UI.RedirectURI,
+			"##CLIENTID##":                          cfg.UI.ClientID,
+			"##ISSUER##":                            cfg.UI.Issuer,
+			"##SCOPE##":                             cfg.UI.Scope,
+			"##REDIRECTURI##":                       cfg.UI.RedirectURI,
 		})
 	}
 
 	data = injectPlaceholders(data, map[string]string{
-		"##CONSOLE_SERVER_API##": protocol + cfg.HTTP.Host + ":" + cfg.HTTP.Port,
+		"##CONSOLE_SERVER_API##": protocol + cfg.Host + ":" + cfg.Port,
 	})
 
 	// Write to /tmp

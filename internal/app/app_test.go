@@ -15,6 +15,7 @@ func TestRun(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
+
 	t.Cleanup(ctrl.Finish)
 	defer ctrl.Finish()
 

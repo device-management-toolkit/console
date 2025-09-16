@@ -40,7 +40,7 @@ func (r *ProfileRepo) GetCount(_ context.Context, tenantID string) (int, error) 
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
@@ -130,7 +130,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 		return nil, ErrProfileDatabase.Wrap("Get", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrProfileDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -197,7 +197,7 @@ func (r *ProfileRepo) GetByName(_ context.Context, profileName, tenantID string)
 		return nil, ErrProfileDatabase.Wrap("GetByName", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, profileName, tenantID)
 	if err != nil {
 		return nil, ErrProfileDatabase.Wrap("GetByName", "r.Pool.Query", err)
 	}
@@ -243,7 +243,7 @@ func (r *ProfileRepo) Delete(_ context.Context, profileName, tenantID string) (b
 		return false, ErrProfileDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrProfileDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
@@ -285,7 +285,7 @@ func (r *ProfileRepo) Update(_ context.Context, p *entity.Profile) (bool, error)
 		return false, ErrProfileDatabase.Wrap("Update", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrProfileDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
@@ -333,9 +333,9 @@ func (r *ProfileRepo) Insert(_ context.Context, p *entity.Profile) (string, erro
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {

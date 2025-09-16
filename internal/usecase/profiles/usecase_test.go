@@ -4,9 +4,10 @@ import (
 	"context"
 	"testing"
 
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 
 	local "github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"

@@ -5,9 +5,10 @@ import (
 	"errors"
 	"strings"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
-	"gopkg.in/yaml.v2"
 
 	local "github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
@@ -338,8 +339,8 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 			},
 			EnterpriseAssistant: config.EnterpriseAssistant{
 				URL:      local.ConsoleConfig.EA.URL,
-				Username: local.ConsoleConfig.EA.Username,
-				Password: local.ConsoleConfig.EA.Password,
+				Username: local.ConsoleConfig.Username,
+				Password: local.ConsoleConfig.Password,
 			},
 			AMTSpecific: config.AMTSpecific{
 				ControlMode:         data.Activation,

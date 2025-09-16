@@ -171,10 +171,12 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 				}
 			case <-timeout:
 				connectionsMu.Lock()
+
 				connections[device.GUID] = &ConnectionEntry{
 					WsmanMessages: wsman.NewMessages(clientParams),
 					Timer:         timer,
 				}
+
 				connectionsMu.Unlock()
 
 				return connections[device.GUID]
@@ -185,6 +187,7 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	wsmanMsgs := wsman.NewMessages(clientParams)
 
 	connectionsMu.Lock()
+
 	connections[device.GUID] = &ConnectionEntry{
 		WsmanMessages: wsmanMsgs,
 		Timer:         timer,
@@ -198,6 +201,7 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 func removeConnection(guid string) {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
+
 	delete(connections, guid)
 }
 

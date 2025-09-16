@@ -14,9 +14,10 @@ import (
 	"sync"
 	"time"
 
+	"github.com/gorilla/websocket"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
-	"github.com/gorilla/websocket"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 )
@@ -155,16 +156,19 @@ func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection
 
 	go func() {
 		defer wg.Done()
+
 		uc.ListenToDevice(deviceConnection)
 	}()
 
 	go func() {
 		defer wg.Done()
+
 		uc.ListenToBrowser(deviceConnection)
 	}()
 
 	go func() {
 		defer wg.Done()
+
 		uc.MonitorConnectionHealth(deviceConnection, key)
 	}()
 
@@ -548,6 +552,7 @@ func handleDigestAuthentication(challenge *client.AuthChallenge) []byte {
 
 func generateCNonce(challenge *client.AuthChallenge) (string, error) {
 	randomByteCount := 10
+
 	cnonce, err := RandomValueHex(randomByteCount)
 	if err != nil { //nolint:wsl // ignoring cuddle assignment rule for this line due to linter conflicts
 		return "", err

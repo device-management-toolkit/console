@@ -4,10 +4,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/mocks"

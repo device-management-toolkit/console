@@ -289,6 +289,7 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 
 	// Determine the public key size
 	var publicKeySize int
+
 	switch pub := cert.PublicKey.(type) {
 	case *rsa.PublicKey:
 		publicKeySize = pub.N.BitLen()

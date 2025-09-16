@@ -70,7 +70,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString([]byte(lr.Config.Auth.JWTKey))
+	tokenString, err := token.SignedString([]byte(lr.Config.JWTKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
 
@@ -104,7 +104,7 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 			claims := &jwt.MapClaims{}
 
 			token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
-				return []byte(lr.Config.Auth.JWTKey), nil
+				return []byte(lr.Config.JWTKey), nil
 			})
 
 			if err != nil || !token.Valid {

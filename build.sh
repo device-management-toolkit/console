@@ -1,3 +1,5 @@
+# this script builds the docker image and packages the binaries into tar files for CI/CD on Github
+
 # Get version from the first argument
 version=$1
 

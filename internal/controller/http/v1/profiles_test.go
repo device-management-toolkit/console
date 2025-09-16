@@ -276,9 +276,9 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 
 			if tc.requestBody.ProfileName != "" {
 				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequest(tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {
-				req, err = http.NewRequest(tc.method, tc.url, http.NoBody)
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {
@@ -295,6 +295,7 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 				if response, ok := tc.response.(gin.H); ok {
 					// For gin.H responses (like from export)
 					var actualResponse gin.H
+
 					err := json.Unmarshal(w.Body.Bytes(), &actualResponse)
 					require.NoError(t, err)
 					require.Equal(t, response, actualResponse)

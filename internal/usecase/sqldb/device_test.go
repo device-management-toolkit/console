@@ -22,6 +22,50 @@ var (
 	Certhash = &crthash
 )
 
+// setupDeviceTable creates an in-memory sqlite DB with the devices schema used in tests.
+func setupDeviceTable(t *testing.T) *sql.DB {
+	t.Helper()
+
+	dbConn, err := sql.Open("sqlite", ":memory:")
+	require.NoError(t, err)
+
+	_, err = dbConn.ExecContext(context.Background(), `
+		CREATE TABLE devices (
+			guid TEXT PRIMARY KEY,
+			hostname TEXT NOT NULL DEFAULT '',
+			tags TEXT NOT NULL DEFAULT '',
+			mpsinstance TEXT NOT NULL DEFAULT '',
+			connectionstatus BOOLEAN NOT NULL DEFAULT FALSE,
+			mpsusername TEXT NOT NULL DEFAULT '',
+			tenantid TEXT NOT NULL,
+			friendlyname TEXT NOT NULL DEFAULT '',
+			dnssuffix TEXT NOT NULL DEFAULT '',
+			deviceinfo TEXT NOT NULL DEFAULT '',
+			username TEXT NOT NULL DEFAULT '',
+			password TEXT NOT NULL DEFAULT '',
+			usetls BOOLEAN NOT NULL DEFAULT FALSE,
+			allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
+			certhash TEXT NOT NULL DEFAULT ''
+		);
+	`)
+	require.NoError(t, err)
+
+	return dbConn
+}
+
+// assertDeviceResults does a shallow check on device slice equality (len + type).
+func assertDeviceResults(t *testing.T, expected, actual []entity.Device) {
+	t.Helper()
+
+	if len(actual) != len(expected) {
+		t.Fatalf("Expected %d devices, got %d", len(expected), len(actual))
+	}
+
+	for i := range expected {
+		assert.IsType(t, expected[i], actual[i], "Device at index %d type mismatch", i)
+	}
+}
+
 func TestDeviceRepo_GetCount(t *testing.T) {
 	t.Parallel()
 
@@ -35,7 +79,7 @@ func TestDeviceRepo_GetCount(t *testing.T) {
 		{
 			name: "Successful count",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false)
 				require.NoError(t, err)
 			},
@@ -64,41 +108,12 @@ func TestDeviceRepo_GetCount(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			dbConn, err := sql.Open("sqlite", ":memory:")
-			require.NoError(t, err)
+			dbConn := setupDeviceTable(t)
 			defer dbConn.Close()
-
-			_, err = dbConn.Exec(`
-				CREATE TABLE devices (
-					guid TEXT PRIMARY KEY,
-					hostname TEXT NOT NULL DEFAULT '',
-					tags TEXT NOT NULL DEFAULT '',
-					mpsinstance TEXT NOT NULL DEFAULT '',
-					connectionstatus BOOLEAN NOT NULL DEFAULT FALSE,
-					mpsusername TEXT NOT NULL DEFAULT '',
-					tenantid TEXT NOT NULL,
-					friendlyname TEXT NOT NULL DEFAULT '',
-					dnssuffix TEXT NOT NULL DEFAULT '',
-					deviceinfo TEXT NOT NULL DEFAULT '',
-					username TEXT NOT NULL DEFAULT '',
-					password TEXT NOT NULL DEFAULT '',
-					usetls BOOLEAN NOT NULL DEFAULT FALSE,
-					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE
-				);
-			`)
-			require.NoError(t, err)
 
 			tc.setup(dbConn)
 
-			sqlConfig := &db.SQL{
-				Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
-				Pool:       dbConn,
-				IsEmbedded: true,
-			}
-
-			if tc.name == QueryExecutionErrorTestName {
-				sqlConfig.Builder = squirrel.StatementBuilder.PlaceholderFormat(squirrel.AtP)
-			}
+			sqlConfig := CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
 
 			mockLog := mocks.NewMockLogger(nil)
 			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
@@ -118,59 +133,6 @@ func TestDeviceRepo_GetCount(t *testing.T) {
 				t.Errorf("Expected count %d, got %d", tc.expected, count)
 			}
 		})
-	}
-}
-
-func setupDeviceTable(t *testing.T) *sql.DB {
-	t.Helper()
-
-	dbConn, err := sql.Open("sqlite", ":memory:")
-	require.NoError(t, err)
-
-	_, err = dbConn.Exec(`
-		CREATE TABLE devices (
-			guid TEXT PRIMARY KEY,
-			hostname TEXT NOT NULL DEFAULT '',
-			tags TEXT NOT NULL DEFAULT '',
-			mpsinstance TEXT NOT NULL DEFAULT '',
-			connectionstatus BOOLEAN NOT NULL DEFAULT FALSE,
-			mpsusername TEXT NOT NULL DEFAULT '',
-			tenantid TEXT NOT NULL,
-			friendlyname TEXT NOT NULL DEFAULT '',
-			dnssuffix TEXT NOT NULL DEFAULT '',
-			deviceinfo TEXT NOT NULL DEFAULT '',
-			username TEXT NOT NULL DEFAULT '',
-			password TEXT NOT NULL DEFAULT '',
-			usetls BOOLEAN NOT NULL DEFAULT FALSE,
-			allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-			certhash TEXT NOT NULL DEFAULT ''
-		);
-	`)
-	require.NoError(t, err)
-
-	return dbConn
-}
-
-func assertDeviceResults(t *testing.T, expected, actual []entity.Device) {
-	t.Helper()
-
-	if len(actual) != len(expected) {
-		t.Errorf("Expected %d devices, got %d", len(expected), len(actual))
-
-		return
-	}
-
-	for i := range expected {
-		if i >= len(actual) {
-			t.Errorf("Expected device %d, but got none", i)
-
-			break
-		}
-
-		expectedDevice := &expected[i]
-		actualDevice := &actual[i]
-
-		assert.IsType(t, *expectedDevice, *actualDevice, "Device at index %d", i)
 	}
 }
 
@@ -210,7 +172,7 @@ func TestDeviceRepo_Get(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
 				require.NoError(t, err)
 			},
@@ -259,7 +221,7 @@ func TestDeviceRepo_Get(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", "not-a-bool", false, Certhash)
 			},
 			top:      10,
@@ -308,7 +270,7 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
 				require.NoError(t, err)
 			},
@@ -352,7 +314,7 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", "not-a-bool", false, Certhash)
 			},
 			guid:     "guid1",
@@ -411,11 +373,11 @@ func TestDeviceRepo_GetDistinctTags(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, tags, tenantid) VALUES (?, ?, ?)`, "guid1", "tag1", "tenant1")
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, tags, tenantid) VALUES (?, ?, ?)`, "guid1", "tag1", "tenant1")
 				require.NoError(t, err)
-				_, err = dbConn.Exec(`INSERT INTO devices (guid, tags, tenantid) VALUES (?, ?, ?)`, "guid2", "tag2", "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, tags, tenantid) VALUES (?, ?, ?)`, "guid2", "tag2", "tenant1")
 				require.NoError(t, err)
-				_, err = dbConn.Exec(`INSERT INTO devices (guid, tags, tenantid) VALUES (?, ?, ?)`, "guid3", "tag1", "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, tags, tenantid) VALUES (?, ?, ?)`, "guid3", "tag1", "tenant1")
 				require.NoError(t, err)
 			},
 			tenantID: "tenant1",
@@ -425,7 +387,7 @@ func TestDeviceRepo_GetDistinctTags(t *testing.T) {
 		{
 			name: "No tags found",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec("DELETE FROM devices WHERE tenantid = ?", "tenant1")
+				_, _ = dbConn.ExecContext(context.Background(), "DELETE FROM devices WHERE tenantid = ?", "tenant1")
 			},
 			tenantID: "tenant1",
 			expected: []string{},
@@ -486,7 +448,7 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 		{
 			name: "Successful retrieval with AND operation",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", ",tag1,tag2,", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1")
 				require.NoError(t, err)
 			},
@@ -514,7 +476,7 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 		{
 			name: "Successful retrieval with OR operation",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", ",tag1,", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1")
 				require.NoError(t, err)
 			},
@@ -563,7 +525,7 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 		{
 			name: "Row scan error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", ",tag1,", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1")
 				require.NoError(t, err)
 			},
@@ -583,9 +545,10 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(`
+			_, err = dbConn.ExecContext(context.Background(), `
                 CREATE TABLE devices (
                     guid TEXT PRIMARY KEY,
                     hostname TEXT NOT NULL DEFAULT '',
@@ -640,7 +603,7 @@ func TestDeviceRepo_Delete(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false)
 				require.NoError(t, err)
 			},
@@ -674,9 +637,10 @@ func TestDeviceRepo_Delete(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(`
+			_, err = dbConn.ExecContext(context.Background(), `
 				CREATE TABLE devices (
 					guid TEXT PRIMARY KEY,
 					hostname TEXT NOT NULL DEFAULT '',
@@ -742,7 +706,7 @@ func TestDeviceRepo_Update(t *testing.T) {
 		{
 			name: "Successful update",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
 				require.NoError(t, err)
 			},
@@ -821,9 +785,10 @@ func TestDeviceRepo_Update(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(`
+			_, err = dbConn.ExecContext(context.Background(), `
 				CREATE TABLE devices (
 					guid TEXT PRIMARY KEY,
 					hostname TEXT NOT NULL DEFAULT '',
@@ -913,7 +878,7 @@ func TestDeviceRepo_Insert(t *testing.T) {
 		{
 			name: "Insert with not unique error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, "certhash")
 				require.NoError(t, err)
 			},
@@ -1009,7 +974,7 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
 		{
 			name: "Successful retrieval",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
 				require.NoError(t, err)
 			},
@@ -1057,7 +1022,7 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
 		{
 			name: "Row scan error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
 				require.NoError(t, err)
 			},
@@ -1075,9 +1040,10 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(`
+			_, err = dbConn.ExecContext(context.Background(), `
                 CREATE TABLE devices (
                     guid TEXT PRIMARY KEY,
                     hostname TEXT NOT NULL DEFAULT '',

@@ -5,15 +5,16 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
+	gomock "go.uber.org/mock/gomock"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
-	"github.com/stretchr/testify/assert"
-	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"

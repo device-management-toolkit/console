@@ -27,11 +27,11 @@ var Version = "DEVELOPMENT"
 
 // Run creates objects via constructors.
 func Run(cfg *config.Config) {
-	log := logger.New(cfg.Log.Level)
-	cfg.App.Version = Version
-	log.Info("app - Run - version: " + cfg.App.Version)
+	log := logger.New(cfg.Level)
+	cfg.Version = Version
+	log.Info("app - Run - version: " + cfg.Version)
 	// Repository
-	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.DB.PoolMax), db.EnableForeignKeys(true))
+	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.PoolMax), db.EnableForeignKeys(true))
 	if err != nil {
 		log.Fatal(fmt.Errorf("app - Run - db.New: %w", err))
 	}
@@ -48,8 +48,8 @@ func Run(cfg *config.Config) {
 	handler := gin.New()
 
 	defaultConfig := cors.DefaultConfig()
-	defaultConfig.AllowOrigins = cfg.HTTP.AllowedOrigins
-	defaultConfig.AllowHeaders = cfg.HTTP.AllowedHeaders
+	defaultConfig.AllowOrigins = cfg.AllowedOrigins
+	defaultConfig.AllowHeaders = cfg.AllowedHeaders
 
 	handler.Use(cors.New(defaultConfig))
 	consolehttp.NewRouter(handler, log, *usecases, cfg)
@@ -69,11 +69,11 @@ func Run(cfg *config.Config) {
 		CheckOrigin: func(_ *http.Request) bool {
 			return true
 		},
-		EnableCompression: cfg.HTTP.WSCompression,
+		EnableCompression: cfg.WSCompression,
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
-	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Host, cfg.HTTP.Port))
+	httpServer := httpserver.New(handler, httpserver.Port(cfg.Host, cfg.Port))
 
 	// Waiting signal
 	interrupt := make(chan os.Signal, 1)

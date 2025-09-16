@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -35,7 +36,7 @@ func main() {
 
 	if os.Getenv("GIN_MODE") != "debug" {
 		go func() {
-			browserError := openBrowser("http://localhost:"+cfg.HTTP.Port, runtime.GOOS)
+			browserError := openBrowser("http://localhost:"+cfg.Port, runtime.GOOS)
 			if browserError != nil {
 				panic(browserError)
 			}
@@ -105,7 +106,7 @@ type CommandExecutor interface {
 type RealCommandExecutor struct{}
 
 func (e *RealCommandExecutor) Execute(name string, arg ...string) error {
-	return exec.Command(name, arg...).Start()
+	return exec.CommandContext(context.Background(), name, arg...).Start()
 }
 
 // Global command executor, can be replaced in tests.

@@ -62,12 +62,12 @@ func (vr VersionRoute) FetchLatestRelease(c *gin.Context, repo string) (*github.
 
 // LatestReleaseHandler is the Gin handler function to check for the latest release
 func (vr VersionRoute) LatestReleaseHandler(c *gin.Context) {
-	repo := vr.Config.App.Repo
+	repo := vr.Config.Repo
 
 	release, err := vr.FetchLatestRelease(c, repo)
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
-			"current": vr.Config.App.Version,
+			"current": vr.Config.Version,
 			"error":   err.Error(),
 		})
 
@@ -75,7 +75,7 @@ func (vr VersionRoute) LatestReleaseHandler(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{
-		"current": vr.Config.App.Version,
+		"current": vr.Config.Version,
 		"latest": map[string]interface{}{
 			"tag_name":     release.TagName,
 			"name":         release.Name,

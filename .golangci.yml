@@ -1,74 +1,18 @@
-linters-settings:
-  gci:
-    local-prefixes: github.com/device-management-toolkit/console
-  errorlint:
-    errorf: true
-  errcheck:
-    check-type-assertions: true
-    check-blank: false
-  exhaustive:
-    check-generated: false
-    default-signifies-exhaustive: false
-  funlen:
-    lines: 100
-    statements: 45
-  gocognit:
-    min-complexity: 16
-  gocyclo:
-    min-complexity: 15
-  cyclop:
-    max-complexity: 15
-  goconst:
-    min-len: 2
-    min-occurrences: 2
-  gocritic:
-    enabled-tags:
-      - diagnostic
-      - experimental
-      - opinionated
-      - performance
-      - style
-    disabled-checks:
-      - dupImport
-      - unnecessaryBlock
-      - hugeParam
-  gofumpt:
-    extra-rules: true
-  mnd:
-    checks:
-      - argument
-      - case
-      - condition
-      - operation
-      - return
-  govet:
-    shadow: true
-  misspell:
-    locale: US
-  nestif:
-    min-complexity: 5
-  nolintlint:
-    require-explanation: true
-    require-specific: true
-
+version: "2"
 linters:
-  disable-all: true
+  default: none
   enable:
     - asciicheck
     - bodyclose
     - cyclop
-    # - depguard
     - dogsled
-    # - dupl
     - durationcheck
+    - err113
     - errcheck
     - errorlint
     - exhaustive
-    # - exportloopref
     - forbidigo
     - funlen
-    - gci
-    # - gochecknoglobals
     - gochecknoinits
     - gocognit
     - goconst
@@ -76,19 +20,14 @@ linters:
     - gocyclo
     - godot
     - godox
-    - err113
-    - gofmt
-    - gofumpt
-    - goimports
-    - mnd
     - gomodguard
     - goprintffuncname
     - gosec
-    - gosimple
     - govet
     - ineffassign
     - makezero
     - misspell
+    - mnd
     - nakedret
     - nestif
     - nlreturn
@@ -100,39 +39,105 @@ linters:
     - rowserrcheck
     - sqlclosecheck
     - staticcheck
-    - stylecheck
-    - tparallel
     - thelper
-    - typecheck
+    - tparallel
     - unconvert
     - unparam
     - unused
-    - wsl
     - whitespace
-
-# disable:
-#    - exhaustivestruct
-#    - ifshort
-#    - goheader
-#    - prealloc
-#    - testpackage
-#    - wrapcheck
-
-issues:
-  exclude-rules:
-    - path: integration-test
-      linters:
-        - paralleltest
-        - godot
-    - path: internal/controller/http
-      linters:
-        - godot
-    - path: (.+)_test.go
-      linters:
-        - funlen
-        - goerr113
-  exclude-dirs:
-    - docs
-
-run:
-  timeout: 5m
+    - wsl_v5
+  settings:
+    cyclop:
+      max-complexity: 15
+    errcheck:
+      check-type-assertions: true
+      check-blank: false
+    errorlint:
+      errorf: true
+    exhaustive:
+      default-signifies-exhaustive: false
+    funlen:
+      lines: 100
+      statements: 45
+    gocognit:
+      min-complexity: 16
+    goconst:
+      min-len: 2
+      min-occurrences: 2
+    gocritic:
+      disabled-checks:
+        - dupImport
+        - unnecessaryBlock
+        - hugeParam
+      enabled-tags:
+        - diagnostic
+        - experimental
+        - opinionated
+        - performance
+        - style
+    gocyclo:
+      min-complexity: 15
+    misspell:
+      locale: US
+    mnd:
+      checks:
+        - argument
+        - case
+        - condition
+        - operation
+        - return
+    nestif:
+      min-complexity: 5
+    nolintlint:
+      require-explanation: true
+      require-specific: true
+    wsl_v5:
+      allow-first-in-block: true
+      allow-whole-block: false
+      branch-max-lines: 2
+  exclusions:
+    generated: lax
+    presets:
+      - comments
+      - common-false-positives
+      - legacy
+      - std-error-handling
+    rules:
+      - linters:
+          - godot
+          - paralleltest
+        path: integration-test
+      - linters:
+          - godot
+        path: internal/controller/http
+      - linters:
+          - err113
+          - funlen
+        path: (.+)_test.go
+    paths:
+      - docs
+      - third_party$
+      - builtin$
+      - examples$
+formatters:
+  enable:
+    - gci
+    - gofmt
+    - gofumpt
+    - goimports
+  settings:
+    gci:
+      sections:
+        - Standard
+        - Default
+        - Prefix(github.com/device-management-toolkit)
+        - localmodule
+    gofumpt:
+      extra-rules: true
+  exclusions:
+    generated: lax
+    paths:
+      - docs
+      - third_party$
+      - builtin$
+      - examples$

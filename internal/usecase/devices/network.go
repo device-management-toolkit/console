@@ -48,13 +48,12 @@ func (uc *UseCase) GetNetworkSettings(c context.Context, guid string) (dto.Netwo
 			// Wireless network
 			ns.Wireless = &dto.WirelessNetworkInfo{}
 			ns.Wireless.NetworkInfo = convertToNetworkInfo(*portSetting)
-			ns.Wireless.NetworkInfo.LinkPreference = portSetting.LinkPreference.String()
-			ns.Wireless.NetworkInfo.LinkControl = portSetting.LinkControl.String()
-			ns.Wireless.NetworkInfo.WLANLinkProtectionLevel = portSetting.WLANLinkProtectionLevel.String()
+			ns.Wireless.LinkPreference = portSetting.LinkPreference.String()
+			ns.Wireless.LinkControl = portSetting.LinkControl.String()
+			ns.Wireless.WLANLinkProtectionLevel = portSetting.WLANLinkProtectionLevel.String()
 			ns.Wireless.WiFiNetworks = uc.processWiFiSettings(response)
 			ns.Wireless.IEEE8021xSettings = uc.processIEEE8021xSettings(response)
 			ns.Wireless.WiFiPortConfigService = uc.processWiFiPortConfigService(response)
-			// To Do: Add WiFi Capabilities AMT_BootCapabilities.UEFIWiFiCoExistenceAndProfileShare
 		}
 	}
 

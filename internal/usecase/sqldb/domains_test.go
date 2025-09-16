@@ -23,7 +23,7 @@ func setupDomainTable(t *testing.T) *sql.DB {
 	dbConn, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 
-	_, err = dbConn.Exec(schema)
+	_, err = dbConn.ExecContext(context.Background(), schema)
 	require.NoError(t, err)
 
 	return dbConn
@@ -42,7 +42,7 @@ func TestDomainRepo_GetCount(t *testing.T) {
 		{
 			name: "Successful count",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name,domain_suffix, tenant_id) VALUES (?,?,?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name,domain_suffix, tenant_id) VALUES (?,?,?)`,
 					"domain1", "suffix.com", "tenant1")
 				require.NoError(t, err)
 			},
@@ -73,8 +73,6 @@ func TestDomainRepo_GetCount(t *testing.T) {
 
 			dbConn := setupDomainTable(t)
 			defer dbConn.Close()
-
-			setupDomainTable(t)
 
 			tc.setup(dbConn)
 
@@ -125,7 +123,7 @@ func TestDomainRepo_Get(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert_storage_format, provisioning_cert, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert_storage_format, provisioning_cert, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					"domain1", "suffix1", "cert_format1", "cert", "cert-key", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
@@ -230,7 +228,7 @@ func TestDomainRepo_GetDomainByDomainSuffix(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					"domain1", "suffix1", "cert1", "format1", "key1", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
@@ -266,7 +264,7 @@ func TestDomainRepo_GetDomainByDomainSuffix(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					"domain1", "suffix1", "cert1", "format1", "key1", "invalid-date", "tenant1")
 			},
 			domainSuffix: "suffix1",
@@ -320,7 +318,7 @@ func TestDomainRepo_GetByName(t *testing.T) {
 		{
 			name: "Successful retrieval",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					"test-domain", "test-suffix", "cert", "PEM", "password", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
@@ -402,7 +400,7 @@ func TestDomainRepo_Delete(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert_storage_format, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert_storage_format, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?)`,
 					"test-domain", "test-suffix", "PEM", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
@@ -484,7 +482,7 @@ func TestDomainRepo_Update(t *testing.T) {
 		{
 			name: "Successful update",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					"test-domain", "test-suffix", "cert-data", "PEM", "cert-key", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
@@ -623,7 +621,7 @@ func TestDomainRepo_Insert(t *testing.T) {
 		{
 			name: "Insert with not unique error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO domains (name, domain_suffix, provisioning_cert, provisioning_cert_storage_format, provisioning_cert_key, expiration_date, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "suffix1", "cert1", "format1", "password1", time.Now().AddDate(1, 0, 0), "tenant1")
 				require.NoError(t, err)
 			},

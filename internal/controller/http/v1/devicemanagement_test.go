@@ -9,10 +9,11 @@ import (
 	"net/http/httptest"
 	"testing"
 
-	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
@@ -338,9 +339,9 @@ func TestDeviceManagement(t *testing.T) {
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch || tc.method == http.MethodDelete {
 				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequest(tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {
-				req, err = http.NewRequest(tc.method, tc.url, http.NoBody)
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {
