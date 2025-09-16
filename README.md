@@ -11,97 +11,155 @@
 
 Console is an application that provides a 1:1, direct connection for AMT devices for use in an enterprise environment. Users can add activated AMT devices to access device information and device management functionality such as power control, remote keyboard-video-mouse (KVM) control, and more.
 
-<br>
+## Quick Start for Users
 
-## Quick start 
+### 1. Download Console
 
-### For Users
+1. Visit the [latest release page](https://github.com/device-management-toolkit/console/releases/latest)
+2. Download the appropriate binary for your operating system and architecture from the **Assets** section
 
-1. Find the latest release of Console under [Github Releases](https://github.com/device-management-toolkit/console/releases/latest).
+### 2. Run Console
 
-2. Download the appropriate binary assets for your OS and Architecture under the *Assets* dropdown section.
-
-3. Make sure you have enough permission to run the application. For example, 
-
+#### Linux/macOS
 ```sh
-# Extract the archive
+# Navigate to your download directory
+cd <path-to-your-download>
+
+# Extract the archive (example for Linux x64)
 tar -xzf console_linux_x64.tar.gz
 
-# Make executable
+# Make the binary executable
 chmod +x console_linux_x64
+
+# Run Console
+./console_linux_x64
 ```
 
-**Important**: You'll see `"Warning: Key Not Found, Generate new key? Y/N"` on first run - this is normal. Simply type `Y` and press Enter.
+#### Windows
+```cmd
+# Simply double-click the downloaded executable to run
+console_windows_x64.exe
+```
 
-**Linux Users**: If you see  `"Object does not exist at path '/' " after answering 'Y'` indicates lack of a built-in keychain. Manually install any keychain and restart the application to use the system keychain.
+Or run from Command Prompt:
+```cmd
+console_windows_x64.exe
+```
 
-4. Run Console.
 
-### For Developers
+### 3. First Run Setup
 
-Local development (in Linux or WSL):
+On first startup, you'll see:
+```
+Warning: Key Not Found, Generate new key? Y/N
+```
 
-#### Environment Setup:
+**Simply type `Y` and press Enter** - this generates the necessary encryption keys for secure operation.
 
-1. Clone the repository:
+
+> **Linux Users**: If you encounter `"Object does not exist at path '/'"` after answering 'Y', this indicates your system lacks a keychain service. Install a keychain manager (like `seahorse`) and restart Console binary.
+
+---
+
+## For Developers
+
+### Development Environment
+
+You’ll run two components during development:
+
+- **Console** – the backend service (Go Service)  
+- **Web UI** – the frontend (for the Angular Web UI)
+
+Local development can be done on **Linux**, **macOS**, and **Windows**. On Windows, WSL is recommended if you plan to use `make`, but it’s not required for running Console directly.
+
+### Prerequisites
+
+Before you begin, ensure you have:
+- [Go 1.24+](https://go.dev/dl/)
+- [Git](https://git-scm.com/downloads)
+- [Node.js & npm](https://nodejs.org/) (for the Web UI)
+- [Docker & Docker Compose](https://docs.docker.com/get-docker/) (optional, for PostgreSQL)
+
+### 1. Clone and Configure Console
 
 ```sh
+# Clone Console
 git clone https://github.com/device-management-toolkit/console.git
 cd console
-```
 
-2. Copy the environment template
-
-```sh
+# Copy env template
 cp .env.example .env
 ```
 
-3. Change the GIN_MODE to debug in the environment template
+Edit `.env` as needed. For local dev, set:
 
 ```sh
 DISABLE_SWAGGER_HTTP_HANDLER=true
 GIN_MODE=debug
-# DB_URL=postgres://postgresadmin:admin123@localhost:5432/rpsdb  # Commented out for SQLite
-# OAUTH CONFIGURATION
-AUTH_CLIENT_ID=""
-AUTH_ISSUER=""
+# DB_URL=postgres://postgresadmin:admin123@localhost:5432/rpsdb  # uncomment for Postgres
 ```
 
-#### Running Options
+### 2. Running the Backend
 
-1. Running with SQLite (Default - Recommended for Development)
+#### Option A: SQLite (default, easiest)
 
 ```sh
-# Install dependencies and run
+# Install dependencies
 go mod tidy && go mod download
 
-# Run the application directly
+# Run Console
 go run ./cmd/app/main.go
 ```
 
-**Important**: When prompted with `"Generate new key? Y/N"`, type `Y` and press Enter.
-The SQLite database will be automatically created at `~/.config/device-management-toolkit/console.db`.
+**First run**: When prompted with `Warning: Key Not Found, Generate new key? Y/N`, type `Y` and press Enter.
 
-2. Running with PostgreSQL
+> **Custom Config**: You can specify a custom configuration file:
+> ```sh
+> go run ./cmd/app/main.go --config "/absolute/path/to/config.yml"
+> ```
+
+> **Database Location**: SQLite database is automatically created at:
+> - Linux/macOS: `~/.config/device-management-toolkit/console.db`
+> - Windows: `%APPDATA%\device-management-toolkit\console.db`
+
+#### Option B: PostgreSQL
 
 ```sh
-# Start PostgreSQL with Docker
-$ make compose-up
-# Run app with migrations
-$ make run
+# Start Postgres via Docker
+make compose-up
+
+# Run Console with database migrations
+make run
 ```
 
-3. Sample Web UI
+This will use the `DB_URL` you configured in `.env`.
 
-Download and check out the sample-web-ui:
-```
+### 4. Running the Frontend
+
+```sh
+# Clone Sample Web UI
 git clone https://github.com/device-management-toolkit/sample-web-ui
+cd sample-web-ui
+
+# Install dependencies
+npm install
+
+# Build and run
+npm run enterprise
 ```
 
-Ensure that the environment file has cloud set to `false` and that the URLs for RPS and MPS are pointing to where you have `Console` running. The default is `http://localhost:8181`. Follow the instructions for launching and running the UI in the sample-web-ui readme.
+Check the output of `npm run enterprise` to verify the port (default is 4200), then open the UI in your browser at:
 
-**Note**: To contribute to code base, make sure you go through the [Console Architecture](https://github.com/device-management-toolkit/console/wiki/Architecture-Overview).
-For detailed information about database schema and data storage, see [Console Data Storage](https://github.com/device-management-toolkit/console/wiki/Console-Data-Storage)
+```
+http://localhost:4200
+```
+
+## Architecture and Documentation
+
+Before contributing code changes, familiarize yourself with:
+
+- [Console Architecture Overview](https://github.com/device-management-toolkit/console/wiki/Architecture-Overview)
+- [Console Data Storage Documentation](https://github.com/device-management-toolkit/console/wiki/Console-Data-Storage)
 
 ## Dev tips for passing CI Checks
 
