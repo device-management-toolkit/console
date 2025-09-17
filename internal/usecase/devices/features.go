@@ -35,12 +35,6 @@ type OCRData struct {
 	bootData           boot.BootSettingDataResponse
 }
 
-type BootSettings struct {
-	isHTTPSBootExists bool
-	isPBAExists       bool
-	isWinREExists     bool
-}
-
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
@@ -94,6 +88,21 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+	settingsResults.PBABootFilesPath = make([]dto.BootParams, len(settingsResultsV2.PBABootFilesPath))
+
+	for i, v := range settingsResultsV2.PBABootFilesPath {
+		settingsResults.PBABootFilesPath[i] = dto.BootParams{
+			InstanceID:     v.InstanceID,
+			BIOSBootString: v.BIOSBootString,
+			BootString:     v.BootString,
+		}
+	}
+
+	settingsResults.WinREBootFilesPath = dto.BootParams{
+		InstanceID:     settingsResultsV2.WinREBootFilesPath.InstanceID,
+		BIOSBootString: settingsResultsV2.WinREBootFilesPath.BIOSBootString,
+		BootString:     settingsResultsV2.WinREBootFilesPath.BootString,
+	}
 
 	return settingsResults, settingsResultsV2, nil
 }
@@ -127,30 +136,34 @@ func getOCRData(device wsman.Management) (OCRData, error) {
 	}, nil
 }
 
-func findBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) BootSettings {
+func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dtov2.BootSettings {
 	const targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
 
 	const targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
 
-	result := BootSettings{}
+	result := dtov2.BootSettings{}
 
 	for _, setting := range bootSourceSettings {
 		instanceID := setting.InstanceID
 		biosBootString := setting.BIOSBootString
 
 		if strings.HasPrefix(instanceID, targetHTTPSBootInstanceID) {
-			result.isHTTPSBootExists = true
+			result.IsHTTPSBootExists = true
 		}
 
 		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "WinRe") {
-			result.isWinREExists = true
+			result.IsWinREExists = true
+			result.WinREBootFilesPath.BootString = setting.BootString
+			result.WinREBootFilesPath.BIOSBootString = setting.BIOSBootString
+			result.WinREBootFilesPath.InstanceID = setting.InstanceID
 		}
 
 		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "PBA") {
-			result.isPBAExists = true
+			result.IsPBAExists = true
+			result.PBABootFilesPath = append(result.PBABootFilesPath, dtov2.BootParams{InstanceID: instanceID, BIOSBootString: biosBootString, BootString: setting.BootString})
 		}
 
-		if result.isHTTPSBootExists && result.isPBAExists && result.isWinREExists {
+		if result.IsHTTPSBootExists && result.IsPBAExists && result.IsWinREExists {
 			break
 		}
 	}
@@ -166,20 +179,32 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 
 	isOCR := ocrData.bootService.EnabledState == enabledStateEnabled || ocrData.bootService.EnabledState == enabledStateEnabledButOffline
 
-	result := findBootSettingInstances(ocrData.bootSourceSettings)
+	result := FindBootSettingInstances(ocrData.bootSourceSettings)
 
 	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
 	// So, these cannot be updated
-	isHTTPSBootSupported := result.isHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
+	isHTTPSBootSupported := result.IsHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
 
-	isWinREBootSupported := result.isWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
+	isWinREBootSupported := result.IsWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
 
-	isLocalPBABootSupported := result.isPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
+	isLocalPBABootSupported := result.IsPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
 
 	settingsResultsV2.OCR = isOCR
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
 	settingsResultsV2.WinREBootSupported = isWinREBootSupported
 	settingsResultsV2.LocalPBABootSupported = isLocalPBABootSupported
+
+	if isLocalPBABootSupported {
+		settingsResultsV2.PBABootFilesPath = result.PBABootFilesPath
+	} else {
+		settingsResultsV2.PBABootFilesPath = nil
+	}
+
+	if isWinREBootSupported {
+		settingsResultsV2.WinREBootFilesPath = result.WinREBootFilesPath
+	} else {
+		settingsResultsV2.WinREBootFilesPath = dtov2.BootParams{}
+	}
 
 	return nil
 }

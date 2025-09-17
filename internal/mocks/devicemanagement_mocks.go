@@ -550,6 +550,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetAuditLog(ctx, startIndex, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootSourceSetting mocks base method.
+func (m *MockDeviceManagementFeature) GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootSourceSetting", c, guid)
+	ret0, _ := ret[0].([]dto.BootSources)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootSourceSetting indicates an expected call of GetBootSourceSetting.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetBootSourceSetting(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootSourceSetting", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetBootSourceSetting), c, guid)
+}
+
 // GetByColumn mocks base method.
 func (m *MockDeviceManagementFeature) GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error) {
 	m.ctrl.T.Helper()

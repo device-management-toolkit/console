@@ -45,6 +45,8 @@ func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 		"httpsBootSupported":    features.HTTPSBootSupported,
 		"winREBootSupported":    features.WinREBootSupported,
 		"localPBABootSupported": features.LocalPBABootSupported,
+		"pbaBootFilesPath":      features.PBABootFilesPath,
+		"winREBootFilesPath":    features.WinREBootFilesPath,
 		"remoteErase":           features.RemoteErase,
 	}
 
