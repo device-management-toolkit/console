@@ -34,6 +34,8 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.GET("diskInfo/:guid", r.getDiskInfo)
 		h.GET("power/state/:guid", r.getPowerState)
 		h.POST("power/action/:guid", r.powerAction)
+		h.POST("power/on/:guid", r.powerOn)
+		h.POST("power/off/:guid", r.powerOff)
 		h.POST("power/bootOptions/:guid", r.setBootOptions)
 		h.POST("power/bootoptions/:guid", r.setBootOptions)
 		h.GET("power/capabilities/:guid", r.getPowerCapabilities)
