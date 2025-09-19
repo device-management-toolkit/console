@@ -88,21 +88,6 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
-	settingsResults.PBABootFilesPath = make([]dto.BootParams, len(settingsResultsV2.PBABootFilesPath))
-
-	for i, v := range settingsResultsV2.PBABootFilesPath {
-		settingsResults.PBABootFilesPath[i] = dto.BootParams{
-			InstanceID:     v.InstanceID,
-			BIOSBootString: v.BIOSBootString,
-			BootString:     v.BootString,
-		}
-	}
-
-	settingsResults.WinREBootFilesPath = dto.BootParams{
-		InstanceID:     settingsResultsV2.WinREBootFilesPath.InstanceID,
-		BIOSBootString: settingsResultsV2.WinREBootFilesPath.BIOSBootString,
-		BootString:     settingsResultsV2.WinREBootFilesPath.BootString,
-	}
 
 	return settingsResults, settingsResultsV2, nil
 }
@@ -153,14 +138,10 @@ func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dt
 
 		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "WinRe") {
 			result.IsWinREExists = true
-			result.WinREBootFilesPath.BootString = setting.BootString
-			result.WinREBootFilesPath.BIOSBootString = setting.BIOSBootString
-			result.WinREBootFilesPath.InstanceID = setting.InstanceID
 		}
 
 		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "PBA") {
 			result.IsPBAExists = true
-			result.PBABootFilesPath = append(result.PBABootFilesPath, dtov2.BootParams{InstanceID: instanceID, BIOSBootString: biosBootString, BootString: setting.BootString})
 		}
 
 		if result.IsHTTPSBootExists && result.IsPBAExists && result.IsWinREExists {
@@ -193,18 +174,6 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
 	settingsResultsV2.WinREBootSupported = isWinREBootSupported
 	settingsResultsV2.LocalPBABootSupported = isLocalPBABootSupported
-
-	if isLocalPBABootSupported {
-		settingsResultsV2.PBABootFilesPath = result.PBABootFilesPath
-	} else {
-		settingsResultsV2.PBABootFilesPath = nil
-	}
-
-	if isWinREBootSupported {
-		settingsResultsV2.WinREBootFilesPath = result.WinREBootFilesPath
-	} else {
-		settingsResultsV2.WinREBootFilesPath = dtov2.BootParams{}
-	}
 
 	return nil
 }

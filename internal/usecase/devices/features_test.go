@@ -43,8 +43,6 @@ func TestGetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		PBABootFilesPath:      []dto.BootParams{},
-		WinREBootFilesPath:    dto.BootParams{},
 	}
 
 	featureSetNoKVM := dto.Features{
@@ -59,8 +57,6 @@ func TestGetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		PBABootFilesPath:      []dto.BootParams{},
-		WinREBootFilesPath:    dto.BootParams{},
 	}
 
 	featureSetNoOCR := dto.Features{
@@ -76,7 +72,6 @@ func TestGetFeatures(t *testing.T) {
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
 		PBABootFilesPath:      []dto.BootParams{},
-		WinREBootFilesPath:    dto.BootParams{},
 	}
 
 	featureSetV2 := dtov2.Features{
@@ -91,8 +86,6 @@ func TestGetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		PBABootFilesPath:      nil,
-		WinREBootFilesPath:    dtov2.BootParams{},
 	}
 
 	featureSetV2NoKVM := dtov2.Features{
@@ -107,8 +100,6 @@ func TestGetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		PBABootFilesPath:      nil,
-		WinREBootFilesPath:    dtov2.BootParams{},
 	}
 
 	featureSetV2NoOCR := dtov2.Features{
@@ -329,7 +320,6 @@ func TestGetFeatures(t *testing.T) {
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
 				RemoteErase:           false,
-				PBABootFilesPath:      []dto.BootParams{},
 				WinREBootFilesPath:    dto.BootParams{},
 			},
 			resV2: dtov2.Features{
@@ -344,8 +334,6 @@ func TestGetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				PBABootFilesPath:      nil,
-				WinREBootFilesPath:    dtov2.BootParams{},
 			},
 			err: nil,
 		},
@@ -1110,8 +1098,6 @@ func TestGetFeatures(t *testing.T) {
 				HTTPSBootSupported:    false,              // No HTTPS support
 				WinREBootSupported:    true,               // Only WinRE supported
 				LocalPBABootSupported: false,              // No PBA support
-				PBABootFilesPath:      []dto.BootParams{}, // Empty since no PBA
-				WinREBootFilesPath: dto.BootParams{
 					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
 					BIOSBootString: "WinRe Recovery",
 					BootString:     "winre.wim",
@@ -1129,12 +1115,6 @@ func TestGetFeatures(t *testing.T) {
 				HTTPSBootSupported:    false,
 				WinREBootSupported:    true,
 				LocalPBABootSupported: false,
-				PBABootFilesPath:      nil,
-				WinREBootFilesPath: dtov2.BootParams{
-					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
-					BIOSBootString: "WinRe Recovery",
-					BootString:     "winre.wim",
-				},
 			},
 			err: nil,
 		},
@@ -1264,8 +1244,6 @@ func TestSetFeatures(t *testing.T) {
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
 		RemoteErase:           false,
-		PBABootFilesPath:      nil,
-		WinREBootFilesPath:    dto.BootParams{},
 	}
 
 	featureSetV2DisabledOCR := dtov2.Features{
@@ -1424,8 +1402,6 @@ func TestSetFeatures(t *testing.T) {
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
 				RemoteErase:           false,
-				PBABootFilesPath:      nil,
-				WinREBootFilesPath:    dto.BootParams{},
 			},
 			resV2: featureSetV2,
 			err:   nil,
@@ -1705,8 +1681,6 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				PBABootFilesPath:      nil,
-				WinREBootFilesPath:    dtov2.BootParams{},
 			},
 			err: nil,
 		},

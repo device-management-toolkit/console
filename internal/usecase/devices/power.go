@@ -270,7 +270,7 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		return power.PowerActionResponse{}, err
 	}
 
-	bootSource := getBootSource(bootSetting)
+	bootSource := uc.getBootSource(guid, bootSetting)
 
 	_, err = device.ChangeBootOrder("")
 	if err != nil {
@@ -315,7 +315,7 @@ func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingD
 
 		setUEFIBootSettings(newData, bootSetting.BootDetails.EnforceSecureBoot, params, typeLengthValueBuffer)
 	case BootActionPBA, BootActionPowerOnPBA, BootActionWinREBoot, BootActionPowerOnWinREBoot:
-		typeLengthValueBuffer, params, err := ValidatePBAWinReBootParams(bootSetting.BootDetails.BootFilePath)
+		typeLengthValueBuffer, params, err := ValidatePBAWinReBootParams(bootSetting.BootDetails.BootPath)
 		if err != nil {
 			return err
 		}
@@ -449,7 +449,7 @@ func ValidatePBAWinReBootParams(file string) (buffer []byte, paramCount int, err
 
 // "Intel(r) AMT: Force PXE Boot".
 // "Intel(r) AMT: Force CD/DVD Boot".
-func getBootSource(bootSetting dto.BootSetting) string {
+func (uc *UseCase) getBootSource(guid string, bootSetting dto.BootSetting) string {
 	switch bootSetting.Action {
 	case BootActionResetToPXE, BootActionPowerOnToPXE:
 		return string(cimBoot.PXE)
@@ -458,7 +458,17 @@ func getBootSource(bootSetting dto.BootSetting) string {
 	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
 		return string(cimBoot.OCRUEFIHTTPS)
 	case BootActionPBA, BootActionPowerOnPBA, BootActionWinREBoot, BootActionPowerOnWinREBoot:
-		return bootSetting.BootDetails.InstanceID
+		// For PBA/WinRE, filter instanceID by bootPath
+		sources, err := uc.GetBootSourceSetting(context.Background(), guid)
+		if err != nil {
+			return ""
+		}
+		for _, src := range sources {
+			if src.BootPath == bootSetting.BootDetails.BootPath {
+				return src.BootOption
+			}
+		}
+		return ""
 	default:
 		return ""
 	}
