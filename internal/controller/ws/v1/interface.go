@@ -61,4 +61,5 @@ type Feature interface {
 	GetDiskInfo(c context.Context, guid string) (interface{}, error)
 	GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
 	AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
+	GetBootSourceSettings(ctx context.Context, guid string) ([]dto.BootSources, error)
 }

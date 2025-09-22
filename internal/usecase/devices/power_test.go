@@ -746,3 +746,228 @@ func TestSetBootOptions(t *testing.T) {
 		})
 	}
 }
+
+func TestGetBootSourceSetting(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+	}
+
+	bootSourceSettings := []cimBoot.BootSourceSetting{
+		{InstanceID: "PXE", BootString: "PXE Boot Path", BIOSBootString: "PXE BIOS String", StructuredBootString: "PXE Structured String"},
+		{InstanceID: "CD", BootString: "CD Boot Path", BIOSBootString: "CD BIOS String", StructuredBootString: "CD Structured String"},
+	}
+
+	settingsResponse := cimBoot.Response{
+		Body: cimBoot.Body{
+			PullResponse: cimBoot.PullResponse{
+				BootSourceSettingItems: bootSourceSettings,
+			},
+		},
+	}
+
+	expected := []dto.BootSources{
+		{
+			InstanceID:           "PXE",
+			BootString:           "PXE Boot Path",
+			BIOSBootString:       "PXE BIOS String",
+			StructuredBootString: "PXE Structured String",
+			ElementName:          "",
+			FailThroughSupported: 0,
+		},
+		{
+			InstanceID:           "CD",
+			BootString:           "CD Boot Path",
+			BIOSBootString:       "CD BIOS String",
+			StructuredBootString: "CD Structured String",
+			ElementName:          "",
+			FailThroughSupported: 0,
+		},
+	}
+
+	tests := []struct {
+		name     string
+		manMock  func(*mocks.MockWSMAN, *mocks.MockManagement)
+		repoMock func(*mocks.MockDeviceManagementRepository)
+		want     []dto.BootSources
+		wantErr  error
+	}{
+		{
+			name: "success",
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(hmm)
+				hmm.EXPECT().GetCIMBootSourceSetting().Return(settingsResponse, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+			},
+			want:    expected,
+			wantErr: nil,
+		},
+		{
+			name:    "not found",
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, devices.ErrNotFound)
+			},
+			want:    nil,
+			wantErr: devices.ErrNotFound,
+		},
+		{
+			name: "GetCIMBootSourceSetting error",
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(hmm)
+				hmm.EXPECT().GetCIMBootSourceSetting().Return(settingsResponse, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+			},
+			want:    nil,
+			wantErr: ErrGeneral,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			useCase, wsmanMock, management, repo := initPowerTest(t)
+			tc.manMock(wsmanMock, management)
+			tc.repoMock(repo)
+
+			result, err := useCase.GetBootSourceSetting(context.Background(), device.GUID)
+			assert.Equal(t, tc.want, result)
+			assert.Equal(t, tc.wantErr, err)
+		})
+	}
+}
+
+func TestValidateHTTPBootParams(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		url            string
+		username       string
+		password       string
+		expectedParams int
+		expectError    bool
+		errorType      error
+	}{
+		{
+			name:           "valid URL only",
+			url:            "https://example.com/boot.efi",
+			username:       "",
+			password:       "",
+			expectedParams: 2, // network path + sync root CA
+			expectError:    false,
+		},
+		{
+			name:        "empty URL",
+			url:         "",
+			username:    "",
+			password:    "",
+			expectError: true,
+		},
+		{
+			name:        "URL too long",
+			url:         "https://example.com/" + string(make([]byte, 300)), // Over 300 byte limit
+			username:    "",
+			password:    "",
+			expectError: true,
+		},
+		{
+			name:        "username too long",
+			url:         "https://example.com/boot.efi",
+			username:    string(make([]byte, 301)), // Over 300 byte limit
+			password:    "",
+			expectError: true,
+		},
+		{
+			name:        "password too long",
+			url:         "https://example.com/boot.efi",
+			username:    "testuser",
+			password:    string(make([]byte, 301)), // Over 300 byte limit
+			expectError: true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			buffer, paramCount, err := devices.ValidateHTTPBootParams(tc.url, tc.username, tc.password)
+
+			if tc.expectError {
+				require.Error(t, err)
+				require.Nil(t, buffer)
+				require.Equal(t, 0, paramCount)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, buffer)
+				require.Equal(t, tc.expectedParams, paramCount)
+				require.Greater(t, len(buffer), 0)
+			}
+		})
+	}
+}
+
+func TestValidatePBAWinReBootParams(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name           string
+		file           string
+		expectedParams int
+		expectError    bool
+		errorType      error
+	}{
+		{
+			name:           "valid file path",
+			file:           "/boot/winre.wim",
+			expectedParams: 2, // file path + file length
+			expectError:    false,
+		},
+		{
+			name:           "empty file path",
+			file:           "",
+			expectedParams: 2,
+			expectError:    false,
+		},
+		{
+			name:           "short file path",
+			file:           "/boot/test.wim",
+			expectedParams: 2,
+			expectError:    false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			buffer, paramCount, err := devices.ValidatePBAWinReBootParams(tc.file)
+
+			if tc.expectError {
+				require.Error(t, err)
+
+				if tc.errorType != nil {
+					// Check if it's the specific error we expect
+					require.Equal(t, tc.errorType, err)
+				}
+
+				require.Nil(t, buffer)
+				require.Equal(t, 0, paramCount)
+			} else {
+				require.NoError(t, err)
+				require.NotNil(t, buffer)
+				require.Equal(t, tc.expectedParams, paramCount)
+				require.Greater(t, len(buffer), 0)
+			}
+		})
+	}
+}

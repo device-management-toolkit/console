@@ -77,3 +77,17 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 
 	c.JSON(http.StatusOK, features)
 }
+
+func (r *deviceManagementRoutes) getBootSources(c *gin.Context) {
+	guid := c.Param("guid")
+
+	sources, err := r.d.GetBootSourceSetting(c.Request.Context(), guid)
+	if err != nil {
+		r.l.Error(err, "http - v1 - getBootSources")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, sources)
+}

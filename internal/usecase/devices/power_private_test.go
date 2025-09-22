@@ -94,47 +94,6 @@ func TestDeterminePowerCapabilities(t *testing.T) {
 	}
 }
 
-func TestDetermineIDERBootDevice(t *testing.T) {
-	t.Parallel()
-
-	tests := []powerTest{
-		{
-			name: "Master Bus Reset",
-			res: boot.BootSettingDataRequest{
-				IDERBootDevice: 1,
-			},
-			bootSettings: dto.BootSetting{
-				Action: 202,
-			},
-		},
-		{
-			name: "Power On",
-			res: boot.BootSettingDataRequest{
-				IDERBootDevice: 0,
-			},
-			bootSettings: dto.BootSetting{
-				Action: 999,
-			},
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			result := boot.BootSettingDataRequest{
-				IDERBootDevice: 999,
-			}
-
-			err := determineBootDevice(tc.bootSettings, &result)
-
-			require.NoError(t, err)
-			require.Equal(t, tc.res, result)
-		})
-	}
-}
-
 func TestGetBootSource(t *testing.T) {
 	t.Parallel()
 
@@ -167,7 +126,8 @@ func TestGetBootSource(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			res := getBootSource(tc.bootSettings)
+			uc := &UseCase{} // create a dummy UseCase
+			res := uc.getBootSource("test-guid", &tc.bootSettings)
 
 			require.Equal(t, tc.res, res)
 		})
@@ -243,6 +203,88 @@ func TestParseVersion(t *testing.T) {
 
 			require.Equal(t, tc.res, res)
 			require.Equal(t, tc.err, err)
+		})
+	}
+}
+
+func Test_determineBootDevice(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name     string
+		boot     dto.BootSetting
+		wantIDER int
+		wantUEFI bool
+		wantErr  bool
+	}{
+		{
+			name:     "IDER CDROM",
+			boot:     dto.BootSetting{Action: 202},
+			wantIDER: 1,
+			wantUEFI: false,
+			wantErr:  false,
+		},
+		{
+			name:     "Power On",
+			boot:     dto.BootSetting{Action: 999},
+			wantIDER: 0,
+			wantUEFI: false,
+			wantErr:  false,
+		},
+		{
+			name:     "HTTPS Boot",
+			boot:     dto.BootSetting{Action: 105, BootDetails: dto.BootDetails{URL: "https://example.com"}},
+			wantIDER: 0,
+			wantUEFI: true,
+			wantErr:  false,
+		},
+		{
+			name:     "PBA Boot",
+			boot:     dto.BootSetting{Action: 107, BootDetails: dto.BootDetails{BootPath: "pba.efi"}},
+			wantIDER: 0,
+			wantUEFI: true,
+			wantErr:  false,
+		},
+		{
+			name:     "WinRE Boot",
+			boot:     dto.BootSetting{Action: 109, BootDetails: dto.BootDetails{BootPath: "winre.wim"}},
+			wantIDER: 0,
+			wantUEFI: true,
+			wantErr:  false,
+		},
+		{
+			name:     "HTTPS Boot error (missing URL)",
+			boot:     dto.BootSetting{Action: 105, BootDetails: dto.BootDetails{URL: ""}},
+			wantIDER: 0,
+			wantUEFI: false,
+			wantErr:  true,
+		},
+		{
+			name:     "PBA Boot error (missing BootPath)",
+			boot:     dto.BootSetting{Action: 107, BootDetails: dto.BootDetails{BootPath: ""}},
+			wantIDER: 0,
+			wantUEFI: false,
+			wantErr:  true,
+		},
+	}
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			newData := boot.BootSettingDataRequest{}
+
+			err := determineBootDevice(tc.boot, &newData)
+			if tc.wantErr {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.wantIDER, int(newData.IDERBootDevice))
+
+				if tc.wantUEFI {
+					require.True(t, newData.ForcedProgressEvents)
+					require.NotEmpty(t, newData.UefiBootParametersArray)
+				}
+			}
 		})
 	}
 }

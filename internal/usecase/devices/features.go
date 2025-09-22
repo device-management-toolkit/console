@@ -28,17 +28,16 @@ const (
 	enabledStateDisabled          = 32768
 )
 
+const (
+	targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
+	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
+)
+
 type OCRData struct {
 	bootService        cimBoot.BootService
 	bootSourceSettings []cimBoot.BootSourceSetting
 	capabilities       boot.BootCapabilitiesResponse
 	bootData           boot.BootSettingDataResponse
-}
-
-type BootSettings struct {
-	isHTTPSBootExists bool
-	isPBAExists       bool
-	isWinREExists     bool
 }
 
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
@@ -127,30 +126,26 @@ func getOCRData(device wsman.Management) (OCRData, error) {
 	}, nil
 }
 
-func findBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) BootSettings {
-	const targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
-
-	const targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
-
-	result := BootSettings{}
+func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dtov2.BootSettings {
+	result := dtov2.BootSettings{}
 
 	for _, setting := range bootSourceSettings {
 		instanceID := setting.InstanceID
 		biosBootString := setting.BIOSBootString
 
 		if strings.HasPrefix(instanceID, targetHTTPSBootInstanceID) {
-			result.isHTTPSBootExists = true
+			result.IsHTTPSBootExists = true
 		}
 
 		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "WinRe") {
-			result.isWinREExists = true
+			result.IsWinREExists = true
 		}
 
 		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "PBA") {
-			result.isPBAExists = true
+			result.IsPBAExists = true
 		}
 
-		if result.isHTTPSBootExists && result.isPBAExists && result.isWinREExists {
+		if result.IsHTTPSBootExists && result.IsPBAExists && result.IsWinREExists {
 			break
 		}
 	}
@@ -166,15 +161,15 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 
 	isOCR := ocrData.bootService.EnabledState == enabledStateEnabled || ocrData.bootService.EnabledState == enabledStateEnabledButOffline
 
-	result := findBootSettingInstances(ocrData.bootSourceSettings)
+	result := FindBootSettingInstances(ocrData.bootSourceSettings)
 
 	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
 	// So, these cannot be updated
-	isHTTPSBootSupported := result.isHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
+	isHTTPSBootSupported := result.IsHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
 
-	isWinREBootSupported := result.isWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
+	isWinREBootSupported := result.IsWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
 
-	isLocalPBABootSupported := result.isPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
+	isLocalPBABootSupported := result.IsPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
 
 	settingsResultsV2.OCR = isOCR
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported

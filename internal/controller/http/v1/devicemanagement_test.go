@@ -66,6 +66,53 @@ func TestDeviceManagement(t *testing.T) {
 			response:     dto.Version{},
 		},
 		{
+			name:   "getVersion - service failure",
+			url:    "/api/v1/amt/version/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetVersion(context.Background(), "valid-guid").
+					Return(dto.Version{}, dtov2.Version{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:   "getBootSources - successful retrieval",
+			url:    "/api/v1/amt/power/bootSources/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetBootSourceSetting(context.Background(), "valid-guid").
+					Return([]dto.BootSources{{
+						InstanceID:           "Hard-drive Boot",
+						BootString:           "\\OemPba.efi",
+						BIOSBootString:       "Boot from Hard Drive",
+						ElementName:          "",
+						FailThroughSupported: 0,
+						StructuredBootString: "",
+					}}, nil)
+			},
+			expectedCode: http.StatusOK,
+			response: []dto.BootSources{{
+				InstanceID:           "Hard-drive Boot",
+				BootString:           "\\OemPba.efi",
+				BIOSBootString:       "Boot from Hard Drive",
+				ElementName:          "",
+				FailThroughSupported: 0,
+				StructuredBootString: "",
+			}},
+		},
+		{
+			name:   "getBootSources - service failure",
+			url:    "/api/v1/amt/power/bootSources/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetBootSourceSetting(context.Background(), "valid-guid").
+					Return(nil, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
 			name:   "getFeatures - successful retrieval",
 			url:    "/api/v1/amt/features/valid-guid",
 			method: http.MethodGet,
@@ -90,6 +137,17 @@ func TestDeviceManagement(t *testing.T) {
 			},
 		},
 		{
+			name:   "getFeatures - service failure",
+			url:    "/api/v1/amt/features/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid").
+					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
 			name:        "setFeatures - successful setting",
 			url:         "/api/v1/amt/features/valid-guid",
 			method:      http.MethodPost,
@@ -99,6 +157,28 @@ func TestDeviceManagement(t *testing.T) {
 			},
 			expectedCode: http.StatusOK,
 			response:     dto.Features{},
+		},
+		{
+			name:        "setFeatures - invalid JSON payload",
+			url:         "/api/v1/amt/features/valid-guid",
+			method:      http.MethodPost,
+			requestBody: "invalid-json",
+			mock: func(_ *mocks.MockDeviceManagementFeature) {
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:        "setFeatures - service failure",
+			url:         "/api/v1/amt/features/valid-guid",
+			method:      http.MethodPost,
+			requestBody: dto.Features{},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().SetFeatures(context.Background(), "valid-guid", dto.Features{}).
+					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
 		},
 		{
 			name:   "getAlarmOccurrences - successful retrieval",

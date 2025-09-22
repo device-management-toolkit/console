@@ -117,6 +117,36 @@ func TestGetFeatures(t *testing.T) {
 
 	tests := []test{
 		{
+			name:    "Device not found - nil device",
+			action:  0,
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, nil)
+			},
+			res:   dto.Features{},
+			resV2: dtov2.Features{},
+			err:   devices.ErrNotFound,
+		},
+		{
+			name:    "Device not found - empty GUID",
+			action:  0,
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				emptyDevice := &entity.Device{
+					GUID:     "",
+					TenantID: "tenant-id-456",
+				}
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(emptyDevice, nil)
+			},
+			res:   dto.Features{},
+			resV2: dtov2.Features{},
+			err:   devices.ErrNotFound,
+		},
+		{
 			name:   "success",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
@@ -286,6 +316,7 @@ func TestGetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
+				RemoteErase:           false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -878,6 +909,204 @@ func TestGetFeatures(t *testing.T) {
 			err:   nil,
 		},
 		{
+			name:   "OCR with different EnabledState values - 32771",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    1,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetKVMRedirection().
+					Return(kvm.Response{
+						Body: kvm.Body{
+							GetResponse: kvm.KVMRedirectionSAP{
+								EnabledState: kvm.EnabledState(redirection.Enabled),
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetBootService().
+					Return(cimBoot.BootService{
+						EnabledState: 32771, // Different enabled state that should also enable OCR
+					}, nil)
+				man2.EXPECT().
+					GetCIMBootSourceSetting().
+					Return(cimBoot.Response{
+						Body: cimBoot.Body{
+							PullResponse: cimBoot.PullResponse{
+								BootSourceSettingItems: []cimBoot.BootSourceSetting{
+									{
+										InstanceID: "Intel(r) AMT: Force OCR UEFI HTTPS Boot",
+									},
+								},
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetPowerCapabilities().
+					Return(boot.BootCapabilitiesResponse{
+						ForceUEFIHTTPSBoot: true,
+					}, nil)
+				man2.EXPECT().
+					GetBootData().
+					Return(boot.BootSettingDataResponse{
+						UEFIHTTPSBootEnabled: true,
+					}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				UserConsent:           "kvm",
+				EnableSOL:             true,
+				EnableIDER:            true,
+				EnableKVM:             true,
+				Redirection:           true,
+				KVMAvailable:          true,
+				OptInState:            1,
+				OCR:                   true, // Should be true for EnabledState 32771
+				HTTPSBootSupported:    true,
+				WinREBootSupported:    false,
+				LocalPBABootSupported: false,
+			},
+			resV2: dtov2.Features{
+				UserConsent:           "kvm",
+				EnableSOL:             true,
+				EnableIDER:            true,
+				EnableKVM:             true,
+				Redirection:           true,
+				KVMAvailable:          true,
+				OptInState:            1,
+				OCR:                   true,
+				HTTPSBootSupported:    true,
+				WinREBootSupported:    false,
+				LocalPBABootSupported: false,
+			},
+			err: nil,
+		},
+		{
+			name:   "OCR with mixed boot support",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    1,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetKVMRedirection().
+					Return(kvm.Response{
+						Body: kvm.Body{
+							GetResponse: kvm.KVMRedirectionSAP{
+								EnabledState: kvm.EnabledState(redirection.Enabled),
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetBootService().
+					Return(cimBoot.BootService{
+						EnabledState: 32769,
+					}, nil)
+				man2.EXPECT().
+					GetCIMBootSourceSetting().
+					Return(cimBoot.Response{
+						Body: cimBoot.Body{
+							PullResponse: cimBoot.PullResponse{
+								BootSourceSettingItems: []cimBoot.BootSourceSetting{
+									{
+										InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+										BIOSBootString: "WinRe Recovery", // Only WinRE, no PBA or HTTPS
+										BootString:     "winre.wim",
+									},
+								},
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetPowerCapabilities().
+					Return(boot.BootCapabilitiesResponse{
+						ForceWinREBoot: true, // Only WinRE supported
+					}, nil)
+				man2.EXPECT().
+					GetBootData().
+					Return(boot.BootSettingDataResponse{
+						WinREBootEnabled: true, // Only WinRE enabled
+					}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				UserConsent:           "kvm",
+				EnableSOL:             true,
+				EnableIDER:            true,
+				EnableKVM:             true,
+				Redirection:           true,
+				KVMAvailable:          true,
+				OptInState:            1,
+				OCR:                   true,
+				HTTPSBootSupported:    false, // No HTTPS support
+				WinREBootSupported:    true,  // Only WinRE supported
+				LocalPBABootSupported: false, // No PBA support
+			},
+			resV2: dtov2.Features{
+				UserConsent:           "kvm",
+				EnableSOL:             true,
+				EnableIDER:            true,
+				EnableKVM:             true,
+				Redirection:           true,
+				KVMAvailable:          true,
+				OptInState:            1,
+				OCR:                   true,
+				HTTPSBootSupported:    false,
+				WinREBootSupported:    true,
+				LocalPBABootSupported: false,
+			},
+			err: nil,
+		},
+		{
 			name:   "GetFeatures fails immediately on OCR setup",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
@@ -987,6 +1216,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
+		RemoteErase:           false,
 	}
 
 	featureSetDisabledOCRResult := dto.Features{
@@ -999,6 +1229,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
+		RemoteErase:           false,
 	}
 
 	featureSetV2DisabledOCR := dtov2.Features{
@@ -1012,11 +1243,42 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
+		RemoteErase:           false,
 	}
 
 	failGetByIDResult := dto.Features{}
 
 	tests := []test{
+		{
+			name:    "Device not found - nil device",
+			action:  0,
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, nil) // Returns nil device, no error
+			},
+			res:   dto.Features{},
+			resV2: dtov2.Features{},
+			err:   devices.ErrNotFound,
+		},
+		{
+			name:    "Device not found - empty GUID",
+			action:  0,
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				emptyDevice := &entity.Device{
+					GUID:     "", // Empty GUID
+					TenantID: "tenant-id-456",
+				}
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(emptyDevice, nil)
+			},
+			res:   dto.Features{},
+			resV2: dtov2.Features{},
+			err:   devices.ErrNotFound,
+		},
 		{
 			name:   "success",
 			action: 0,
@@ -1123,6 +1385,7 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
+				RemoteErase:           false,
 			},
 			resV2: featureSetV2,
 			err:   nil,
@@ -1387,6 +1650,7 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
+				RemoteErase:           false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -1643,6 +1907,127 @@ func TestSetFeatures(t *testing.T) {
 			resV2: dtov2.Features{},
 			err:   ErrGeneral,
 		},
+		{
+			name:   "SetFeatures fails on setRedirectionService - SetAMTRedirectionService error",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(1, nil)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
+						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+						ListenerEnabled: true,
+					}).
+					Return(redirection.Response{}, ErrGeneral) // SetAMTRedirectionService fails
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				EnableSOL:  true,
+				EnableIDER: true,
+				EnableKVM:  true,
+			},
+			resV2: dtov2.Features{
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				KVMAvailable: true,
+			},
+			err: ErrGeneral,
+		},
+		{
+			name:   "SetFeatures fails on setUserConsent - SetIPSOptInService error",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man2)
+				man2.EXPECT().
+					RequestAMTRedirectionServiceStateChange(true, true).
+					Return(redirection.EnableIDERAndSOL, 1, nil)
+				man2.EXPECT().
+					SetKVMRedirection(true).
+					Return(1, nil)
+				man2.EXPECT().
+					GetAMTRedirectionService().
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetAMTRedirectionService(&redirection.RedirectionRequest{
+						EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+						ListenerEnabled: true,
+					}).
+					Return(redirection.Response{
+						Body: redirection.Body{
+							GetAndPutResponse: redirection.RedirectionResponse{
+								EnabledState:    32771,
+								ListenerEnabled: true,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					GetIPSOptInService().
+					Return(optin.Response{
+						Body: optin.Body{
+							GetAndPutResponse: optin.OptInServiceResponse{
+								OptInRequired: 1,
+								OptInState:    0,
+							},
+						},
+					}, nil)
+				man2.EXPECT().
+					SetIPSOptInService(optin.OptInServiceRequest{
+						OptInRequired: 1,
+						OptInState:    0,
+					}).
+					Return(ErrGeneral) // SetIPSOptInService fails
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.Features{
+				EnableSOL:   true,
+				EnableIDER:  true,
+				EnableKVM:   true,
+				Redirection: true,
+			},
+			resV2: dtov2.Features{
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+			},
+			err: ErrGeneral,
+		},
 	}
 
 	for _, tc := range tests {
@@ -1673,6 +2058,132 @@ func TestSetFeatures(t *testing.T) {
 			} else {
 				require.IsType(t, tc.err, err)
 			}
+		})
+	}
+}
+
+func TestFindBootSettingInstances(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		settings []cimBoot.BootSourceSetting
+		expected dtov2.BootSettings
+	}{
+		{
+			name: "All boot instances found",
+			settings: []cimBoot.BootSourceSetting{
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI HTTPS Boot",
+					BIOSBootString: "HTTPS Boot",
+					BootString:     "https://example.com",
+				},
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+					BIOSBootString: "WinRe Recovery",
+					BootString:     "winre.wim",
+				},
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+					BIOSBootString: "PBA Boot",
+					BootString:     "pba.efi",
+				},
+			},
+			expected: dtov2.BootSettings{
+				IsHTTPSBootExists: true,
+				IsWinREExists:     true,
+				IsPBAExists:       true,
+			},
+		},
+		{
+			name: "Only HTTPS boot found",
+			settings: []cimBoot.BootSourceSetting{
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI HTTPS Boot",
+					BIOSBootString: "HTTPS Boot",
+					BootString:     "https://example.com",
+				},
+			},
+			expected: dtov2.BootSettings{
+				IsHTTPSBootExists: true,
+				IsWinREExists:     false,
+				IsPBAExists:       false,
+			},
+		},
+		{
+			name: "Multiple PBA instances",
+			settings: []cimBoot.BootSourceSetting{
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+					BIOSBootString: "PBA Boot 1",
+					BootString:     "pba1.efi",
+				},
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+					BIOSBootString: "PBA Boot 2",
+					BootString:     "pba2.efi",
+				},
+			},
+			expected: dtov2.BootSettings{
+				IsHTTPSBootExists: false,
+				IsWinREExists:     false,
+				IsPBAExists:       true,
+			},
+		},
+		{
+			name: "No matching boot instances",
+			settings: []cimBoot.BootSourceSetting{
+				{
+					InstanceID:     "Some Other Boot Option",
+					BIOSBootString: "Other Boot",
+					BootString:     "other.efi",
+				},
+			},
+			expected: dtov2.BootSettings{
+				IsHTTPSBootExists: false,
+				IsWinREExists:     false,
+				IsPBAExists:       false,
+			},
+		},
+		{
+			name: "Early break when all found",
+			settings: []cimBoot.BootSourceSetting{
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI HTTPS Boot",
+					BIOSBootString: "HTTPS Boot",
+					BootString:     "https://example.com",
+				},
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+					BIOSBootString: "WinRe Recovery",
+					BootString:     "winre.wim",
+				},
+				{
+					InstanceID:     "Intel(r) AMT: Force OCR UEFI Boot Option",
+					BIOSBootString: "PBA Boot",
+					BootString:     "pba.efi",
+				},
+				{
+					InstanceID:     "Should Not Process This",
+					BIOSBootString: "Extra Boot",
+					BootString:     "extra.efi",
+				},
+			},
+			expected: dtov2.BootSettings{
+				IsHTTPSBootExists: true,
+				IsWinREExists:     true,
+				IsPBAExists:       true,
+			},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			result := devices.FindBootSettingInstances(tc.settings)
+			require.Equal(t, tc.expected, result)
 		})
 	}
 }

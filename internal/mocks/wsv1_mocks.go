@@ -617,3 +617,18 @@ func (mr *MockFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d)
 }
+
+// GetBootSourceSetting mocks base method.
+func (m *MockFeature) GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootSourceSetting", c, guid)
+	ret0, _ := ret[0].([]dto.BootSources)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootSourceSetting indicates an expected call of GetBootSourceSetting.
+func (mr *MockFeatureMockRecorder) GetBootSourceSetting(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootSourceSetting", reflect.TypeOf((*MockFeature)(nil).GetBootSourceSetting), c, guid)
+}

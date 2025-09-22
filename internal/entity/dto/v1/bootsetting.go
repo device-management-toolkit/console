@@ -4,6 +4,7 @@ type BootDetails struct {
 	URL               string `json:"url" example:"https://"`
 	Username          string `json:"username" example:"admin"`
 	Password          string `json:"password" example:"password"`
+	BootPath          string `json:"bootPath" example:"\\OemPba.efi"`
 	EnforceSecureBoot bool   `json:"enforceSecureBoot" example:"true"`
 }
 
