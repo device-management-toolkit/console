@@ -1816,3 +1816,28 @@ func (g *ConnectionEntry) GetIPSScreenSettingData() (screensetting.Response, err
 
 	return pull, nil
 }
+
+func (g *ConnectionEntry) GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error) {
+	enum, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Enumerate()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	// Intentionally fetch the current settings to validate connectivity; response is unused.
+	// Avoid printing to stdout per lint rules.
+	_, err = g.WsmanMessages.IPS.KVMRedirectionSettingData.Get()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) SetIPSKVMRedirectionSettingData(req *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error) {
+	return g.WsmanMessages.IPS.KVMRedirectionSettingData.Put(req)
+}

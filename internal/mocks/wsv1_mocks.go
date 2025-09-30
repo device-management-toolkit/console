@@ -241,6 +241,21 @@ func (mr *MockFeatureMockRecorder) GetAuditLog(ctx, startIndex, guid any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootSourceSetting mocks base method.
+func (m *MockFeature) GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootSourceSetting", ctx, guid)
+	ret0, _ := ret[0].([]dto.BootSources)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootSourceSetting indicates an expected call of GetBootSourceSetting.
+func (mr *MockFeatureMockRecorder) GetBootSourceSetting(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootSourceSetting", reflect.TypeOf((*MockFeature)(nil).GetBootSourceSetting), ctx, guid)
+}
+
 // GetByColumn mocks base method.
 func (m *MockFeature) GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -420,6 +435,21 @@ func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (any, er
 func (mr *MockFeatureMockRecorder) GetHardwareInfo(ctx, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockFeature)(nil).GetHardwareInfo), ctx, guid)
+}
+
+// GetKVMScreenSettings mocks base method.
+func (m *MockFeature) GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetKVMScreenSettings", c, guid)
+	ret0, _ := ret[0].(dto.KVMScreenSettings)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetKVMScreenSettings indicates an expected call of GetKVMScreenSettings.
+func (mr *MockFeatureMockRecorder) GetKVMScreenSettings(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVMScreenSettings", reflect.TypeOf((*MockFeature)(nil).GetKVMScreenSettings), c, guid)
 }
 
 // GetNetworkSettings mocks base method.
@@ -603,6 +633,21 @@ func (mr *MockFeatureMockRecorder) SetFeatures(ctx, guid, features any) *gomock.
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFeatures", reflect.TypeOf((*MockFeature)(nil).SetFeatures), ctx, guid, features)
 }
 
+// SetKVMScreenSettings mocks base method.
+func (m *MockFeature) SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetKVMScreenSettings", c, guid, req)
+	ret0, _ := ret[0].(dto.KVMScreenSettings)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetKVMScreenSettings indicates an expected call of SetKVMScreenSettings.
+func (mr *MockFeatureMockRecorder) SetKVMScreenSettings(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKVMScreenSettings", reflect.TypeOf((*MockFeature)(nil).SetKVMScreenSettings), c, guid, req)
+}
+
 // Update mocks base method.
 func (m *MockFeature) Update(ctx context.Context, d *dto.Device) (*dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -616,19 +661,4 @@ func (m *MockFeature) Update(ctx context.Context, d *dto.Device) (*dto.Device, e
 func (mr *MockFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d)
-}
-
-// GetBootSourceSetting mocks base method.
-func (m *MockFeature) GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBootSourceSetting", c, guid)
-	ret0, _ := ret[0].([]dto.BootSources)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetBootSourceSetting indicates an expected call of GetBootSourceSetting.
-func (mr *MockFeatureMockRecorder) GetBootSourceSetting(c, guid any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootSourceSetting", reflect.TypeOf((*MockFeature)(nil).GetBootSourceSetting), c, guid)
 }

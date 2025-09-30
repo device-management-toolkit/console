@@ -746,6 +746,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetHardwareInfo(ctx, guid any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetHardwareInfo), ctx, guid)
 }
 
+// GetKVMScreenSettings mocks base method.
+func (m *MockDeviceManagementFeature) GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetKVMScreenSettings", c, guid)
+	ret0, _ := ret[0].(dto.KVMScreenSettings)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetKVMScreenSettings indicates an expected call of GetKVMScreenSettings.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetKVMScreenSettings(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVMScreenSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetKVMScreenSettings), c, guid)
+}
+
 // GetNetworkSettings mocks base method.
 func (m *MockDeviceManagementFeature) GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error) {
 	m.ctrl.T.Helper()
@@ -925,6 +940,21 @@ func (m *MockDeviceManagementFeature) SetFeatures(ctx context.Context, guid stri
 func (mr *MockDeviceManagementFeatureMockRecorder) SetFeatures(ctx, guid, features any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFeatures", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetFeatures), ctx, guid, features)
+}
+
+// SetKVMScreenSettings mocks base method.
+func (m *MockDeviceManagementFeature) SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetKVMScreenSettings", c, guid, req)
+	ret0, _ := ret[0].(dto.KVMScreenSettings)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetKVMScreenSettings indicates an expected call of SetKVMScreenSettings.
+func (mr *MockDeviceManagementFeatureMockRecorder) SetKVMScreenSettings(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKVMScreenSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetKVMScreenSettings), c, guid, req)
 }
 
 // Update mocks base method.

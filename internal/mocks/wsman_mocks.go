@@ -31,8 +31,10 @@ import (
 	service "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	software "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	alarmclock0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
+	kvmredirection "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 	power0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
+	screensetting "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -389,6 +391,21 @@ func (mr *MockManagementMockRecorder) GetHardwareInfo() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockManagement)(nil).GetHardwareInfo))
 }
 
+// GetIPSKVMRedirectionSettingData mocks base method.
+func (m *MockManagement) GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIPSKVMRedirectionSettingData")
+	ret0, _ := ret[0].(kvmredirection.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIPSKVMRedirectionSettingData indicates an expected call of GetIPSKVMRedirectionSettingData.
+func (mr *MockManagementMockRecorder) GetIPSKVMRedirectionSettingData() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSKVMRedirectionSettingData", reflect.TypeOf((*MockManagement)(nil).GetIPSKVMRedirectionSettingData))
+}
+
 // GetIPSOptInService mocks base method.
 func (m *MockManagement) GetIPSOptInService() (optin.Response, error) {
 	m.ctrl.T.Helper()
@@ -417,6 +434,21 @@ func (m *MockManagement) GetIPSPowerManagementService() (power0.PowerManagementS
 func (mr *MockManagementMockRecorder) GetIPSPowerManagementService() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSPowerManagementService", reflect.TypeOf((*MockManagement)(nil).GetIPSPowerManagementService))
+}
+
+// GetIPSScreenSettingData mocks base method.
+func (m *MockManagement) GetIPSScreenSettingData() (screensetting.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIPSScreenSettingData")
+	ret0, _ := ret[0].(screensetting.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIPSScreenSettingData indicates an expected call of GetIPSScreenSettingData.
+func (mr *MockManagementMockRecorder) GetIPSScreenSettingData() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSScreenSettingData", reflect.TypeOf((*MockManagement)(nil).GetIPSScreenSettingData))
 }
 
 // GetKVMRedirection mocks base method.
@@ -643,6 +675,21 @@ func (m *MockManagement) SetBootData(data boot.BootSettingDataRequest) (any, err
 func (mr *MockManagementMockRecorder) SetBootData(data any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBootData", reflect.TypeOf((*MockManagement)(nil).SetBootData), data)
+}
+
+// SetIPSKVMRedirectionSettingData mocks base method.
+func (m *MockManagement) SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetIPSKVMRedirectionSettingData", data)
+	ret0, _ := ret[0].(kvmredirection.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetIPSKVMRedirectionSettingData indicates an expected call of SetIPSKVMRedirectionSettingData.
+func (mr *MockManagementMockRecorder) SetIPSKVMRedirectionSettingData(data any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetIPSKVMRedirectionSettingData", reflect.TypeOf((*MockManagement)(nil).SetIPSKVMRedirectionSettingData), data)
 }
 
 // SetIPSOptInService mocks base method.

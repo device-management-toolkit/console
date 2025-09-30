@@ -55,7 +55,6 @@ import (
 
 type (
 	AMTExplorer interface {
-		// SetupWsmanClient(device dto.Device, isRedirection, logAMTMessages bool) *wsmanAPI.ConnectionEntry
 		GetAMT8021xCredentialContext() (ieee8021x.Response, error)
 		GetAMT8021xProfile() (ieee8021x.Response, error)
 		GetAMTAlarmClockService() (alarmclock.Response, error)

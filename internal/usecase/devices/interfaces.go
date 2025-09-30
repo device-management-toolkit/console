@@ -82,5 +82,8 @@ type (
 		GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
 		AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
 		GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error)
+		// KVM Screen Settings (IPS_ScreenSettingData)
+		GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
+		SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
 	}
 )
