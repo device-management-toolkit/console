@@ -70,6 +70,148 @@ sequenceDiagram
     API-->>-RC: HTTP 200 + Redfish JSON
 ```
 
+## Technical Protocol Translation Specification
+
+### Translation Location and Implementation Details
+
+```mermaid
+graph TD
+    A[Redfish JSON Request] -->|HTTP POST| B[postSystemResetHandler]
+    B -->|c.ShouldBindJSON| C[JSON Parsing Stage]
+    C -->|body.ResetType| D[String Validation]
+    D -->|Switch Statement| E[Action Constant Mapping]
+    E -->|Integer Action| F[d.SendPowerAction Call]
+    F -->|Console Service| G[WS-Management Layer]
+    
+    style B fill:#f9f,stroke:#333,stroke-width:2px
+    style E fill:#bbf,stroke:#333,stroke-width:2px
+    style F fill:#bfb,stroke:#333,stroke-width:2px
+```
+
+### Exact Translation Implementation
+
+**File Location**: `internal/controller/http/redfish/system.go`  
+**Function**: `postSystemResetHandler()`
+
+#### Stage 1: JSON Deserialization (Lines 95-101)
+
+```go
+
+// Location: system.go
+var body struct {
+    ResetType string `json:"ResetType"`
+}
+if err := c.ShouldBindJSON(&body); err != nil {
+    c.JSON(http.StatusBadRequest, gin.H{"error": err.Error()})
+    return
+}
+```
+
+- **Input**: Raw HTTP JSON payload `{"ResetType": "ForceOff"}`
+- **Output**: Go struct with `body.ResetType = "ForceOff"`
+- **Technology**: Gin framework's JSON binding
+
+#### Stage 2: Redfish-to-Action Translation
+```go
+
+// Location: system.go
+var action int
+
+switch body.ResetType {
+case resetTypeOn:           // "On" -> 2
+    action = actionPowerUp
+case resetTypeForceOff:     // "ForceOff" -> 8  
+    action = actionPowerDown
+case resetTypeForceRestart: // "ForceRestart" -> 10
+    action = actionReset
+case resetTypePowerCycle:   // "PowerCycle" -> 5
+    action = actionPowerCycle
+default:
+    c.JSON(http.StatusBadRequest, gin.H{"error": "unsupported ResetType"})
+    return
+}
+```
+
+#### Stage 3: Console Service Delegation
+
+```go
+
+// Location: system.go:119-125
+res, err := d.SendPowerAction(c.Request.Context(), id, action)
+if err != nil {
+    l.Error(err, "http - redfish - ComputerSystem.Reset")
+    c.JSON(http.StatusInternalServerError, gin.H{"error": err.Error()})
+    return
+}
+
+c.JSON(http.StatusOK, res)
+```
+
+### Translation Constants Definition
+
+**File Location**: `internal/controller/http/redfish/system.go`  
+
+```go
+// Redfish ResetType constants
+const (
+    resetTypeOn           = "On"
+    resetTypeForceOff     = "ForceOff"
+    resetTypeForceRestart = "ForceRestart"
+    resetTypePowerCycle   = "PowerCycle"
+    
+    // WS-Management action constants
+    actionPowerUp    = 2
+    actionPowerCycle = 5
+    actionPowerDown  = 8
+    actionReset      = 10
+)
+```
+
+### Technical Translation Matrix
+
+| Redfish JSON | Go Constant | Integer Value | WS-Man PowerState | AMT Action |
+|-------------|-------------|---------------|-------------------|------------|
+| `"On"` | `resetTypeOn` → `actionPowerUp` | `2` | CIM_PowerManagementService.RequestPowerStateChange(2) | Power On |
+| `"ForceOff"` | `resetTypeForceOff` → `actionPowerDown` | `8` | CIM_PowerManagementService.RequestPowerStateChange(8) | Hard Power Off |
+| `"ForceRestart"` | `resetTypeForceRestart` → `actionReset` | `10` | CIM_PowerManagementService.RequestPowerStateChange(10) | Reset |
+| `"PowerCycle"` | `resetTypePowerCycle` → `actionPowerCycle` | `5` | CIM_PowerManagementService.RequestPowerStateChange(5) | Power Cycle |
+
+### Interface Contract
+
+**Method Signature**: 
+
+```go
+
+type Feature interface {
+    SendPowerAction(ctx context.Context, guid string, action int) (any, error)
+}
+```
+
+**Call Site**: `system.go`
+
+```go
+
+res, err := d.SendPowerAction(c.Request.Context(), id, action)
+```
+
+### Why No Separate Translator Module is Required
+
+1. **Single Responsibility**: The `postSystemResetHandler` function in `system.go` handles the complete Redfish-to-WS-Management translation in 22 lines of code.
+
+2. **Direct Mapping**: Translation is a simple 1:1 constant mapping requiring no complex logic or state management.
+
+3. **Type Safety**: Go's type system ensures compile-time validation of the translation constants.
+
+4. **Performance**: Direct switch statement provides O(1) lookup performance.
+
+5. **Maintainability**: All translation logic is co-located with the API endpoint that uses it.
+
+6. **Existing Abstraction**: The `devices.Feature.SendPowerAction()` interface already abstracts WS-Management protocol details.
+
+---
+
+## Getting Started
+
 ---
 
 ## Key Endpoints
@@ -99,8 +241,6 @@ sequenceDiagram
 
 ---
 
-## Getting Started
-
 ### Prerequisites
 
 - Go 1.21 or later
@@ -110,6 +250,7 @@ sequenceDiagram
 ### Installation
 
 Follow the steps as README.md
+
 ## Running the Service
 
 ```bash
