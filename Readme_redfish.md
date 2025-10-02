@@ -302,45 +302,154 @@ Executes power management operations on the target system.
 
 ## Authorization
 
+### Authorization Command Request
 ```bash
- curl -s -X POST http://localhost:8181/api/v1/authorize   -H "Content-Type: application/json"   -d "{\"username\":\"$API_USERNAME\",\"password\":\"$API_PASSWORD\"}"
+curl -s -X POST http://localhost:8181/api/v1/authorize   -H "Content-Type: application/json"   -d "{\"username\":\"$API_USERNAME\",\"password\":\"$API_PASSWORD\"}"
+```
 
+### Authorization Command Response
+```json
+{
+    "token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTk1MTA3MjV9.2T1EZcyBhSJUfIT-ACnzTIBaU1AsXhLnCEek2GIS94"
+}
 ```
 
 ## Get Session Service
 
+### Get Session Command Request
 ```bash
- curl -X GET http://localhost:8181/api/redfish/v1/SessionService   -H "Authorization: Bearer $AUTH_TOKEN"
+curl -X GET http://localhost:8181/api/redfish/v1/SessionServic -H "Authorization: Bearer $AUTH_TOKEN"
+```
+
+### Get Session Command Response
+```json
+{
+    "@odata.id":"/redfish/v1/SessionService",
+    "@odata.type":"#SessionService.v1_0_0.SessionService",
+    "Id":"SessionService",
+    "Name":"Redfish Session Service",
+    "ServiceEnabled":true,
+    "SessionTimeout":30,
+    "Sessions":
+    {
+        "@odata.id":"/redfish/v1/SessionService/Sessions"
+    }
+}
 ```
 
 ## Get Metadata
 
+### Get Metadata Command Request
 ```bash
- curl -X GET http://localhost:8181/api/redfish/v1/$metadata   -H "Authorization: Bearer $AUTH_TOKEN"
+curl -X GET http://localhost:8181/api/redfish/v1/$metadata -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
-## Get System details
+### Get Metadata Command Response
+```json
+{
+    "@odata.id": "/redfish/v1/",
+    "@odata.type": "#ServiceRoot.v1_0_0.ServiceRoot",
+    "Id": "RootService",
+    "Links": {
+        "Sessions": {
+            "@odata.id": "/redfish/v1/SessionService/Sessions"
+        }
+    },
+    "Name": "Redfish Service Root",
+    "RedfishVersion": "1.0.0",
+    "SessionService": {
+        "@odata.id": "/redfish/v1/SessionService"
+    },
+    "Systems": {
+        "@odata.id": "/redfish/v1/Systems"
+    }
+} 
+```
 
+## Get System Details
+
+### Get System Details Command Request
  ```bash
- curl -X GET http://localhost:8181/api/redfish/v1/Systems   -H "Authorization: Bearer $AUTH_TOKEN"
+curl -X GET http://localhost:8181/api/redfish/v1/Systems -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
-## Get System details with ID
+### Get System Details Command Response
+```json
+{
+    "@odata.id": "/redfish/v1/Systems",
+    "@odata.type": "#ComputerSystemCollection.ComputerSystemCollection",
+    "Members": [
+        {
+            "@odata.id": "/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9"
+        }
+    ],
+    "Members@odata.count": 1,
+    "Name": "Computer System Collection"
+}
+```
 
+
+## Get System details by ID
+
+### Get System Details by ID Command Request
 ```bash
-curl -X GET http://localhost:8181/api/redfish/v1/Systems/a1e2ecd6-8e22-4cb7-90a0-0e0f75484e8b   -H "Authorization: Bearer $AUTH_TOKEN"
+curl -X GET http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9   -H "Authorization: Bearer $AUTH_TOKEN"
 ```
+
+### Get System Details by ID SUCCESS Command Response
+```json
+{
+    "@odata.id": "/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9",
+    "@odata.type": "#ComputerSystem.v1_0_0.ComputerSystem",
+    "Actions": {
+        "#ComputerSystem.Reset": {
+            "ResetType@Redfish.AllowableValues": [
+                "On",
+                "ForceOff",
+                "ForceRestart",
+                "PowerCycle"
+            ],
+            "target": "/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9/Actions/ComputerSystem.Reset"
+        }
+    },
+    "Id": "0313b93f-2a7c-41e8-b603-29c1602dcef9",
+    "Name": "Computer System 0313b93f-2a7c-41e8-b603-29c1602dcef9",
+    "PowerState": "On"
+}
+```
+
+### Get System Details by ID ERROR Command Response
 
 ### Basic Power Operations
 
-#### Power Off System
+#### Power OFF System
 
+##### POwer OFF System Command Request
 ```bash
- curl -X POST http://localhost:8181/api/redfish/v1/Systems/{id}/Actions/ComputerSystem.Reset   -H "Authorization: Bearer $AUTH_TOKEN"   -H "Content-Type: application/json"   -d '{"ResetType":"ForceOff"}'
+curl -X POST http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9/Actions/ComputerSystem.Reset   -H "Authorization: Bearer $AUTH_TOKEN"   -H "Content-Type: application/json"   -d '{"ResetType":"ForceOff"}'
 ```
 
-#### Power On System
+##### Power OFF System SUCCESS Command Response
+```json
+{"ReturnValue":0}
+```
 
+##### Power OFF System ERROR Command Response (Device ID Does Not Exist)
+```json
+{"error":"DevicesUseCase -  - : "}
+```
+
+##### Power ON System Command Request
 ```bash
- curl -X POST http://localhost:8181/api/redfish/v1/Systems/{id}/Actions/ComputerSystem.Reset   -H "Authorization: Bearer $AUTH_TOKEN"   -H "Content-Type: application/json"   -d '{"ResetType":"On"}''
+curl -X POST http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9/Actions/ComputerSystem.Reset   -H "Authorization: Bearer $AUTH_TOKEN"   -H "Content-Type: application/json"   -d '{"ResetType":"On"}'
+```
+
+##### Power ON System SUCCESS Command Response
+```json
+{"ReturnValue":0}
+```
+
+##### Power ON System ERROR Command Response (Device ID Does Not Exist)
+```json
+{"error":"DevicesUseCase -  - : "}
 ```
