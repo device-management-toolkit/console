@@ -173,7 +173,47 @@ jobs:
           path: dist/windows
           key: windows-${{ env.sha_short }}
           enableCrossOsArchive: true
+      
+      # Generate licenses.zip
+      - name: Use Node.js 22.x
+        uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
+        with:
+          node-version: 22.x
 
+      - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
+        with:
+          go-version: ">=1.23.0"
+
+      - name: Checkout Sample Web UI for license scan
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
+        with:
+          repository: device-management-toolkit/sample-web-ui
+          ref: main
+          path: ./temp
+
+      - name: Generate Go Licenses
+        run: |
+          go install github.com/google/go-licenses/v2@v2.0.1
+          mkdir -p licenses
+          if ! "$(go env GOPATH)"/bin/go-licenses save ./... --save_path=./licenses/consoledependencies; then
+            echo "Failed to generate Go licenses"
+            exit 1
+          fi
+
+      - name: Generate Web UI Licenses
+        working-directory: ./temp
+        run: |
+          npm ci
+          npm install -g license-checker-rseidelsohn@4.4.2
+          mkdir -p ../licenses/webuidependencies
+          if ! license-checker-rseidelsohn --plainVertical --out ../licenses/webuidependencies/webui_dependencies.txt; then
+            echo "Failed to generate Web UI licenses"
+            exit 1
+          fi
+
+      - name: Create licenses.zip
+        run: zip -r licenses.zip licenses
+      
       - name: Docker Login
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
