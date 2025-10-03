@@ -10,7 +10,6 @@ This project demonstrates a minimal Redfish-compliant REST API for power managem
 - [API Reference](#api-reference)
 - [Examples](#examples)
 
-
 ## Overview
 
 This poc provides a Redfish API layer for Intel AMT power management operations. Built on top of the existing console service infrastructure, it translates standard Redfish REST calls into WS-Management protocol communications with Intel AMT devices.
@@ -112,6 +111,7 @@ if err := c.ShouldBindJSON(&body); err != nil {
 - **Technology**: Gin framework's JSON binding
 
 #### Stage 2: Redfish-to-Action Translation
+
 ```go
 
 // Location: system.go
@@ -178,7 +178,7 @@ const (
 
 ### Interface Contract
 
-**Method Signature**: 
+**Method Signature**:
 
 ```go
 
@@ -303,11 +303,13 @@ Executes power management operations on the target system.
 ## Authorization
 
 ### Authorization Command Request
+
 ```bash
 curl -s -X POST http://localhost:8181/api/v1/authorize   -H "Content-Type: application/json"   -d "{\"username\":\"$API_USERNAME\",\"password\":\"$API_PASSWORD\"}"
 ```
 
 ### Authorization Command Response
+
 ```json
 {
     "token":"eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NTk1MTA3MjV9.2T1EZcyBhSJUfIT-ACnzTIBaU1AsXhLnCEek2GIS94"
@@ -317,11 +319,13 @@ curl -s -X POST http://localhost:8181/api/v1/authorize   -H "Content-Type: appli
 ## Get Session Service
 
 ### Get Session Command Request
+
 ```bash
-curl -X GET http://localhost:8181/api/redfish/v1/SessionServic -H "Authorization: Bearer $AUTH_TOKEN"
+curl -X GET http://localhost:8181/api/redfish/v1/SessionService -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 ### Get Session Command Response
+
 ```json
 {
     "@odata.id":"/redfish/v1/SessionService",
@@ -340,11 +344,13 @@ curl -X GET http://localhost:8181/api/redfish/v1/SessionServic -H "Authorization
 ## Get Metadata
 
 ### Get Metadata Command Request
+
 ```bash
 curl -X GET http://localhost:8181/api/redfish/v1/$metadata -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 ### Get Metadata Command Response
+
 ```json
 {
     "@odata.id": "/redfish/v1/",
@@ -369,11 +375,13 @@ curl -X GET http://localhost:8181/api/redfish/v1/$metadata -H "Authorization: Be
 ## Get System Details
 
 ### Get System Details Command Request
+
  ```bash
 curl -X GET http://localhost:8181/api/redfish/v1/Systems -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 ### Get System Details Command Response
+
 ```json
 {
     "@odata.id": "/redfish/v1/Systems",
@@ -388,15 +396,16 @@ curl -X GET http://localhost:8181/api/redfish/v1/Systems -H "Authorization: Bear
 }
 ```
 
-
 ## Get System details by ID
 
 ### Get System Details by ID Command Request
+
 ```bash
 curl -X GET http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9   -H "Authorization: Bearer $AUTH_TOKEN"
 ```
 
 ### Get System Details by ID SUCCESS Command Response
+
 ```json
 {
     "@odata.id": "/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9",
@@ -425,31 +434,37 @@ curl -X GET http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603
 #### Power OFF System
 
 ##### POwer OFF System Command Request
+
 ```bash
 curl -X POST http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9/Actions/ComputerSystem.Reset   -H "Authorization: Bearer $AUTH_TOKEN"   -H "Content-Type: application/json"   -d '{"ResetType":"ForceOff"}'
 ```
 
 ##### Power OFF System SUCCESS Command Response
+
 ```json
 {"ReturnValue":0}
 ```
 
 ##### Power OFF System ERROR Command Response (Device ID Does Not Exist)
+
 ```json
 {"error":"DevicesUseCase -  - : "}
 ```
 
 ##### Power ON System Command Request
+
 ```bash
 curl -X POST http://localhost:8181/api/redfish/v1/Systems/0313b93f-2a7c-41e8-b603-29c1602dcef9/Actions/ComputerSystem.Reset   -H "Authorization: Bearer $AUTH_TOKEN"   -H "Content-Type: application/json"   -d '{"ResetType":"On"}'
 ```
 
 ##### Power ON System SUCCESS Command Response
+
 ```json
 {"ReturnValue":0}
 ```
 
 ##### Power ON System ERROR Command Response (Device ID Does Not Exist)
+
 ```json
 {"error":"DevicesUseCase -  - : "}
 ```
