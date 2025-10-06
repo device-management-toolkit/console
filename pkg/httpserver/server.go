@@ -49,6 +49,7 @@ func New(handler http.Handler, opts ...Option) *Server {
 func (s *Server) start() {
 	go func() {
 		s.notify <- s.server.ListenAndServe()
+
 		close(s.notify)
 	}()
 }

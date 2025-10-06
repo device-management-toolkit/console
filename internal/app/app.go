@@ -10,27 +10,28 @@ import (
 	"syscall"
 
 	"github.com/gin-contrib/cors"
+	ginpprof "github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	consolehttp "github.com/open-amt-cloud-toolkit/console/internal/controller/http"
-	wsv1 "github.com/open-amt-cloud-toolkit/console/internal/controller/ws/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
-	"github.com/open-amt-cloud-toolkit/console/pkg/httpserver"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/config"
+	consolehttp "github.com/device-management-toolkit/console/internal/controller/http"
+	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
+	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/pkg/httpserver"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 var Version = "DEVELOPMENT"
 
 // Run creates objects via constructors.
 func Run(cfg *config.Config) {
-	log := logger.New(cfg.Log.Level)
-	cfg.App.Version = Version
-	log.Info("app - Run - version: " + cfg.App.Version)
+	log := logger.New(cfg.Level)
+	cfg.Version = Version
+	log.Info("app - Run - version: " + cfg.Version)
 	// Repository
-	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.DB.PoolMax), db.EnableForeignKeys(true))
+	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.PoolMax), db.EnableForeignKeys(true))
 	if err != nil {
 		log.Fatal(fmt.Errorf("app - Run - db.New: %w", err))
 	}
@@ -47,24 +48,32 @@ func Run(cfg *config.Config) {
 	handler := gin.New()
 
 	defaultConfig := cors.DefaultConfig()
-	defaultConfig.AllowOrigins = cfg.HTTP.AllowedOrigins
-	defaultConfig.AllowHeaders = cfg.HTTP.AllowedHeaders
+	defaultConfig.AllowOrigins = cfg.AllowedOrigins
+	defaultConfig.AllowHeaders = cfg.AllowedHeaders
 
 	handler.Use(cors.New(defaultConfig))
 	consolehttp.NewRouter(handler, log, *usecases, cfg)
 
+	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
+	if os.Getenv("ENABLE_PPROF") == "true" {
+		// Register pprof handlers under /debug/pprof without exposing DefaultServeMux
+		ginpprof.Register(handler, "debug/pprof")
+		log.Info("pprof enabled at /debug/pprof/")
+	}
+
 	upgrader := &websocket.Upgrader{
-		ReadBufferSize:  4096,
-		WriteBufferSize: 4096,
+		// Larger buffers reduce per-frame overhead and syscalls for KVM streaming
+		ReadBufferSize:  64 * 1024,
+		WriteBufferSize: 64 * 1024,
 		Subprotocols:    []string{"direct"},
 		CheckOrigin: func(_ *http.Request) bool {
 			return true
 		},
-		EnableCompression: false,
+		EnableCompression: cfg.WSCompression,
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
-	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Host, cfg.HTTP.Port))
+	httpServer := httpserver.New(handler, httpserver.Port(cfg.Host, cfg.Port))
 
 	// Waiting signal
 	interrupt := make(chan os.Signal, 1)

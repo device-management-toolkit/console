@@ -3,20 +3,24 @@ package devices_test
 import (
 	"context"
 	"encoding/xml"
+	"errors"
 	"testing"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	devices "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	wsman "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
+
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
+
+var ErrCertificate = errors.New("certificate error")
 
 func initCertificateTest(t *testing.T) (*devices.UseCase, *mocks.MockWSMAN, *mocks.MockManagement, *mocks.MockDeviceManagementRepository) {
 	t.Helper()
@@ -226,6 +230,103 @@ func TestGetCertificates(t *testing.T) {
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
+		})
+	}
+}
+
+func TestAddCertificate(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+	}
+
+	validCertPEM := "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----"
+
+	tests := []struct {
+		name     string
+		certInfo dto.CertInfo
+		mock     func(m *mocks.MockWSMAN, man *mocks.MockManagement)
+		repoMock func(repo *mocks.MockDeviceManagementRepository)
+		expected string
+		err      error
+	}{
+		{
+			name: "get device by ID fails",
+			certInfo: dto.CertInfo{
+				Cert:      validCertPEM,
+				IsTrusted: true,
+			},
+			mock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, ErrGeneral)
+			},
+			expected: "",
+			err:      ErrGeneral,
+		},
+		{
+			name: "device not found",
+			certInfo: dto.CertInfo{
+				Cert:      validCertPEM,
+				IsTrusted: true,
+			},
+			mock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, nil)
+			},
+			expected: "",
+			err:      devices.ErrNotFound,
+		},
+		{
+			name: "base64 decode fails",
+			certInfo: dto.CertInfo{
+				Cert:      validCertPEM,
+				IsTrusted: true,
+			},
+			mock: func(m *mocks.MockWSMAN, man *mocks.MockManagement) {
+				m.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(man)
+				man.EXPECT().
+					AddTrustedRootCert(gomock.Any()).
+					Return("", ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			expected: "",
+			err:      ErrCertificate,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initCertificateTest(t)
+
+			tc.mock(wsmanMock, management)
+			tc.repoMock(repo)
+
+			result, err := useCase.AddCertificate(context.Background(), device.GUID, tc.certInfo)
+
+			require.Equal(t, tc.expected, result)
+
+			if tc.err != nil {
+				require.Error(t, err)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

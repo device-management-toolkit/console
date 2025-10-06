@@ -5,31 +5,39 @@ import (
 	"errors"
 	"strings"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/amterror"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
-	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/amterror"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 var ErrOCRNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("One Click Recovery Unsupported")}
+
+// AMT BootService EnabledState constants.
+const (
+	// EnabledState values.
+	enabledStateEnabled           = 32769
+	enabledStateEnabledButOffline = 32771
+	enabledStateDisabled          = 32768
+)
+
+const (
+	targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
+	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
+)
 
 type OCRData struct {
 	bootService        cimBoot.BootService
 	bootSourceSettings []cimBoot.BootSourceSetting
 	capabilities       boot.BootCapabilitiesResponse
 	bootData           boot.BootSettingDataResponse
-}
-
-type BootSettings struct {
-	isHTTPSBootExists bool
-	isPBAWinREExists  bool
 }
 
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
@@ -121,25 +129,26 @@ func getOCRData(device wsman.Management) (OCRData, error) {
 	}, nil
 }
 
-func findBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) BootSettings {
-	const targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
-
-	const targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
-
-	result := BootSettings{}
+func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dtov2.BootSettings {
+	result := dtov2.BootSettings{}
 
 	for _, setting := range bootSourceSettings {
 		instanceID := setting.InstanceID
+		biosBootString := setting.BIOSBootString
 
 		if strings.HasPrefix(instanceID, targetHTTPSBootInstanceID) {
-			result.isHTTPSBootExists = true
+			result.IsHTTPSBootExists = true
 		}
 
-		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) {
-			result.isPBAWinREExists = true
+		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "WinRe") {
+			result.IsWinREExists = true
 		}
 
-		if result.isHTTPSBootExists && result.isPBAWinREExists {
+		if strings.HasPrefix(instanceID, targetsPBAWinREInstanceID) && strings.Contains(biosBootString, "PBA") {
+			result.IsPBAExists = true
+		}
+
+		if result.IsHTTPSBootExists && result.IsPBAExists && result.IsWinREExists {
 			break
 		}
 	}
@@ -153,29 +162,17 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 		return err
 	}
 
-	isOCR := false
-	if ocrData.bootService.EnabledState == 32769 || ocrData.bootService.EnabledState == 32771 {
-		isOCR = true
-	}
+	isOCR := ocrData.bootService.EnabledState == enabledStateEnabled || ocrData.bootService.EnabledState == enabledStateEnabledButOffline
 
-	result := findBootSettingInstances(ocrData.bootSourceSettings)
+	result := FindBootSettingInstances(ocrData.bootSourceSettings)
 
-	// AMT_BootSettingData.UEFIHTTPSBootEnabled is is read-only. AMT_BootCapabilities instance is read-only.
+	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
 	// So, these cannot be updated
-	isHTTPSBootSupported := false
-	if result.isHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled {
-		isHTTPSBootSupported = true
-	}
+	isHTTPSBootSupported := result.IsHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
 
-	isWinREBootSupported := false
-	if result.isPBAWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot {
-		isWinREBootSupported = true
-	}
+	isWinREBootSupported := result.IsWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
 
-	isLocalPBABootSupported := false
-	if result.isPBAWinREExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot {
-		isLocalPBABootSupported = true
-	}
+	isLocalPBABootSupported := result.IsPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
 
 	settingsResultsV2.OCR = isOCR
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
@@ -238,28 +235,28 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	// Configure OCR settings
 	requestedState := 0
 	if features.OCR {
-		requestedState = 32769
+		requestedState = enabledStateEnabled
 	} else {
-		requestedState = 32768
+		requestedState = enabledStateDisabled
 	}
 
 	_, err = device.BootServiceStateChange(requestedState)
-	if err != nil {
+	if err == nil {
+		// Get OCR settings
+		err = getOneClickRecoverySettings(&settingsResultsV2, device)
+		if err != nil {
+			return dto.Features{}, dtov2.Features{}, err
+		}
+
+		settingsResults.OCR = settingsResultsV2.OCR
+		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
+		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
+		settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+
 		return settingsResults, settingsResultsV2, err
 	}
 
-	// Get OCR settings
-	err = getOneClickRecoverySettings(&settingsResultsV2, device)
-	if err != nil {
-		return dto.Features{}, dtov2.Features{}, err
-	}
-
-	settingsResults.OCR = settingsResultsV2.OCR
-	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
-	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
-	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
-
-	return settingsResults, settingsResultsV2, err
+	return settingsResults, settingsResultsV2, nil
 }
 
 func handleAMTKVMError(err error, results *dtov2.Features) bool {
@@ -357,7 +354,7 @@ func setRedirectionService(state redirection.EnabledState, listenerEnabled, kvmL
 		return err
 	}
 
-	request := redirection.RedirectionRequest{
+	request := &redirection.RedirectionRequest{
 		CreationClassName:       currentRedirection.Body.GetAndPutResponse.CreationClassName,
 		ElementName:             currentRedirection.Body.GetAndPutResponse.ElementName,
 		EnabledState:            state,

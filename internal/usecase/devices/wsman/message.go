@@ -6,57 +6,61 @@ import (
 	"sync"
 	"time"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	amtAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/authorization"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/environmentdetection"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/general"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ieee8021x"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/kerberos"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/managementpresence"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/mps"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publickey"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publicprivate"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/remoteaccess"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/timesynchronization"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/userinitiatedconnection"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/wifiportconfiguration"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
-	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/computer"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
-	cimIEEE8021x "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/ieee8021x"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/system"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
-	ipsAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
-	ipsIEEE8021x "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	amtAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/authorization"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/environmentdetection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/general"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ieee8021x"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/kerberos"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/managementpresence"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/mps"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publickey"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publicprivate"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/remoteaccess"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/timesynchronization"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/userinitiatedconnection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/wifiportconfiguration"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
+	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/computer"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	cimIEEE8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/ieee8021x"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/system"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
+	ipsIEEE8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 const (
@@ -129,14 +133,15 @@ func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Dev
 
 func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) *ConnectionEntry {
 	clientParams := client.Parameters{
-		Target:            device.Hostname,
-		Username:          device.Username,
-		Password:          device.Password,
-		UseDigest:         true,
-		UseTLS:            device.UseTLS,
-		SelfSignedAllowed: device.AllowSelfSigned,
-		LogAMTMessages:    logAMTMessages,
-		IsRedirection:     isRedirection,
+		Target:                    device.Hostname,
+		Username:                  device.Username,
+		Password:                  device.Password,
+		UseDigest:                 true,
+		UseTLS:                    device.UseTLS,
+		SelfSignedAllowed:         device.AllowSelfSigned,
+		LogAMTMessages:            logAMTMessages,
+		IsRedirection:             isRedirection,
+		AllowInsecureCipherSuites: config.ConsoleConfig.AllowInsecureCiphers,
 	}
 
 	if device.CertHash != nil && *device.CertHash != "" {
@@ -172,10 +177,12 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 				}
 			case <-timeout:
 				connectionsMu.Lock()
+
 				connections[device.GUID] = &ConnectionEntry{
 					WsmanMessages: wsman.NewMessages(clientParams),
 					Timer:         timer,
 				}
+
 				connectionsMu.Unlock()
 
 				return connections[device.GUID]
@@ -186,6 +193,7 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	wsmanMsgs := wsman.NewMessages(clientParams)
 
 	connectionsMu.Lock()
+
 	connections[device.GUID] = &ConnectionEntry{
 		WsmanMessages: wsmanMsgs,
 		Timer:         timer,
@@ -199,6 +207,7 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 func removeConnection(guid string) {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
+
 	delete(connections, guid)
 }
 
@@ -496,6 +505,33 @@ func (g *ConnectionEntry) GetPowerState() ([]service.CIM_AssociatedPowerManageme
 	}
 
 	return response.Body.PullResponse.AssociatedPowerManagementService, nil
+}
+
+func (g *ConnectionEntry) GetOSPowerSavingState() (ipspower.OSPowerSavingState, error) {
+	response, err := g.GetIPSPowerManagementService()
+	if err != nil {
+		return 0, err
+	}
+
+	return response.OSPowerSavingState, nil
+}
+
+func (g *ConnectionEntry) GetIPSPowerManagementService() (ipspower.PowerManagementService, error) {
+	response, err := g.WsmanMessages.IPS.PowerManagementService.Get()
+	if err != nil {
+		return ipspower.PowerManagementService{}, err
+	}
+
+	return response.Body.GetResponse, nil
+}
+
+func (g *ConnectionEntry) RequestOSPowerSavingStateChange(newOSPowerStavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error) {
+	response, err := g.WsmanMessages.IPS.PowerManagementService.RequestOSPowerSavingStateChange(newOSPowerStavingState)
+	if err != nil {
+		return ipspower.PowerActionResponse{}, err
+	}
+
+	return response.Body.RequestOSPowerSavingStateChangeResponse, nil
 }
 
 func (g *ConnectionEntry) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {
@@ -886,10 +922,6 @@ func (g *ConnectionEntry) RequestKVMStateChange(requestedState kvm.KVMRedirectio
 	return g.WsmanMessages.CIM.KVMRedirectionSAP.RequestStateChange(requestedState)
 }
 
-func (g *ConnectionEntry) PutRedirectionState(requestedState redirection.RedirectionRequest) (response redirection.Response, err error) {
-	return g.WsmanMessages.AMT.RedirectionService.Put(requestedState)
-}
-
 func (g *ConnectionEntry) GetRedirectionService() (response redirection.Response, err error) {
 	return g.WsmanMessages.AMT.RedirectionService.Get()
 }
@@ -1218,7 +1250,7 @@ func (g *ConnectionEntry) GetAMTRedirectionService() (redirection.Response, erro
 	return get, nil
 }
 
-func (g *ConnectionEntry) SetAMTRedirectionService(request redirection.RedirectionRequest) (redirection.Response, error) {
+func (g *ConnectionEntry) SetAMTRedirectionService(request *redirection.RedirectionRequest) (redirection.Response, error) {
 	response, err := g.WsmanMessages.AMT.RedirectionService.Put(request)
 	if err != nil {
 		return redirection.Response{}, err
@@ -1761,4 +1793,57 @@ func (g *ConnectionEntry) GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	}
 
 	return tlsSettingDataResponse.Body.PullResponse.SettingDataItems, nil
+}
+
+func (g *ConnectionEntry) GetIPSKVMRedirectionSettings() (kvmredirection.Response, error) {
+	enum, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Enumerate()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) GetIPSScreenSettingData() (screensetting.Response, error) {
+	enum, err := g.WsmanMessages.IPS.ScreenSettingData.Enumerate()
+	if err != nil {
+		return screensetting.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.ScreenSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return screensetting.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error) {
+	enum, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Enumerate()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	// Intentionally fetch the current settings to validate connectivity; response is unused.
+	// Avoid printing to stdout per lint rules.
+	_, err = g.WsmanMessages.IPS.KVMRedirectionSettingData.Get()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) SetIPSKVMRedirectionSettingData(req *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error) {
+	return g.WsmanMessages.IPS.KVMRedirectionSettingData.Put(req)
 }

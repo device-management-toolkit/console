@@ -7,19 +7,22 @@ import (
 	"crypto/sha1" //nolint:gosec // SHA-1 is used for thumbprint not signature
 	"crypto/sha256"
 	"crypto/x509"
+	"encoding/base64"
 	"encoding/hex"
+	"encoding/pem"
 	"fmt"
 	"reflect"
 	"regexp"
 	"strings"
+	"time"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publickey"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publicprivate"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publickey"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publicprivate"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 const (
@@ -286,6 +289,7 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 
 	// Determine the public key size
 	var publicKeySize int
+
 	switch pub := cert.PublicKey.(type) {
 	case *rsa.PublicKey:
 		publicKeySize = pub.N.BitLen()
@@ -308,4 +312,70 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 		PublicKeyAlgorithm: cert.PublicKeyAlgorithm.String(),
 		PublicKeySize:      publicKeySize,
 	}
+}
+
+func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
+	var certData []byte
+
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return "", err
+	}
+
+	if item == nil || item.GUID == "" {
+		return "", ErrNotFound
+	}
+
+	// Decode base64 certificate
+	certData, err = base64.StdEncoding.DecodeString(certInfo.Cert)
+	if err != nil {
+		return "", err
+	}
+
+	// Try to decode as PEM
+	block, _ := pem.Decode(certData)
+	if block != nil {
+		if block.Type != "CERTIFICATE" {
+			return "", err
+		}
+
+		certData = block.Bytes
+	}
+
+	cert, err := x509.ParseCertificate(certData)
+	if err != nil {
+		return "", err
+	}
+
+	if cert.NotAfter.Before(time.Now()) {
+		return "", err
+	}
+
+	pemCert := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+
+	block, _ = pem.Decode(pemCert)
+	if block == nil {
+		return "", err
+	}
+
+	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
+
+	device := uc.device.SetupWsmanClient(*item, false, true)
+
+	if certInfo.IsTrusted {
+		handle, err = device.AddTrustedRootCert(cleanedCert)
+		if err != nil {
+			return "", err
+		}
+	} else {
+		handle, err = device.AddClientCert(cleanedCert)
+		if err != nil {
+			return "", err
+		}
+	}
+
+	return handle, nil
 }

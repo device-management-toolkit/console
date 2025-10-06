@@ -26,10 +26,11 @@ type (
 
 	// App -.
 	App struct {
-		Name          string `env-required:"true" yaml:"name" env:"APP_NAME"`
-		Repo          string `env-required:"true" yaml:"repo" env:"APP_REPO"`
-		Version       string `env-required:"true"`
-		EncryptionKey string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
+		Name                 string `env-required:"true" yaml:"name" env:"APP_NAME"`
+		Repo                 string `env-required:"true" yaml:"repo" env:"APP_REPO"`
+		Version              string `env-required:"true"`
+		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
+		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
 	}
 
 	// HTTP -.
@@ -38,6 +39,7 @@ type (
 		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
 	}
 
 	// Log -.
@@ -58,17 +60,28 @@ type (
 		Password string `yaml:"password" env:"EA_PASSWORD"`
 	}
 
+	// Auth -.
 	Auth struct {
-		Disabled bool `yaml:"disabled" env:"AUTH_DISABLED"`
-		// BASIC
+		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
 		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
-		// OAUTH
-		ClientID string `yaml:"clientId" env:"AUTH_CLIENT_ID"`
-		Issuer   string `yaml:"issuer" env:"AUTH_ISSUER"`
+		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
+		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
+		UI                       UIAuthConfig  `yaml:"ui"`
+	}
+
+	// UIAuthConfig -.
+	UIAuthConfig struct {
+		ClientID                          string `yaml:"clientId"`
+		Issuer                            string `yaml:"issuer"`
+		RedirectURI                       string `yaml:"redirectUri"`
+		Scope                             string `yaml:"scope"`
+		ResponseType                      string `yaml:"responseType"`
+		RequireHTTPS                      bool   `yaml:"requireHttps"`
+		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation"`
 	}
 )
 
@@ -77,16 +90,18 @@ func NewConfig() (*Config, error) {
 	// set defaults
 	ConsoleConfig = &Config{
 		App: App{
-			Name:          "console",
-			Repo:          "open-amt-cloud-toolkit/console",
-			Version:       "DEVELOPMENT",
-			EncryptionKey: "",
+			Name:                 "console",
+			Repo:                 "device-management-toolkit/console",
+			Version:              "DEVELOPMENT",
+			EncryptionKey:        "",
+			AllowInsecureCiphers: false,
 		},
 		HTTP: HTTP{
 			Host:           "localhost",
 			Port:           "8181",
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},
+			WSCompression:  true,
 		},
 		Log: Log{
 			Level: "info",
@@ -109,6 +124,15 @@ func NewConfig() (*Config, error) {
 			// OAUTH CONFIG, if provided will not use basic auth
 			ClientID: "",
 			Issuer:   "",
+			UI: UIAuthConfig{
+				ClientID:                          "",
+				Issuer:                            "",
+				RedirectURI:                       "",
+				Scope:                             "",
+				ResponseType:                      "",
+				RequireHTTPS:                      false,
+				StrictDiscoveryDocumentValidation: true,
+			},
 		},
 	}
 

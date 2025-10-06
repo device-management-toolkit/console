@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 var ErrGeneral = errors.New("general error")
@@ -119,9 +119,9 @@ func TestDeviceManagement(t *testing.T) {
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch || tc.method == http.MethodDelete {
 				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequest(tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {
-				req, err = http.NewRequest(tc.method, tc.url, http.NoBody)
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {

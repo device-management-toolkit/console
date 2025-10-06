@@ -10,9 +10,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 var ErrLogin = consoleerrors.CreateConsoleError("LoginHandler")
@@ -70,7 +70,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString([]byte(lr.Config.Auth.JWTKey))
+	tokenString, err := token.SignedString([]byte(lr.Config.JWTKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
 
@@ -104,7 +104,7 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 			claims := &jwt.MapClaims{}
 
 			token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
-				return []byte(lr.Config.Auth.JWTKey), nil
+				return []byte(lr.Config.JWTKey), nil
 			})
 
 			if err != nil || !token.Valid {

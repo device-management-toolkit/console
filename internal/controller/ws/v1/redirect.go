@@ -1,15 +1,16 @@
 package v1
 
 import (
+	"compress/flate"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type RedirectRoutes struct {
@@ -41,7 +42,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		claims := &jwt.MapClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
-			return []byte(config.ConsoleConfig.Auth.JWTKey), nil
+			return []byte(config.ConsoleConfig.JWTKey), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -63,6 +64,15 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		http.Error(c.Writer, "Could not open websocket connection", http.StatusInternalServerError)
 
 		return
+	}
+
+	// Optimize websocket data path for streaming; respect config compression toggle
+	if config.ConsoleConfig.WSCompression {
+		conn.EnableWriteCompression(true)
+		_ = conn.SetCompressionLevel(flate.BestSpeed)
+	} else {
+		conn.EnableWriteCompression(false)
+		_ = conn.SetCompressionLevel(flate.NoCompression)
 	}
 
 	r.l.Info("Websocket connection opened")

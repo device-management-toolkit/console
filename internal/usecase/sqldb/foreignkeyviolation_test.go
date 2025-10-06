@@ -5,7 +5,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 func TestForeignKeyViolationError_Error(t *testing.T) {

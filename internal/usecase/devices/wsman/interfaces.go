@@ -4,31 +4,36 @@ import (
 	gotls "crypto/tls"
 	"time"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
-	cimBoot "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
-	ipsAlarmClock "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
+	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 type Management interface {
+	AddTrustedRootCert(caCert string) (string, error)
+	AddClientCert(clientCert string) (string, error)
 	GetAMTVersion() ([]software.SoftwareIdentity, error)
 	GetSetupAndConfiguration() ([]setupandconfiguration.SetupAndConfigurationServiceResponse, error)
 	GetAMTRedirectionService() (redirection.Response, error)
-	SetAMTRedirectionService(redirection.RedirectionRequest) (redirection.Response, error)
+	SetAMTRedirectionService(*redirection.RedirectionRequest) (redirection.Response, error)
 	RequestAMTRedirectionServiceStateChange(ider, sol bool) (redirection.RequestedState, int, error)
 	GetIPSOptInService() (optin.Response, error)
 	SetIPSOptInService(optin.OptInServiceRequest) error
@@ -39,6 +44,9 @@ type Management interface {
 	DeleteAlarmOccurrences(instanceID string) error
 	GetHardwareInfo() (interface{}, error)
 	GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error)
+	GetOSPowerSavingState() (ipspower.OSPowerSavingState, error)
+	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
+	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
 	CancelUserConsentRequest() (dto.UserConsentMessage, error)
@@ -61,4 +69,7 @@ type Management interface {
 	GetDeviceCertificate() (*gotls.Certificate, error)
 	GetCIMBootSourceSetting() (cimBoot.Response, error)
 	BootServiceStateChange(requestedState int) (cimBoot.BootService, error)
+	GetIPSScreenSettingData() (screensetting.Response, error)
+	GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error)
+	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
 }

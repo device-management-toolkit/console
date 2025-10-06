@@ -3,17 +3,17 @@ package sqldb
 import (
 	"context"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // ProfileWiFiConfigsRepo -.
 
 type ProfileWiFiConfigsRepo struct {
 	*db.SQL
-	logger.Interface
+	log logger.Interface
 }
 
 var (
@@ -40,7 +40,7 @@ func (r *ProfileWiFiConfigsRepo) GetByProfileName(_ context.Context, profileName
 		return nil, ErrProfileWiFiConfigsDatabase.Wrap("GetByProfileName", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, args...)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return nil, ErrProfileWiFiConfigsDatabase.Wrap("GetByProfileName", "r.Pool.Query", err)
 	}
@@ -76,7 +76,7 @@ func (r *ProfileWiFiConfigsRepo) DeleteByProfileName(_ context.Context, profileN
 		return false, ErrProfileWiFiConfigsDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrProfileWiFiConfigsDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
@@ -108,9 +108,9 @@ func (r *ProfileWiFiConfigsRepo) Insert(_ context.Context, p *entity.ProfileWiFi
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {

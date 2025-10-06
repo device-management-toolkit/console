@@ -6,15 +6,16 @@ import (
 
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/app"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/internal/mocks"
 )
 
 func TestRun(t *testing.T) {
 	t.Parallel()
 
 	ctrl := gomock.NewController(t)
+
 	t.Cleanup(ctrl.Finish)
 	defer ctrl.Finish()
 

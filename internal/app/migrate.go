@@ -1,6 +1,7 @@
 package app
 
 import (
+	"context"
 	"database/sql"
 	"embed"
 	"errors"
@@ -17,8 +18,9 @@ import (
 	"github.com/golang-migrate/migrate/v4/source"
 	_ "github.com/golang-migrate/migrate/v4/source/file" // for file source
 	"github.com/golang-migrate/migrate/v4/source/iofs"
-	"github.com/open-amt-cloud-toolkit/console/config"
 	_ "modernc.org/sqlite" // sqlite3 driver
+
+	"github.com/device-management-toolkit/console/config"
 )
 
 const (
@@ -107,7 +109,7 @@ func setupLocalDB(migrationsSource source.Driver) error {
 		}
 	}
 
-	_, err = db.Exec("PRAGMA foreign_keys = ON")
+	_, err = db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
 	if err != nil {
 		return err
 	}

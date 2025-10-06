@@ -7,11 +7,11 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type deviceRoutes struct {
@@ -89,7 +89,7 @@ func (dr *deviceRoutes) getStats(c *gin.Context) {
 func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	deviceID := c.Param("id")
 
-	_, err := dr.t.GetByID(c.Request.Context(), deviceID, "")
+	_, err := dr.t.GetByID(c.Request.Context(), deviceID, "", false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - LoginRedirection")
 		ErrorResponse(c, err)
@@ -104,7 +104,7 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.Auth.JWTKey))
+	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.JWTKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
 
@@ -218,7 +218,7 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - get")
 		ErrorResponse(c, err)
@@ -358,7 +358,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
 		ErrorResponse(c, err)
@@ -398,7 +398,7 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
 		ErrorResponse(c, err)
@@ -438,7 +438,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
 		ErrorResponse(c, err)

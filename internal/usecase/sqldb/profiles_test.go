@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/pkg/db"
 )
 
 const schema = `
@@ -102,6 +102,7 @@ CREATE TABLE IF NOT EXISTS profiles(
   ip_sync_enabled BOOLEAN NOT NULL, 
   local_wifi_sync_enabled BOOLEAN NOT NULL, 
   ieee8021x_profile_name TEXT,
+  uefi_wifi_sync_enabled BOOLEAN NOT NULL,
   FOREIGN KEY (ieee8021x_profile_name, tenant_id) REFERENCES ieee8021xconfigs(profile_name, tenant_id),
   FOREIGN KEY (cira_config_name, tenant_id) REFERENCES ciraconfigs(cira_config_name, tenant_id),
   PRIMARY KEY (profile_name, tenant_id)
@@ -151,17 +152,17 @@ func TestProfileRepo_GetCount(t *testing.T) {
 		{
 			name: "Successful count",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO profiles (
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					 activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode, 
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-					
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
+					uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true,
+					"authority1", "consent1", true, true, true, true,
 				)
 				require.NoError(t, err)
 			},
@@ -192,9 +193,10 @@ func TestProfileRepo_GetCount(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(schema)
+			_, err = dbConn.ExecContext(context.Background(), schema)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -291,34 +293,34 @@ func TestProfileRepo_Get(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO wirelessconfigs (
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO wirelessconfigs (
 		      wireless_profile_name, authentication_method, encryption_method, ssid, psk_value, psk_passphrase, link_policy, creation_date, created_by, tenant_id
 		      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"wireless1", 1, 1, "ssid1", 1, "passphrase1", "policy1", "2024-08-01", "user1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"cira1", "mpsaddress1", 1234, "user1", "pass1", "common1", 1, 1, "rootcert1", "proxydetail1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`
+				_, err = dbConn.ExecContext(context.Background(), `
 		            INSERT INTO ieee8021xconfigs (
 		                profile_name, pxe_timeout, wired_interface, tenant_id
 		            ) VALUES (?, ?, ?, ?);`,
 					"ieee1", 30, true, "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-					
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
+					uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true,
+					"authority1", "consent1", true, true, true, true,
 				)
 				require.NoError(t, err)
 			},
@@ -348,6 +350,7 @@ func TestProfileRepo_Get(t *testing.T) {
 					KVMEnabled:                 true,
 					SOLEnabled:                 true,
 					IEEE8021xProfileName:       StringPtr("ieee1"),
+					UEFIWiFiSyncEnabled:        true,
 				},
 			},
 			err: nil,
@@ -371,9 +374,10 @@ func TestProfileRepo_Get(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(schema)
+			_, err = dbConn.ExecContext(context.Background(), schema)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -408,25 +412,25 @@ func TestProfileRepo_GetByName(t *testing.T) {
 		{
 			name: "Successful retrieval",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`
+				_, err := dbConn.ExecContext(context.Background(), `
         INSERT INTO ieee8021xconfigs (
             profile_name, pxe_timeout, wired_interface, tenant_id
         ) VALUES (?, ?, ?, ?);`,
 					"ieee1", 30, true, "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
 					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
-					ieee8021x_profile_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					ieee8021x_profile_name, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
 					"authority1", "consent1", true, true, true,
-					"ieee1")
+					"ieee1", true)
 				require.NoError(t, err)
 			},
 			profileName: "profile1",
@@ -437,7 +441,7 @@ func TestProfileRepo_GetByName(t *testing.T) {
 		{
 			name: "No Profile Found",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`
+				_, err := dbConn.ExecContext(context.Background(), `
 		        INSERT INTO ieee8021xconfigs (
 		            profile_name, pxe_timeout, wired_interface, tenant_id
 		        ) VALUES (?, ?, ?, ?);`,
@@ -478,6 +482,7 @@ func TestProfileRepo_GetByName(t *testing.T) {
 				ActiveInS0:                 true,
 				PXETimeout:                 IntPtr(10),
 				WiredInterface:             BoolPtr(true),
+				UEFIWiFiSyncEnabled:        true,
 			},
 			expectError: false,
 		},
@@ -498,9 +503,10 @@ func TestProfileRepo_GetByName(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(schema)
+			_, err = dbConn.ExecContext(context.Background(), schema)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -543,8 +549,8 @@ func TestProfileRepo_Delete(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO profiles (profile_name, activation, generate_random_password, generate_random_mebx_password, tags, dhcp_enabled, tenant_id, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ip_sync_enabled, local_wifi_sync_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-					"profile1", true, true, true, "tag1", true, "tenant1", "tls", true, true, true, true, "authority", true, true)
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO profiles (profile_name, activation, generate_random_password, generate_random_mebx_password, tags, dhcp_enabled, tenant_id, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ip_sync_enabled, local_wifi_sync_enabled, uefi_wifi_sync_enabled) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"profile1", true, true, true, "tag1", true, "tenant1", "tls", true, true, true, true, "authority", true, true, true)
 				require.NoError(t, err)
 			},
 			profileName: "profile1",
@@ -569,9 +575,10 @@ func TestProfileRepo_Delete(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(schema)
+			_, err = dbConn.ExecContext(context.Background(), schema)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -611,38 +618,38 @@ func TestProfileRepo_Update(t *testing.T) {
 		{
 			name: "Successful update",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`
+				_, err := dbConn.ExecContext(context.Background(), `
         INSERT INTO ieee8021xconfigs (
             profile_name, pxe_timeout, wired_interface, tenant_id
         ) VALUES (?, ?, ?, ?);`,
 					"ieee1", 30, true, "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`
+				_, err = dbConn.ExecContext(context.Background(), `
         INSERT INTO ieee8021xconfigs (
             profile_name, pxe_timeout, wired_interface, tenant_id
         ) VALUES (?, ?, ?, ?);`,
 					"new-ieee", 30, true, "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "new-cira", "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "new-cira", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					cira_config_name, activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
 					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled,
-					ieee8021x_profile_name
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					ieee8021x_profile_name, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?,?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"cira1", "activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
 					"authority1", "consent1", true, true, true,
-					"ieee1")
+					"ieee1", true)
 				require.NoError(t, err)
 			},
 			profile: &entity.Profile{
@@ -675,6 +682,7 @@ func TestProfileRepo_Update(t *testing.T) {
 				ActiveInS0:                 false,
 				PXETimeout:                 IntPtr(20),
 				WiredInterface:             BoolPtr(false),
+				UEFIWiFiSyncEnabled:        true,
 			},
 			expected:    true,
 			expectError: false,
@@ -725,9 +733,10 @@ func TestProfileRepo_Update(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
-			_, err = dbConn.Exec(schema)
+			_, err = dbConn.ExecContext(context.Background(), schema)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -765,13 +774,13 @@ func TestProfileRepo_Insert(t *testing.T) {
 		{
 			name: "Successful insertion",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(schema)
+				_, err := dbConn.ExecContext(context.Background(), schema)
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name,wired_interface, tenant_id) VALUES (?, ?, ?)`,
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name,wired_interface, tenant_id) VALUES (?, ?, ?)`,
 					"ieee1", 1, "tenant1")
 				require.NoError(t, err)
 			},
@@ -801,10 +810,10 @@ func TestProfileRepo_Insert(t *testing.T) {
 		{
 			name: "Insertion with non-unique profile name",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(schema)
+				_, err := dbConn.ExecContext(context.Background(), schema)
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ieee8021xconfigs (profile_name, 
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ieee8021xconfigs (profile_name, 
         auth_protocol, 
         pxe_timeout, 
         wired_interface, 
@@ -812,13 +821,13 @@ func TestProfileRepo_Insert(t *testing.T) {
 					"ieee1", 1, 30, true, "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`
-				INSERT INTO profiles (profile_name, activation, amt_password, generate_random_password, cira_config_name, mebx_password, generate_random_mebx_password, tags, dhcp_enabled, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ieee8021x_profile_name, ip_sync_enabled, local_wifi_sync_enabled, tenant_id)
-				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
-					"profile1", "activation1", "password1", true, "cira1", "mebx1", true, "tags1", true, 1, "consent1", true, true, true, "authority1", "ieee1", true, true, "tenant1")
+				_, err = dbConn.ExecContext(context.Background(), `
+				INSERT INTO profiles (profile_name, activation, amt_password, generate_random_password, cira_config_name, mebx_password, generate_random_mebx_password, tags, dhcp_enabled, tls_mode, user_consent, ider_enabled, kvm_enabled, sol_enabled, tls_signing_authority, ieee8021x_profile_name, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, uefi_wifi_sync_enabled)
+				VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?);`,
+					"profile1", "activation1", "password1", true, "cira1", "mebx1", true, "tags1", true, 1, "consent1", true, true, true, "authority1", "ieee1", true, true, "tenant1", true)
 				require.NoError(t, err)
 			},
 			profile: &entity.Profile{
@@ -861,6 +870,7 @@ func TestProfileRepo_Insert(t *testing.T) {
 
 			dbConn, err := sql.Open("sqlite", ":memory:")
 			require.NoError(t, err)
+
 			defer dbConn.Close()
 
 			tc.setup(dbConn)
@@ -881,7 +891,8 @@ func TestProfileRepo_Insert(t *testing.T) {
 
 			if !tc.expectedErr {
 				var count int
-				err := dbConn.QueryRow(`SELECT COUNT(*) FROM profiles WHERE profile_name = ?`, tc.profile.ProfileName).Scan(&count)
+
+				err := dbConn.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM profiles WHERE profile_name = ?`, tc.profile.ProfileName).Scan(&count)
 				require.NoError(t, err)
 
 				if count == 0 {

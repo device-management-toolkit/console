@@ -10,10 +10,10 @@ import (
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/pkg/db"
 )
 
 var ErrProfileWiFiConfigsForeignKeyViolation = errors.New("foreign key violation in ProfileWiFiConfigs")
@@ -24,7 +24,7 @@ func setupProfileWifiConfigsTable(t *testing.T) *sql.DB {
 	dbConn, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 
-	_, err = dbConn.Exec(schema)
+	_, err = dbConn.ExecContext(context.Background(), schema)
 	require.NoError(t, err)
 
 	return dbConn
@@ -44,24 +44,24 @@ func TestProfileWiFiConfigsRepo_GetByProfileName(t *testing.T) {
 		{
 			name: "Successful retrieval",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO wirelessconfigs (wireless_profile_name, tenant_id) VALUES (?, ?)`, "wireless1", "tenant1")
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO wirelessconfigs (wireless_profile_name, tenant_id) VALUES (?, ?)`, "wireless1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					 activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode, 
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-					
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, 
+					uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true,
+					"authority1", "consent1", true, true, true, true,
 				)
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO profiles_wirelessconfigs (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles_wirelessconfigs (
 					wireless_profile_name, profile_name, priority, tenant_id
 				) VALUES (?, ?, ?, ?);`,
 					"wireless1", "profile1", 1, "tenant1")
@@ -145,24 +145,24 @@ func TestProfileWiFiConfigsRepo_DeleteByProfileName(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO wirelessconfigs (
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO wirelessconfigs (
           wireless_profile_name, authentication_method, encryption_method, ssid, psk_value, psk_passphrase, link_policy, creation_date, created_by, tenant_id
           ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"wirelessProfile1", 1, 1, "ssid1", 1, "passphrase1", "policy1", "2024-08-01", "user1", "tenant1")
 				require.NoError(t, err)
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true)
+					"authority1", "consent1", true, true, true, true)
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`INSERT INTO profiles_wirelessconfigs (profile_name, wireless_profile_name, priority, tenant_id) VALUES (?, ?, ?, ?)`,
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles_wirelessconfigs (profile_name, wireless_profile_name, priority, tenant_id) VALUES (?, ?, ?, ?)`,
 					"profile1", "wirelessProfile1", 1, "tenant1")
 				require.NoError(t, err)
 			},
@@ -226,21 +226,21 @@ func TestProfileWiFiConfigsRepo_Insert(t *testing.T) {
 		{
 			name: "Successful insertion",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO wirelessconfigs (
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO wirelessconfigs (
 		      wireless_profile_name, authentication_method, encryption_method, ssid, psk_value, psk_passphrase, link_policy, creation_date, created_by, tenant_id
 		      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"wifiProfile1", 1, 1, "ssid1", 1, "passphrase1", "policy1", "2024-08-01", "user1", "tenant1")
 				require.NoError(t, err)
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
           			profile_name, amt_password, creation_date, created_by, generate_random_password,
           			activation, mebx_password, generate_random_mebx_password, tags,
           			dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-          			tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-          		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+          			tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, uefi_wifi_sync_enabled
+          		) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true)
+					"authority1", "consent1", true, true, true, true, true)
 				require.NoError(t, err)
 			},
 			profile: &entity.ProfileWiFiConfigs{
@@ -254,24 +254,24 @@ func TestProfileWiFiConfigsRepo_Insert(t *testing.T) {
 		{
 			name: "Insertion with non-unique profile",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO wirelessconfigs (
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO wirelessconfigs (
 		      wireless_profile_name, authentication_method, encryption_method, ssid, psk_value, psk_passphrase, link_policy, creation_date, created_by, tenant_id
 		      ) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"wifiProfile1", 1, 1, "ssid1", 1, "passphrase1", "policy1", "2024-08-01", "user1", "tenant1")
 				require.NoError(t, err)
-				_, err = dbConn.Exec(`INSERT INTO profiles (
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode,
-					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled
-				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					tls_signing_authority, user_consent, ider_enabled, kvm_enabled, sol_enabled, uefi_wifi_sync_enabled
+				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"profile1", "password1", "2024-08-01", "user1", true,
 					"activation1", "mebx1", true, "tags1",
 					true, true, true, "tenant1", 1,
-					"authority1", "consent1", true, true, true)
+					"authority1", "consent1", true, true, true, true)
 				require.NoError(t, err)
 
-				_, err = dbConn.Exec(`
+				_, err = dbConn.ExecContext(context.Background(), `
 				INSERT INTO profiles_wirelessconfigs (wireless_profile_name, profile_name, priority, tenant_id)
 				VALUES (?, ?, ?, ?);`,
 					"wifiProfile1", "profile1", 2, "tenant1")
@@ -324,7 +324,8 @@ func TestProfileWiFiConfigsRepo_Insert(t *testing.T) {
 
 			if !tc.expectedErr {
 				var count int
-				err := dbConn.QueryRow(`SELECT COUNT(*) FROM profiles_wirelessconfigs WHERE wireless_profile_name = ? AND profile_name = ?`,
+
+				err := dbConn.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM profiles_wirelessconfigs WHERE wireless_profile_name = ? AND profile_name = ?`,
 					tc.profile.WirelessProfileName, tc.profile.ProfileName).Scan(&count)
 				require.NoError(t, err)
 

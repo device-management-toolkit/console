@@ -4,23 +4,24 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/ciraconfigs"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/domains"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/ieee8021xconfigs"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profilewificonfigs"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/wificonfigs"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
+	"github.com/device-management-toolkit/console/internal/usecase/profilewificonfigs"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/usecase/wificonfigs"
+	"github.com/device-management-toolkit/console/pkg/db"
 )
 
 type usecaseTest struct {
@@ -67,6 +68,7 @@ func TestUsecases(t *testing.T) {
 					profilewificonfigs.New(sqldb.NewProfileWiFiConfigsRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),
 					ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil),
 					sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
+					sqldb.NewCIRARepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					safeRequirements,
 				),
 				IEEE8021xProfiles:  ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),

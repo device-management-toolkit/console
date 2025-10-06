@@ -1,16 +1,17 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"runtime"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
-	"github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/app"
 )
 
 // Function pointers for better testability.
@@ -35,7 +36,7 @@ func main() {
 
 	if os.Getenv("GIN_MODE") != "debug" {
 		go func() {
-			browserError := openBrowser("http://localhost:"+cfg.HTTP.Port, runtime.GOOS)
+			browserError := openBrowser("http://localhost:"+cfg.Port, runtime.GOOS)
 			if browserError != nil {
 				panic(browserError)
 			}
@@ -61,7 +62,7 @@ func handleEncryptionKey(cfg *config.Config) {
 		return
 	}
 
-	if err.Error() != "The specified item could not be found in the keyring" {
+	if err.Error() != "secret not found in keyring" {
 		log.Fatal(err)
 
 		return
@@ -105,7 +106,7 @@ type CommandExecutor interface {
 type RealCommandExecutor struct{}
 
 func (e *RealCommandExecutor) Execute(name string, arg ...string) error {
-	return exec.Command(name, arg...).Start()
+	return exec.CommandContext(context.Background(), name, arg...).Start()
 }
 
 // Global command executor, can be replaced in tests.

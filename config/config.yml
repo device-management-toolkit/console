@@ -1,11 +1,14 @@
 app:
   name: console
-  repo: open-amt-cloud-toolkit/console
+  repo: device-management-toolkit/console
   version: DEVELOPMENT
   encryption_key: ""
+  allow_insecure_ciphers: false
 http:
   host: localhost
   port: "8181"
+  # set to true for WAN settings where bandwidth is a concern, false for LAN/low latency/high bandwidth
+  ws_compression: false
   allowed_origins:
     - "*"
   allowed_headers:
@@ -28,3 +31,12 @@ auth:
   redirectionJWTExpiration: 5m0s
   clientId: ""
   issuer: ""
+  ui: 
+    clientId: ""
+    issuer: ""
+    scope: ""
+    redirectUri: ""
+    responseType: "code"
+    requireHttps: false
+    strictDiscoveryDocumentValidation: true
+

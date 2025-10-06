@@ -12,10 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func profilesTest(t *testing.T) (*mocks.MockProfilesFeature, *gin.Engine) {
@@ -70,14 +70,15 @@ var profileTest = dto.Profile{
 	IEEE8021xProfileName:       nil,
 	IEEE8021xProfile:           nil,
 	Version:                    "1.0",
+	UEFIWiFiSyncEnabled:        false,
 }
 
-func TestProfileRoutes(t *testing.T) {
+func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test function
 	t.Parallel()
 
 	tests := []testProfiles{
 		{
-			name:   "get all profiless",
+			name:   "get all profiles",
 			method: http.MethodGet,
 			url:    "/api/v1/admin/profiles",
 			mock: func(profile *mocks.MockProfilesFeature) {
@@ -275,9 +276,9 @@ func TestProfileRoutes(t *testing.T) {
 
 			if tc.requestBody.ProfileName != "" {
 				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequest(tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {
-				req, err = http.NewRequest(tc.method, tc.url, http.NoBody)
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {
@@ -294,6 +295,7 @@ func TestProfileRoutes(t *testing.T) {
 				if response, ok := tc.response.(gin.H); ok {
 					// For gin.H responses (like from export)
 					var actualResponse gin.H
+
 					err := json.Unmarshal(w.Body.Bytes(), &actualResponse)
 					require.NoError(t, err)
 					require.Equal(t, response, actualResponse)

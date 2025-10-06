@@ -35,10 +35,10 @@ jobs:
       - name: Check out code into the Go module directory
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
       - name: golangci-lint
-        uses: reviewdog/action-golangci-lint@dd3fda91790ca90e75049e5c767509dc0ec7d99b # v2.7.0
+        uses: reviewdog/action-golangci-lint@f9bba13753278f6a73b27a56a3ffb1bfda90ed71 # v2.7.2
         with:
           fail_level: error
-          golangci_lint_flags: "--config=.github/.golangci.yml ./..."
+          golangci_lint_flags: "--config=./.golangci.yml ./..."
 
   yamllint:
     name: runner / yamllint
@@ -97,9 +97,8 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        go-version: [1.22.x, 1.23.x]
-        os:
-          [windows-2019, windows-2022, ubuntu-22.04, ubuntu-20.04, ubuntu-24.04]
+        go-version: [1.23.x, 1.24.x]
+        os: [windows-2019, windows-2022, ubuntu-22.04, ubuntu-24.04]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
@@ -126,6 +125,7 @@ jobs:
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
       - name: GitHub Upload Release Artifacts
+        if: always()
         uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
         with:
           name: JUnit Results ${{matrix.os}}-${{matrix.go-version}}-${{github.run_attempt}}

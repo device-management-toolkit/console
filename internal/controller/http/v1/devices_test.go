@@ -13,10 +13,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine) {
@@ -86,7 +86,7 @@ func TestDevicesRoutes(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/api/v1/devices/123e4567-e89b-12d3-a456-426614174000",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
-				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "").Return(&dto.Device{
+				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "", false).Return(&dto.Device{
 					GUID: "123e4567-e89b-12d3-a456-426614174000", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
 				}, nil)
 			},
@@ -98,7 +98,7 @@ func TestDevicesRoutes(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/api/v1/devices/123e4567-e89b-12d3-a456-426614174000",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
-				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "").Return(nil, devices.ErrDatabase)
+				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "", false).Return(nil, devices.ErrDatabase)
 			},
 			response:     devices.ErrDatabase,
 			expectedCode: http.StatusBadRequest,
@@ -297,9 +297,9 @@ func TestDevicesRoutes(t *testing.T) {
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch {
 				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequest(tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {
-				req, err = http.NewRequest(tc.method, tc.url, http.NoBody)
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {

@@ -4,13 +4,14 @@ import (
 	"context"
 
 	"github.com/gorilla/websocket"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	dtov2 "github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v2"
-	wsmanAPI "github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 type (
@@ -48,7 +49,7 @@ type (
 		// Repository/Database Calls
 		GetCount(context.Context, string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
-		GetByID(ctx context.Context, guid, tenantID string) (*dto.Device, error)
+		GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error)
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 		GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) error
@@ -79,5 +80,10 @@ type (
 		GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
 		GetDiskInfo(c context.Context, guid string) (interface{}, error)
 		GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
+		AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
+		GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error)
+		// KVM Screen Settings (IPS_ScreenSettingData)
+		GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
+		SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
 	}
 )

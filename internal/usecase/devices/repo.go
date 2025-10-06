@@ -7,9 +7,9 @@ import (
 
 	"github.com/google/uuid"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/sqldb"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 var (
@@ -17,6 +17,7 @@ var (
 	ErrDatabase       = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
 	ErrNotFound       = sqldb.NotFoundError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
 	ErrCancelled      = dto.CanceledError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
+	ErrDeviceUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
 )
 
 // History - getting translate history from store.
@@ -63,7 +64,7 @@ func (uc *UseCase) GetByColumn(ctx context.Context, columnName, queryValue, tena
 	return d1, nil
 }
 
-func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string) (*dto.Device, error) {
+func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
 	data, err := uc.repo.GetByID(ctx, guid, tenantID)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
@@ -74,6 +75,12 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string) (*dto.Dev
 	}
 
 	d2 := uc.entityToDTO(data)
+	if includeSecrets {
+		d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
+		if err != nil {
+			return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt", err)
+		}
+	}
 
 	return d2, nil
 }

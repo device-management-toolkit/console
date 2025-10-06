@@ -1,5 +1,17 @@
 package v2
 
+type BootParams struct {
+	InstanceID     string
+	BIOSBootString string
+	BootString     string
+}
+
+type BootSettings struct {
+	IsHTTPSBootExists bool
+	IsPBAExists       bool
+	IsWinREExists     bool
+}
+
 type Features struct {
 	UserConsent           string `json:"userConsent" example:"kvm"`
 	EnableSOL             bool   `json:"enableSOL" example:"true"`

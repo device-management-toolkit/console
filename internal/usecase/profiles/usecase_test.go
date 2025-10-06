@@ -4,16 +4,17 @@ import (
 	"context"
 	"testing"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
-	local "github.com/open-amt-cloud-toolkit/console/config"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
-	"github.com/open-amt-cloud-toolkit/console/internal/mocks"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/profiles"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
+
+	local "github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type test struct {
@@ -39,9 +40,10 @@ func profilesTest(t *testing.T) (*profiles.UseCase, *mocks.MockProfilesRepositor
 	profilewificonfigs := mocks.NewMockProfileWiFiConfigsFeature(mockCtl)
 	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
 	domains := mocks.NewMockDomainsRepository(mockCtl)
+	cira := mocks.NewMockCIRAConfigsRepository(mockCtl)
 	security := mocks.MockCrypto{}
 	log := logger.New("error")
-	useCase := profiles.New(repo, wificonfigs, profilewificonfigs, ieeeMock, log, domains, security)
+	useCase := profiles.New(repo, wificonfigs, profilewificonfigs, ieeeMock, log, domains, cira, security)
 
 	return useCase, repo, wificonfigs, profilewificonfigs
 }
@@ -555,7 +557,7 @@ func TestHandleIEEE8021xSettings(t *testing.T) {
 
 			tc.mock(ieeeMock)
 
-			useCase := profiles.New(nil, nil, nil, ieeeMock, nil, nil, nil)
+			useCase := profiles.New(nil, nil, nil, ieeeMock, nil, nil, nil, nil)
 
 			err := useCase.HandleIEEE8021xSettings(ctx, tc.data, configuration, tenantID)
 
@@ -619,7 +621,7 @@ func TestGetProfileData(t *testing.T) {
 
 			tc.mock(repoMock)
 
-			useCase := profiles.New(repoMock, nil, nil, nil, nil, nil, nil)
+			useCase := profiles.New(repoMock, nil, nil, nil, nil, nil, nil, nil)
 
 			data, err := useCase.GetProfileData(ctx, tc.profileName, tenantID)
 
@@ -700,7 +702,7 @@ func TestGetDomainInformation(t *testing.T) {
 
 			tc.mock(domainsMock)
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, domainsMock, cryptoMock)
+			useCase := profiles.New(nil, nil, nil, nil, nil, domainsMock, nil, cryptoMock)
 
 			domain, err := useCase.GetDomainInformation(ctx, tc.activation, tc.domainName, tenantID)
 
@@ -745,7 +747,7 @@ func TestDecryptPasswords(t *testing.T) {
 
 			cryptoMock := &mocks.MockCrypto{}
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, nil, cryptoMock)
+			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, cryptoMock)
 
 			err := useCase.DecryptPasswords(tc.data)
 
@@ -817,7 +819,7 @@ func TestBuildWirelessProfiles(t *testing.T) {
 
 			tc.mock(wifiMock)
 
-			useCase := profiles.New(nil, wifiMock, nil, ieeeMock, nil, nil, cryptoMock)
+			useCase := profiles.New(nil, wifiMock, nil, ieeeMock, nil, nil, nil, cryptoMock)
 
 			wifiProfiles, err := useCase.BuildWirelessProfiles(ctx, wifiConfigs, tenantID)
 
@@ -855,6 +857,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 		profile  *entity.Profile
 		domain   *entity.Domain
 		wifi     []config.WirelessProfile
+		cira     *entity.CIRAConfig
 		expected config.Configuration
 	}{
 		{
@@ -906,6 +909,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 						},
 					},
 					Redirection: config.Redirection{
+						Enabled: true,
 						Services: config.Services{
 							KVM:  true,
 							SOL:  true,
@@ -929,6 +933,9 @@ func TestBuildConfigurationObject(t *testing.T) {
 						MEBXPassword:        "testMEBXPassword",
 						ProvisioningCert:    "testCert",
 						ProvisioningCertPwd: "testCertPwd",
+						CIRA: config.CIRA{
+							EnvironmentDetection: []string{},
+						},
 					},
 				},
 			},
@@ -939,9 +946,9 @@ func TestBuildConfigurationObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil)
+			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, nil)
 
-			result := useCase.BuildConfigurationObject(tc.profile.ProfileName, tc.profile, tc.domain, tc.wifi)
+			result := useCase.BuildConfigurationObject(tc.profile.ProfileName, tc.profile, tc.domain, tc.wifi, tc.cira)
 
 			require.Equal(t, tc.expected, result)
 		})
@@ -999,7 +1006,7 @@ func TestGetWiFiConfigurations(t *testing.T) {
 
 			tc.mock(profileWiFiMock)
 
-			useCase := profiles.New(nil, nil, profileWiFiMock, nil, nil, nil, nil)
+			useCase := profiles.New(nil, nil, profileWiFiMock, nil, nil, nil, nil, nil)
 
 			wifiConfigs, err := useCase.GetWiFiConfigurations(ctx, profileName, tenantID)
 
@@ -1047,7 +1054,7 @@ func TestSerializeAndEncryptYAML(t *testing.T) {
 
 			cryptoMock := &mocks.MockCrypto{}
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, nil, cryptoMock)
+			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, cryptoMock)
 
 			encryptedData, encryptionKey, err := useCase.SerializeAndEncryptYAML(tc.configuration)
 

@@ -3,9 +3,9 @@ package devices
 import (
 	"context"
 
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (uc *UseCase) GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error) {

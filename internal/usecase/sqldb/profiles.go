@@ -5,14 +5,13 @@ import (
 	"database/sql"
 	"errors"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/entity"
-	"github.com/open-amt-cloud-toolkit/console/pkg/consoleerrors"
-	"github.com/open-amt-cloud-toolkit/console/pkg/db"
-	"github.com/open-amt-cloud-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // ProfileRepo -.
-
 type ProfileRepo struct {
 	*db.SQL
 	log logger.Interface
@@ -24,13 +23,11 @@ var (
 )
 
 // New -.
-
 func NewProfileRepo(database *db.SQL, log logger.Interface) *ProfileRepo {
 	return &ProfileRepo{database, log}
 }
 
 // GetCount -.
-
 func (r *ProfileRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 	sqlQuery, _, err := r.Builder.
 		Select("COUNT(*) OVER() AS total_count").
@@ -43,7 +40,7 @@ func (r *ProfileRepo) GetCount(_ context.Context, tenantID string) (int, error) 
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
@@ -56,6 +53,8 @@ func (r *ProfileRepo) GetCount(_ context.Context, tenantID string) (int, error) 
 }
 
 // Get -.
+//
+//nolint:funlen // 2 lines ain't enough
 func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]entity.Profile, error) {
 	const defaultTop = 100
 
@@ -92,6 +91,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 			"p.ip_sync_enabled",
 			"p.local_wifi_sync_enabled",
 			"p.ieee8021x_profile_name",
+			"p.uefi_wifi_sync_enabled",
 			"e.auth_protocol",
 			"e.pxe_timeout",
 			"e.wired_interface",
@@ -118,6 +118,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 			"p.ip_sync_enabled",
 			"p.local_wifi_sync_enabled",
 			"p.ieee8021x_profile_name",
+			"p.uefi_wifi_sync_enabled",
 			"e.auth_protocol",
 			"e.pxe_timeout",
 			"e.wired_interface",
@@ -129,7 +130,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 		return nil, ErrProfileDatabase.Wrap("Get", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrProfileDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -148,7 +149,7 @@ func (r *ProfileRepo) Get(_ context.Context, top, skip int, tenantID string) ([]
 		err = rows.Scan(&p.ProfileName, &p.Activation, &p.GenerateRandomPassword, &p.CIRAConfigName,
 			&p.GenerateRandomMEBxPassword, &p.Tags, &p.DHCPEnabled, &p.TenantID, &p.TLSMode,
 			&p.UserConsent, &p.IDEREnabled, &p.KVMEnabled, &p.SOLEnabled, &p.TLSSigningAuthority,
-			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
+			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.UEFIWiFiSyncEnabled, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
 		if err != nil {
 			return nil, ErrProfileDatabase.Wrap("Get", "rows.Scan", err)
 		}
@@ -183,6 +184,7 @@ func (r *ProfileRepo) GetByName(_ context.Context, profileName, tenantID string)
 			"p.ip_sync_enabled",
 			"p.local_wifi_sync_enabled",
 			"p.ieee8021x_profile_name",
+			"p.uefi_wifi_sync_enabled",
 			"e.auth_protocol",
 			"e.pxe_timeout",
 			"e.wired_interface",
@@ -195,7 +197,7 @@ func (r *ProfileRepo) GetByName(_ context.Context, profileName, tenantID string)
 		return nil, ErrProfileDatabase.Wrap("GetByName", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, profileName, tenantID)
 	if err != nil {
 		return nil, ErrProfileDatabase.Wrap("GetByName", "r.Pool.Query", err)
 	}
@@ -215,7 +217,7 @@ func (r *ProfileRepo) GetByName(_ context.Context, profileName, tenantID string)
 			&p.CIRAConfigName,
 			&p.GenerateRandomMEBxPassword, &p.Tags, &p.DHCPEnabled, &p.TenantID, &p.TLSMode,
 			&p.UserConsent, &p.IDEREnabled, &p.KVMEnabled, &p.SOLEnabled, &p.TLSSigningAuthority,
-			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
+			&p.IPSyncEnabled, &p.LocalWiFiSyncEnabled, &p.IEEE8021xProfileName, &p.UEFIWiFiSyncEnabled, &p.AuthenticationProtocol, &p.PXETimeout, &p.WiredInterface)
 		if err != nil {
 			return p, ErrProfileDatabase.Wrap("GetByName", "rows.Scan", err)
 		}
@@ -241,7 +243,7 @@ func (r *ProfileRepo) Delete(_ context.Context, profileName, tenantID string) (b
 		return false, ErrProfileDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrProfileDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
@@ -276,13 +278,14 @@ func (r *ProfileRepo) Update(_ context.Context, p *entity.Profile) (bool, error)
 		Set("ieee8021x_profile_name", p.IEEE8021xProfileName).
 		Set("ip_sync_enabled", p.IPSyncEnabled).
 		Set("local_wifi_sync_enabled", p.LocalWiFiSyncEnabled).
+		Set("uefi_wifi_sync_enabled", p.UEFIWiFiSyncEnabled).
 		Where("profile_name = ? AND tenant_id = ?", p.ProfileName, p.TenantID).
 		ToSql()
 	if err != nil {
 		return false, ErrProfileDatabase.Wrap("Update", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrProfileDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
@@ -296,7 +299,6 @@ func (r *ProfileRepo) Update(_ context.Context, p *entity.Profile) (bool, error)
 }
 
 // Insert -.
-
 func (r *ProfileRepo) Insert(_ context.Context, p *entity.Profile) (string, error) {
 	ciraConfigName := p.CIRAConfigName
 
@@ -316,8 +318,8 @@ func (r *ProfileRepo) Insert(_ context.Context, p *entity.Profile) (string, erro
 
 	insertBuilder := r.Builder.
 		Insert("profiles").
-		Columns("profile_name", "activation", "amt_password", "generate_random_password", "cira_config_name", "mebx_password", "generate_random_mebx_password", "tags", "dhcp_enabled", "tls_mode", "user_consent", "ider_enabled", "kvm_enabled", "sol_enabled", "tls_signing_authority", "ieee8021x_profile_name", "ip_sync_enabled", "local_wifi_sync_enabled", "tenant_id").
-		Values(p.ProfileName, p.Activation, p.AMTPassword, p.GenerateRandomPassword, ciraConfigName, p.MEBXPassword, p.GenerateRandomMEBxPassword, p.Tags, p.DHCPEnabled, p.TLSMode, p.UserConsent, p.IDEREnabled, p.KVMEnabled, p.SOLEnabled, p.TLSSigningAuthority, ieee8021xProfileName, p.IPSyncEnabled, p.LocalWiFiSyncEnabled, p.TenantID)
+		Columns("profile_name", "activation", "amt_password", "generate_random_password", "cira_config_name", "mebx_password", "generate_random_mebx_password", "tags", "dhcp_enabled", "tls_mode", "user_consent", "ider_enabled", "kvm_enabled", "sol_enabled", "tls_signing_authority", "ieee8021x_profile_name", "ip_sync_enabled", "local_wifi_sync_enabled", "tenant_id", "uefi_wifi_sync_enabled").
+		Values(p.ProfileName, p.Activation, p.AMTPassword, p.GenerateRandomPassword, ciraConfigName, p.MEBXPassword, p.GenerateRandomMEBxPassword, p.Tags, p.DHCPEnabled, p.TLSMode, p.UserConsent, p.IDEREnabled, p.KVMEnabled, p.SOLEnabled, p.TLSSigningAuthority, ieee8021xProfileName, p.IPSyncEnabled, p.LocalWiFiSyncEnabled, p.TenantID, p.UEFIWiFiSyncEnabled)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
@@ -331,9 +333,9 @@ func (r *ProfileRepo) Insert(_ context.Context, p *entity.Profile) (string, erro
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {
