@@ -27,7 +27,7 @@ require (
 	github.com/swaggo/swag v1.16.6
 	go.uber.org/mock v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.39.0
+	modernc.org/sqlite v1.39.1
 	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 
@@ -45,7 +45,7 @@ require (
 	golang.org/x/exp v0.0.0-20250620022241-b7579e27df2b // indirect
 	golang.org/x/mod v0.27.0 // indirect
 	golang.org/x/oauth2 v0.30.0 // indirect
-	modernc.org/libc v1.66.3 // indirect
+	modernc.org/libc v1.66.10 // indirect
 )
 
 require (
