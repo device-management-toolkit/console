@@ -1,9 +1,8 @@
 package mocks
 
 import (
-	"gopkg.in/yaml.v2"
-
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
+	"gopkg.in/yaml.v2"
 )
 
 type MockCrypto struct{}

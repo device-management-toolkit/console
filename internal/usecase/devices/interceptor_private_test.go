@@ -8,9 +8,8 @@ import (
 	"strings"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	"github.com/stretchr/testify/require"
 )
 
 func TestProcessBrowserData(t *testing.T) {

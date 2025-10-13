@@ -5,11 +5,10 @@ import (
 	"errors"
 	"testing"
 
-	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
-
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
+	"github.com/stretchr/testify/require"
+	gomock "go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"

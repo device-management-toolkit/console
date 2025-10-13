@@ -2,6 +2,7 @@ package v1
 
 import (
 	"errors"
+	"fmt"
 	"net"
 	"net/http"
 	"strings"
@@ -68,7 +69,30 @@ func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
 }
 
 func validatorErrorHandle(c *gin.Context, err validator.ValidationErrors) {
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Error()})
+	var errorMessage string
+	for _, validationErr := range err {
+		field := validationErr.Field()
+		tag := validationErr.Tag()
+
+		switch tag {
+		case "required":
+			errorMessage = fmt.Sprintf("%s is required", field)
+		case "alphanum":
+			errorMessage = fmt.Sprintf("%s must contain only alphanumeric characters (letters and numbers)", field)
+		case "min":
+			errorMessage = fmt.Sprintf("%s is too short", field)
+		case "max":
+			errorMessage = fmt.Sprintf("%s is too long", field)
+		case "lte":
+			errorMessage = fmt.Sprintf("%s exceeds maximum length", field)
+		case "oneof":
+			errorMessage = fmt.Sprintf("%s contains an invalid value", field)
+		default:
+			errorMessage = fmt.Sprintf("%s is invalid", field)
+		}
+		break // Use the first validation error
+	}
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{errorMessage})
 }
 
 func notFoundErrorHandle(c *gin.Context, err sqldb.NotFoundError) {

@@ -14,10 +14,9 @@ import (
 	"sync"
 	"time"
 
-	"github.com/gorilla/websocket"
-
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	"github.com/gorilla/websocket"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 )
