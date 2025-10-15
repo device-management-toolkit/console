@@ -1,4 +1,4 @@
-package redfish
+package v1
 
 import (
 	"net/http"
