@@ -206,7 +206,7 @@ func TestDomainRoutes(t *testing.T) {
 			name:   "get domains with invalid query parameters",
 			method: http.MethodGet,
 			url:    "/api/v1/admin/domains?$top=invalid&$skip=abc",
-			mock: func(domain *mocks.MockDomainsFeature) {
+			mock: func(_ *mocks.MockDomainsFeature) {
 				// No mock expectation as it should fail at query binding
 			},
 			response:     nil,
@@ -226,9 +226,9 @@ func TestDomainRoutes(t *testing.T) {
 	}
 
 	// Combine both test sets
-	allTests := append(tests, moreTests...)
+	tests = append(tests, moreTests...)
 
-	for _, tc := range allTests {
+	for _, tc := range tests {
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
@@ -268,12 +268,16 @@ func TestDomainRoutes(t *testing.T) {
 }
 
 func TestDomainValidation(t *testing.T) {
+	t.Parallel()
+
 	// NOTE: This test documents the expected validation behavior for Domain DTOs.
 	// The actual validation is performed by gin's ShouldBindJSON using the binding tags,
 	// but since gin.DisableBindValidation() is called globally for other tests,
 	// we demonstrate the validation logic here for documentation and verification purposes.
 
 	t.Run("domain validation rules documentation", func(t *testing.T) {
+		t.Parallel()
+
 		// This test verifies that the Domain DTO has proper validation tags
 		// and demonstrates which inputs should be considered invalid
 
@@ -343,6 +347,8 @@ func TestDomainValidation(t *testing.T) {
 	// Note: Due to gin.DisableBindValidation() in the test environment,
 	// validation is bypassed. In production, gin validation would enforce the binding rules.
 	t.Run("successful domain creation", func(t *testing.T) {
+		t.Parallel()
+
 		mockCtl := gomock.NewController(t)
 		defer mockCtl.Finish()
 
@@ -379,6 +385,7 @@ func TestDomainValidation(t *testing.T) {
 		require.Equal(t, http.StatusCreated, w.Code, "Valid domain should be created successfully")
 
 		var response dto.Domain
+
 		err = json.Unmarshal(w.Body.Bytes(), &response)
 		require.NoError(t, err, "Response should be valid JSON")
 		require.Equal(t, validDomain.ProfileName, response.ProfileName, "Response should match request")

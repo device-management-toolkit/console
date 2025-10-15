@@ -5,9 +5,10 @@ import (
 	"errors"
 	"strings"
 
+	"gopkg.in/yaml.v2"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
-	"gopkg.in/yaml.v2"
 
 	local "github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
