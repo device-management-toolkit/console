@@ -1,0 +1,4881 @@
+{
+  "components": {
+    "schemas": {
+      "BootSources": {
+        "description": "BootSources schema",
+        "properties": {
+          "biosBootString": {
+            "examples": [
+              "string"
+            ],
+            "type": "string"
+          },
+          "bootString": {
+            "examples": [
+              "string"
+            ],
+            "type": "string"
+          },
+          "elementName": {
+            "examples": [
+              "Intel® AMT: Boot Source"
+            ],
+            "type": "string"
+          },
+          "failThroughSupported": {
+            "examples": [
+              2
+            ],
+            "type": "integer"
+          },
+          "instanceID": {
+            "examples": [
+              "Intel® AMT: Force Hard-drive Boot"
+            ],
+            "type": "string"
+          },
+          "structuredBiosBootString": {
+            "examples": [
+              "CIM:Hard-Disk:1"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "CIRAConfig": {
+        "description": "CIRAConfig schema",
+        "properties": {
+          "authMethod": {
+            "examples": [
+              2
+            ],
+            "type": "integer"
+          },
+          "commonName": {
+            "examples": [
+              "example.com"
+            ],
+            "type": "string"
+          },
+          "configName": {
+            "examples": [
+              "My CIRA Config"
+            ],
+            "type": "string"
+          },
+          "mpsPort": {
+            "examples": [
+              4433
+            ],
+            "type": "integer"
+          },
+          "mpsRootCertificate": {
+            "examples": [
+              "-----BEGIN CERTIFICATE-----\n..."
+            ],
+            "type": "string"
+          },
+          "mpsServerAddress": {
+            "examples": [
+              "https://example.com"
+            ],
+            "type": "string"
+          },
+          "password": {
+            "examples": [
+              "my_password"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "proxyDetails": {
+            "examples": [
+              "http://example.com"
+            ],
+            "type": "string"
+          },
+          "regeneratePassword": {
+            "examples": [
+              true
+            ],
+            "type": [
+              "boolean",
+              "null"
+            ]
+          },
+          "serverAddressFormat": {
+            "examples": [
+              201
+            ],
+            "type": "integer"
+          },
+          "tenantId": {
+            "examples": [
+              "abc123"
+            ],
+            "type": "string"
+          },
+          "username": {
+            "examples": [
+              "my_username"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "examples": [
+              "1.0.0"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "CIRAConfigResponse": {
+        "description": "CIRAConfigResponse schema",
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "authMethod": {
+                  "examples": [
+                    2
+                  ],
+                  "type": "integer"
+                },
+                "commonName": {
+                  "examples": [
+                    "example.com"
+                  ],
+                  "type": "string"
+                },
+                "configName": {
+                  "examples": [
+                    "My CIRA Config"
+                  ],
+                  "type": "string"
+                },
+                "mpsPort": {
+                  "examples": [
+                    4433
+                  ],
+                  "type": "integer"
+                },
+                "mpsRootCertificate": {
+                  "examples": [
+                    "-----BEGIN CERTIFICATE-----\n..."
+                  ],
+                  "type": "string"
+                },
+                "mpsServerAddress": {
+                  "examples": [
+                    "https://example.com"
+                  ],
+                  "type": "string"
+                },
+                "password": {
+                  "examples": [
+                    "my_password"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "proxyDetails": {
+                  "examples": [
+                    "http://example.com"
+                  ],
+                  "type": "string"
+                },
+                "regeneratePassword": {
+                  "examples": [
+                    true
+                  ],
+                  "type": [
+                    "boolean",
+                    "null"
+                  ]
+                },
+                "serverAddressFormat": {
+                  "examples": [
+                    201
+                  ],
+                  "type": "integer"
+                },
+                "tenantId": {
+                  "examples": [
+                    "abc123"
+                  ],
+                  "type": "string"
+                },
+                "username": {
+                  "examples": [
+                    "my_username"
+                  ],
+                  "type": "string"
+                },
+                "version": {
+                  "examples": [
+                    "1.0.0"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "ConsentCodeRequest": {
+        "description": "ConsentCodeRequest schema",
+        "properties": {
+          "consentCode": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "DeleteResponse": {
+        "description": "DeleteResponse schema",
+        "properties": {
+          "status": {
+            "examples": [
+              "deleted"
+            ],
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "ExportResponse": {
+        "description": "ExportResponse schema",
+        "properties": {
+          "content": {
+            "type": "string"
+          },
+          "filename": {
+            "type": "string"
+          },
+          "key": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "Features": {
+        "description": "Features schema",
+        "properties": {
+          "enableIDER": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "enableKVM": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "enableSOL": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "httpsBootSupported": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kvmAvailable": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "localPBABootSupported": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "ocr": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "optInState": {
+            "examples": [
+              0
+            ],
+            "type": "integer"
+          },
+          "redirection": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "remoteErase": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "userConsent": {
+            "examples": [
+              "kvm"
+            ],
+            "type": "string"
+          },
+          "winREBootSupported": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "HTTPError": {
+        "description": "HTTPError schema",
+        "properties": {
+          "detail": {
+            "description": "Human readable error message",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "errors": {
+            "items": {
+              "properties": {
+                "more": {
+                  "additionalProperties": {},
+                  "description": "Additional information about the error",
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "name": {
+                  "description": "For example, name of the parameter that caused the error",
+                  "type": "string"
+                },
+                "reason": {
+                  "description": "Human readable error message",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "instance": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "status": {
+            "description": "HTTP status code",
+            "examples": [
+              403
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "title": {
+            "description": "Short title of the error",
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "type": {
+            "description": "URL of the error type. Can be used to lookup the error in a documentation",
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "IEEE8021xConfig": {
+        "description": "IEEE8021xConfig schema",
+        "properties": {
+          "authenticationProtocol": {
+            "examples": [
+              1
+            ],
+            "type": "integer"
+          },
+          "profileName": {
+            "examples": [
+              "My Profile"
+            ],
+            "type": "string"
+          },
+          "pxeTimeout": {
+            "examples": [
+              60
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tenantId": {
+            "examples": [
+              "abc123"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "examples": [
+              "1.0.0"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wiredInterface": {
+            "examples": [
+              false
+            ],
+            "type": "boolean"
+          }
+        },
+        "type": [
+          "object",
+          "null"
+        ]
+      },
+      "IEEE8021xConfigResponse": {
+        "description": "IEEE8021xConfigResponse schema",
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "authenticationProtocol": {
+                  "examples": [
+                    1
+                  ],
+                  "type": "integer"
+                },
+                "profileName": {
+                  "examples": [
+                    "My Profile"
+                  ],
+                  "type": "string"
+                },
+                "pxeTimeout": {
+                  "examples": [
+                    60
+                  ],
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "tenantId": {
+                  "examples": [
+                    "abc123"
+                  ],
+                  "type": "string"
+                },
+                "version": {
+                  "examples": [
+                    "1.0.0"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "wiredInterface": {
+                  "examples": [
+                    false
+                  ],
+                  "type": "boolean"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PowerAction": {
+        "description": "PowerAction schema",
+        "properties": {
+          "action": {
+            "examples": [
+              8
+            ],
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PowerCapabilities": {
+        "description": "PowerCapabilities schema",
+        "properties": {
+          "Hibernate": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power cycle": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power down": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power on to IDE-R CDROM": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power on to IDE-R Floppy": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power on to PXE": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power on to diagnostic": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power up": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Power up to BIOS": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset to BIOS": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset to IDE-R CDROM": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset to IDE-R Floppy": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset to PXE": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset to Secure Erase": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Reset to diagnostic": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Sleep": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Soft-off": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "Soft-reset": {
+            "examples": [
+              0
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "PowerState": {
+        "description": "PowerState schema",
+        "properties": {
+          "osPowerSavingState": {
+            "examples": [
+              0
+            ],
+            "type": "integer"
+          },
+          "powerstate": {
+            "examples": [
+              0
+            ],
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "Profile": {
+        "description": "Profile schema",
+        "properties": {
+          "activation": {
+            "examples": [
+              "activate"
+            ],
+            "type": "string"
+          },
+          "amtPassword": {
+            "examples": [
+              "my_password"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ciraConfigName": {
+            "examples": [
+              "My CIRA Config"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ciraConfigObject": {
+            "description": "CIRAConfig schema",
+            "properties": {
+              "authMethod": {
+                "examples": [
+                  2
+                ],
+                "type": "integer"
+              },
+              "commonName": {
+                "examples": [
+                  "example.com"
+                ],
+                "type": "string"
+              },
+              "configName": {
+                "examples": [
+                  "My CIRA Config"
+                ],
+                "type": "string"
+              },
+              "mpsPort": {
+                "examples": [
+                  4433
+                ],
+                "type": "integer"
+              },
+              "mpsRootCertificate": {
+                "examples": [
+                  "-----BEGIN CERTIFICATE-----\n..."
+                ],
+                "type": "string"
+              },
+              "mpsServerAddress": {
+                "examples": [
+                  "https://example.com"
+                ],
+                "type": "string"
+              },
+              "password": {
+                "examples": [
+                  "my_password"
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "proxyDetails": {
+                "examples": [
+                  "http://example.com"
+                ],
+                "type": "string"
+              },
+              "regeneratePassword": {
+                "examples": [
+                  true
+                ],
+                "type": [
+                  "boolean",
+                  "null"
+                ]
+              },
+              "serverAddressFormat": {
+                "examples": [
+                  201
+                ],
+                "type": "integer"
+              },
+              "tenantId": {
+                "examples": [
+                  "abc123"
+                ],
+                "type": "string"
+              },
+              "username": {
+                "examples": [
+                  "my_username"
+                ],
+                "type": "string"
+              },
+              "version": {
+                "examples": [
+                  "1.0.0"
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "created_by": {
+            "examples": [
+              "admin"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "creationDate": {
+            "examples": [
+              "2021-07-01T00:00:00Z"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "dhcpEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "generateRandomMEBxPassword": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "generateRandomPassword": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "iderEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "ieee8021xProfile": {
+            "description": "IEEE8021xConfig schema",
+            "properties": {
+              "authenticationProtocol": {
+                "examples": [
+                  1
+                ],
+                "type": "integer"
+              },
+              "profileName": {
+                "examples": [
+                  "My Profile"
+                ],
+                "type": "string"
+              },
+              "pxeTimeout": {
+                "examples": [
+                  60
+                ],
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "tenantId": {
+                "examples": [
+                  "abc123"
+                ],
+                "type": "string"
+              },
+              "version": {
+                "examples": [
+                  "1.0.0"
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "wiredInterface": {
+                "examples": [
+                  false
+                ],
+                "type": "boolean"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "ieee8021xProfileName": {
+            "examples": [
+              "My Profile"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ipSyncEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "kvmEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "localWifiSyncEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "mebxPassword": {
+            "examples": [
+              "my_password"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "profileName": {
+            "examples": [
+              "My Profile"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "solEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "tags": {
+            "examples": [
+              "tag1,tag2"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          },
+          "tenantId": {
+            "examples": [
+              "abc123"
+            ],
+            "type": "string"
+          },
+          "tlsCerts": {
+            "properties": {
+              "issuedCertificate": {
+                "properties": {
+                  "cert": {
+                    "type": "string"
+                  },
+                  "certBin": {
+                    "type": "string"
+                  },
+                  "checked": {
+                    "examples": [
+                      true
+                    ],
+                    "type": "boolean"
+                  },
+                  "h:": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "format": "byte",
+                    "type": "string"
+                  },
+                  "pem": {
+                    "type": "string"
+                  },
+                  "privateKey": {
+                    "type": "string"
+                  },
+                  "privateKeyBin": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "rootCertificate": {
+                "properties": {
+                  "cert": {
+                    "type": "string"
+                  },
+                  "certBin": {
+                    "type": "string"
+                  },
+                  "checked": {
+                    "examples": [
+                      true
+                    ],
+                    "type": "boolean"
+                  },
+                  "h:": {
+                    "type": "string"
+                  },
+                  "key": {
+                    "format": "byte",
+                    "type": "string"
+                  },
+                  "pem": {
+                    "type": "string"
+                  },
+                  "privateKey": {
+                    "type": "string"
+                  },
+                  "privateKeyBin": {
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              },
+              "version": {
+                "type": "string"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "tlsMode": {
+            "examples": [
+              1
+            ],
+            "type": [
+              "integer",
+              "null"
+            ]
+          },
+          "tlsSigningAuthority": {
+            "examples": [
+              "SelfSigned"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "uefiWifiSyncEnabled": {
+            "examples": [
+              true
+            ],
+            "type": "boolean"
+          },
+          "userConsent": {
+            "examples": [
+              "All"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "version": {
+            "examples": [
+              "1.0.0"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "wifiConfigs": {
+            "items": {
+              "properties": {
+                "priority": {
+                  "examples": [
+                    1
+                  ],
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "profileName": {
+                  "examples": [
+                    "My Profile"
+                  ],
+                  "type": "string"
+                },
+                "profileProfileName": {
+                  "examples": [
+                    "My Wireless Profile"
+                  ],
+                  "type": "string"
+                },
+                "tenantId": {
+                  "examples": [
+                    "abc123"
+                  ],
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": [
+              "array",
+              "null"
+            ]
+          }
+        },
+        "type": "object"
+      },
+      "ProfileResponse": {
+        "description": "ProfileResponse schema",
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "activation": {
+                  "examples": [
+                    "activate"
+                  ],
+                  "type": "string"
+                },
+                "amtPassword": {
+                  "examples": [
+                    "my_password"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ciraConfigName": {
+                  "examples": [
+                    "My CIRA Config"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ciraConfigObject": {
+                  "description": "CIRAConfig schema",
+                  "properties": {
+                    "authMethod": {
+                      "examples": [
+                        2
+                      ],
+                      "type": "integer"
+                    },
+                    "commonName": {
+                      "examples": [
+                        "example.com"
+                      ],
+                      "type": "string"
+                    },
+                    "configName": {
+                      "examples": [
+                        "My CIRA Config"
+                      ],
+                      "type": "string"
+                    },
+                    "mpsPort": {
+                      "examples": [
+                        4433
+                      ],
+                      "type": "integer"
+                    },
+                    "mpsRootCertificate": {
+                      "examples": [
+                        "-----BEGIN CERTIFICATE-----\n..."
+                      ],
+                      "type": "string"
+                    },
+                    "mpsServerAddress": {
+                      "examples": [
+                        "https://example.com"
+                      ],
+                      "type": "string"
+                    },
+                    "password": {
+                      "examples": [
+                        "my_password"
+                      ],
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "proxyDetails": {
+                      "examples": [
+                        "http://example.com"
+                      ],
+                      "type": "string"
+                    },
+                    "regeneratePassword": {
+                      "examples": [
+                        true
+                      ],
+                      "type": [
+                        "boolean",
+                        "null"
+                      ]
+                    },
+                    "serverAddressFormat": {
+                      "examples": [
+                        201
+                      ],
+                      "type": "integer"
+                    },
+                    "tenantId": {
+                      "examples": [
+                        "abc123"
+                      ],
+                      "type": "string"
+                    },
+                    "username": {
+                      "examples": [
+                        "my_username"
+                      ],
+                      "type": "string"
+                    },
+                    "version": {
+                      "examples": [
+                        "1.0.0"
+                      ],
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    }
+                  },
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "created_by": {
+                  "examples": [
+                    "admin"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "creationDate": {
+                  "examples": [
+                    "2021-07-01T00:00:00Z"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "dhcpEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "generateRandomMEBxPassword": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "generateRandomPassword": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "iderEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "ieee8021xProfile": {
+                  "description": "IEEE8021xConfig schema",
+                  "properties": {
+                    "authenticationProtocol": {
+                      "examples": [
+                        1
+                      ],
+                      "type": "integer"
+                    },
+                    "profileName": {
+                      "examples": [
+                        "My Profile"
+                      ],
+                      "type": "string"
+                    },
+                    "pxeTimeout": {
+                      "examples": [
+                        60
+                      ],
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "tenantId": {
+                      "examples": [
+                        "abc123"
+                      ],
+                      "type": "string"
+                    },
+                    "version": {
+                      "examples": [
+                        "1.0.0"
+                      ],
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "wiredInterface": {
+                      "examples": [
+                        false
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "ieee8021xProfileName": {
+                  "examples": [
+                    "My Profile"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ipSyncEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "kvmEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "localWifiSyncEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "mebxPassword": {
+                  "examples": [
+                    "my_password"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "profileName": {
+                  "examples": [
+                    "My Profile"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "solEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "tags": {
+                  "examples": [
+                    "tag1,tag2"
+                  ],
+                  "items": {
+                    "type": "string"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                },
+                "tenantId": {
+                  "examples": [
+                    "abc123"
+                  ],
+                  "type": "string"
+                },
+                "tlsCerts": {
+                  "properties": {
+                    "issuedCertificate": {
+                      "properties": {
+                        "cert": {
+                          "type": "string"
+                        },
+                        "certBin": {
+                          "type": "string"
+                        },
+                        "checked": {
+                          "examples": [
+                            true
+                          ],
+                          "type": "boolean"
+                        },
+                        "h:": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "format": "byte",
+                          "type": "string"
+                        },
+                        "pem": {
+                          "type": "string"
+                        },
+                        "privateKey": {
+                          "type": "string"
+                        },
+                        "privateKeyBin": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "rootCertificate": {
+                      "properties": {
+                        "cert": {
+                          "type": "string"
+                        },
+                        "certBin": {
+                          "type": "string"
+                        },
+                        "checked": {
+                          "examples": [
+                            true
+                          ],
+                          "type": "boolean"
+                        },
+                        "h:": {
+                          "type": "string"
+                        },
+                        "key": {
+                          "format": "byte",
+                          "type": "string"
+                        },
+                        "pem": {
+                          "type": "string"
+                        },
+                        "privateKey": {
+                          "type": "string"
+                        },
+                        "privateKeyBin": {
+                          "type": "string"
+                        }
+                      },
+                      "type": "object"
+                    },
+                    "version": {
+                      "type": "string"
+                    }
+                  },
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "tlsMode": {
+                  "examples": [
+                    1
+                  ],
+                  "type": [
+                    "integer",
+                    "null"
+                  ]
+                },
+                "tlsSigningAuthority": {
+                  "examples": [
+                    "SelfSigned"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "uefiWifiSyncEnabled": {
+                  "examples": [
+                    true
+                  ],
+                  "type": "boolean"
+                },
+                "userConsent": {
+                  "examples": [
+                    "All"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "version": {
+                  "examples": [
+                    "1.0.0"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "wifiConfigs": {
+                  "items": {
+                    "properties": {
+                      "priority": {
+                        "examples": [
+                          1
+                        ],
+                        "type": [
+                          "integer",
+                          "null"
+                        ]
+                      },
+                      "profileName": {
+                        "examples": [
+                          "My Profile"
+                        ],
+                        "type": "string"
+                      },
+                      "profileProfileName": {
+                        "examples": [
+                          "My Wireless Profile"
+                        ],
+                        "type": "string"
+                      },
+                      "tenantId": {
+                        "examples": [
+                          "abc123"
+                        ],
+                        "type": "string"
+                      }
+                    },
+                    "type": "object"
+                  },
+                  "type": [
+                    "array",
+                    "null"
+                  ]
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "WirelessConfig": {
+        "description": "WirelessConfig schema",
+        "properties": {
+          "authenticationMethod": {
+            "examples": [
+              1
+            ],
+            "type": "integer"
+          },
+          "encryptionMethod": {
+            "examples": [
+              3
+            ],
+            "type": "integer"
+          },
+          "ieee8021xProfileName": {
+            "examples": [
+              "My Profile"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "ieee8021xProfileObject": {
+            "properties": {
+              "authenticationProtocol": {
+                "examples": [
+                  1
+                ],
+                "type": "integer"
+              },
+              "profileName": {
+                "examples": [
+                  "My Profile"
+                ],
+                "type": "string"
+              },
+              "pxeTimeout": {
+                "examples": [
+                  60
+                ],
+                "type": [
+                  "integer",
+                  "null"
+                ]
+              },
+              "tenantId": {
+                "examples": [
+                  "abc123"
+                ],
+                "type": "string"
+              },
+              "version": {
+                "examples": [
+                  "1.0.0"
+                ],
+                "type": [
+                  "string",
+                  "null"
+                ]
+              },
+              "wiredInterface": {
+                "examples": [
+                  false
+                ],
+                "type": "boolean"
+              }
+            },
+            "type": [
+              "object",
+              "null"
+            ]
+          },
+          "linkPolicy": {
+            "items": {
+              "type": "integer"
+            },
+            "type": "array"
+          },
+          "profileName": {
+            "examples": [
+              "My Profile"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pskPassphrase": {
+            "examples": [
+              "abc"
+            ],
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "pskValue": {
+            "examples": [
+              3
+            ],
+            "type": "integer"
+          },
+          "ssid": {
+            "examples": [
+              "abc"
+            ],
+            "type": "string"
+          },
+          "tenantId": {
+            "examples": [
+              "abc123"
+            ],
+            "type": "string"
+          },
+          "version": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "WirelessConfigResponse": {
+        "description": "WirelessConfigResponse schema",
+        "properties": {
+          "data": {
+            "items": {
+              "properties": {
+                "authenticationMethod": {
+                  "examples": [
+                    1
+                  ],
+                  "type": "integer"
+                },
+                "encryptionMethod": {
+                  "examples": [
+                    3
+                  ],
+                  "type": "integer"
+                },
+                "ieee8021xProfileName": {
+                  "examples": [
+                    "My Profile"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "ieee8021xProfileObject": {
+                  "properties": {
+                    "authenticationProtocol": {
+                      "examples": [
+                        1
+                      ],
+                      "type": "integer"
+                    },
+                    "profileName": {
+                      "examples": [
+                        "My Profile"
+                      ],
+                      "type": "string"
+                    },
+                    "pxeTimeout": {
+                      "examples": [
+                        60
+                      ],
+                      "type": [
+                        "integer",
+                        "null"
+                      ]
+                    },
+                    "tenantId": {
+                      "examples": [
+                        "abc123"
+                      ],
+                      "type": "string"
+                    },
+                    "version": {
+                      "examples": [
+                        "1.0.0"
+                      ],
+                      "type": [
+                        "string",
+                        "null"
+                      ]
+                    },
+                    "wiredInterface": {
+                      "examples": [
+                        false
+                      ],
+                      "type": "boolean"
+                    }
+                  },
+                  "type": [
+                    "object",
+                    "null"
+                  ]
+                },
+                "linkPolicy": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "profileName": {
+                  "examples": [
+                    "My Profile"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pskPassphrase": {
+                  "examples": [
+                    "abc"
+                  ],
+                  "type": [
+                    "string",
+                    "null"
+                  ]
+                },
+                "pskValue": {
+                  "examples": [
+                    3
+                  ],
+                  "type": "integer"
+                },
+                "ssid": {
+                  "examples": [
+                    "abc"
+                  ],
+                  "type": "string"
+                },
+                "tenantId": {
+                  "examples": [
+                    "abc123"
+                  ],
+                  "type": "string"
+                },
+                "version": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalCount": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "string": {
+        "description": "string schema",
+        "type": [
+          "string",
+          "null"
+        ]
+      },
+      "unknown-interface": {
+        "description": "unknown-interface schema"
+      }
+    }
+  },
+  "info": {
+    "description": "\nThis is the autogenerated OpenAPI documentation for your [Fuego](https://github.com/go-fuego/fuego) API.\n\nBelow is a Fuego Cheatsheet to help you get started. Don't hesitate to check the [Fuego documentation](https://go-fuego.dev) for more details.\n\nHappy coding! 🔥\n\n## Usage\n\n### Route registration\n\n```go\nfunc main() {\n\t// Create a new server\n\ts := fuego.NewServer()\n\n\t// Register some routes\n\tfuego.Post(s, \"/hello\", myController)\n\tfuego.Get(s, \"/myPath\", otherController)\n\tfuego.Put(s, \"/hello\", thirdController)\n\n\tadminRoutes := fuego.Group(s, \"/admin\")\n\tfuego.Use(adminRoutes, myMiddleware) // This middleware (for authentication, etc...) will be available for routes starting by /admin/*, \n\tfuego.Get(adminRoutes, \"/hello\", groupController) // This route will be available at /admin/hello\n\n\t// Start the server\n\ts.Start()\n}\n```\n\n### Basic controller\n\n```go\ntype MyBody struct {\n\tName string `json:\"name\" validate:\"required,max=30\"`\n}\n\ntype MyResponse struct {\n\tAnswer string `json:\"answer\"`\n}\n\nfunc hello(ctx fuego.ContextWithBody[MyBody]) (*MyResponse, error) {\n\tbody, err := ctx.Body()\n\tif err != nil {\n\t\treturn nil, err\n\t}\n\n\treturn \u0026MyResponse{Answer: \"Hello \" + body.Name}, nil\n}\n```\n\n### Add openAPI information to the route\n\n```go\nimport (\n\t\"github.com/go-fuego/fuego\"\n\t\"github.com/go-fuego/fuego/option\"\n\t\"github.com/go-fuego/fuego/param\"\n)\n\nfunc main() {\n\ts := fuego.NewServer()\n\n\t// Custom OpenAPI options\n\tfuego.Post(s, \"/\", myController\n\t\toption.Description(\"This route does something...\"),\n\t\toption.Summary(\"This is my summary\"),\n\t\toption.Tags(\"MyTag\"), // A tag is set by default according to the return type (can be deactivated)\n\t\toption.Deprecated(), // Marks the route as deprecated in the OpenAPI spec\n\n\t\toption.Query(\"name\", \"Declares a query parameter with default value\", param.Default(\"Carmack\")),\n\t\toption.Header(\"Authorization\", \"Bearer token\", param.Required()),\n\t\toptionPagination,\n\t\toptionCustomBehavior,\n\t)\n\n\ts.Run()\n}\n\nvar optionPagination = option.Group(\n\toption.QueryInt(\"page\", \"Page number\", param.Default(1), param.Example(\"1st page\", 1), param.Example(\"42nd page\", 42)),\n\toption.QueryInt(\"perPage\", \"Number of items per page\"),\n)\n\nvar optionCustomBehavior = func(r *fuego.BaseRoute) {\n\tr.XXX = \"YYY\"\n}\n```\n\nThen, in the controller\n\n```go\ntype MyResponse struct {\n\tAnswer string `json:\"answer\"`\n}\n\nfunc getAllPets(ctx fuego.ContextNoBody) (*MyResponse, error) {\n\tname := ctx.QueryParam(\"name\")\n\tperPage, _ := ctx.QueryParamIntErr(\"per_page\")\n\n\treturn \u0026MyResponse{Answer: \"Hello \" + name}, nil\n}\n```\n",
+    "title": "OpenAPI",
+    "version": "0.0.1"
+  },
+  "openapi": "3.1.0",
+  "paths": {
+    "/api/v1/admin/ciraconfigs": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getCIRAConfigs`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve all CIRA configurations with optional pagination",
+        "operationId": "GET_/api/v1/admin/ciraconfigs",
+        "parameters": [
+          {
+            "description": "Number of records to return",
+            "in": "query",
+            "name": "$top",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of records to skip",
+            "in": "query",
+            "name": "$skip",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include total count",
+            "in": "query",
+            "name": "$count",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfigResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfigResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "List CIRA Configurations",
+        "tags": [
+          "CIRA Configurations"
+        ]
+      },
+      "patch": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).updateCIRAConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nUpdate an existing CIRA configuration",
+        "operationId": "PATCH_/api/v1/admin/ciraconfigs",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/CIRAConfig"
+              }
+            }
+          },
+          "description": "Request body for dto.CIRAConfig",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Update CIRA Configuration",
+        "tags": [
+          "CIRA Configurations"
+        ]
+      },
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).createCIRAConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nCreate a new CIRA configuration",
+        "operationId": "POST_/api/v1/admin/ciraconfigs",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/CIRAConfig"
+              }
+            }
+          },
+          "description": "Request body for dto.CIRAConfig",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Create CIRA Configuration",
+        "tags": [
+          "CIRA Configurations"
+        ]
+      }
+    },
+    "/api/v1/admin/ciraconfigs/{name}": {
+      "delete": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).deleteCIRAConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nDelete a CIRA configuration by name",
+        "operationId": "DELETE_/api/v1/admin/ciraconfigs/:name",
+        "parameters": [
+          {
+            "description": "Configuration name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Delete CIRA Configuration",
+        "tags": [
+          "CIRA Configurations"
+        ]
+      },
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getCIRAConfigByName`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve a specific CIRA configuration by name",
+        "operationId": "GET_/api/v1/admin/ciraconfigs/:name",
+        "parameters": [
+          {
+            "description": "Configuration name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/CIRAConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get CIRA Configuration by Name",
+        "tags": [
+          "CIRA Configurations"
+        ]
+      }
+    },
+    "/api/v1/admin/ieee8021xconfigs": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getIEEE8021xConfigs`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve all IEEE 802.1x configurations with optional pagination",
+        "operationId": "GET_/api/v1/admin/ieee8021xconfigs",
+        "parameters": [
+          {
+            "description": "Number of records to return",
+            "in": "query",
+            "name": "$top",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of records to skip",
+            "in": "query",
+            "name": "$skip",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include total count",
+            "in": "query",
+            "name": "$count",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfigResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfigResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "List IEEE 802.1x Configurations",
+        "tags": [
+          "IEEE 802.1x Configurations"
+        ]
+      },
+      "patch": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).updateIEEE8021xConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nUpdate an existing IEEE 802.1x configuration",
+        "operationId": "PATCH_/api/v1/admin/ieee8021xconfigs",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/IEEE8021xConfig"
+              }
+            }
+          },
+          "description": "Request body for dto.IEEE8021xConfig",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Update IEEE 802.1x Configuration",
+        "tags": [
+          "IEEE 802.1x Configurations"
+        ]
+      },
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).createIEEE8021xConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nCreate a new IEEE 802.1x configuration",
+        "operationId": "POST_/api/v1/admin/ieee8021xconfigs",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/IEEE8021xConfig"
+              }
+            }
+          },
+          "description": "Request body for dto.IEEE8021xConfig",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Create IEEE 802.1x Configuration",
+        "tags": [
+          "IEEE 802.1x Configurations"
+        ]
+      }
+    },
+    "/api/v1/admin/ieee8021xconfigs/{name}": {
+      "delete": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).deleteIEEE8021xConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nDelete an IEEE 802.1x configuration by name",
+        "operationId": "DELETE_/api/v1/admin/ieee8021xconfigs/:name",
+        "parameters": [
+          {
+            "description": "Configuration name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Delete IEEE 802.1x Configuration",
+        "tags": [
+          "IEEE 802.1x Configurations"
+        ]
+      },
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getIEEE8021xConfigByName`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve a specific IEEE 802.1x configuration by name",
+        "operationId": "GET_/api/v1/admin/ieee8021xconfigs/:name",
+        "parameters": [
+          {
+            "description": "Configuration name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/IEEE8021xConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get IEEE 802.1x Configuration by Name",
+        "tags": [
+          "IEEE 802.1x Configurations"
+        ]
+      }
+    },
+    "/api/v1/admin/profiles": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getProfiles`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve all profiles with optional pagination",
+        "operationId": "GET_/api/v1/admin/profiles",
+        "parameters": [
+          {
+            "description": "Number of records to return",
+            "in": "query",
+            "name": "$top",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of records to skip",
+            "in": "query",
+            "name": "$skip",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include total count",
+            "in": "query",
+            "name": "$count",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/ProfileResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "List Profiles",
+        "tags": [
+          "Profiles"
+        ]
+      },
+      "patch": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).updateProfile`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nUpdate an existing profile",
+        "operationId": "PATCH_/api/v1/admin/profiles",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/Profile"
+              }
+            }
+          },
+          "description": "Request body for dto.Profile",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Update Profile",
+        "tags": [
+          "Profiles"
+        ]
+      },
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).createProfile`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nCreate a new profile",
+        "operationId": "POST_/api/v1/admin/profiles",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/Profile"
+              }
+            }
+          },
+          "description": "Request body for dto.Profile",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Create Profile",
+        "tags": [
+          "Profiles"
+        ]
+      }
+    },
+    "/api/v1/admin/profiles/export/{name}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).exportProfile`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nExport a profile configuration",
+        "operationId": "GET_/api/v1/admin/profiles/export/:name",
+        "parameters": [
+          {
+            "description": "Profile name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Domain name for export",
+            "in": "query",
+            "name": "domainName",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/ExportResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Export Profile",
+        "tags": [
+          "Profiles"
+        ]
+      }
+    },
+    "/api/v1/admin/profiles/{name}": {
+      "delete": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).deleteProfile`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nDelete a profile by name",
+        "operationId": "DELETE_/api/v1/admin/profiles/:name",
+        "parameters": [
+          {
+            "description": "Profile name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Delete Profile",
+        "tags": [
+          "Profiles"
+        ]
+      },
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getProfileByName`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve a specific profile by name",
+        "operationId": "GET_/api/v1/admin/profiles/:name",
+        "parameters": [
+          {
+            "description": "Profile name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Profile"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Profile by Name",
+        "tags": [
+          "Profiles"
+        ]
+      }
+    },
+    "/api/v1/admin/wirelessconfigs": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getWirelessConfigs`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve all wireless configurations with optional pagination",
+        "operationId": "GET_/api/v1/admin/wirelessconfigs",
+        "parameters": [
+          {
+            "description": "Number of records to return",
+            "in": "query",
+            "name": "$top",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Number of records to skip",
+            "in": "query",
+            "name": "$skip",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
+            "description": "Include total count",
+            "in": "query",
+            "name": "$count",
+            "schema": {
+              "type": "boolean"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfigResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfigResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "List Wireless Configurations",
+        "tags": [
+          "Wireless Configurations"
+        ]
+      },
+      "patch": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).updateWirelessConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nUpdate an existing wireless configuration",
+        "operationId": "PATCH_/api/v1/admin/wirelessconfigs",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/WirelessConfig"
+              }
+            }
+          },
+          "description": "Request body for dto.WirelessConfig",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Update Wireless Configuration",
+        "tags": [
+          "Wireless Configurations"
+        ]
+      },
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).createWirelessConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nCreate a new wireless configuration",
+        "operationId": "POST_/api/v1/admin/wirelessconfigs",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/WirelessConfig"
+              }
+            }
+          },
+          "description": "Request body for dto.WirelessConfig",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Create Wireless Configuration",
+        "tags": [
+          "Wireless Configurations"
+        ]
+      }
+    },
+    "/api/v1/admin/wirelessconfigs/{name}": {
+      "delete": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).deleteWirelessConfig`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nDelete a wireless configuration by profile name",
+        "operationId": "DELETE_/api/v1/admin/wirelessconfigs/:name",
+        "parameters": [
+          {
+            "description": "Profile name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/DeleteResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Delete Wireless Configuration",
+        "tags": [
+          "Wireless Configurations"
+        ]
+      },
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getWirelessConfigByName`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nRetrieve a specific wireless configuration by profile name",
+        "operationId": "GET_/api/v1/admin/wirelessconfigs/:name",
+        "parameters": [
+          {
+            "description": "Profile name",
+            "in": "path",
+            "name": "name",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfig"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/WirelessConfig"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Wireless Configuration by Name",
+        "tags": [
+          "Wireless Configurations"
+        ]
+      }
+    },
+    "/api/v1/amt/features/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getAMTFeatures`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet AMT features enabled on device",
+        "operationId": "GET_/api/v1/amt/features/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get AMT Features",
+        "tags": [
+          "AMT Device Management"
+        ]
+      },
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).setAMTFeatures`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nConfigure AMT features on device",
+        "operationId": "POST_/api/v1/amt/features/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/Features"
+              }
+            }
+          },
+          "description": "Request body for dto.Features",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Set AMT Features",
+        "tags": [
+          "AMT Device Management"
+        ]
+      }
+    },
+    "/api/v1/amt/hardwareInfo/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getHardwareInfo`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet hardware information from AMT device",
+        "operationId": "GET_/api/v1/amt/hardwareInfo/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Hardware Information",
+        "tags": [
+          "AMT Device Management"
+        ]
+      }
+    },
+    "/api/v1/amt/kvm/displays/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getKVMDisplays`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet KVM display settings for AMT device",
+        "operationId": "GET_/api/v1/amt/kvm/displays/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get KVM Display Settings",
+        "tags": [
+          "AMT KVM"
+        ]
+      },
+      "put": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).setKVMDisplays`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nConfigure KVM display settings for AMT device",
+        "operationId": "PUT_/api/v1/amt/kvm/displays/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "description": "Generic response object",
+                "type": "object"
+              }
+            }
+          },
+          "description": "Request body for map[string]interface {}",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Set KVM Display Settings",
+        "tags": [
+          "AMT KVM"
+        ]
+      }
+    },
+    "/api/v1/amt/log/audit/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getAuditLog`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet audit log from AMT device",
+        "operationId": "GET_/api/v1/amt/log/audit/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Audit Log",
+        "tags": [
+          "AMT Logging"
+        ]
+      }
+    },
+    "/api/v1/amt/log/event/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getEventLog`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet event log from AMT device",
+        "operationId": "GET_/api/v1/amt/log/event/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Event Log",
+        "tags": [
+          "AMT Logging"
+        ]
+      }
+    },
+    "/api/v1/amt/networkSettings/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getNetworkSettings`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet network settings from AMT device",
+        "operationId": "GET_/api/v1/amt/networkSettings/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Network Settings",
+        "tags": [
+          "AMT Network Management"
+        ]
+      }
+    },
+    "/api/v1/amt/power/action/{guid}": {
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).powerAction`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nPerform power action on AMT device",
+        "operationId": "POST_/api/v1/amt/power/action/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/PowerAction"
+              }
+            }
+          },
+          "description": "Request body for dto.PowerAction",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Power Action",
+        "tags": [
+          "AMT Power Management"
+        ]
+      }
+    },
+    "/api/v1/amt/power/bootSources/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getBootSources`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet available boot sources for AMT device",
+        "operationId": "GET_/api/v1/amt/power/bootSources/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BootSources"
+                  },
+                  "type": "array"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BootSources"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Boot Sources",
+        "tags": [
+          "AMT Power Management"
+        ]
+      }
+    },
+    "/api/v1/amt/power/capabilities/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getPowerCapabilities`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet power capabilities of AMT device",
+        "operationId": "GET_/api/v1/amt/power/capabilities/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerCapabilities"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerCapabilities"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Power Capabilities",
+        "tags": [
+          "AMT Power Management"
+        ]
+      }
+    },
+    "/api/v1/amt/power/state/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getPowerState`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet current power state of AMT device",
+        "operationId": "GET_/api/v1/amt/power/state/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerState"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerState"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Power State",
+        "tags": [
+          "AMT Power Management"
+        ]
+      }
+    },
+    "/api/v1/amt/userConsentCode/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getUserConsentCode`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet user consent code for AMT device",
+        "operationId": "GET_/api/v1/amt/userConsentCode/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get User Consent Code",
+        "tags": [
+          "AMT User Consent"
+        ]
+      },
+      "post": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).sendConsentCode`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nSend user consent code to AMT device",
+        "operationId": "POST_/api/v1/amt/userConsentCode/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/ConsentCodeRequest"
+              }
+            }
+          },
+          "description": "Request body for http.ConsentCodeRequest",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Send Consent Code",
+        "tags": [
+          "AMT User Consent"
+        ]
+      }
+    },
+    "/api/v1/amt/version/{guid}": {
+      "get": {
+        "description": "#### Controller: \n\n`github.com/device-management-toolkit/console/internal/controller/http.(*FuegoAdapter).getAMTVersion`\n\n#### Middlewares:\n\n- `github.com/go-fuego/fuego.defaultLogger.middleware`\n\n---\n\nGet AMT firmware version information for a device",
+        "operationId": "GET_/api/v1/amt/version/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "description": "Generic response object",
+                  "type": "object"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get AMT Version",
+        "tags": [
+          "AMT Device Management"
+        ]
+      }
+    }
+  },
+  "tags": [
+    {
+      "name": "AMT Device Management"
+    },
+    {
+      "name": "AMT KVM"
+    },
+    {
+      "name": "AMT Logging"
+    },
+    {
+      "name": "AMT Network Management"
+    },
+    {
+      "name": "AMT Power Management"
+    },
+    {
+      "name": "AMT User Consent"
+    },
+    {
+      "name": "CIRA Configurations"
+    },
+    {
+      "name": "IEEE 802.1x Configurations"
+    },
+    {
+      "name": "Profiles"
+    },
+    {
+      "name": "Wireless Configurations"
+    }
+  ]
+}

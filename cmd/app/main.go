@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -12,6 +13,9 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/internal/openapi"
+	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // Function pointers for better testability.
@@ -22,6 +26,10 @@ var (
 )
 
 func main() {
+	// Parse command line flags
+	generateOpenAPI := flag.Bool("generate-openapi", false, "Generate OpenAPI 3.1.0 specification and exit")
+	flag.Parse()
+
 	cfg, err := initializeConfigFunc()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)
@@ -30,6 +38,12 @@ func main() {
 	err = initializeAppFunc(cfg)
 	if err != nil {
 		log.Fatalf("App init error: %s", err)
+	}
+
+	// Handle OpenAPI generation if requested
+	if *generateOpenAPI {
+		handleOpenAPIGeneration(cfg)
+		return
 	}
 
 	handleEncryptionKey(cfg)
@@ -44,6 +58,30 @@ func main() {
 	}
 
 	runAppFunc(cfg)
+}
+
+// handleOpenAPIGeneration generates OpenAPI specification and exits
+func handleOpenAPIGeneration(cfg *config.Config) {
+	
+	// Create logger and usecases (minimal setup for generation)
+	l := logger.New("info")
+	usecases := usecase.Usecases{}
+
+	// Create OpenAPI generator
+	generator := openapi.NewGenerator(usecases, l)
+
+	// Generate specification
+	spec, endpointCount, fixedCount, err := generator.GenerateSpec()
+	if err != nil {
+		log.Fatal(err)
+	}
+
+	// Save to file
+	if err := generator.SaveSpec(spec, "docs/openapi.json"); err != nil {
+		log.Fatal(err)
+	}
+
+	log.Printf("Generated OpenAPI spec: %d endpoints, %d fixes applied → docs/openapi.json", endpointCount, fixedCount)
 }
 
 func handleEncryptionKey(cfg *config.Config) {

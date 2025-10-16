@@ -11,6 +11,8 @@
 
 Console is an application that provides a 1:1, direct connection for AMT devices for use in an enterprise environment. Users can add activated AMT devices to access device information and device management functionality such as power control, remote keyboard-video-mouse (KVM) control, and more.
 
+Console features **modern OpenAPI 3.1.0 documentation** that's automatically generated from Go code, providing comprehensive API reference for developers integrating with the management endpoints.
+
 ## Quick Start for Users
 
 ### 1. Download Console
@@ -134,6 +136,12 @@ make run
 
 This will use the `DB_URL` you configured in `.env`.
 
+#### Generate OpenAPI Documentation
+
+```sh
+# Generate comprehensive OpenAPI 3.1.0 specification
+go run ./cmd/app/main.go -generate-openapi
+
 ### 4. Running the Frontend
 
 ```sh
@@ -160,6 +168,7 @@ Before contributing code changes, familiarize yourself with:
 
 - [Console Architecture Overview](https://github.com/device-management-toolkit/console/wiki/Architecture-Overview)
 - [Console Data Storage Documentation](https://github.com/device-management-toolkit/console/wiki/Console-Data-Storage)
+- **API Documentation**: Access at `http://localhost:8181/api/docs` when running locally, or generate with `go run ./cmd/app/main.go -generate-openapi`
 
 ## Dev tips for passing CI Checks
 

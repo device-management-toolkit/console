@@ -37,6 +37,11 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
 
+	// Initialize Fuego adapter for OpenAPI 3.0+ generation
+	fuegoAdapter := NewFuegoAdapter(t, l)
+	fuegoAdapter.RegisterRoutes()
+	fuegoAdapter.AddToGinRouter(handler)
+
 	// Public routes
 	login := v1.NewLoginRoute(cfg)
 	handler.POST("/api/v1/authorize", login.Login)
