@@ -71,7 +71,9 @@ func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
 func validatorErrorHandle(c *gin.Context, err validator.ValidationErrors) {
 	var errorMessage string
 
-	for _, validationErr := range err {
+	// Use the first validation error
+	if len(err) > 0 {
+		validationErr := err[0]
 		field := validationErr.Field()
 		tag := validationErr.Tag()
 
@@ -91,8 +93,6 @@ func validatorErrorHandle(c *gin.Context, err validator.ValidationErrors) {
 		default:
 			errorMessage = fmt.Sprintf("%s is invalid", field)
 		}
-
-		break // Use the first validation error
 	}
 
 	c.AbortWithStatusJSON(http.StatusBadRequest, response{errorMessage})

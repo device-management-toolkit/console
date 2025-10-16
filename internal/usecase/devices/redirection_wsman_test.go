@@ -6,13 +6,14 @@ import (
 	"errors"
 	"testing"
 
+	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips"
-	"github.com/stretchr/testify/mock"
-	"github.com/stretchr/testify/require"
 )
 
 var ErrGeneralWsman = errors.New("general error")

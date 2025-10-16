@@ -5,12 +5,13 @@ import (
 	"encoding/xml"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+	gomock "go.uber.org/mock/gomock"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
-	"github.com/stretchr/testify/require"
-	gomock "go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
