@@ -55,6 +55,7 @@ func TestUsecases(t *testing.T) {
 			initializeFunc: func() *Usecases {
 				mockDB := mocks.NewMockSQLDB()
 				mockLogger := mocks.NewMockLogger(nil)
+
 				setupConfig()
 
 				return NewUseCases(mockDB, mockLogger)
