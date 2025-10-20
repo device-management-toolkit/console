@@ -4,6 +4,15 @@ import (
 	"time"
 )
 
+type DeviceCountResponse struct {
+	Count int      `json:"totalCount"`
+	Data  []Device `json:"data"`
+}
+type DeviceStatResponse struct {
+	TotalCount        int `json:"totalCount"`
+	ConnectedCount    int `json:"connectedCount"`
+	DisconnectedCount int `json:"disconnectedCount"`
+}
 type Device struct {
 	ConnectionStatus bool        `json:"connectionStatus"`
 	MPSInstance      string      `json:"mpsInstance"`

@@ -99,7 +99,7 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 				}}, nil)
 				domain.EXPECT().GetCount(context.Background(), "").Return(1, nil)
 			},
-			response:     ProfileCountResponse{Count: 1, Data: []dto.Profile{{ProfileName: "profile"}}},
+			response:     dto.ProfileCountResponse{Count: 1, Data: []dto.Profile{{ProfileName: "profile"}}},
 			expectedCode: http.StatusOK,
 		},
 		{

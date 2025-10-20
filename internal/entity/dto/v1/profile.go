@@ -17,7 +17,7 @@ type Profile struct {
 	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false,omitempty,len=0|min=8,max=32,containsany=$@$!%*#?&-_~^" example:"my_password"`
 	GenerateRandomMEBxPassword bool                 `json:"generateRandomMEBxPassword" example:"true"`
 	CIRAConfigObject           *CIRAConfig          `json:"ciraConfigObject,omitempty"`
-	Tags                       []string             `json:"tags,omitempty" example:"tag1,tag2"`
+	Tags                       []string             `json:"tags,omitempty"`
 	DHCPEnabled                bool                 `json:"dhcpEnabled" example:"true"`
 	IPSyncEnabled              bool                 `json:"ipSyncEnabled" example:"true"`
 	LocalWiFiSyncEnabled       bool                 `json:"localWifiSyncEnabled" example:"true"`
@@ -64,4 +64,15 @@ var ValidateUserConsent validator.Func = func(fl validator.FieldLevel) bool {
 	}
 
 	return userConsent == "none" || userConsent == "kvm" || userConsent == "all"
+}
+
+type ProfileCountResponse struct {
+	Count int       `json:"totalCount"`
+	Data  []Profile `json:"data"`
+}
+
+type ProfileExportResponse struct {
+	Content  string `json:"content"`
+	Filename string `json:"filename"`
+	Key      string `json:"key"`
 }
