@@ -76,7 +76,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 				}}, nil)
 				ciraconfig.EXPECT().GetCount(context.Background(), "").Return(1, nil)
 			},
-			response:     CIRAConfigCountResponse{Count: 1, Data: []dto.CIRAConfig{{ConfigName: "config"}}},
+			response:     dto.CIRAConfigCountResponse{Count: 1, Data: []dto.CIRAConfig{{ConfigName: "config"}}},
 			expectedCode: http.StatusOK,
 		},
 		{
