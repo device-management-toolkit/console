@@ -6,7 +6,8 @@
     {
       "name": "beta",
       "prerelease": "beta"
-    }
+    },
+    { "name": "licensegen", "prerelease": "license-test" }
   ],
   "plugins": [
     [
