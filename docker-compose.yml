@@ -5,7 +5,7 @@ services:
     networks:
       - openamtnetwork1
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - pg-data:/var/lib/postgresql
     environment:
       POSTGRES_USER: "postgresadmin"
       POSTGRES_PASSWORD: "admin123"
