@@ -82,7 +82,7 @@ func TestIEEE8021xConfigsRoutes(t *testing.T) {
 				}}, nil)
 				ieeeConfig.EXPECT().GetCount(context.Background(), "").Return(1, nil)
 			},
-			response:     IEEE8021xConfigCountResponse{Count: 1, Data: []dto.IEEE8021xConfig{{ProfileName: "profile"}}},
+			response:     dto.IEEE8021xConfigCountResponse{Count: 1, Data: []dto.IEEE8021xConfig{{ProfileName: "profile"}}},
 			expectedCode: http.StatusOK,
 		},
 		{

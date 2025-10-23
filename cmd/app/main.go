@@ -12,6 +12,9 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/internal/controller/openapi"
+	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // Function pointers for better testability.
@@ -19,6 +22,13 @@ var (
 	initializeConfigFunc = config.NewConfig
 	initializeAppFunc    = app.Init
 	runAppFunc           = app.Run
+	// NewGeneratorFunc allows tests to inject a fake OpenAPI generator.
+	NewGeneratorFunc = func(u usecase.Usecases, l logger.Interface) interface {
+		GenerateSpec() ([]byte, error)
+		SaveSpec([]byte, string) error
+	} {
+		return openapi.NewGenerator(u, l)
+	}
 )
 
 func main() {
@@ -41,9 +51,37 @@ func main() {
 				panic(browserError)
 			}
 		}()
+	} else {
+		err = handleOpenAPIGeneration()
+		if err != nil {
+			log.Fatalf("Failed to generate OpenAPI spec: %s", err)
+		}
 	}
 
 	runAppFunc(cfg)
+}
+
+func handleOpenAPIGeneration() error {
+	l := logger.New("info")
+	usecases := usecase.Usecases{}
+
+	// Create OpenAPI generator
+	generator := NewGeneratorFunc(usecases, l)
+
+	// Generate specification
+	spec, err := generator.GenerateSpec()
+	if err != nil {
+		return err
+	}
+
+	// Save to file
+	if err := generator.SaveSpec(spec, "doc/openapi.json"); err != nil {
+		return err
+	}
+
+	log.Println("OpenAPI specification generated at doc/openapi.json")
+
+	return nil
 }
 
 func handleEncryptionKey(cfg *config.Config) {

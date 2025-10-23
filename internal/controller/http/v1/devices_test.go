@@ -78,7 +78,7 @@ func TestDevicesRoutes(t *testing.T) {
 				}}, nil)
 				device.EXPECT().GetCount(context.Background(), "").Return(1, nil)
 			},
-			response:     DeviceCountResponse{Count: 1, Data: []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}}},
+			response:     dto.DeviceCountResponse{Count: 1, Data: []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}}},
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -276,7 +276,7 @@ func TestDevicesRoutes(t *testing.T) {
 			mock: func(device *mocks.MockDeviceManagementFeature) {
 				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
 			},
-			response:     DeviceStatResponse{TotalCount: 5},
+			response:     dto.DeviceStatResponse{TotalCount: 5},
 			expectedCode: http.StatusOK,
 		},
 	}

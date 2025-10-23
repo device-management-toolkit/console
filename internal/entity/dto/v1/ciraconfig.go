@@ -6,6 +6,11 @@ const (
 	ServerAddressFormatURL  = 201
 )
 
+type CIRAConfigCountResponse struct {
+	Count int          `json:"totalCount"`
+	Data  []CIRAConfig `json:"data"`
+}
+
 type CIRAConfig struct {
 	ConfigName          string `json:"configName" example:"My CIRA Config"`
 	MPSAddress          string `json:"mpsServerAddress" binding:"required,url|ipv4|ipv6" example:"https://example.com"`

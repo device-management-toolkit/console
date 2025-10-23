@@ -1,8 +1,8 @@
 module github.com/device-management-toolkit/console
 
-go 1.24.0
+go 1.24.2
 
-toolchain go1.24.1
+toolchain go1.24.9
 
 // replace github.com/device-management-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
@@ -34,10 +34,17 @@ require (
 require (
 	al.essio.dev/pkg/shellescape v1.5.1 // indirect
 	github.com/danieljoos/wincred v1.2.2 // indirect
+	github.com/getkin/kin-openapi v0.131.0 // indirect
+	github.com/go-fuego/fuego v0.18.8 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.3 // indirect
 	github.com/goccy/go-yaml v1.18.0 // indirect
 	github.com/godbus/dbus/v5 v5.1.0 // indirect
+	github.com/gorilla/schema v1.4.1 // indirect
+	github.com/mohae/deepcopy v0.0.0-20170929034955-c48cc78d4826 // indirect
 	github.com/munnerz/goautoneg v0.0.0-20191010083416-a7dc8b61c822 // indirect
+	github.com/oasdiff/yaml v0.0.0-20250309154309-f31be36b4037 // indirect
+	github.com/oasdiff/yaml3 v0.0.0-20250309153720-d2182401db90 // indirect
+	github.com/perimeterx/marshmallow v1.1.5 // indirect
 	github.com/quic-go/qpack v0.5.1 // indirect
 	github.com/quic-go/quic-go v0.54.1 // indirect
 	github.com/zalando/go-keyring v0.2.6 // indirect

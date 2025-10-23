@@ -41,11 +41,6 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 	}
 }
 
-type ProfileCountResponse struct {
-	Count int           `json:"totalCount"`
-	Data  []dto.Profile `json:"data"`
-}
-
 // @Summary     Show Profiles
 // @Description Show all profiles
 // @ID          profiles
@@ -79,7 +74,7 @@ func (r *profileRoutes) get(c *gin.Context) {
 			ErrorResponse(c, err)
 		}
 
-		countResponse := ProfileCountResponse{
+		countResponse := dto.ProfileCountResponse{
 			Count: count,
 			Data:  items,
 		}
@@ -90,13 +85,13 @@ func (r *profileRoutes) get(c *gin.Context) {
 	}
 }
 
-// @Summary     Show Profiles
+// @Summary     Show Profile
 // @Description Show profile by name
 // @ID          profile
 // @Tags              profiles
 // @Accept      json
 // @Produce     json
-// @Success     200 {object} ProfileCountResponse
+// @Success     200 {object} dto.Profile
 // @Failure     500 {object} response
 // @Router      /api/v1/admin/profiles/:name [get]
 
@@ -120,7 +115,7 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 // @Tags              profiles
 // @Accept      json
 // @Produce     json
-// @Success     200 {object} Profile
+// @Success     200 {object} dto.ProfileExportResponse
 // @Failure     500 {object} response
 // @Router      /api/v1/admin/profiles/export/:name [get]
 
@@ -136,11 +131,11 @@ func (r *profileRoutes) export(c *gin.Context) {
 		return
 	}
 
-	// Create a JSON response containing the YAML file and the key
-	response := gin.H{
-		"filename": name + ".yaml",
-		"content":  item,
-		"key":      key,
+	// Create response using the DTO type
+	response := dto.ProfileExportResponse{
+		Filename: name + ".yaml",
+		Content:  item,
+		Key:      key,
 	}
 
 	c.JSON(http.StatusOK, response)

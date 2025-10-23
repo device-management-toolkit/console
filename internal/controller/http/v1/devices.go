@@ -42,16 +42,6 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 	}
 }
 
-type DeviceCountResponse struct {
-	Count int          `json:"totalCount"`
-	Data  []dto.Device `json:"data"`
-}
-type DeviceStatResponse struct {
-	TotalCount        int `json:"totalCount"`
-	ConnectedCount    int `json:"connectedCount"`
-	DisconnectedCount int `json:"disconnectedCount"`
-}
-
 // @Summary     Gets Device Count
 // @Description Gets number of devices
 // @ID          getStats
@@ -70,7 +60,7 @@ func (dr *deviceRoutes) getStats(c *gin.Context) {
 		return
 	}
 
-	countResponse := DeviceStatResponse{
+	countResponse := dto.DeviceStatResponse{
 		TotalCount: count,
 	}
 
@@ -169,7 +159,7 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 			return
 		}
 
-		countResponse := DeviceCountResponse{
+		countResponse := dto.DeviceCountResponse{
 			Count: count,
 			Data:  items,
 		}

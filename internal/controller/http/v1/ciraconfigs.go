@@ -28,11 +28,6 @@ func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logg
 	}
 }
 
-type CIRAConfigCountResponse struct {
-	Count int              `json:"totalCount"`
-	Data  []dto.CIRAConfig `json:"data"`
-}
-
 func (r *ciraConfigRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -59,7 +54,7 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 			return
 		}
 
-		countResponse := CIRAConfigCountResponse{
+		countResponse := dto.CIRAConfigCountResponse{
 			Count: count,
 			Data:  configs,
 		}
