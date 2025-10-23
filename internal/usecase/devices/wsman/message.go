@@ -1,6 +1,7 @@
 package wsman
 
 import (
+	"context"
 	gotls "crypto/tls"
 	"sync"
 	"time"
@@ -114,7 +115,7 @@ func (g GoWSMANMessages) Worker() {
 	}
 }
 
-func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) Management {
+func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) Management {
 	resultChan := make(chan *ConnectionEntry)
 	// Queue the request
 	requestQueue <- func() {
@@ -122,7 +123,12 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 		resultChan <- g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
 	}
 
-	return <-resultChan
+	select {
+	case entry := <-resultChan:
+		return entry
+	case <-ctx.Done():
+		return nil
+	}
 }
 
 func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) *ConnectionEntry {
