@@ -69,33 +69,41 @@ func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
 }
 
 func validatorErrorHandle(c *gin.Context, err validator.ValidationErrors) {
-	var errorMessage string
+	var errorMessages []string
 
-	// Use the first validation error
-	if len(err) > 0 {
-		validationErr := err[0]
+	// Collect ALL validation errors, not just the first one
+	for _, validationErr := range err {
 		field := validationErr.Field()
 		tag := validationErr.Tag()
 
 		switch tag {
 		case "required":
-			errorMessage = fmt.Sprintf("%s is required", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s is required", field))
 		case "alphanum":
-			errorMessage = fmt.Sprintf("%s must contain only alphanumeric characters (letters and numbers)", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s must contain only alphanumeric characters (letters and numbers)", field))
 		case "min":
-			errorMessage = fmt.Sprintf("%s is too short", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s is too short", field))
 		case "max":
-			errorMessage = fmt.Sprintf("%s is too long", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s is too long", field))
 		case "lte":
-			errorMessage = fmt.Sprintf("%s exceeds maximum length", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s exceeds maximum length", field))
+		case "gte":
+			errorMessages = append(errorMessages, fmt.Sprintf("%s is below minimum value", field))
+		case "gt":
+			errorMessages = append(errorMessages, fmt.Sprintf("%s must be greater than minimum", field))
+		case "lt":
+			errorMessages = append(errorMessages, fmt.Sprintf("%s must be less than maximum", field))
 		case "oneof":
-			errorMessage = fmt.Sprintf("%s contains an invalid value", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s contains an invalid value", field))
+		case "number":
+			errorMessages = append(errorMessages, fmt.Sprintf("%s must be a valid number", field))
 		default:
-			errorMessage = fmt.Sprintf("%s is invalid", field)
+			errorMessages = append(errorMessages, fmt.Sprintf("%s is invalid", field))
 		}
 	}
 
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{errorMessage})
+	// Return all validation errors in array format to match frontend expectations
+	c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"errors": errorMessages})
 }
 
 func notFoundErrorHandle(c *gin.Context, err sqldb.NotFoundError) {
