@@ -31,9 +31,11 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, "DEVELOPMENT", cfg.Version)
 	assert.Equal(t, "test", cfg.EncryptionKey)
 
+	assert.Equal(t, "localhost", cfg.Host)
 	assert.Equal(t, "8181", cfg.Port)
 	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
 	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)
+	assert.Equal(t, true, cfg.TLS.Enabled)
 
 	assert.Equal(t, "info", cfg.Level)
 
@@ -47,6 +49,7 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	os.Setenv("LOG_LEVEL", "debug")
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://user:password@localhost:5432/testdb")
+	os.Setenv("HTTP_TLS_ENABLED", "false")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -60,6 +63,7 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	assert.Equal(t, "debug", cfg.Level)
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://user:password@localhost:5432/testdb", cfg.DB.URL)
+	assert.Equal(t, false, cfg.TLS.Enabled)
 }
 
 func TestNewConfig_FileAndEnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
