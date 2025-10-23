@@ -9,6 +9,11 @@ http:
   port: "8181"
   # set to true for WAN settings where bandwidth is a concern, false for LAN/low latency/high bandwidth
   ws_compression: false
+  tls:
+    enabled: true
+    # If certFile/keyFile are both empty and enabled is true, a self-signed certificate will be generated at runtime.
+    certFile: ""
+    keyFile: ""
   allowed_origins:
     - "*"
   allowed_headers:
