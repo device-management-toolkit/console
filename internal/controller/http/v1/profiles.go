@@ -41,15 +41,6 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 	}
 }
 
-// @Summary     Show Profiles
-// @Description Show all profiles
-// @ID          profiles
-// @Tags  	    profiles
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} ProfileCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/profiles [get]
 func (r *profileRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -85,16 +76,6 @@ func (r *profileRoutes) get(c *gin.Context) {
 	}
 }
 
-// @Summary     Show Profile
-// @Description Show profile by name
-// @ID          profile
-// @Tags              profiles
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} dto.Profile
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/profiles/:name [get]
-
 func (r *profileRoutes) getByName(c *gin.Context) {
 	name := c.Param("name")
 
@@ -108,16 +89,6 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 
 	c.JSON(http.StatusOK, item)
 }
-
-// @Summary     Export Profile
-// @Description Export profile by name
-// @ID          export-profile
-// @Tags              profiles
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} dto.ProfileExportResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/profiles/export/:name [get]
 
 func (r *profileRoutes) export(c *gin.Context) {
 	name := c.Param("name")
@@ -141,16 +112,6 @@ func (r *profileRoutes) export(c *gin.Context) {
 	c.JSON(http.StatusOK, response)
 }
 
-// @Summary     Add Profile
-// @Description Add Profile
-// @ID          profiles
-// @Tags              profiles
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} ProfileResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/profiles [post]
-
 func (r *profileRoutes) insert(c *gin.Context) {
 	var profile dto.Profile
 	if err := c.ShouldBindJSON(&profile); err != nil {
@@ -171,16 +132,6 @@ func (r *profileRoutes) insert(c *gin.Context) {
 	c.JSON(http.StatusCreated, newProfile)
 }
 
-// @Summary     Edit Profile
-// @Description Edit a Profile
-// @ID          updateProfile
-// @Tags              profiles
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} ProfileResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/Profiles [patch]
-
 func (r *profileRoutes) update(c *gin.Context) {
 	var profile dto.Profile
 	if err := c.ShouldBindJSON(&profile); err != nil {
@@ -200,16 +151,6 @@ func (r *profileRoutes) update(c *gin.Context) {
 
 	c.JSON(http.StatusOK, updatedProfile)
 }
-
-// @Summary     Remove Profiles
-// @Description Remove a Profile
-// @ID          deleteProfile
-// @Tags              profiles
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/profiles [delete]
 
 func (r *profileRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
