@@ -94,7 +94,6 @@ cp .env.example .env
 Edit `.env` as needed. For local dev, set:
 
 ```sh
-DISABLE_SWAGGER_HTTP_HANDLER=true
 GIN_MODE=debug
 # DB_URL=postgres://postgresadmin:admin123@localhost:5432/rpsdb  # uncomment for Postgres
 ```
