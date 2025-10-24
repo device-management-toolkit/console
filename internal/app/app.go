@@ -30,6 +30,9 @@ func Run(cfg *config.Config) {
 	log := logger.New(cfg.Level)
 	cfg.Version = Version
 	log.Info("app - Run - version: " + cfg.Version)
+	// route standard and Gin logs through our JSON logger
+	logger.SetupStdLog(log)
+	logger.SetupGin(log)
 	// Repository
 	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.PoolMax), db.EnableForeignKeys(true))
 	if err != nil {
@@ -73,7 +76,17 @@ func Run(cfg *config.Config) {
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
-	httpServer := httpserver.New(handler, httpserver.Port(cfg.Host, cfg.Port))
+	// Configure TLS based on config
+	tlsEnabled := cfg.TLS.Enabled
+	certFile := cfg.TLS.CertFile
+	keyFile := cfg.TLS.KeyFile
+
+	httpServer := httpserver.New(
+		handler,
+		httpserver.Port(cfg.Host, cfg.Port),
+		httpserver.TLS(tlsEnabled, certFile, keyFile),
+		httpserver.Logger(log),
+	)
 
 	// Waiting signal
 	interrupt := make(chan os.Signal, 1)

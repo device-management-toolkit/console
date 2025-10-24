@@ -40,6 +40,14 @@ type (
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
 		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
+		TLS            TLS      `yaml:"tls"`
+	}
+
+	// TLS -.
+	TLS struct {
+		Enabled  bool   `yaml:"enabled" env:"HTTP_TLS_ENABLED"`
+		CertFile string `yaml:"certFile" env:"HTTP_TLS_CERT_FILE"`
+		KeyFile  string `yaml:"keyFile" env:"HTTP_TLS_KEY_FILE"`
 	}
 
 	// Log -.
@@ -85,10 +93,9 @@ type (
 	}
 )
 
-// NewConfig returns app config.
-func NewConfig() (*Config, error) {
-	// set defaults
-	ConsoleConfig = &Config{
+// defaultConfig constructs the in-memory default configuration.
+func defaultConfig() *Config {
+	return &Config{
 		App: App{
 			Name:                 "console",
 			Repo:                 "device-management-toolkit/console",
@@ -102,6 +109,11 @@ func NewConfig() (*Config, error) {
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},
 			WSCompression:  true,
+			TLS: TLS{
+				Enabled:  true,
+				CertFile: "",
+				KeyFile:  "",
+			},
 		},
 		Log: Log{
 			Level: "info",
@@ -135,6 +147,62 @@ func NewConfig() (*Config, error) {
 			},
 		},
 	}
+}
+
+// resolveConfigPath determines the effective config file path based on a flag value or default location.
+func resolveConfigPath(configPathFlag string) (string, error) {
+	if configPathFlag != "" {
+		return configPathFlag, nil
+	}
+
+	ex, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	exPath := filepath.Dir(ex)
+
+	return filepath.Join(exPath, "config", "config.yml"), nil
+}
+
+// readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
+func readOrInitConfig(configPath string, cfg *Config) error {
+	err := cleanenv.ReadConfig(configPath, cfg)
+	if err == nil {
+		return nil
+	}
+
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		// Write config file out to disk
+		configDir := filepath.Dir(configPath)
+		if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+			return mkErr
+		}
+
+		file, cErr := os.Create(configPath)
+		if cErr != nil {
+			return cErr
+		}
+		defer file.Close()
+
+		encoder := yaml.NewEncoder(file)
+		defer encoder.Close()
+
+		if encErr := encoder.Encode(cfg); encErr != nil {
+			return encErr
+		}
+
+		return nil
+	}
+
+	return err
+}
+
+// NewConfig returns app config.
+func NewConfig() (*Config, error) {
+	// set defaults
+	ConsoleConfig = defaultConfig()
 
 	// Define a command line flag for the config path
 	var configPathFlag string
@@ -142,50 +210,21 @@ func NewConfig() (*Config, error) {
 		flag.StringVar(&configPathFlag, "config", "", "path to config file")
 	}
 
-	flag.Parse()
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
 	// Determine the config path
-	var configPath string
-	if configPathFlag != "" {
-		configPath = configPathFlag
-	} else {
-		ex, err := os.Executable()
-		if err != nil {
-			panic(err)
-		}
-
-		exPath := filepath.Dir(ex)
-
-		configPath = filepath.Join(exPath, "config", "config.yml")
-	}
-
-	err := cleanenv.ReadConfig(configPath, ConsoleConfig)
-
-	var pathErr *os.PathError
-
-	if errors.As(err, &pathErr) {
-		// Write config file out to disk
-		configDir := filepath.Dir(configPath)
-		if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
-			return nil, err
-		}
-
-		file, err := os.Create(configPath)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		encoder := yaml.NewEncoder(file)
-		defer encoder.Close()
-
-		if err := encoder.Encode(ConsoleConfig); err != nil {
-			return nil, err
-		}
-	}
-
-	err = cleanenv.ReadEnv(ConsoleConfig)
+	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
+		return nil, err
+	}
+
+	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
 		return nil, err
 	}
 

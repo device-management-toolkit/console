@@ -46,7 +46,12 @@ func main() {
 
 	if os.Getenv("GIN_MODE") != "debug" {
 		go func() {
-			browserError := openBrowser("http://localhost:"+cfg.Port, runtime.GOOS)
+			scheme := "http"
+			if cfg.TLS.Enabled {
+				scheme = "https"
+			}
+
+			browserError := openBrowser(scheme+"://localhost:"+cfg.Port, runtime.GOOS)
 			if browserError != nil {
 				panic(browserError)
 			}
