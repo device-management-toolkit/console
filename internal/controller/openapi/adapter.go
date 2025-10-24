@@ -47,6 +47,9 @@ func (f *FuegoAdapter) RegisterRoutes() {
 
 	// Devices
 	f.RegisterDeviceRoutes()
+
+	// Device Management
+	f.RegisterDeviceManagementRoutes()
 }
 
 // Generates OpenAPI specification as JSON.

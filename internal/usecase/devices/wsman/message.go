@@ -553,7 +553,7 @@ func (g *ConnectionEntry) CancelUserConsentRequest() (dto.UserConsentMessage, er
 	}
 
 	return dto.UserConsentMessage{
-		Name:        response.Body.CancelOptInResponse.XMLName,
+		Name:        dto.FromXMLName(response.Body.CancelOptInResponse.XMLName),
 		ReturnValue: response.Body.CancelOptInResponse.ReturnValue,
 	}, nil
 }
@@ -574,7 +574,7 @@ func (g *ConnectionEntry) SendConsentCode(code int) (dto.UserConsentMessage, err
 	}
 
 	return dto.UserConsentMessage{
-		Name:        response.Body.SendOptInCodeResponse.XMLName,
+		Name:        dto.FromXMLName(response.Body.SendOptInCodeResponse.XMLName),
 		ReturnValue: response.Body.SendOptInCodeResponse.ReturnValue,
 	}, nil
 }

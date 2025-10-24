@@ -279,7 +279,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: gomock.Any(),
+			res: dto.HardwareInfo{},
 			err: nil,
 		},
 		{
@@ -291,7 +291,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.HardwareInfo{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -310,7 +310,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.HardwareInfo{},
 			err: ErrGeneral,
 		},
 	}

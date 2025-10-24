@@ -1,6 +1,217 @@
 {
   "components": {
     "schemas": {
+      "": {
+        "description": " schema"
+      },
+      "AddAlarmOutput": {
+        "description": "AddAlarmOutput schema",
+        "properties": {
+          "ReturnValue": {
+            "example": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "AlarmClockOccurrence": {
+        "description": "AlarmClockOccurrence schema",
+        "properties": {
+          "DeleteOnCompletion": {
+            "example": true,
+            "type": "boolean"
+          },
+          "ElementName": {
+            "example": "test",
+            "type": "string"
+          },
+          "InstanceID": {
+            "example": "test",
+            "type": "string"
+          },
+          "Interval": {
+            "example": 1,
+            "type": "integer"
+          },
+          "IntervalInMinutes": {
+            "example": 1,
+            "type": "integer"
+          },
+          "StartTime": {
+            "properties": {
+              "Datetime": {
+                "example": "2024-01-01T00:00:00Z",
+                "format": "date-time",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "AlarmClockOccurrenceInput": {
+        "description": "AlarmClockOccurrenceInput schema",
+        "properties": {
+          "DeleteOnCompletion": {
+            "example": true,
+            "type": "boolean"
+          },
+          "ElementName": {
+            "example": "test",
+            "type": "string"
+          },
+          "InstanceID": {
+            "example": "test",
+            "type": "string"
+          },
+          "Interval": {
+            "example": 1,
+            "type": "integer"
+          },
+          "StartTime": {
+            "format": "date-time",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "AuditLog": {
+        "description": "AuditLog schema",
+        "properties": {
+          "records": {
+            "items": {
+              "properties": {
+                "AuditApp": {
+                  "example": "Security Admin",
+                  "type": "string"
+                },
+                "AuditAppId": {
+                  "example": 0,
+                  "type": "integer"
+                },
+                "Event": {
+                  "example": "Provisioning Started",
+                  "type": "string"
+                },
+                "EventId": {
+                  "example": 0,
+                  "type": "integer"
+                },
+                "Ex": {
+                  "example": "",
+                  "type": "string"
+                },
+                "ExStr": {
+                  "example": "Remote WSAMN",
+                  "type": "string"
+                },
+                "Initiator": {
+                  "example": "Local",
+                  "type": "string"
+                },
+                "InitiatorType": {
+                  "example": 0,
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "MCLocationType": {
+                  "example": 0,
+                  "maximum": 255,
+                  "minimum": 0,
+                  "type": "integer"
+                },
+                "NetAddress": {
+                  "example": "127.0.0.1",
+                  "type": "string"
+                },
+                "Time": {
+                  "example": "2023-04-19T20:38:20.000Z",
+                  "format": "date-time",
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "totalCnt": {
+            "example": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "BootSetting": {
+        "description": "BootSetting schema",
+        "properties": {
+          "action": {
+            "example": 8,
+            "type": "integer"
+          },
+          "bootDetails": {
+            "properties": {
+              "bootPath": {
+                "example": "\\OemPba.efi",
+                "type": "string"
+              },
+              "enforceSecureBoot": {
+                "example": true,
+                "type": "boolean"
+              },
+              "password": {
+                "example": "password",
+                "type": "string"
+              },
+              "url": {
+                "example": "https://",
+                "type": "string"
+              },
+              "username": {
+                "example": "admin",
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "useSOL": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "BootSources": {
+        "description": "BootSources schema",
+        "properties": {
+          "biosBootString": {
+            "example": "string",
+            "type": "string"
+          },
+          "bootString": {
+            "example": "string",
+            "type": "string"
+          },
+          "elementName": {
+            "example": "Intel® AMT: Boot Source",
+            "type": "string"
+          },
+          "failThroughSupported": {
+            "example": 2,
+            "type": "integer"
+          },
+          "instanceID": {
+            "example": "Intel® AMT: Force Hard-drive Boot",
+            "type": "string"
+          },
+          "structuredBiosBootString": {
+            "example": "CIM:Hard-Disk:1",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
       "CIRAConfig": {
         "description": "CIRAConfig schema",
         "nullable": true,
@@ -135,6 +346,20 @@
         },
         "type": "object"
       },
+      "CertInfo": {
+        "description": "CertInfo schema",
+        "properties": {
+          "cert": {
+            "example": "-----BEGIN CERTIFICATE-----\n...",
+            "type": "string"
+          },
+          "isTrusted": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
       "Certificate": {
         "description": "Certificate schema",
         "properties": {
@@ -174,6 +399,16 @@
             "type": "string"
           },
           "sha256Fingerprint": {
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "DeleteAlarmOccurrenceRequest": {
+        "description": "DeleteAlarmOccurrenceRequest schema",
+        "properties": {
+          "Name": {
+            "example": "test",
             "type": "string"
           }
         },
@@ -393,6 +628,192 @@
         },
         "type": "object"
       },
+      "DiskInfo": {
+        "description": "DiskInfo schema",
+        "properties": {
+          "CIM_MediaAccessDevice": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_PhysicalPackage": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "EventLogs": {
+        "description": "EventLogs schema",
+        "properties": {
+          "hasMoreRecords": {
+            "type": "boolean"
+          },
+          "records": {
+            "items": {
+              "properties": {
+                "Desc": {
+                  "type": "string"
+                },
+                "DeviceAddress": {
+                  "type": "integer"
+                },
+                "Entity": {
+                  "type": "string"
+                },
+                "EntityInstance": {
+                  "type": "integer"
+                },
+                "EntityStr": {
+                  "type": "string"
+                },
+                "EventData": {
+                  "items": {
+                    "type": "integer"
+                  },
+                  "type": "array"
+                },
+                "EventOffset": {
+                  "type": "integer"
+                },
+                "EventSensorType": {
+                  "type": "integer"
+                },
+                "EventSeverity": {
+                  "type": "string"
+                },
+                "EventSourceType": {
+                  "type": "integer"
+                },
+                "EventType": {
+                  "type": "integer"
+                },
+                "SensorNumber": {
+                  "type": "integer"
+                },
+                "Time": {
+                  "type": "string"
+                },
+                "eventTypeDesc": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "Features": {
+        "description": "Features schema",
+        "properties": {
+          "enableIDER": {
+            "example": true,
+            "type": "boolean"
+          },
+          "enableKVM": {
+            "example": true,
+            "type": "boolean"
+          },
+          "enableSOL": {
+            "example": true,
+            "type": "boolean"
+          },
+          "httpsBootSupported": {
+            "example": true,
+            "type": "boolean"
+          },
+          "kvmAvailable": {
+            "example": true,
+            "type": "boolean"
+          },
+          "localPBABootSupported": {
+            "example": true,
+            "type": "boolean"
+          },
+          "ocr": {
+            "example": true,
+            "type": "boolean"
+          },
+          "optInState": {
+            "example": 0,
+            "type": "integer"
+          },
+          "redirection": {
+            "example": true,
+            "type": "boolean"
+          },
+          "remoteErase": {
+            "example": true,
+            "type": "boolean"
+          },
+          "userConsent": {
+            "example": "kvm",
+            "type": "string"
+          },
+          "winREBootSupported": {
+            "example": true,
+            "type": "boolean"
+          }
+        },
+        "type": "object"
+      },
+      "GetUserConsentMessage": {
+        "description": "GetUserConsentMessage schema",
+        "properties": {
+          "Body": {
+            "properties": {
+              "ReturnValue": {
+                "type": "integer"
+              },
+              "XMLName": {
+                "properties": {
+                  "Local": {
+                    "example": "StartOptIn_OUTPUT",
+                    "type": "string"
+                  },
+                  "Space": {
+                    "example": "http://schemas.xmlsoap.org/ws/2004/08/addressing",
+                    "nullable": true,
+                    "type": "string"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "HTTPError": {
         "description": "HTTPError schema",
         "properties": {
@@ -443,6 +864,156 @@
             "description": "URL of the error type. Can be used to lookup the error in a documentation",
             "nullable": true,
             "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "HardwareInfo": {
+        "description": "HardwareInfo schema",
+        "properties": {
+          "CIM_BIOSElement": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_Card": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_Chassis": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_Chip": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_ComputerSystemPackage": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_PhysicalMemory": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_Processor": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_SystemPackaging": {
+            "nullable": true,
+            "properties": {
+              "response": {
+                "nullable": true
+              },
+              "responses": {
+                "items": {},
+                "nullable": true,
+                "type": "array"
+              },
+              "status": {
+                "nullable": true,
+                "type": "integer"
+              }
+            },
+            "type": "object"
           }
         },
         "type": "object"
@@ -518,6 +1089,473 @@
             "type": "array"
           },
           "totalCount": {
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "KVMScreenSettings": {
+        "description": "KVMScreenSettings schema",
+        "properties": {
+          "displays": {
+            "items": {
+              "properties": {
+                "displayIndex": {
+                  "type": "integer"
+                },
+                "isActive": {
+                  "type": "boolean"
+                },
+                "isDefault": {
+                  "type": "boolean"
+                },
+                "resolutionX": {
+                  "type": "integer"
+                },
+                "resolutionY": {
+                  "type": "integer"
+                },
+                "role": {
+                  "nullable": true,
+                  "type": "string"
+                },
+                "upperLeftX": {
+                  "type": "integer"
+                },
+                "upperLeftY": {
+                  "type": "integer"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "KVMScreenSettingsRequest": {
+        "description": "KVMScreenSettingsRequest schema",
+        "properties": {
+          "displayIndex": {
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "NetworkSettings": {
+        "description": "NetworkSettings schema",
+        "properties": {
+          "wired": {
+            "nullable": true,
+            "properties": {
+              "consoleTCPMaxRetransmissions": {
+                "nullable": true,
+                "type": "integer"
+              },
+              "defaultGateway": {
+                "type": "string"
+              },
+              "dhcpEnabled": {
+                "type": "boolean"
+              },
+              "elementName": {
+                "type": "string"
+              },
+              "ieee8021x": {
+                "properties": {
+                  "availableInS0": {
+                    "type": "boolean"
+                  },
+                  "enabled": {
+                    "type": "string"
+                  },
+                  "pxeTimeout": {
+                    "type": "integer"
+                  }
+                },
+                "type": "object"
+              },
+              "instanceID": {
+                "type": "string"
+              },
+              "ipAddress": {
+                "type": "string"
+              },
+              "ipSyncEnabled": {
+                "type": "boolean"
+              },
+              "linkControl": {
+                "nullable": true,
+                "type": "string"
+              },
+              "linkIsUp": {
+                "type": "boolean"
+              },
+              "linkPolicy": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "linkPreference": {
+                "nullable": true,
+                "type": "string"
+              },
+              "macAddress": {
+                "type": "string"
+              },
+              "physicalConnectionType": {
+                "type": "string"
+              },
+              "physicalNICMedium": {
+                "type": "string"
+              },
+              "primaryDNS": {
+                "type": "string"
+              },
+              "secondaryDNS": {
+                "type": "string"
+              },
+              "sharedDynamicIP": {
+                "type": "boolean"
+              },
+              "sharedMAC": {
+                "type": "boolean"
+              },
+              "sharedStaticIP": {
+                "type": "boolean"
+              },
+              "subnetMask": {
+                "type": "string"
+              },
+              "vlanTag": {
+                "type": "integer"
+              },
+              "wlanLinkProtectionLevel": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          },
+          "wireless": {
+            "nullable": true,
+            "properties": {
+              "consoleTCPMaxRetransmissions": {
+                "nullable": true,
+                "type": "integer"
+              },
+              "defaultGateway": {
+                "type": "string"
+              },
+              "dhcpEnabled": {
+                "type": "boolean"
+              },
+              "elementName": {
+                "type": "string"
+              },
+              "ieee8021xSettings": {
+                "items": {
+                  "properties": {
+                    "authenticationProtocol": {
+                      "type": "integer"
+                    },
+                    "domain": {
+                      "type": "string"
+                    },
+                    "pacPassword": {
+                      "type": "string"
+                    },
+                    "password": {
+                      "type": "string"
+                    },
+                    "protectedAccessCredential": {
+                      "type": "string"
+                    },
+                    "psk": {
+                      "type": "string"
+                    },
+                    "roamingIdentity": {
+                      "type": "string"
+                    },
+                    "serverCertificateName": {
+                      "type": "string"
+                    },
+                    "serverCertificateNameComparison": {
+                      "type": "integer"
+                    },
+                    "username": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "instanceID": {
+                "type": "string"
+              },
+              "ipAddress": {
+                "type": "string"
+              },
+              "ipSyncEnabled": {
+                "type": "boolean"
+              },
+              "linkControl": {
+                "nullable": true,
+                "type": "string"
+              },
+              "linkIsUp": {
+                "type": "boolean"
+              },
+              "linkPolicy": {
+                "items": {
+                  "type": "string"
+                },
+                "type": "array"
+              },
+              "linkPreference": {
+                "nullable": true,
+                "type": "string"
+              },
+              "macAddress": {
+                "type": "string"
+              },
+              "physicalConnectionType": {
+                "type": "string"
+              },
+              "physicalNICMedium": {
+                "type": "string"
+              },
+              "primaryDNS": {
+                "type": "string"
+              },
+              "secondaryDNS": {
+                "type": "string"
+              },
+              "sharedDynamicIP": {
+                "type": "boolean"
+              },
+              "sharedMAC": {
+                "type": "boolean"
+              },
+              "sharedStaticIP": {
+                "type": "boolean"
+              },
+              "subnetMask": {
+                "type": "string"
+              },
+              "vlanTag": {
+                "type": "integer"
+              },
+              "wifiNetworks": {
+                "items": {
+                  "properties": {
+                    "authenticationMethod": {
+                      "type": "string"
+                    },
+                    "bsstype": {
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "type": "string"
+                    },
+                    "encryptionMethod": {
+                      "type": "string"
+                    },
+                    "priority": {
+                      "type": "integer"
+                    },
+                    "ssid": {
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              },
+              "wifiPortConfigService": {
+                "properties": {
+                  "creationClassName": {
+                    "type": "string"
+                  },
+                  "elementName": {
+                    "type": "string"
+                  },
+                  "enabledState": {
+                    "type": "integer"
+                  },
+                  "healthState": {
+                    "type": "integer"
+                  },
+                  "lastConnectedSsidUnderMeControl": {
+                    "type": "string"
+                  },
+                  "localProfileSynchronizationEnabled": {
+                    "type": "integer"
+                  },
+                  "name": {
+                    "type": "string"
+                  },
+                  "noHostCsmeSoftwarePolicy": {
+                    "type": "integer"
+                  },
+                  "requestedState": {
+                    "type": "integer"
+                  },
+                  "systemCreationClassName": {
+                    "type": "string"
+                  },
+                  "systemName": {
+                    "type": "string"
+                  },
+                  "uefiWiFiProfileShareEnabled": {
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              },
+              "wlanLinkProtectionLevel": {
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "PowerAction": {
+        "description": "PowerAction schema",
+        "properties": {
+          "action": {
+            "example": 8,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PowerActionResponse": {
+        "description": "PowerActionResponse schema",
+        "properties": {
+          "ReturnValue": {
+            "example": 0,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PowerCapabilities": {
+        "description": "PowerCapabilities schema",
+        "properties": {
+          "Hibernate": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power cycle": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power down": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power on to IDE-R CDROM": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power on to IDE-R Floppy": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power on to PXE": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power on to diagnostic": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power up": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Power up to BIOS": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset to BIOS": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset to IDE-R CDROM": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset to IDE-R Floppy": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset to PXE": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset to Secure Erase": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Reset to diagnostic": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Sleep": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Soft-off": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          },
+          "Soft-reset": {
+            "example": 0,
+            "nullable": true,
+            "type": "integer"
+          }
+        },
+        "type": "object"
+      },
+      "PowerState": {
+        "description": "PowerState schema",
+        "properties": {
+          "osPowerSavingState": {
+            "example": 0,
+            "type": "integer"
+          },
+          "powerstate": {
+            "example": 0,
             "type": "integer"
           }
         },
@@ -1153,6 +2191,435 @@
         },
         "type": "object"
       },
+      "SecuritySettings": {
+        "description": "SecuritySettings schema",
+        "properties": {
+          "certificates": {
+            "properties": {
+              "keyManagementItems": {
+                "items": {
+                  "properties": {
+                    "creationClassName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "enabledDefault": {
+                      "nullable": true,
+                      "type": "integer"
+                    },
+                    "enabledState": {
+                      "nullable": true,
+                      "type": "integer"
+                    },
+                    "name": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "requestedState": {
+                      "nullable": true,
+                      "type": "integer"
+                    },
+                    "systemCreationClassName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "systemName": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "nullable": true,
+                "type": "array"
+              },
+              "publicKeyCertificateItems": {
+                "items": {
+                  "properties": {
+                    "associatedProfiles": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "nullable": true,
+                      "type": "array"
+                    },
+                    "displayName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "instanceID": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "publicKeyHandle": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "readOnlyCertificate": {
+                      "type": "boolean"
+                    },
+                    "subject": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "trustedRootCertificate": {
+                      "type": "boolean"
+                    },
+                    "x509Certificate": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "nullable": true,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          },
+          "profileAssociation": {
+            "items": {
+              "properties": {
+                "clientCertificate": {
+                  "nullable": true,
+                  "properties": {
+                    "associatedProfiles": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "nullable": true,
+                      "type": "array"
+                    },
+                    "displayName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "instanceID": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "publicKeyHandle": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "readOnlyCertificate": {
+                      "type": "boolean"
+                    },
+                    "subject": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "trustedRootCertificate": {
+                      "type": "boolean"
+                    },
+                    "x509Certificate": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "profileID": {
+                  "type": "string"
+                },
+                "publicKey": {
+                  "nullable": true,
+                  "properties": {
+                    "certificateHandle": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "derKey": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "instanceID": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "rootCertificate": {
+                  "nullable": true,
+                  "properties": {
+                    "associatedProfiles": {
+                      "items": {
+                        "type": "string"
+                      },
+                      "nullable": true,
+                      "type": "array"
+                    },
+                    "displayName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "instanceID": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "issuer": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "publicKeyHandle": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "readOnlyCertificate": {
+                      "type": "boolean"
+                    },
+                    "subject": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "trustedRootCertificate": {
+                      "type": "boolean"
+                    },
+                    "x509Certificate": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": {
+                  "type": "string"
+                }
+              },
+              "type": "object"
+            },
+            "type": "array"
+          },
+          "publicKeys": {
+            "properties": {
+              "publicPrivateKeyPairItems": {
+                "items": {
+                  "properties": {
+                    "certificateHandle": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "derKey": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "elementName": {
+                      "nullable": true,
+                      "type": "string"
+                    },
+                    "instanceID": {
+                      "nullable": true,
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "nullable": true,
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "SettingDataResponse": {
+        "description": "SettingDataResponse schema",
+        "properties": {
+          "AcceptNonSecureConnections": {
+            "type": "boolean"
+          },
+          "ElementName": {
+            "nullable": true,
+            "type": "string"
+          },
+          "Enabled": {
+            "type": "boolean"
+          },
+          "InstanceID": {
+            "nullable": true,
+            "type": "string"
+          },
+          "MutualAuthentication": {
+            "type": "boolean"
+          },
+          "NonSecureConnectionsSupported": {
+            "nullable": true,
+            "type": "boolean"
+          },
+          "TrustedCN": {
+            "items": {
+              "type": "string"
+            },
+            "nullable": true,
+            "type": "array"
+          }
+        },
+        "type": "object"
+      },
+      "UserConsentCode": {
+        "description": "UserConsentCode schema",
+        "properties": {
+          "consentCode": {
+            "example": "123456",
+            "type": "string"
+          }
+        },
+        "type": "object"
+      },
+      "UserConsentMessage": {
+        "description": "UserConsentMessage schema",
+        "properties": {
+          "ReturnValue": {
+            "type": "integer"
+          },
+          "XMLName": {
+            "properties": {
+              "Local": {
+                "example": "StartOptIn_OUTPUT",
+                "type": "string"
+              },
+              "Space": {
+                "example": "http://schemas.xmlsoap.org/ws/2004/08/addressing",
+                "nullable": true,
+                "type": "string"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
+      "Version": {
+        "description": "Version schema",
+        "properties": {
+          "AMT_SetupAndConfigurationService": {
+            "properties": {
+              "response": {
+                "properties": {
+                  "ConfigurationServerFQDN": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "CreationClassName": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "DhcpDNSSuffix": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "ElementName": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "EnabledState": {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  "Name": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "PasswordModel": {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  "ProvisioningMode": {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  "ProvisioningServerOTP": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "ProvisioningState": {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  "RequestedState": {
+                    "nullable": true,
+                    "type": "integer"
+                  },
+                  "SystemCreationClassName": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "SystemName": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "TrustedDNSSuffix": {
+                    "nullable": true,
+                    "type": "string"
+                  },
+                  "ZeroTouchConfigurationEnabled": {
+                    "nullable": true,
+                    "type": "boolean"
+                  }
+                },
+                "type": "object"
+              }
+            },
+            "type": "object"
+          },
+          "CIM_SoftwareIdentity": {
+            "properties": {
+              "responses": {
+                "items": {
+                  "properties": {
+                    "InstanceID": {
+                      "type": "string"
+                    },
+                    "IsEntity": {
+                      "example": true,
+                      "type": "boolean"
+                    },
+                    "VersionString": {
+                      "example": "\u003cmajor\u003e.\u003cminor\u003e.\u003crevision\u003e.\u003cbuild\u003e",
+                      "type": "string"
+                    }
+                  },
+                  "type": "object"
+                },
+                "type": "array"
+              }
+            },
+            "type": "object"
+          }
+        },
+        "type": "object"
+      },
       "WirelessConfig": {
         "description": "WirelessConfig schema",
         "properties": {
@@ -1345,6 +2812,2336 @@
   },
   "openapi": "3.1.0",
   "paths": {
+    "/api/v1/admin/amt/alarmOccurrences/{guid}": {
+      "delete": {
+        "description": "Delete an alarm occurrence from a device",
+        "operationId": "DELETE_/api/v1/admin/amt/alarmOccurrences/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/DeleteAlarmOccurrenceRequest"
+              }
+            }
+          },
+          "description": "Request body for dto.DeleteAlarmOccurrenceRequest",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/unknown-interface"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/unknown-interface"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Delete Alarm Occurrence",
+        "tags": [
+          "Device Management"
+        ]
+      },
+      "get": {
+        "description": "Retrieve alarm occurrences for a device",
+        "operationId": "GET_/api/v1/admin/amt/alarmOccurrences/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlarmClockOccurrence"
+                  },
+                  "type": "array"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/AlarmClockOccurrence"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Alarm Occurrences",
+        "tags": [
+          "Device Management"
+        ]
+      },
+      "post": {
+        "description": "Create an alarm occurrence on a device",
+        "operationId": "POST_/api/v1/admin/amt/alarmOccurrences/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/AlarmClockOccurrenceInput"
+              }
+            }
+          },
+          "description": "Request body for dto.AlarmClockOccurrenceInput",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddAlarmOutput"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/AddAlarmOutput"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Create Alarm Occurrence",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/certificates/{guid}": {
+      "get": {
+        "description": "Retrieve certificate and key information for a device",
+        "operationId": "GET_/api/v1/admin/amt/certificates/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecuritySettings"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/SecuritySettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Certificates",
+        "tags": [
+          "Device Management"
+        ]
+      },
+      "post": {
+        "description": "Add a certificate to the device",
+        "operationId": "POST_/api/v1/admin/amt/certificates/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/CertInfo"
+              }
+            }
+          },
+          "description": "Request body for dto.CertInfo",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Add Certificate",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/diskInfo/{guid}": {
+      "get": {
+        "description": "Retrieve disk information for a device",
+        "operationId": "GET_/api/v1/admin/amt/diskInfo/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiskInfo"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/DiskInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Disk Info",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/explorer": {
+      "get": {
+        "description": "Retrieve supported AMT explorer calls",
+        "operationId": "GET_/api/v1/admin/amt/explorer",
+        "parameters": [
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/string"
+                  },
+                  "type": "array"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/string"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Explorer Calls",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/explorer/{guid}/{call}": {
+      "get": {
+        "description": "Execute an AMT explorer call on a device",
+        "operationId": "GET_/api/v1/admin/amt/explorer/:guid/:call",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Explorer call name",
+            "in": "path",
+            "name": "call",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/unknown-interface"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/unknown-interface"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Execute Explorer Call",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/features/{guid}": {
+      "get": {
+        "description": "Retrieve feature flags for a device",
+        "operationId": "GET_/api/v1/admin/amt/features/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Features",
+        "tags": [
+          "Device Management"
+        ]
+      },
+      "post": {
+        "description": "Update feature flags for a device",
+        "operationId": "POST_/api/v1/admin/amt/features/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/Features"
+              }
+            }
+          },
+          "description": "Request body for dto.Features",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Features"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Set Features",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/generalSettings/{guid}": {
+      "get": {
+        "description": "Retrieve general settings for a device",
+        "operationId": "GET_/api/v1/admin/amt/generalSettings/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get General Settings",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/hardwareInfo/{guid}": {
+      "get": {
+        "description": "Retrieve hardware information for a device",
+        "operationId": "GET_/api/v1/admin/amt/hardwareInfo/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HardwareInfo"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HardwareInfo"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Hardware Info",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/log/audit/{guid}": {
+      "get": {
+        "description": "Retrieve audit log entries for a device",
+        "operationId": "GET_/api/v1/admin/amt/log/audit/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "description": "Start index for pagination",
+            "in": "query",
+            "name": "startIndex",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLog"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/AuditLog"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Audit Log",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/log/audit/{guid}/download": {
+      "get": {
+        "description": "Download audit logs as CSV for a device",
+        "operationId": "GET_/api/v1/admin/amt/log/audit/:guid/download",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Download Audit Log",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/log/event/{guid}": {
+      "get": {
+        "description": "Retrieve event log entries for a device",
+        "operationId": "GET_/api/v1/admin/amt/log/event/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLogs"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/EventLogs"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Event Log",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/log/event/{guid}/download": {
+      "get": {
+        "description": "Download event logs as CSV for a device",
+        "operationId": "GET_/api/v1/admin/amt/log/event/:guid/download",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/string"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Download Event Log",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/networkSettings/{guid}": {
+      "get": {
+        "description": "Retrieve network settings for a device",
+        "operationId": "GET_/api/v1/admin/amt/networkSettings/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkSettings"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/NetworkSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Network Settings",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/power/action/{guid}": {
+      "post": {
+        "description": "Perform a power action on a device",
+        "operationId": "POST_/api/v1/admin/amt/power/action/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/PowerAction"
+              }
+            }
+          },
+          "description": "Request body for dto.PowerAction",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerActionResponse"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerActionResponse"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Perform Power Action",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/power/bootOptions/{guid}": {
+      "post": {
+        "description": "Set boot options on a device",
+        "operationId": "POST_/api/v1/admin/amt/power/bootOptions/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/BootSetting"
+              }
+            }
+          },
+          "description": "Request body for dto.BootSetting",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootSetting"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootSetting"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Set Boot Options",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/power/bootSources/{guid}": {
+      "get": {
+        "description": "Retrieve available boot sources for a device",
+        "operationId": "GET_/api/v1/admin/amt/power/bootSources/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BootSources"
+                  },
+                  "type": "array"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/BootSources"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Boot Sources",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/power/bootoptions/{guid}": {
+      "post": {
+        "description": "Set boot options on a device (alternate path)",
+        "operationId": "POST_/api/v1/admin/amt/power/bootoptions/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/BootSetting"
+              }
+            }
+          },
+          "description": "Request body for dto.BootSetting",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootSetting"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/BootSetting"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Set Boot Options (alt path)",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/power/capabilities/{guid}": {
+      "get": {
+        "description": "Retrieve power capabilities for a device",
+        "operationId": "GET_/api/v1/admin/amt/power/capabilities/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerCapabilities"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerCapabilities"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Power Capabilities",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/power/state/{guid}": {
+      "get": {
+        "description": "Retrieve the current power state of a device",
+        "operationId": "GET_/api/v1/admin/amt/power/state/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerState"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/PowerState"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Power State",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/tls/{guid}": {
+      "get": {
+        "description": "Retrieve TLS setting data for a device",
+        "operationId": "GET_/api/v1/admin/amt/tls/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingDataResponse"
+                  },
+                  "type": "array"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "items": {
+                    "$ref": "#/components/schemas/SettingDataResponse"
+                  },
+                  "type": "array"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get TLS Setting Data",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/userConsentCode/cancel/{guid}": {
+      "get": {
+        "description": "Cancel a previously issued user consent code for a device",
+        "operationId": "GET_/api/v1/admin/amt/userConsentCode/cancel/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              }
+            },
+            "description": "Successful cancellation"
+          }
+        },
+        "summary": "Cancel User Consent Code",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/userConsentCode/{guid}": {
+      "get": {
+        "description": "Retrieve the current user consent code for a device",
+        "operationId": "GET_/api/v1/admin/amt/userConsentCode/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserConsentMessage"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserConsentMessage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserConsentMessage"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/GetUserConsentMessage"
+                }
+              }
+            },
+            "description": "User consent code retrieved"
+          }
+        },
+        "summary": "Get User Consent Code",
+        "tags": [
+          "Device Management"
+        ]
+      },
+      "post": {
+        "description": "Send a user consent code to the device",
+        "operationId": "POST_/api/v1/admin/amt/userConsentCode/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/UserConsentCode"
+              }
+            }
+          },
+          "description": "Request body for dto.UserConsentCode",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/UserConsentMessage"
+                }
+              }
+            },
+            "description": "User consent code sent successfully"
+          }
+        },
+        "summary": "Send User Consent Code",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
+    "/api/v1/admin/amt/version/{guid}": {
+      "get": {
+        "description": "Retrieve AMT/software version information for a device",
+        "operationId": "GET_/api/v1/admin/amt/version/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/Version"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get Version",
+        "tags": [
+          "Device Management"
+        ]
+      }
+    },
     "/api/v1/admin/ciraconfigs": {
       "get": {
         "description": "Retrieve all CIRA configurations with optional pagination",
@@ -2865,6 +6662,171 @@
         "summary": "Get IEEE 802.1x Configuration by Name",
         "tags": [
           "IEEE 802.1x"
+        ]
+      }
+    },
+    "/api/v1/admin/kvm/displays/{guid}": {
+      "get": {
+        "description": "Retrieve current KVM display settings for a device",
+        "operationId": "GET_/api/v1/admin/kvm/displays/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KVMScreenSettings"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/KVMScreenSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Get KVM displays",
+        "tags": [
+          "Device Management"
+        ]
+      },
+      "put": {
+        "description": "Update KVM display settings for a device",
+        "operationId": "PUT_/api/v1/admin/kvm/displays/:guid",
+        "parameters": [
+          {
+            "description": "Device GUID",
+            "in": "path",
+            "name": "guid",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "in": "header",
+            "name": "Accept",
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "requestBody": {
+          "content": {
+            "*/*": {
+              "schema": {
+                "$ref": "#/components/schemas/KVMScreenSettingsRequest"
+              }
+            }
+          },
+          "description": "Request body for dto.KVMScreenSettingsRequest",
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/KVMScreenSettings"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/KVMScreenSettings"
+                }
+              }
+            },
+            "description": "OK"
+          },
+          "400": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Bad Request _(validation or deserialization error)_"
+          },
+          "500": {
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              },
+              "application/xml": {
+                "schema": {
+                  "$ref": "#/components/schemas/HTTPError"
+                }
+              }
+            },
+            "description": "Internal Server Error _(panics)_"
+          },
+          "default": {
+            "description": ""
+          }
+        },
+        "summary": "Set KVM displays",
+        "tags": [
+          "Device Management"
         ]
       }
     },
