@@ -46,7 +46,7 @@ func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.GetUs
 
 	response := dto.GetUserConsentMessage{
 		Body: dto.UserConsentMessage{
-			Name:        code.XMLName,
+			Name:        dto.FromXMLName(code.XMLName),
 			ReturnValue: code.ReturnValue,
 		},
 	}

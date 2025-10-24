@@ -142,7 +142,7 @@ func TestGetUserConsentCode(t *testing.T) {
 
 	response := dto.GetUserConsentMessage{
 		Body: dto.UserConsentMessage{
-			Name:        code.XMLName,
+			Name:        dto.FromXMLName(code.XMLName),
 			ReturnValue: code.ReturnValue,
 		},
 	}

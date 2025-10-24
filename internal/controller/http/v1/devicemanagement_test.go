@@ -209,10 +209,10 @@ func TestDeviceManagement(t *testing.T) {
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().GetHardwareInfo(context.Background(), "valid-guid").
-					Return(map[string]interface{}{"hardware": "info"}, nil)
+					Return(dto.HardwareInfo{}, nil)
 			},
 			expectedCode: http.StatusOK,
-			response:     map[string]interface{}{"hardware": "info"},
+			response:     dto.HardwareInfo{},
 		},
 		{
 			name:   "getDiskInfo - successful retrieval",
