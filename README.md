@@ -160,6 +160,19 @@ Before contributing code changes, familiarize yourself with:
 - [Console Architecture Overview](https://github.com/device-management-toolkit/console/wiki/Architecture-Overview)
 - [Console Data Storage Documentation](https://github.com/device-management-toolkit/console/wiki/Console-Data-Storage)
 
+### OpenAPI Documentation
+
+Console automatically generates OpenAPI documentation when running in debug mode:
+
+1. **Enable Debug Mode**: Set `GIN_MODE=debug` in your `.env` file
+2. **Run Console**: Start the application with `go run ./cmd/app/main.go`
+3. **Access OpenAPI Spec**: The OpenAPI specification is automatically generated and available at:
+   - JSON format: `http://localhost:8181/openapi.json`
+   - The spec is also written to `doc/openapi.json` in your project directory
+4. **To add API Documentation**: Check wiki `https://github.com/device-management-toolkit/console/wiki/API-Documentation-to-Console`
+
+> **Note**: OpenAPI generation only occurs in debug mode. Production builds will not expose these endpoints. 
+
 ## Dev tips for passing CI Checks
 
 - Install gofumpt `go install mvdan.cc/gofumpt@latest` (replaces gofmt)
