@@ -135,6 +135,10 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 		protocol = "https://"
 	}
 
+	if cfg.TLS.Enabled {
+		protocol = "https://"
+	}
+
 	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
 	if cfg.ClientID != "" {
 		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
