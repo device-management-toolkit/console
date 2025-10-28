@@ -656,10 +656,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetDeviceCertificate(c, guid 
 }
 
 // GetDiskInfo mocks base method.
-func (m *MockDeviceManagementFeature) GetDiskInfo(c context.Context, guid string) (any, error) {
+func (m *MockDeviceManagementFeature) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDiskInfo", c, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.DiskInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -717,10 +717,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetFeatures(ctx, guid any) *g
 }
 
 // GetGeneralSettings mocks base method.
-func (m *MockDeviceManagementFeature) GetGeneralSettings(ctx context.Context, guid string) (any, error) {
+func (m *MockDeviceManagementFeature) GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGeneralSettings", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.GeneralSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -732,10 +732,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetGeneralSettings(ctx, guid 
 }
 
 // GetHardwareInfo mocks base method.
-func (m *MockDeviceManagementFeature) GetHardwareInfo(ctx context.Context, guid string) (any, error) {
+func (m *MockDeviceManagementFeature) GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHardwareInfo", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.HardwareInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -822,10 +822,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetTLSSettingData(c, guid any
 }
 
 // GetUserConsentCode mocks base method.
-func (m *MockDeviceManagementFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.GetUserConsentMessage, error) {
+func (m *MockDeviceManagementFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserConsentCode", ctx, guid)
-	ret0, _ := ret[0].(dto.GetUserConsentMessage)
+	ret0, _ := ret[0].(dto.UserConsentMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

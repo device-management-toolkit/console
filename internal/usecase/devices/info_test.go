@@ -279,7 +279,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: gomock.Any(),
+			res: dto.HardwareInfo{},
 			err: nil,
 		},
 		{
@@ -291,7 +291,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.HardwareInfo{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -310,7 +310,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.HardwareInfo{},
 			err: ErrGeneral,
 		},
 	}
@@ -522,7 +522,7 @@ func TestGetGeneralSettings(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: map[string]interface{}{"Body": gomock.Any()},
+			res: dto.GeneralSettings{Body: gomock.Any()},
 			err: nil,
 		},
 		{
@@ -534,7 +534,7 @@ func TestGetGeneralSettings(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.GeneralSettings{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -553,7 +553,7 @@ func TestGetGeneralSettings(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.GeneralSettings{},
 			err: ErrGeneral,
 		},
 	}
@@ -603,7 +603,7 @@ func TestGetDiskInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: gomock.Any(),
+			res: dto.DiskInfo{},
 			err: nil,
 		},
 		{
@@ -615,7 +615,7 @@ func TestGetDiskInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.DiskInfo{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -634,7 +634,7 @@ func TestGetDiskInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.DiskInfo{},
 			err: ErrGeneral,
 		},
 	}

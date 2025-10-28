@@ -14,7 +14,6 @@ import (
 	reflect "reflect"
 	time "time"
 
-	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	alarmclock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
 	auditlog "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
@@ -108,10 +107,10 @@ func (mr *MockManagementMockRecorder) BootServiceStateChange(requestedState any)
 }
 
 // CancelUserConsentRequest mocks base method.
-func (m *MockManagement) CancelUserConsentRequest() (dto.UserConsentMessage, error) {
+func (m *MockManagement) CancelUserConsentRequest() (optin.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "CancelUserConsentRequest")
-	ret0, _ := ret[0].(dto.UserConsentMessage)
+	ret0, _ := ret[0].(optin.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -557,10 +556,10 @@ func (mr *MockManagementMockRecorder) GetTLSSettingData() *gomock.Call {
 }
 
 // GetUserConsentCode mocks base method.
-func (m *MockManagement) GetUserConsentCode() (optin.StartOptIn_OUTPUT, error) {
+func (m *MockManagement) GetUserConsentCode() (optin.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserConsentCode")
-	ret0, _ := ret[0].(optin.StartOptIn_OUTPUT)
+	ret0, _ := ret[0].(optin.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -603,10 +602,10 @@ func (mr *MockManagementMockRecorder) RequestOSPowerSavingStateChange(osPowerSav
 }
 
 // SendConsentCode mocks base method.
-func (m *MockManagement) SendConsentCode(code int) (dto.UserConsentMessage, error) {
+func (m *MockManagement) SendConsentCode(code int) (optin.Response, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SendConsentCode", code)
-	ret0, _ := ret[0].(dto.UserConsentMessage)
+	ret0, _ := ret[0].(optin.Response)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

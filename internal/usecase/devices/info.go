@@ -59,44 +59,108 @@ func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v
 	return v1, v2, nil
 }
 
-func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (dto.HardwareInfo, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.HardwareInfo{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.HardwareInfo{}, ErrNotFound
 	}
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
 	hwInfo, err := device.GetHardwareInfo()
 	if err != nil {
-		return nil, err
+		return dto.HardwareInfo{}, err
 	}
 
-	return hwInfo, nil
+	result := uc.hardwareInfoToDTO(hwInfo)
+
+	return result, nil
 }
 
-func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) hardwareInfoToDTO(hw interface{}) dto.HardwareInfo {
+	result := dto.HardwareInfo{}
+
+	hwInfo, ok := hw.(map[string]interface{})
+	if !ok {
+		return result
+	}
+
+	result.CIMComputerSystemPackage = uc.parseCIMResponse(hwInfo["CIM_ComputerSystemPackage"])
+	result.CIMSystemPackaging = uc.parseCIMResponse(hwInfo["CIM_SystemPackaging"])
+	result.CIMChassis = uc.parseCIMResponse(hwInfo["CIM_Chassis"])
+	result.CIMChip = uc.parseCIMResponse(hwInfo["CIM_Chip"])
+	result.CIMCard = uc.parseCIMResponse(hwInfo["CIM_Card"])
+	result.CIMBIOSElement = uc.parseCIMResponse(hwInfo["CIM_BIOSElement"])
+	result.CIMProcessor = uc.parseCIMResponse(hwInfo["CIM_Processor"])
+	result.CIMPhysicalMemory = uc.parseCIMResponse(hwInfo["CIM_PhysicalMemory"])
+
+	return result
+}
+
+func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.DiskInfo{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.DiskInfo{}, ErrNotFound
 	}
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
 	diskInfo, err := device.GetDiskInfo()
 	if err != nil {
-		return nil, err
+		return dto.DiskInfo{}, err
 	}
 
-	return diskInfo, nil
+	result := uc.discInfoToDTO(diskInfo)
+
+	return result, nil
+}
+
+func (uc *UseCase) discInfoToDTO(discInfo interface{}) dto.DiskInfo {
+	result := dto.DiskInfo{}
+
+	info, ok := discInfo.(map[string]interface{})
+	if !ok {
+		return result
+	}
+
+	result.CIMMediaAccessDevice = uc.parseCIMResponse(info["CIM_MediaAccessDevice"])
+	result.CIMPhysicalPackage = uc.parseCIMResponse(info["CIM_PhysicalPackage"])
+
+	return result
+}
+
+func (uc *UseCase) parseCIMResponse(hwInfo interface{}) dto.CIMResponse {
+	result := dto.CIMResponse{}
+
+	info, ok := hwInfo.(map[string]interface{})
+	if !ok {
+		return result
+	}
+
+	response, ok := info["response"]
+	if ok {
+		result.Response = response
+	}
+
+	responses, ok := info["responses"].([]interface{})
+	if ok {
+		result.Responses = responses
+	}
+
+	status, ok := info["status"].(int)
+	if ok {
+		result.Status = status
+	}
+
+	return result
 }
 
 func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (dto.AuditLog, error) {
@@ -174,25 +238,25 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 	}, nil
 }
 
-func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (dto.GeneralSettings, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.GeneralSettings{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.GeneralSettings{}, ErrNotFound
 	}
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
 	generalSettings, err := device.GetGeneralSettings()
 	if err != nil {
-		return nil, err
+		return dto.GeneralSettings{}, err
 	}
 
-	response := map[string]interface{}{
-		"Body": generalSettings,
+	response := dto.GeneralSettings{
+		Body: generalSettings,
 	}
 
 	return response, nil
