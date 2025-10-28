@@ -61,6 +61,7 @@ type Feature interface {
 	GetDiskInfo(c context.Context, guid string) (interface{}, error)
 	GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
 	AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
+	DeleteCertificate(c context.Context, guid, instanceID string) error
 	GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error)
 	// KVM Screen Settings
 	GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
