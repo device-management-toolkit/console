@@ -57,6 +57,7 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 
 		h.GET("certificates/:guid", r.getCertificates)
 		h.POST("certificates/:guid", r.addCertificate)
+		h.DELETE("certificates/:guid/:instanceId", r.deleteCertificate)
 
 		// KVM display settings
 		h.GET("kvm/displays/:guid", r.getKVMDisplays)

@@ -81,6 +81,7 @@ type (
 		GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)
 		GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
 		AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
+		DeleteCertificate(c context.Context, guid, instanceID string) error
 		GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error)
 		// KVM Screen Settings (IPS_ScreenSettingData)
 		GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)

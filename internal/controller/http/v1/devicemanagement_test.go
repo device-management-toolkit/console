@@ -18,6 +18,8 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -399,6 +401,49 @@ func TestDeviceManagement(t *testing.T) {
 				).Return("", ErrGeneral).AnyTimes()
 			},
 			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:   "deleteCertificate - successful deletion",
+			url:    "/api/v1/amt/certificates/valid-guid/Intel%28r%29%20AMT%20Certificate%3A%20Handle%3A%201",
+			method: http.MethodDelete,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().DeleteCertificate(
+					context.Background(),
+					"valid-guid",
+					"Intel(r) AMT Certificate: Handle: 1",
+				).Return(nil)
+			},
+			expectedCode: http.StatusOK,
+			response:     gin.H{"message": "Certificate deleted successfully"},
+		},
+		{
+			name:   "deleteCertificate - device not found",
+			url:    "/api/v1/amt/certificates/invalid-guid/Intel%28r%29%20AMT%20Certificate%3A%20Handle%3A%201",
+			method: http.MethodDelete,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().DeleteCertificate(
+					context.Background(),
+					"invalid-guid",
+					"Intel(r) AMT Certificate: Handle: 1",
+				).Return(devices.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			response:     nil,
+		},
+		{
+			name:   "deleteCertificate - certificate is read-only",
+			url:    "/api/v1/amt/certificates/valid-guid/Intel%28r%29%20AMT%20Certificate%3A%20Handle%3A%200",
+			method: http.MethodDelete,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				validationErr := dto.NotValidError{Console: consoleerrors.CreateConsoleError("DeleteCertificate")}
+				m.EXPECT().DeleteCertificate(
+					context.Background(),
+					"valid-guid",
+					"Intel(r) AMT Certificate: Handle: 0",
+				).Return(validationErr)
+			},
+			expectedCode: http.StatusBadRequest,
 			response:     nil,
 		},
 	}
