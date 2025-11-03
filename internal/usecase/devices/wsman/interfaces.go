@@ -23,8 +23,6 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
-
-	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 type Management interface {
@@ -49,9 +47,9 @@ type Management interface {
 	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
-	CancelUserConsentRequest() (dto.UserConsentMessage, error)
-	GetUserConsentCode() (optin.StartOptIn_OUTPUT, error)
-	SendConsentCode(code int) (dto.UserConsentMessage, error)
+	CancelUserConsentRequest() (optin.Response, error)
+	GetUserConsentCode() (optin.Response, error)
+	SendConsentCode(code int) (optin.Response, error)
 	SendPowerAction(action int) (power.PowerActionResponse, error)
 	GetBootData() (boot.BootSettingDataResponse, error)
 	SetBootData(data boot.BootSettingDataRequest) (interface{}, error)

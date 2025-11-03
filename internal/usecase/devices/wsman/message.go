@@ -546,37 +546,31 @@ func (g *ConnectionEntry) GetGeneralSettings() (interface{}, error) {
 	return response.Body.GetResponse, nil
 }
 
-func (g *ConnectionEntry) CancelUserConsentRequest() (dto.UserConsentMessage, error) {
+func (g *ConnectionEntry) CancelUserConsentRequest() (optin.Response, error) {
 	response, err := g.WsmanMessages.IPS.OptInService.CancelOptIn()
 	if err != nil {
-		return dto.UserConsentMessage{}, err
+		return optin.Response{}, err
 	}
 
-	return dto.UserConsentMessage{
-		Name:        response.Body.CancelOptInResponse.XMLName,
-		ReturnValue: response.Body.CancelOptInResponse.ReturnValue,
-	}, nil
+	return response, nil
 }
 
-func (g *ConnectionEntry) GetUserConsentCode() (optin.StartOptIn_OUTPUT, error) {
+func (g *ConnectionEntry) GetUserConsentCode() (optin.Response, error) {
 	response, err := g.WsmanMessages.IPS.OptInService.StartOptIn()
 	if err != nil {
-		return optin.StartOptIn_OUTPUT{}, err
+		return optin.Response{}, err
 	}
 
-	return response.Body.StartOptInResponse, nil
+	return response, nil
 }
 
-func (g *ConnectionEntry) SendConsentCode(code int) (dto.UserConsentMessage, error) {
+func (g *ConnectionEntry) SendConsentCode(code int) (optin.Response, error) {
 	response, err := g.WsmanMessages.IPS.OptInService.SendOptInCode(code)
 	if err != nil {
-		return dto.UserConsentMessage{}, err
+		return optin.Response{}, err
 	}
 
-	return dto.UserConsentMessage{
-		Name:        response.Body.SendOptInCodeResponse.XMLName,
-		ReturnValue: response.Body.SendOptInCodeResponse.ReturnValue,
-	}, nil
+	return response, nil
 }
 
 func (g *ConnectionEntry) GetBootData() (boot.BootSettingDataResponse, error) {
