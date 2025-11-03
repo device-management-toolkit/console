@@ -209,10 +209,10 @@ func TestDeviceManagement(t *testing.T) {
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().GetHardwareInfo(context.Background(), "valid-guid").
-					Return(map[string]interface{}{"hardware": "info"}, nil)
+					Return(dto.HardwareInfo{}, nil)
 			},
 			expectedCode: http.StatusOK,
-			response:     map[string]interface{}{"hardware": "info"},
+			response:     dto.HardwareInfo{},
 		},
 		{
 			name:   "getDiskInfo - successful retrieval",
@@ -220,10 +220,10 @@ func TestDeviceManagement(t *testing.T) {
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().GetDiskInfo(context.Background(), "valid-guid").
-					Return(map[string]interface{}{"disk": "info"}, nil)
+					Return(dto.DiskInfo{CIMMediaAccessDevice: dto.CIMResponse{Response: map[string]interface{}{"disk": "info"}}}, nil)
 			},
 			expectedCode: http.StatusOK,
-			response:     map[string]interface{}{"disk": "info"},
+			response:     dto.DiskInfo{CIMMediaAccessDevice: dto.CIMResponse{Response: map[string]interface{}{"disk": "info"}}},
 		},
 		{
 			name:   "getPowerState - successful retrieval",

@@ -347,10 +347,10 @@ func (mr *MockFeatureMockRecorder) GetDeviceCertificate(c, guid any) *gomock.Cal
 }
 
 // GetDiskInfo mocks base method.
-func (m *MockFeature) GetDiskInfo(c context.Context, guid string) (any, error) {
+func (m *MockFeature) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDiskInfo", c, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.DiskInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -408,10 +408,10 @@ func (mr *MockFeatureMockRecorder) GetFeatures(ctx, guid any) *gomock.Call {
 }
 
 // GetGeneralSettings mocks base method.
-func (m *MockFeature) GetGeneralSettings(ctx context.Context, guid string) (any, error) {
+func (m *MockFeature) GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGeneralSettings", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.GeneralSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -423,10 +423,10 @@ func (mr *MockFeatureMockRecorder) GetGeneralSettings(ctx, guid any) *gomock.Cal
 }
 
 // GetHardwareInfo mocks base method.
-func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (any, error) {
+func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHardwareInfo", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.HardwareInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -513,10 +513,10 @@ func (mr *MockFeatureMockRecorder) GetTLSSettingData(c, guid any) *gomock.Call {
 }
 
 // GetUserConsentCode mocks base method.
-func (m *MockFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.GetUserConsentMessage, error) {
+func (m *MockFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserConsentCode", ctx, guid)
-	ret0, _ := ret[0].(dto.GetUserConsentMessage)
+	ret0, _ := ret[0].(dto.UserConsentMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }

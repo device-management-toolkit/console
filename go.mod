@@ -25,7 +25,7 @@ require (
 	github.com/stretchr/testify v1.11.1
 	go.uber.org/mock v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.39.1
+	modernc.org/sqlite v1.40.0
 	software.sslmate.com/src/go-pkcs12 v0.6.0
 )
 

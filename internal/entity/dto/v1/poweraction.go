@@ -12,3 +12,7 @@ type BootSources struct {
 	InstanceID           string `json:"instanceID" example:"Intel® AMT: Force Hard-drive Boot"`
 	StructuredBootString string `json:"structuredBiosBootString" example:"CIM:Hard-Disk:1"`
 }
+
+type PowerActionResponse struct {
+	ReturnValue int `json:"ReturnValue" example:"0"` // Return code. 0 indicates success
+}
