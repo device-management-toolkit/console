@@ -461,13 +461,13 @@ func TestDeleteCertificate(t *testing.T) {
 			err: &dto.NotValidError{},
 		},
 		{
-			name:       "DeletePublicCert fails",
+			name:       "DeleteCertificate fails",
 			instanceID: "Intel(r) AMT Certificate: Handle: 1",
 			mockRepo: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management).Times(2) // Called twice: once for GetCertificates, once for DeletePublicCert
+				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate
 				// Return valid certificate that can be deleted
 				certificates := wsman.Certificates{
 					PublicKeyCertificateResponse: publickey.RefinedPullResponse{
@@ -484,7 +484,7 @@ func TestDeleteCertificate(t *testing.T) {
 					},
 				}
 				management.EXPECT().GetCertificates().Return(certificates, nil)
-				management.EXPECT().DeletePublicCert("Intel(r) AMT Certificate: Handle: 1").Return(errors.New("wsman delete error"))
+				management.EXPECT().DeleteCertificate("Intel(r) AMT Certificate: Handle: 1").Return(errors.New("wsman delete error"))
 			},
 			err: devices.ErrDeviceUseCase,
 		},
@@ -495,7 +495,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management).Times(2) // Called twice: once for GetCertificates, once for DeletePublicCert
+				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate
 				// Return valid certificate that can be deleted
 				certificates := wsman.Certificates{
 					PublicKeyCertificateResponse: publickey.RefinedPullResponse{
@@ -512,7 +512,7 @@ func TestDeleteCertificate(t *testing.T) {
 					},
 				}
 				management.EXPECT().GetCertificates().Return(certificates, nil)
-				management.EXPECT().DeletePublicCert("Intel(r) AMT Certificate: Handle: 1").Return(nil)
+				management.EXPECT().DeleteCertificate("Intel(r) AMT Certificate: Handle: 1").Return(nil)
 			},
 			err: nil,
 		},
@@ -567,7 +567,7 @@ func TestDeleteCertificate_Integration(t *testing.T) {
 		useCase, wsmanMock, management, repo := initCertificateTest(t)
 
 		repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
-		wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management).Times(2)     // Called twice: once for GetCertificates, once for DeletePublicCert setup
+		wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management).Times(2)     // Called twice: once for GetCertificates, once for DeleteCertificate setup
 
 		// Mock GetCertificates to return a certificate that can be deleted
 		certificates := wsman.Certificates{
@@ -586,8 +586,8 @@ func TestDeleteCertificate_Integration(t *testing.T) {
 		}
 		management.EXPECT().GetCertificates().Return(certificates, nil)
 
-		// Mock DeletePublicCert
-		management.EXPECT().DeletePublicCert("Intel(r) AMT Certificate: Handle: 1").Return(nil)
+		// Mock DeleteCertificate
+		management.EXPECT().DeleteCertificate("Intel(r) AMT Certificate: Handle: 1").Return(nil)
 
 		err := useCase.DeleteCertificate(context.Background(), device.GUID, "Intel(r) AMT Certificate: Handle: 1")
 		require.NoError(t, err) // Should succeed now

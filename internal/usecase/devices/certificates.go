@@ -435,7 +435,7 @@ func (uc *UseCase) DeleteCertificate(c context.Context, guid, instanceID string)
 	// If the certificate is not associated with any profiles and is not read-only, proceed with deletion
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
-	err = device.DeletePublicCert(instanceID)
+	err = device.DeleteCertificate(instanceID)
 	if err != nil {
 		return ErrDeviceUseCase.Wrap("DeleteCertificate", "failed to delete certificate", fmt.Errorf("failed to delete certificate %s: %w", instanceID, err))
 	}

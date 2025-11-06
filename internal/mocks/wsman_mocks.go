@@ -165,18 +165,18 @@ func (mr *MockManagementMockRecorder) DeleteAlarmOccurrences(instanceID any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAlarmOccurrences", reflect.TypeOf((*MockManagement)(nil).DeleteAlarmOccurrences), instanceID)
 }
 
-// DeletePublicCert mocks base method.
-func (m *MockManagement) DeletePublicCert(instanceID string) error {
+// DeleteCertificate mocks base method.
+func (m *MockManagement) DeleteCertificate(instanceID string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "DeletePublicCert", instanceID)
+	ret := m.ctrl.Call(m, "DeleteCertificate", instanceID)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
-// DeletePublicCert indicates an expected call of DeletePublicCert.
-func (mr *MockManagementMockRecorder) DeletePublicCert(instanceID any) *gomock.Call {
+// DeleteCertificate indicates an expected call of DeleteCertificate.
+func (mr *MockManagementMockRecorder) DeleteCertificate(instanceID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeletePublicCert", reflect.TypeOf((*MockManagement)(nil).DeletePublicCert), instanceID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificate", reflect.TypeOf((*MockManagement)(nil).DeleteCertificate), instanceID)
 }
 
 // GetAMTRedirectionService mocks base method.
