@@ -92,6 +92,36 @@ jobs:
           base-ref: ${{ github.event.pull_request.base.sha || 'main' }}
           head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
 
+  devcontainer:
+    name: runner / devcontainer
+    runs-on: ubuntu-latest
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+      - name: Install Dev Container CLI
+        run: npm install -g @devcontainers/cli@0.67.0
+      - name: Build dev container definition
+        run: devcontainer build --workspace-folder .
+      - name: Start dev container
+        run: devcontainer up --workspace-folder . --remove-existing-container
+      - name: Verify dev container command execution
+        run: devcontainer exec --workspace-folder . -- bash -lc "go version && air -v"
+      - name: Cleanup dev container
+        if: always()
+        run: |
+          CONTAINER_IDS=$(docker ps -aq --filter "label=devcontainer.local_folder=$(pwd)")
+          if [ -n "$CONTAINER_IDS" ]; then
+            docker rm -f $CONTAINER_IDS
+          fi
+          VOLUME_IDS=$(docker volume ls -q --filter "label=devcontainer.local_folder=$(pwd)")
+          if [ -n "$VOLUME_IDS" ]; then
+            docker volume rm $VOLUME_IDS
+          fi
+
   tests:
     name: runner / build and tests
     runs-on: ubuntu-latest
