@@ -53,3 +53,17 @@ func (r *deviceManagementRoutes) addCertificate(c *gin.Context) {
 
 	c.JSON(http.StatusOK, handle)
 }
+
+func (r *deviceManagementRoutes) deleteCertificate(c *gin.Context) {
+	guid := c.Param("guid")
+	instanceID := c.Param("instanceId")
+
+	err := r.d.DeleteCertificate(c.Request.Context(), guid, instanceID)
+	if err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, gin.H{"message": "Certificate deleted successfully"})
+}

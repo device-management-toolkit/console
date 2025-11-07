@@ -740,7 +740,7 @@ func (g *ConnectionEntry) DeletePublicPrivateKeyPair(instanceID string) error {
 	return err
 }
 
-func (g *ConnectionEntry) DeletePublicCert(instanceID string) error {
+func (g *ConnectionEntry) DeleteCertificate(instanceID string) error {
 	_, err := g.WsmanMessages.AMT.PublicKeyCertificate.Delete(instanceID)
 
 	return err
