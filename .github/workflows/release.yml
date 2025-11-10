@@ -230,6 +230,7 @@ jobs:
           logout: true
 
       - name: Semantic Release
+        id: semantic-release
         uses: cycjimmy/semantic-release-action@b1b432f13acb7768e0c8efdec416d363a57546f2 # v4.1.1
         if: steps.cache.outputs.cache-hit != 'true' # do not run if cache hit
         with:
@@ -241,3 +242,40 @@ jobs:
             @semantic-release/exec@6.0.3
         env:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
+
+      - name: Check if OpenAPI files changed
+        id: check-openapi-changes
+        run: |
+          git fetch origin main:main
+          if git diff --name-only main HEAD | grep -q '^internal/controller/openapi/'; then
+            echo "changed=true" >> $GITHUB_OUTPUT
+          else
+            echo "changed=false" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Generate OpenAPI specification
+        if: steps.semantic-release.outputs.new_release_published == 'true' && steps.check-openapi-changes.outputs.changed == 'true'
+        run: |
+          GIN_MODE=debug go run ./cmd/app/main.go
+
+      - name: Verify OpenAPI spec was generated
+        run: |
+          if [ ! -f "doc/openapi.json" ]; then
+            exit 1
+          fi
+          head -20 doc/openapi.json
+
+      - name: Push to SwaggerHub
+        if: vars.SWAGGERHUB_OWNER != '' && vars.SWAGGERHUB_API_NAME != ''
+        env:
+          SWAGGERHUB_API_KEY: ${{ secrets.SWAGGERHUB_API_KEY }}
+          SWAGGERHUB_OWNER: ${{ vars.SWAGGERHUB_OWNER }}
+          API_NAME: ${{ vars.SWAGGERHUB_API_NAME }}
+          API_VERSION: ${{ steps.semantic-release.outputs.new_release_version }}
+        run: |
+          echo "Pushing OpenAPI spec to SwaggerHub with version ${{ steps.semantic-release.outputs.new_release_version }}..."
+          curl -X POST "https://api.swaggerhub.com/apis/${SWAGGERHUB_OWNER}/${API_NAME}/${API_VERSION}" \
+            -H "Authorization: ${SWAGGERHUB_API_KEY}" \
+            -H "Content-Type: application/json" \
+            --data-binary @doc/openapi.json \
+            --fail
