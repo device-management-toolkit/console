@@ -94,16 +94,6 @@ func Int64Ptr(i int64) *int64 {
 	return &i
 }
 
-// ChassisTypePtr creates a pointer to a ChassisChassisType value.
-func ChassisTypePtr(ct generated.ChassisChassisType) *generated.ChassisChassisType {
-	return &ct
-}
-
-// ManagerTypePtr creates a pointer to a ManagerManagerType value.
-func ManagerTypePtr(mt generated.ManagerManagerType) *generated.ManagerManagerType {
-	return &mt
-}
-
 // SystemTypePtr creates a pointer to a ComputerSystemSystemType value.
 func SystemTypePtr(st generated.ComputerSystemSystemType) *generated.ComputerSystemSystemType {
 	return &st
@@ -177,82 +167,6 @@ func (s *RedfishServer) GetRedfishV1SystemsComputerSystemId(c *gin.Context, comp
 		SystemType:   SystemTypePtr(generated.Physical),
 	}
 	c.JSON(http.StatusOK, system)
-}
-
-// GetRedfishV1Chassis returns the chassis collection
-func (s *RedfishServer) GetRedfishV1Chassis(c *gin.Context) {
-	collection := generated.ChassisCollectionChassisCollection{
-		OdataContext:      StringPtr("/redfish/v1/$metadata#ChassisCollection.ChassisCollection"),
-		OdataId:           StringPtr("/redfish/v1/Chassis"),
-		OdataType:         StringPtr("#ChassisCollection.ChassisCollection"),
-		Name:              "Chassis Collection",
-		MembersOdataCount: Int64Ptr(1),
-		Members: &[]generated.OdataV4IdRef{
-			{OdataId: StringPtr("/redfish/v1/Chassis/Chassis1")},
-		},
-	}
-	c.JSON(http.StatusOK, collection)
-}
-
-// GetRedfishV1ChassisChassisId returns a specific chassis
-//
-//revive:disable-next-line var-naming. Codegen is using openapi spec for generation which required Id to be Redfish complaint.
-func (s *RedfishServer) GetRedfishV1ChassisChassisId(c *gin.Context, chassisID string) {
-	if chassisID != "Chassis1" {
-		NotFoundError(c, "Chassis")
-
-		return
-	}
-
-	chassis := generated.ChassisChassis{
-		OdataContext: StringPtr("/redfish/v1/$metadata#Chassis.Chassis"),
-		OdataId:      StringPtr("/redfish/v1/Chassis/Chassis1"),
-		OdataType:    StringPtr("#Chassis.v1_28_0.Chassis"),
-		Id:           "Chassis1",
-		Name:         "Computer System Chassis",
-		SerialNumber: StringPtr("CH123456789"),
-		Manufacturer: StringPtr("Intel Corporation"),
-		Model:        StringPtr("Example Chassis"),
-		ChassisType:  generated.RackMount,
-	}
-	c.JSON(http.StatusOK, chassis)
-}
-
-// GetRedfishV1Managers returns the managers collection
-func (s *RedfishServer) GetRedfishV1Managers(c *gin.Context) {
-	collection := generated.ManagerCollectionManagerCollection{
-		OdataContext:      StringPtr("/redfish/v1/$metadata#ManagerCollection.ManagerCollection"),
-		OdataId:           StringPtr("/redfish/v1/Managers"),
-		OdataType:         StringPtr("#ManagerCollection.ManagerCollection"),
-		Name:              "Manager Collection",
-		MembersOdataCount: Int64Ptr(1),
-		Members: &[]generated.OdataV4IdRef{
-			{OdataId: StringPtr("/redfish/v1/Managers/Manager1")},
-		},
-	}
-	c.JSON(http.StatusOK, collection)
-}
-
-// GetRedfishV1ManagersManagerId returns a specific manager
-//
-//revive:disable-next-line var-naming. Codegen is using openapi spec for generation which required Id to be Redfish complaint.
-func (s *RedfishServer) GetRedfishV1ManagersManagerId(c *gin.Context, managerID string) {
-	if managerID != "Manager1" {
-		NotFoundError(c, "Manager")
-
-		return
-	}
-
-	manager := generated.ManagerManager{
-		OdataContext: StringPtr("/redfish/v1/$metadata#Manager.Manager"),
-		OdataId:      StringPtr("/redfish/v1/Managers/Manager1"),
-		OdataType:    StringPtr("#Manager.v1_21_0.Manager"),
-		Id:           "Manager1",
-		Name:         "System Manager",
-		Model:        StringPtr("Example Manager"),
-		ManagerType:  ManagerTypePtr(generated.BMC),
-	}
-	c.JSON(http.StatusOK, manager)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset handles the reset action for a computer system

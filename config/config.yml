@@ -29,9 +29,9 @@ ea:
   password: ""
 auth:
   disabled: false
-  adminUsername: standalone
-  adminPassword: G@ppm0ym
-  jwtKey: your_secret_jwt_key
+  adminUsername: ac
+  adminPassword: Dmt@2025
+  jwtKey: JshYmsh379bhUsjqkY6hgKRSamvCXoH3
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
   clientId: ""
@@ -44,4 +44,8 @@ auth:
     responseType: "code"
     requireHttps: false
     strictDiscoveryDocumentValidation: true
+redfish:
+  enabled: true
+  auth_required: false
+  base_url: "/redfish/v1"
 
