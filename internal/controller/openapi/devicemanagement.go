@@ -46,6 +46,13 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 		fuego.OptionDescription("Add a certificate to the device"),
 		fuego.OptionPath("guid", "Device GUID"),
 	)
+
+	fuego.Delete(f.server, "/api/v1/admin/amt/certificates/{guid}", f.deleteCertificate,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Delete Certificate"),
+		fuego.OptionDescription("Delete a certificate from the device"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
 }
 
 func (f *FuegoAdapter) registerExplorerRoutes() {
@@ -298,6 +305,25 @@ func (f *FuegoAdapter) getCertificates(_ fuego.ContextNoBody) (dto.SecuritySetti
 
 func (f *FuegoAdapter) addCertificate(_ fuego.ContextWithBody[dto.CertInfo]) (string, error) {
 	return "example-handle-123", nil
+}
+
+func (f *FuegoAdapter) deleteCertificate(c fuego.ContextWithBody[dto.DeleteCertificateRequest]) (any, error) {
+	// Extract path parameter
+	guid := c.PathParam("guid")
+
+	// Extract request body
+	body, err := c.Body()
+	if err != nil {
+		return nil, err
+	}
+
+	// Call the use case to delete the certificate
+	err = f.usecases.Devices.DeleteCertificate(c.Context(), guid, body.InstanceID)
+	if err != nil {
+		return nil, err
+	}
+
+	return nil, nil
 }
 
 func (f *FuegoAdapter) getCallList(_ fuego.ContextNoBody) ([]string, error) {
