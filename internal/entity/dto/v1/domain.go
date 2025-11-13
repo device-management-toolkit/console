@@ -8,6 +8,9 @@ import (
 )
 
 type Domain struct {
+	// ProfileName is the unique identifier for the domain profile.
+	// Only alphanumeric characters, hyphens (-), and underscores (_) are allowed.
+	// Spaces are not permitted.
 	ProfileName                   string    `json:"profileName" binding:"required,alphanumhyphenunderscore" example:"my-profile_1"`
 	DomainSuffix                  string    `json:"domainSuffix" binding:"required" example:"example.com"`
 	ProvisioningCert              string    `json:"provisioningCert,omitempty" binding:"required" example:"-----BEGIN CERTIFICATE-----\n..."`
