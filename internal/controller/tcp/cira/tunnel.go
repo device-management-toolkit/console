@@ -5,16 +5,17 @@ import (
 	"crypto/tls"
 	"encoding/hex"
 	"errors"
+	"fmt"
 	"log"
 	"net"
 	"sync"
 	"time"
 
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices"
-	"github.com/open-amt-cloud-toolkit/console/internal/usecase/devices/wsman"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/apf"
-	wsman2 "github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman"
-	"github.com/open-amt-cloud-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
+	wsman2 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 )
 
 const (
@@ -186,7 +187,7 @@ func generateDeviceID() string {
 	if err != nil {
 		log.Fatal(err)
 	}
-
+	fmt.Println(hex.EncodeToString(data))
 	return hex.EncodeToString(data)
 }
 

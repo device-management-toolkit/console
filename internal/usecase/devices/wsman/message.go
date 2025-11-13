@@ -125,7 +125,7 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 		if device.MPSUsername != "" {
 			connection := Connections[device.GUID]
 			cp := client.Parameters{
-				IsRedirection:  true,
+				IsRedirection:  false,
 				Connection:     connection.Conny,
 				Username:       device.MPSUsername,
 				Password:       device.Password,
