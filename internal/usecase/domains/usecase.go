@@ -6,8 +6,9 @@ import (
 	"encoding/base64"
 	"time"
 
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"software.sslmate.com/src/go-pkcs12"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"

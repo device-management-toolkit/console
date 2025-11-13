@@ -20,7 +20,6 @@ import (
 	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	wsman0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	websocket "github.com/gorilla/websocket"
 	gomock "go.uber.org/mock/gomock"
 )
@@ -506,6 +505,20 @@ func (mr *MockDeviceManagementFeatureMockRecorder) DeleteAlarmOccurrences(ctx, g
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAlarmOccurrences", reflect.TypeOf((*MockDeviceManagementFeature)(nil).DeleteAlarmOccurrences), ctx, guid, instanceID)
 }
 
+// DeleteCertificate mocks base method.
+func (m *MockDeviceManagementFeature) DeleteCertificate(c context.Context, guid, instanceID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteCertificate", c, guid, instanceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteCertificate indicates an expected call of DeleteCertificate.
+func (mr *MockDeviceManagementFeatureMockRecorder) DeleteCertificate(c, guid, instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificate", reflect.TypeOf((*MockDeviceManagementFeature)(nil).DeleteCertificate), c, guid, instanceID)
+}
+
 // Get mocks base method.
 func (m *MockDeviceManagementFeature) Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -551,6 +564,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetAuditLog(ctx, startIndex, 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootSourceSetting mocks base method.
+func (m *MockDeviceManagementFeature) GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootSourceSetting", c, guid)
+	ret0, _ := ret[0].([]dto.BootSources)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootSourceSetting indicates an expected call of GetBootSourceSetting.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetBootSourceSetting(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootSourceSetting", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetBootSourceSetting), c, guid)
+}
+
 // GetByColumn mocks base method.
 func (m *MockDeviceManagementFeature) GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -567,18 +595,18 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetByColumn(ctx, columnName, 
 }
 
 // GetByID mocks base method.
-func (m *MockDeviceManagementFeature) GetByID(ctx context.Context, guid, tenantID string) (*dto.Device, error) {
+func (m *MockDeviceManagementFeature) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetByID", ctx, guid, tenantID)
+	ret := m.ctrl.Call(m, "GetByID", ctx, guid, tenantID, includeSecrets)
 	ret0, _ := ret[0].(*dto.Device)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // GetByID indicates an expected call of GetByID.
-func (mr *MockDeviceManagementFeatureMockRecorder) GetByID(ctx, guid, tenantID any) *gomock.Call {
+func (mr *MockDeviceManagementFeatureMockRecorder) GetByID(ctx, guid, tenantID, includeSecrets any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetByID), ctx, guid, tenantID)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByID", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetByID), ctx, guid, tenantID, includeSecrets)
 }
 
 // GetByTags mocks base method.
@@ -642,10 +670,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetDeviceCertificate(c, guid 
 }
 
 // GetDiskInfo mocks base method.
-func (m *MockDeviceManagementFeature) GetDiskInfo(c context.Context, guid string) (any, error) {
+func (m *MockDeviceManagementFeature) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDiskInfo", c, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.DiskInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -703,10 +731,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetFeatures(ctx, guid any) *g
 }
 
 // GetGeneralSettings mocks base method.
-func (m *MockDeviceManagementFeature) GetGeneralSettings(ctx context.Context, guid string) (any, error) {
+func (m *MockDeviceManagementFeature) GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGeneralSettings", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.GeneralSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -718,10 +746,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetGeneralSettings(ctx, guid 
 }
 
 // GetHardwareInfo mocks base method.
-func (m *MockDeviceManagementFeature) GetHardwareInfo(ctx context.Context, guid string) (any, error) {
+func (m *MockDeviceManagementFeature) GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHardwareInfo", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.HardwareInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -732,19 +760,19 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetHardwareInfo(ctx, guid any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetHardwareInfo), ctx, guid)
 }
 
-// GetIPSPowerManagementService mocks base method.
-func (m *MockDeviceManagementFeature) GetIPSPowerManagementService() (ipspower.PowerManagementService, error) {
+// GetKVMScreenSettings mocks base method.
+func (m *MockDeviceManagementFeature) GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetIPSPowerManagementService")
-	ret0, _ := ret[0].(ipspower.PowerManagementService)
+	ret := m.ctrl.Call(m, "GetKVMScreenSettings", c, guid)
+	ret0, _ := ret[0].(dto.KVMScreenSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
-// GetIPSPowerManagementService indicates an expected call of GetIPSPowerManagementService.
-func (mr *MockDeviceManagementFeatureMockRecorder) GetIPSPowerManagementService() *gomock.Call {
+// GetKVMScreenSettings indicates an expected call of GetKVMScreenSettings.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetKVMScreenSettings(c, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSPowerManagementService", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetIPSPowerManagementService))
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetKVMScreenSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetKVMScreenSettings), c, guid)
 }
 
 // GetNetworkSettings mocks base method.
@@ -760,21 +788,6 @@ func (m *MockDeviceManagementFeature) GetNetworkSettings(c context.Context, guid
 func (mr *MockDeviceManagementFeatureMockRecorder) GetNetworkSettings(c, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetNetworkSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetNetworkSettings), c, guid)
-}
-
-// GetOSPowerSavingState mocks base method.
-func (m *MockDeviceManagementFeature) GetOSPowerSavingState() (ipspower.OSPowerSavingState, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetOSPowerSavingState")
-	ret0, _ := ret[0].(ipspower.OSPowerSavingState)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetOSPowerSavingState indicates an expected call of GetOSPowerSavingState.
-func (mr *MockDeviceManagementFeatureMockRecorder) GetOSPowerSavingState() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOSPowerSavingState", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetOSPowerSavingState))
 }
 
 // GetPowerCapabilities mocks base method.
@@ -823,10 +836,10 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetTLSSettingData(c, guid any
 }
 
 // GetUserConsentCode mocks base method.
-func (m *MockDeviceManagementFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.GetUserConsentMessage, error) {
+func (m *MockDeviceManagementFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserConsentCode", ctx, guid)
-	ret0, _ := ret[0].(dto.GetUserConsentMessage)
+	ret0, _ := ret[0].(dto.UserConsentMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -880,21 +893,6 @@ func (m *MockDeviceManagementFeature) Redirect(ctx context.Context, conn *websoc
 func (mr *MockDeviceManagementFeatureMockRecorder) Redirect(ctx, conn, guid, mode any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Redirect", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Redirect), ctx, conn, guid, mode)
-}
-
-// RequestOSPowerSavingStateChange mocks base method.
-func (m *MockDeviceManagementFeature) RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "RequestOSPowerSavingStateChange", osPowerSavingState)
-	ret0, _ := ret[0].(ipspower.PowerActionResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// RequestOSPowerSavingStateChange indicates an expected call of RequestOSPowerSavingStateChange.
-func (mr *MockDeviceManagementFeatureMockRecorder) RequestOSPowerSavingStateChange(osPowerSavingState interface{}) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestOSPowerSavingStateChange", reflect.TypeOf((*MockDeviceManagementFeature)(nil).RequestOSPowerSavingStateChange), osPowerSavingState)
 }
 
 // SendConsentCode mocks base method.
@@ -956,6 +954,21 @@ func (m *MockDeviceManagementFeature) SetFeatures(ctx context.Context, guid stri
 func (mr *MockDeviceManagementFeatureMockRecorder) SetFeatures(ctx, guid, features any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetFeatures", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetFeatures), ctx, guid, features)
+}
+
+// SetKVMScreenSettings mocks base method.
+func (m *MockDeviceManagementFeature) SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetKVMScreenSettings", c, guid, req)
+	ret0, _ := ret[0].(dto.KVMScreenSettings)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetKVMScreenSettings indicates an expected call of SetKVMScreenSettings.
+func (mr *MockDeviceManagementFeatureMockRecorder) SetKVMScreenSettings(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKVMScreenSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetKVMScreenSettings), c, guid, req)
 }
 
 // Update mocks base method.

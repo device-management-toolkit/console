@@ -30,8 +30,8 @@ func (e InternalError) FriendlyMessage() string {
 func (e *InternalError) Wrap(call, function string, err error) error {
 	e.Call = call
 	e.Function = function
-	e.OriginalError = err
 
+	e.OriginalError = err
 	if err != nil {
 		e.InnerTrace = "" // err.Error()
 	}

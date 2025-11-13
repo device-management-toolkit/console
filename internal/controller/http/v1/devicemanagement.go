@@ -36,6 +36,7 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("power/action/:guid", r.powerAction)
 		h.POST("power/bootOptions/:guid", r.setBootOptions)
 		h.POST("power/bootoptions/:guid", r.setBootOptions)
+		h.GET("power/bootSources/:guid", r.getBootSources)
 		h.GET("power/capabilities/:guid", r.getPowerCapabilities)
 
 		h.GET("log/audit/:guid", r.getAuditLog)
@@ -56,5 +57,10 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 
 		h.GET("certificates/:guid", r.getCertificates)
 		h.POST("certificates/:guid", r.addCertificate)
+		h.DELETE("certificates/:guid/:instanceId", r.deleteCertificate)
+
+		// KVM display settings
+		h.GET("kvm/displays/:guid", r.getKVMDisplays)
+		h.PUT("kvm/displays/:guid", r.setKVMDisplays)
 	}
 }

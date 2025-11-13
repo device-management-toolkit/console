@@ -52,8 +52,10 @@ import (
 	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsIEEE8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
@@ -189,10 +191,12 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 				}
 			case <-timeout:
 				connectionsMu.Lock()
+
 				Connections[device.GUID] = &ConnectionEntry{
 					WsmanMessages: wsman.NewMessages(clientParams),
 					Timer:         timer,
 				}
+
 				connectionsMu.Unlock()
 
 				return Connections[device.GUID]
@@ -203,6 +207,7 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	wsmanMsgs := wsman.NewMessages(clientParams)
 
 	connectionsMu.Lock()
+
 	Connections[device.GUID] = &ConnectionEntry{
 		WsmanMessages: wsmanMsgs,
 		Timer:         timer,
@@ -216,6 +221,7 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 func removeConnection(guid string) {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
+
 	delete(Connections, guid)
 }
 
@@ -560,37 +566,31 @@ func (g *ConnectionEntry) GetGeneralSettings() (interface{}, error) {
 	return response.Body.GetResponse, nil
 }
 
-func (g *ConnectionEntry) CancelUserConsentRequest() (dto.UserConsentMessage, error) {
+func (g *ConnectionEntry) CancelUserConsentRequest() (optin.Response, error) {
 	response, err := g.WsmanMessages.IPS.OptInService.CancelOptIn()
 	if err != nil {
-		return dto.UserConsentMessage{}, err
+		return optin.Response{}, err
 	}
 
-	return dto.UserConsentMessage{
-		Name:        response.Body.CancelOptInResponse.XMLName,
-		ReturnValue: response.Body.CancelOptInResponse.ReturnValue,
-	}, nil
+	return response, nil
 }
 
-func (g *ConnectionEntry) GetUserConsentCode() (optin.StartOptIn_OUTPUT, error) {
+func (g *ConnectionEntry) GetUserConsentCode() (optin.Response, error) {
 	response, err := g.WsmanMessages.IPS.OptInService.StartOptIn()
 	if err != nil {
-		return optin.StartOptIn_OUTPUT{}, err
+		return optin.Response{}, err
 	}
 
-	return response.Body.StartOptInResponse, nil
+	return response, nil
 }
 
-func (g *ConnectionEntry) SendConsentCode(code int) (dto.UserConsentMessage, error) {
+func (g *ConnectionEntry) SendConsentCode(code int) (optin.Response, error) {
 	response, err := g.WsmanMessages.IPS.OptInService.SendOptInCode(code)
 	if err != nil {
-		return dto.UserConsentMessage{}, err
+		return optin.Response{}, err
 	}
 
-	return dto.UserConsentMessage{
-		Name:        response.Body.SendOptInCodeResponse.XMLName,
-		ReturnValue: response.Body.SendOptInCodeResponse.ReturnValue,
-	}, nil
+	return response, nil
 }
 
 func (g *ConnectionEntry) GetBootData() (boot.BootSettingDataResponse, error) {
@@ -760,7 +760,7 @@ func (g *ConnectionEntry) DeletePublicPrivateKeyPair(instanceID string) error {
 	return err
 }
 
-func (g *ConnectionEntry) DeletePublicCert(instanceID string) error {
+func (g *ConnectionEntry) DeleteCertificate(instanceID string) error {
 	_, err := g.WsmanMessages.AMT.PublicKeyCertificate.Delete(instanceID)
 
 	return err
@@ -928,10 +928,6 @@ func (g *ConnectionEntry) RequestRedirectionStateChange(requestedState redirecti
 
 func (g *ConnectionEntry) RequestKVMStateChange(requestedState kvm.KVMRedirectionSAPRequestStateChangeInput) (response kvm.Response, err error) {
 	return g.WsmanMessages.CIM.KVMRedirectionSAP.RequestStateChange(requestedState)
-}
-
-func (g *ConnectionEntry) PutRedirectionState(requestedState redirection.RedirectionRequest) (response redirection.Response, err error) {
-	return g.WsmanMessages.AMT.RedirectionService.Put(requestedState)
 }
 
 func (g *ConnectionEntry) GetRedirectionService() (response redirection.Response, err error) {
@@ -1262,7 +1258,7 @@ func (g *ConnectionEntry) GetAMTRedirectionService() (redirection.Response, erro
 	return get, nil
 }
 
-func (g *ConnectionEntry) SetAMTRedirectionService(request redirection.RedirectionRequest) (redirection.Response, error) {
+func (g *ConnectionEntry) SetAMTRedirectionService(request *redirection.RedirectionRequest) (redirection.Response, error) {
 	response, err := g.WsmanMessages.AMT.RedirectionService.Put(request)
 	if err != nil {
 		return redirection.Response{}, err
@@ -1805,4 +1801,57 @@ func (g *ConnectionEntry) GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	}
 
 	return tlsSettingDataResponse.Body.PullResponse.SettingDataItems, nil
+}
+
+func (g *ConnectionEntry) GetIPSKVMRedirectionSettings() (kvmredirection.Response, error) {
+	enum, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Enumerate()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) GetIPSScreenSettingData() (screensetting.Response, error) {
+	enum, err := g.WsmanMessages.IPS.ScreenSettingData.Enumerate()
+	if err != nil {
+		return screensetting.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.ScreenSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return screensetting.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error) {
+	enum, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Enumerate()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	pull, err := g.WsmanMessages.IPS.KVMRedirectionSettingData.Pull(enum.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	// Intentionally fetch the current settings to validate connectivity; response is unused.
+	// Avoid printing to stdout per lint rules.
+	_, err = g.WsmanMessages.IPS.KVMRedirectionSettingData.Get()
+	if err != nil {
+		return kvmredirection.Response{}, err
+	}
+
+	return pull, nil
+}
+
+func (g *ConnectionEntry) SetIPSKVMRedirectionSettingData(req *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error) {
+	return g.WsmanMessages.IPS.KVMRedirectionSettingData.Put(req)
 }

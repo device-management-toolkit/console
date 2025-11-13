@@ -42,25 +42,6 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 	}
 }
 
-type DeviceCountResponse struct {
-	Count int          `json:"totalCount"`
-	Data  []dto.Device `json:"data"`
-}
-type DeviceStatResponse struct {
-	TotalCount        int `json:"totalCount"`
-	ConnectedCount    int `json:"connectedCount"`
-	DisconnectedCount int `json:"disconnectedCount"`
-}
-
-// @Summary     Gets Device Count
-// @Description Gets number of devices
-// @ID          getStats
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DeviceCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/devices [get]
 func (dr *deviceRoutes) getStats(c *gin.Context) {
 	count, err := dr.t.GetCount(c.Request.Context(), "")
 	if err != nil {
@@ -70,26 +51,17 @@ func (dr *deviceRoutes) getStats(c *gin.Context) {
 		return
 	}
 
-	countResponse := DeviceStatResponse{
+	countResponse := dto.DeviceStatResponse{
 		TotalCount: count,
 	}
 
 	c.JSON(http.StatusOK, countResponse)
 }
 
-// @Summary     route for redirection auth
-// @Description gets token for use with redirection
-// @ID          loginRedirection
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DeviceCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/authorize/redirection [get]
 func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	deviceID := c.Param("id")
 
-	_, err := dr.t.GetByID(c.Request.Context(), deviceID, "")
+	_, err := dr.t.GetByID(c.Request.Context(), deviceID, "", false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - LoginRedirection")
 		ErrorResponse(c, err)
@@ -104,7 +76,7 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
-	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.Auth.JWTKey))
+	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.JWTKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
 
@@ -114,15 +86,6 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
 }
 
-// @Summary     Show Devices
-// @Description Show all devices
-// @ID          getDevices
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DeviceCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/devices/:id [get]
 func (dr *deviceRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -169,7 +132,7 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 			return
 		}
 
-		countResponse := DeviceCountResponse{
+		countResponse := dto.DeviceCountResponse{
 			Count: count,
 			Data:  items,
 		}
@@ -199,15 +162,6 @@ func (dr *deviceRoutes) getByColumnOrTags(c *gin.Context, column, value string, 
 	return items, nil
 }
 
-// @Summary     Get Device by ID
-// @Description Get a device by ID
-// @ID          getDevice
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DeviceCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/devices [get]
 func (dr *deviceRoutes) getByID(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -218,7 +172,7 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - get")
 		ErrorResponse(c, err)
@@ -229,15 +183,6 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// @Summary     Add Devices
-// @Description Add a devices
-// @ID          insertDevice
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DeviceResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/devices [post]
 func (dr *deviceRoutes) insert(c *gin.Context) {
 	var device dto.Device
 	if err := c.ShouldBindJSON(&device); err != nil {
@@ -258,15 +203,6 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 	c.JSON(http.StatusCreated, newDevice)
 }
 
-// @Summary     Edit Devices
-// @Description Edit a devices
-// @ID          updateDevice
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DeviceResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/devices [patch]
 func (dr *deviceRoutes) update(c *gin.Context) {
 	var device dto.Device
 	if err := c.ShouldBindJSON(&device); err != nil {
@@ -286,15 +222,6 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedDevice)
 }
 
-// @Summary     Remove Devices
-// @Description Remove a device
-// @ID          deleteDevice
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/devices [delete]
 func (dr *deviceRoutes) delete(c *gin.Context) {
 	guid := c.Param("guid")
 
@@ -318,15 +245,6 @@ func (dr *deviceRoutes) redirectStatus(c *gin.Context) {
 	c.JSON(http.StatusOK, result)
 }
 
-// @Summary     Get Tags
-// @Description Get Available Distinct Tags in the system
-// @ID          getTags
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/devices/tags [get]
 func (dr *deviceRoutes) getTags(c *gin.Context) {
 	tags, err := dr.t.GetDistinctTags(c.Request.Context(), "")
 	if err != nil {
@@ -339,15 +257,6 @@ func (dr *deviceRoutes) getTags(c *gin.Context) {
 	c.JSON(http.StatusOK, tags)
 }
 
-// @Summary     Get Device Certificate
-// @Description Get Device Certificate
-// @ID          getDeviceCertificate
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/devices/cert/:guid [get]
 func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -358,7 +267,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
 		ErrorResponse(c, err)
@@ -379,15 +288,6 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 	c.JSON(http.StatusOK, cert)
 }
 
-// @Summary     Pin Device Certificate
-// @Description Pins Device Certificate
-// @ID          pinDeviceCertificate
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/devices/cert/:guid [post]
 func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 	var certToPin dto.PinCertificate
 	if err := c.ShouldBindBodyWithJSON(&certToPin); err != nil {
@@ -398,7 +298,7 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
 		ErrorResponse(c, err)
@@ -419,15 +319,6 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// @Summary     Delete Device Certificate
-// @Description Deletes Pinned Device Certificate
-// @ID          deleteDeviceCertificate
-// @Tags  	    devices
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/devices/cert/:guid [delete]
 func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -438,7 +329,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "")
+	item, err := dr.t.GetByID(c.Request.Context(), guid, "", true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
 		ErrorResponse(c, err)

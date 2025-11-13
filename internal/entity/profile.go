@@ -22,6 +22,7 @@ type Profile struct {
 	KVMEnabled                 bool
 	SOLEnabled                 bool
 	IEEE8021xProfileName       *string
+	UEFIWiFiSyncEnabled        bool
 
 	// columns to populate from join query
 	Version                string

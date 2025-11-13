@@ -42,11 +42,6 @@ func NewIEEE8021xConfigRoutes(handler *gin.RouterGroup, t ieee8021xconfigs.Featu
 	}
 }
 
-type IEEE8021xConfigCountResponse struct {
-	Count int                   `json:"totalCount"`
-	Data  []dto.IEEE8021xConfig `json:"data"`
-}
-
 func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -71,7 +66,7 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 			ErrorResponse(c, err)
 		}
 
-		countResponse := IEEE8021xConfigCountResponse{
+		countResponse := dto.IEEE8021xConfigCountResponse{
 			Count: count,
 			Data:  items,
 		}

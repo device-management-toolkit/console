@@ -10,6 +10,7 @@ import (
 	"syscall"
 
 	"github.com/gin-contrib/cors"
+	ginpprof "github.com/gin-contrib/pprof"
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
@@ -27,11 +28,14 @@ var Version = "DEVELOPMENT"
 
 // Run creates objects via constructors.
 func Run(cfg *config.Config) {
-	log := logger.New(cfg.Log.Level)
-	cfg.App.Version = Version
-	log.Info("app - Run - version: " + cfg.App.Version)
+	log := logger.New(cfg.Level)
+	cfg.Version = Version
+	log.Info("app - Run - version: " + cfg.Version)
+	// route standard and Gin logs through our JSON logger
+	logger.SetupStdLog(log)
+	logger.SetupGin(log)
 	// Repository
-	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.DB.PoolMax), db.EnableForeignKeys(true))
+	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.PoolMax), db.EnableForeignKeys(true))
 	if err != nil {
 		log.Fatal(fmt.Errorf("app - Run - db.New: %w", err))
 	}
@@ -48,20 +52,28 @@ func Run(cfg *config.Config) {
 	handler := gin.New()
 
 	defaultConfig := cors.DefaultConfig()
-	defaultConfig.AllowOrigins = cfg.HTTP.AllowedOrigins
-	defaultConfig.AllowHeaders = cfg.HTTP.AllowedHeaders
+	defaultConfig.AllowOrigins = cfg.AllowedOrigins
+	defaultConfig.AllowHeaders = cfg.AllowedHeaders
 
 	handler.Use(cors.New(defaultConfig))
 	consolehttp.NewRouter(handler, log, *usecases, cfg)
 
+	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
+	if os.Getenv("ENABLE_PPROF") == "true" {
+		// Register pprof handlers under /debug/pprof without exposing DefaultServeMux
+		ginpprof.Register(handler, "debug/pprof")
+		log.Info("pprof enabled at /debug/pprof/")
+	}
+
 	upgrader := &websocket.Upgrader{
-		ReadBufferSize:  4096,
-		WriteBufferSize: 4096,
+		// Larger buffers reduce per-frame overhead and syscalls for KVM streaming
+		ReadBufferSize:  64 * 1024,
+		WriteBufferSize: 64 * 1024,
 		Subprotocols:    []string{"direct"},
 		CheckOrigin: func(_ *http.Request) bool {
 			return true
 		},
-		EnableCompression: false,
+		EnableCompression: cfg.WSCompression,
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
@@ -71,7 +83,17 @@ func Run(cfg *config.Config) {
 		log.Fatal("CIRA Server failed: %v", err)
 	}
 
-	httpServer := httpserver.New(handler, httpserver.Port(cfg.HTTP.Host, cfg.HTTP.Port))
+	// Configure TLS based on config
+	tlsEnabled := cfg.TLS.Enabled
+	certFile := cfg.TLS.CertFile
+	keyFile := cfg.TLS.KeyFile
+
+	httpServer := httpserver.New(
+		handler,
+		httpserver.Port(cfg.Host, cfg.Port),
+		httpserver.TLS(tlsEnabled, certFile, keyFile),
+		httpserver.Logger(log),
+	)
 
 	// Waiting signal
 	interrupt := make(chan os.Signal, 1)

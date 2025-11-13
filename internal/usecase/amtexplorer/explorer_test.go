@@ -7,6 +7,10 @@ import (
 	"strings"
 	"testing"
 
+	"github.com/go-xmlfmt/xmlfmt"
+	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/authorization"
@@ -51,9 +55,6 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ipsieee8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
-	"github.com/go-xmlfmt/xmlfmt"
-	"github.com/stretchr/testify/require"
-	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"

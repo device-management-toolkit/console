@@ -24,34 +24,61 @@ func (uc *UseCase) CancelUserConsent(c context.Context, guid string) (dto.UserCo
 		return dto.UserConsentMessage{}, err
 	}
 
-	return response, nil
+	headerDTO := dto.UserConsentHeader{
+		To:          response.Header.To,
+		Action:      response.Header.Action.Value,
+		MessageID:   response.Header.MessageID,
+		ResourceURI: response.Header.ResourceURI,
+	}
+	if response.Header.RelatesTo != 0 {
+		headerDTO.RelatesTo = strconv.Itoa(response.Header.RelatesTo)
+	}
+
+	bodyDTO := dto.UserConsentBody{
+		ReturnValue: response.Body.CancelOptInResponse.ReturnValue,
+	}
+
+	return dto.UserConsentMessage{
+		Header: headerDTO,
+		Body:   bodyDTO,
+	}, nil
 }
 
-func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.GetUserConsentMessage, error) {
+func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.UserConsentMessage, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return dto.GetUserConsentMessage{}, err
+		return dto.UserConsentMessage{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return dto.GetUserConsentMessage{}, ErrNotFound
+		return dto.UserConsentMessage{}, ErrNotFound
 	}
 
 	device := uc.device.SetupWsmanClient(*item, false, true)
 
-	code, err := device.GetUserConsentCode()
+	response, err := device.GetUserConsentCode()
 	if err != nil {
-		return dto.GetUserConsentMessage{}, err
+		return dto.UserConsentMessage{}, err
 	}
 
-	response := dto.GetUserConsentMessage{
-		Body: dto.UserConsentMessage{
-			Name:        code.XMLName,
-			ReturnValue: code.ReturnValue,
-		},
+	headerDTO := dto.UserConsentHeader{
+		To:          response.Header.To,
+		Action:      response.Header.Action.Value,
+		MessageID:   response.Header.MessageID,
+		ResourceURI: response.Header.ResourceURI,
+	}
+	if response.Header.RelatesTo != 0 {
+		headerDTO.RelatesTo = strconv.Itoa(response.Header.RelatesTo)
 	}
 
-	return response, nil
+	bodyDTO := dto.UserConsentBody{
+		ReturnValue: response.Body.StartOptInResponse.ReturnValue,
+	}
+
+	return dto.UserConsentMessage{
+		Header: headerDTO,
+		Body:   bodyDTO,
+	}, nil
 }
 
 func (uc *UseCase) SendConsentCode(c context.Context, userConsent dto.UserConsentCode, guid string) (dto.UserConsentMessage, error) {
@@ -73,5 +100,22 @@ func (uc *UseCase) SendConsentCode(c context.Context, userConsent dto.UserConsen
 		return dto.UserConsentMessage{}, err
 	}
 
-	return response, nil
+	headerDTO := dto.UserConsentHeader{
+		To:          response.Header.To,
+		Action:      response.Header.Action.Value,
+		MessageID:   response.Header.MessageID,
+		ResourceURI: response.Header.ResourceURI,
+	}
+	if response.Header.RelatesTo != 0 {
+		headerDTO.RelatesTo = strconv.Itoa(response.Header.RelatesTo)
+	}
+
+	bodyDTO := dto.UserConsentBody{
+		ReturnValue: response.Body.SendOptInCodeResponse.ReturnValue,
+	}
+
+	return dto.UserConsentMessage{
+		Header: headerDTO,
+		Body:   bodyDTO,
+	}, nil
 }

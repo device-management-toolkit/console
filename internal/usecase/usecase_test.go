@@ -4,10 +4,11 @@ import (
 	"sync"
 	"testing"
 
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/mocks"
@@ -54,6 +55,7 @@ func TestUsecases(t *testing.T) {
 			initializeFunc: func() *Usecases {
 				mockDB := mocks.NewMockSQLDB()
 				mockLogger := mocks.NewMockLogger(nil)
+
 				setupConfig()
 
 				return NewUseCases(mockDB, mockLogger)
@@ -67,6 +69,7 @@ func TestUsecases(t *testing.T) {
 					profilewificonfigs.New(sqldb.NewProfileWiFiConfigsRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),
 					ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil),
 					sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
+					sqldb.NewCIRARepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					safeRequirements,
 				),
 				IEEE8021xProfiles:  ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),

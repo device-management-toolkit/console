@@ -40,7 +40,7 @@ func (r *IEEE8021xRepo) CheckProfileExists(_ context.Context, profileName, tenan
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, profileName, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, profileName, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -65,7 +65,7 @@ func (r *IEEE8021xRepo) GetCount(_ context.Context, tenantID string) (int, error
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
@@ -111,7 +111,7 @@ func (r *IEEE8021xRepo) Get(_ context.Context, top, skip int, tenantID string) (
 		return nil, ErrIEEE8021xDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrIEEE8021xDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -154,7 +154,7 @@ func (r *IEEE8021xRepo) GetByName(_ context.Context, profileName, tenantID strin
 		return nil, ErrIEEE8021xDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, profileName, tenantID)
 	if err != nil {
 		return nil, ErrIEEE8021xDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -195,7 +195,7 @@ func (r *IEEE8021xRepo) Delete(_ context.Context, profileName, tenantID string) 
 		return false, ErrIEEE8021xDatabase.Wrap("Delete", "r.Builder: ", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrIEEE8021xDatabase.Wrap("Delete", "r.Pool.Exec", err)
 	}
@@ -221,7 +221,7 @@ func (r *IEEE8021xRepo) Update(_ context.Context, p *entity.IEEE8021xConfig) (bo
 		return false, ErrIEEE8021xDatabase.Wrap("Update", "r.Builder: ", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrIEEE8021xDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
@@ -253,9 +253,9 @@ func (r *IEEE8021xRepo) Insert(_ context.Context, p *entity.IEEE8021xConfig) (st
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {

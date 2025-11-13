@@ -1,6 +1,7 @@
 package db
 
 import (
+	"context"
 	"database/sql"
 	"errors"
 	"os"
@@ -100,7 +101,7 @@ func setupEmbeddedDB(db *SQL, dbOpen OpenFunc) error {
 }
 
 func enableForeignKeys(db *sql.DB) error {
-	_, err := db.Exec("PRAGMA foreign_keys = ON")
+	_, err := db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
 	if err != nil {
 		db.Close()
 

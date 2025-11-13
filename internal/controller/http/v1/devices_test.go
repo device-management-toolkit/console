@@ -78,7 +78,7 @@ func TestDevicesRoutes(t *testing.T) {
 				}}, nil)
 				device.EXPECT().GetCount(context.Background(), "").Return(1, nil)
 			},
-			response:     DeviceCountResponse{Count: 1, Data: []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}}},
+			response:     dto.DeviceCountResponse{Count: 1, Data: []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}}},
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -86,7 +86,7 @@ func TestDevicesRoutes(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/api/v1/devices/123e4567-e89b-12d3-a456-426614174000",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
-				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "").Return(&dto.Device{
+				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "", false).Return(&dto.Device{
 					GUID: "123e4567-e89b-12d3-a456-426614174000", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
 				}, nil)
 			},
@@ -98,7 +98,7 @@ func TestDevicesRoutes(t *testing.T) {
 			method: http.MethodGet,
 			url:    "/api/v1/devices/123e4567-e89b-12d3-a456-426614174000",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
-				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "").Return(nil, devices.ErrDatabase)
+				device.EXPECT().GetByID(context.Background(), "123e4567-e89b-12d3-a456-426614174000", "", false).Return(nil, devices.ErrDatabase)
 			},
 			response:     devices.ErrDatabase,
 			expectedCode: http.StatusBadRequest,
@@ -276,7 +276,7 @@ func TestDevicesRoutes(t *testing.T) {
 			mock: func(device *mocks.MockDeviceManagementFeature) {
 				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
 			},
-			response:     DeviceStatResponse{TotalCount: 5},
+			response:     dto.DeviceStatResponse{TotalCount: 5},
 			expectedCode: http.StatusOK,
 		},
 	}
@@ -297,9 +297,9 @@ func TestDevicesRoutes(t *testing.T) {
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch {
 				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequest(tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {
-				req, err = http.NewRequest(tc.method, tc.url, http.NoBody)
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {

@@ -2,6 +2,7 @@ package devices
 
 import (
 	"strings"
+	"sync"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -41,6 +42,7 @@ type UseCase struct {
 	device           WSMAN
 	redirection      Redirection
 	redirConnections map[string]*DeviceConnection
+	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
 }

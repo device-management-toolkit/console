@@ -25,7 +25,7 @@ type (
 	}
 
 	AddAlarmOutput struct {
-		ReturnValue int // Return code. 0 indicates success
+		ReturnValue int `json:"ReturnValue" example:"0"` // Return code. 0 indicates success
 	}
 
 	StartTime struct {

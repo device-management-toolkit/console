@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"compress/flate"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -41,7 +42,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		claims := &jwt.MapClaims{}
 
 		token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
-			return []byte(config.ConsoleConfig.Auth.JWTKey), nil
+			return []byte(config.ConsoleConfig.JWTKey), nil
 		})
 
 		if err != nil || !token.Valid {
@@ -63,6 +64,15 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		http.Error(c.Writer, "Could not open websocket connection", http.StatusInternalServerError)
 
 		return
+	}
+
+	// Optimize websocket data path for streaming; respect config compression toggle
+	if config.ConsoleConfig.WSCompression {
+		conn.EnableWriteCompression(true)
+		_ = conn.SetCompressionLevel(flate.BestSpeed)
+	} else {
+		conn.EnableWriteCompression(false)
+		_ = conn.SetCompressionLevel(flate.NoCompression)
 	}
 
 	r.l.Info("Websocket connection opened")

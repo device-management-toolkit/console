@@ -58,7 +58,9 @@ import (
 	alarmclock0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	hostbasedsetup "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/hostbasedsetup"
 	ieee8021x1 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
+	kvmredirection "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	screensetting "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 	gomock "go.uber.org/mock/gomock"
 )
 
@@ -896,6 +898,21 @@ func (mr *MockAMTExplorerMockRecorder) GetIPSIEEE8021xSettings() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSIEEE8021xSettings", reflect.TypeOf((*MockAMTExplorer)(nil).GetIPSIEEE8021xSettings))
 }
 
+// GetIPSKVMRedirectionSettings mocks base method.
+func (m *MockAMTExplorer) GetIPSKVMRedirectionSettings() (kvmredirection.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIPSKVMRedirectionSettings")
+	ret0, _ := ret[0].(kvmredirection.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIPSKVMRedirectionSettings indicates an expected call of GetIPSKVMRedirectionSettings.
+func (mr *MockAMTExplorerMockRecorder) GetIPSKVMRedirectionSettings() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSKVMRedirectionSettings", reflect.TypeOf((*MockAMTExplorer)(nil).GetIPSKVMRedirectionSettings))
+}
+
 // GetIPSOptInService mocks base method.
 func (m *MockAMTExplorer) GetIPSOptInService() (optin.Response, error) {
 	m.ctrl.T.Helper()
@@ -909,6 +926,21 @@ func (m *MockAMTExplorer) GetIPSOptInService() (optin.Response, error) {
 func (mr *MockAMTExplorerMockRecorder) GetIPSOptInService() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSOptInService", reflect.TypeOf((*MockAMTExplorer)(nil).GetIPSOptInService))
+}
+
+// GetIPSScreenSettingData mocks base method.
+func (m *MockAMTExplorer) GetIPSScreenSettingData() (screensetting.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetIPSScreenSettingData")
+	ret0, _ := ret[0].(screensetting.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetIPSScreenSettingData indicates an expected call of GetIPSScreenSettingData.
+func (mr *MockAMTExplorerMockRecorder) GetIPSScreenSettingData() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetIPSScreenSettingData", reflect.TypeOf((*MockAMTExplorer)(nil).GetIPSScreenSettingData))
 }
 
 // MockAMTExplorerFeature is a mock of Feature interface.

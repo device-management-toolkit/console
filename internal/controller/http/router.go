@@ -12,12 +12,11 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
-	swaggerFiles "github.com/swaggo/files"
-	ginSwagger "github.com/swaggo/gin-swagger"
 
 	"github.com/device-management-toolkit/console/config"
 	v1 "github.com/device-management-toolkit/console/internal/controller/http/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/http/v2"
+	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -26,16 +25,15 @@ import (
 var content embed.FS
 
 // NewRouter -.
-// Swagger spec:
-// @title       Console API for Device Management Toolkit
-// @description Provides a single pane of glass for managing devices with Intel® Active Management Technology and other device technologies
-// @version     1.0
-// @host        localhost:8181
-// @BasePath    /v1
 func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) { //nolint:funlen // This function is responsible for setting up the router, so it's expected to be long
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
+
+	// Initialize Fuego adapter
+	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
+	fuegoAdapter.RegisterRoutes()
+	fuegoAdapter.AddToGinRouter(handler)
 
 	// Public routes
 	login := v1.NewLoginRoute(cfg)
@@ -60,7 +58,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.StaticFileFS("/vendor.js", "./vendor.js", http.FS(staticFiles))
 	handler.StaticFileFS("/favicon.ico", "./favicon.ico", http.FS(staticFiles))
 	handler.StaticFileFS("/assets/logo.png", "./assets/logo.png", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/i18n/en.json", "./assets/i18n/en.json", http.FS(staticFiles))
 	handler.StaticFileFS("/assets/monaco/min/vs/loader.js", "./assets/monaco/min/vs/loader.js", http.FS(staticFiles))
 	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.js", "./assets/monaco/min/vs/editor/editor.main.js", http.FS(staticFiles))
 	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.css", "./assets/monaco/min/vs/editor/editor.main.css", http.FS(staticFiles))
@@ -70,9 +67,12 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.StaticFileFS("/assets/monaco/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", "./assets/monaco/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", http.FS(staticFiles))
 	handler.StaticFileFS("/assets/monaco/min/vs/basic-languages/xml/xml.js", "./assets/monaco/min/vs/basic-languages/xml/xml.js", http.FS(staticFiles))
 
-	// Swagger
-	swaggerHandler := ginSwagger.DisablingWrapHandler(swaggerFiles.Handler, "DISABLE_SWAGGER_HTTP_HANDLER")
-	handler.GET("/swagger/*any", swaggerHandler)
+	langs := []string{"en", "fr", "de", "ar", "es", "fi", "he", "it", "ja", "nl", "ru", "sv"}
+	for _, lang := range langs {
+		relativePath := "/assets/i18n/" + lang + ".json"
+		filePath := "." + relativePath
+		handler.StaticFileFS(relativePath, filePath, http.FS(staticFiles))
+	}
 
 	// K8s probe
 	handler.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
@@ -86,7 +86,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	// Protected routes using JWT middleware
 	var protected *gin.RouterGroup
-	if cfg.Auth.Disabled {
+	if cfg.Disabled {
 		protected = handler.Group("/api")
 	} else {
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
@@ -130,15 +130,19 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	protocol := "http://"
 
 	requireHTTPSReplacement := ",requireHttps:!1"
-	if cfg.Auth.UI.RequireHTTPS {
+	if cfg.UI.RequireHTTPS {
 		requireHTTPSReplacement = ",requireHttps:!0"
 		protocol = "https://"
 	}
 
+	if cfg.TLS.Enabled {
+		protocol = "https://"
+	}
+
 	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
-	if cfg.Auth.ClientID != "" {
+	if cfg.ClientID != "" {
 		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
-		if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
+		if cfg.UI.StrictDiscoveryDocumentValidation {
 			strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
 		}
 
@@ -146,15 +150,15 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 			",useOAuth:!1,":                         ",useOAuth:!0,",
 			",requireHttps:!0":                      requireHTTPSReplacement,
 			",strictDiscoveryDocumentValidation:!0": strictDiscoveryReplacement,
-			"##CLIENTID##":                          cfg.Auth.UI.ClientID,
-			"##ISSUER##":                            cfg.Auth.UI.Issuer,
-			"##SCOPE##":                             cfg.Auth.UI.Scope,
-			"##REDIRECTURI##":                       cfg.Auth.UI.RedirectURI,
+			"##CLIENTID##":                          cfg.UI.ClientID,
+			"##ISSUER##":                            cfg.UI.Issuer,
+			"##SCOPE##":                             cfg.UI.Scope,
+			"##REDIRECTURI##":                       cfg.UI.RedirectURI,
 		})
 	}
 
 	data = injectPlaceholders(data, map[string]string{
-		"##CONSOLE_SERVER_API##": protocol + cfg.HTTP.Host + ":" + cfg.HTTP.Port,
+		"##CONSOLE_SERVER_API##": protocol + cfg.Host + ":" + cfg.Port,
 	})
 
 	// Write to /tmp

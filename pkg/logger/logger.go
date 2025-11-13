@@ -28,13 +28,13 @@ func New(level string) Interface {
 	var l zerolog.Level
 
 	switch strings.ToLower(level) {
-	case "error": //nolint:goconst // duplication is in unit tests
+	case "error":
 		l = zerolog.ErrorLevel
-	case "warn": //nolint:goconst // duplication is in unit tests
+	case "warn":
 		l = zerolog.WarnLevel
-	case "info": //nolint:goconst // duplication is in unit tests
+	case "info":
 		l = zerolog.InfoLevel
-	case "debug": //nolint:goconst // duplication is in unit tests
+	case "debug":
 		l = zerolog.DebugLevel
 	default:
 		l = zerolog.InfoLevel

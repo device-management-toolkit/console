@@ -35,3 +35,5 @@ vendor/
 **/ui/*
 # ...but keep the folder
 !**/ui/.gitkeep
+# Documentation files
+doc/openapi.json

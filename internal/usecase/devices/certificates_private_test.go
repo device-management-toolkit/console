@@ -4,12 +4,13 @@ import (
 	"encoding/xml"
 	"testing"
 
+	"github.com/stretchr/testify/require"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publickey"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/publicprivate"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
-	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"

@@ -15,7 +15,7 @@ import (
 // WirelessRepo -.
 type WirelessRepo struct {
 	*db.SQL
-	logger.Interface
+	log logger.Interface
 }
 
 var (
@@ -42,7 +42,7 @@ func (r *WirelessRepo) CheckProfileExists(_ context.Context, profileName, tenant
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, profileName, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, profileName, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return false, nil
@@ -67,7 +67,7 @@ func (r *WirelessRepo) GetCount(_ context.Context, tenantID string) (int, error)
 
 	var count int
 
-	err = r.Pool.QueryRow(sqlQuery, tenantID).Scan(&count)
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, tenantID).Scan(&count)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return 0, nil
@@ -123,7 +123,7 @@ func (r *WirelessRepo) Get(_ context.Context, top, skip int, tenantID string) ([
 		return nil, ErrWiFiDatabase.Wrap("Get", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrWiFiDatabase.Wrap("Get", "r.Pool.Query", err)
 	}
@@ -176,7 +176,7 @@ func (r *WirelessRepo) GetByName(_ context.Context, profileName, tenantID string
 		return nil, ErrWiFiDatabase.Wrap("GetByName", "r.Builder", err)
 	}
 
-	rows, err := r.Pool.Query(sqlQuery, profileName, tenantID)
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, profileName, tenantID)
 	if err != nil {
 		return nil, ErrWiFiDatabase.Wrap("GetByName", "r.Pool.Query", err)
 	}
@@ -218,7 +218,7 @@ func (r *WirelessRepo) Delete(_ context.Context, profileName, tenantID string) (
 		return false, ErrWiFiDatabase.Wrap("Delete", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		// Check for PostgreSQL and SQLite foreign key violation errors
 		if db.CheckForeignKeyViolation(err) {
@@ -253,7 +253,7 @@ func (r *WirelessRepo) Update(_ context.Context, p *entity.WirelessConfig) (bool
 		return false, ErrWiFiDatabase.Wrap("Update", "r.Builder", err)
 	}
 
-	res, err := r.Pool.Exec(sqlQuery, args...)
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		return false, ErrWiFiDatabase.Wrap("Update", "r.Pool.Exec", err)
 	}
@@ -295,9 +295,9 @@ func (r *WirelessRepo) Insert(_ context.Context, p *entity.WirelessConfig) (stri
 	version := ""
 
 	if r.IsEmbedded {
-		_, err = r.Pool.Exec(sqlQuery, args...)
+		_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	} else {
-		err = r.Pool.QueryRow(sqlQuery, args...).Scan(&version)
+		err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&version)
 	}
 
 	if err != nil {

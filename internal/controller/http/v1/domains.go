@@ -36,15 +36,6 @@ type DomainCountResponse struct {
 	Data  []dto.Domain `json:"data"`
 }
 
-// @Summary     Show Domains
-// @Description Show all domains
-// @ID          domains
-// @Tags  	    domains
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DomainCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/domains [Get]
 func (r *domainRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
@@ -80,15 +71,6 @@ func (r *domainRoutes) get(c *gin.Context) {
 	}
 }
 
-// @Summary     Show Domains
-// @Description Show domain by name
-// @ID          domains
-// @Tags  	    domains
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DomainCountResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/domains/:name [get]
 func (r *domainRoutes) getByName(c *gin.Context) {
 	name := c.Param("name")
 
@@ -103,15 +85,6 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 	c.JSON(http.StatusOK, item)
 }
 
-// @Summary     Add Domain
-// @Description Add Domain
-// @ID          domains
-// @Tags  	    domains
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DomainResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/domains [post]
 func (r *domainRoutes) insert(c *gin.Context) {
 	var domain dto.Domain
 	if err := c.ShouldBindJSON(&domain); err != nil {
@@ -132,15 +105,6 @@ func (r *domainRoutes) insert(c *gin.Context) {
 	c.JSON(http.StatusCreated, newDomain)
 }
 
-// @Summary     Edit Domain
-// @Description Edit a Domain
-// @ID          updateDomain
-// @Tags  	    domains
-// @Accept      json
-// @Produce     json
-// @Success     200 {object} DomainResponse
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/Domains [patch]
 func (r *domainRoutes) update(c *gin.Context) {
 	var domain dto.Domain
 	if err := c.ShouldBindJSON(&domain); err != nil {
@@ -161,15 +125,6 @@ func (r *domainRoutes) update(c *gin.Context) {
 	c.JSON(http.StatusOK, updatedDomain)
 }
 
-// @Summary     Remove Domains
-// @Description Remove a Domain
-// @ID          deleteDomain
-// @Tags  	    domains
-// @Accept      json
-// @Produce     json
-// @Success     204 {object} noContent
-// @Failure     500 {object} response
-// @Router      /api/v1/admin/domains [delete]
 func (r *domainRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
 

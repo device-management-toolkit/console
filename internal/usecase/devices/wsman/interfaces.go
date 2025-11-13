@@ -19,10 +19,10 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
-
-	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
 )
 
 type Management interface {
@@ -31,7 +31,7 @@ type Management interface {
 	GetAMTVersion() ([]software.SoftwareIdentity, error)
 	GetSetupAndConfiguration() ([]setupandconfiguration.SetupAndConfigurationServiceResponse, error)
 	GetAMTRedirectionService() (redirection.Response, error)
-	SetAMTRedirectionService(redirection.RedirectionRequest) (redirection.Response, error)
+	SetAMTRedirectionService(*redirection.RedirectionRequest) (redirection.Response, error)
 	RequestAMTRedirectionServiceStateChange(ider, sol bool) (redirection.RequestedState, int, error)
 	GetIPSOptInService() (optin.Response, error)
 	SetIPSOptInService(optin.OptInServiceRequest) error
@@ -47,9 +47,9 @@ type Management interface {
 	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
-	CancelUserConsentRequest() (dto.UserConsentMessage, error)
-	GetUserConsentCode() (optin.StartOptIn_OUTPUT, error)
-	SendConsentCode(code int) (dto.UserConsentMessage, error)
+	CancelUserConsentRequest() (optin.Response, error)
+	GetUserConsentCode() (optin.Response, error)
+	SendConsentCode(code int) (optin.Response, error)
 	SendPowerAction(action int) (power.PowerActionResponse, error)
 	GetBootData() (boot.BootSettingDataResponse, error)
 	SetBootData(data boot.BootSettingDataRequest) (interface{}, error)
@@ -67,4 +67,8 @@ type Management interface {
 	GetDeviceCertificate() (*gotls.Certificate, error)
 	GetCIMBootSourceSetting() (cimBoot.Response, error)
 	BootServiceStateChange(requestedState int) (cimBoot.BootService, error)
+	GetIPSScreenSettingData() (screensetting.Response, error)
+	GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error)
+	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
+	DeleteCertificate(instanceID string) error
 }

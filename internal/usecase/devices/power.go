@@ -3,6 +3,7 @@ package devices
 import (
 	"context"
 	"encoding/base64"
+	"math"
 	"strconv"
 	"strings"
 
@@ -20,6 +21,10 @@ import (
 const (
 	BootActionHTTPSBoot         = 105
 	BootActionPowerOnHTTPSBoot  = 106
+	BootActionPBA               = 107
+	BootActionPowerOnPBA        = 108
+	BootActionWinREBoot         = 109
+	BootActionPowerOnWinREBoot  = 110
 	BootActionResetToIDERCDROM  = 202
 	BootActionPowerOnIDERCDROM  = 203
 	BootActionResetToBIOS       = 101
@@ -32,7 +37,10 @@ const (
 	CIMPMSPowerOn               = 2 // CIM > Power Management Service > Power On
 )
 
-var ErrValidationUseCase = ValidationError{Console: consoleerrors.CreateConsoleError("parameter validation failed")}
+var (
+	ErrValidationUseCase = ValidationError{Console: consoleerrors.CreateConsoleError("parameter validation failed")}
+	ErrLargeFileUseCase  = ValidationError{Console: consoleerrors.CreateConsoleError("UEFI file too large")}
+)
 
 func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (power.PowerActionResponse, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
@@ -255,14 +263,14 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		SecureErase:            false,
 	}
 
+	bootSource := uc.getBootSource(guid, &bootSetting)
+
 	// boot on ider
 	// boot on floppy
 	err = determineBootDevice(bootSetting, &newData)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
-
-	bootSource := getBootSource(bootSetting)
 
 	_, err = device.ChangeBootOrder("")
 	if err != nil {
@@ -300,21 +308,23 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingDataRequest) error {
 	switch bootSetting.Action {
 	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
-		typeLengthValueBuffer, params, err := validateHTTPBootParams(bootSetting.BootDetails.URL, bootSetting.BootDetails.Username, bootSetting.BootDetails.Password)
+		typeLengthValueBuffer, params, err := ValidateHTTPBootParams(bootSetting.BootDetails.URL, bootSetting.BootDetails.Username, bootSetting.BootDetails.Password)
 		if err != nil {
 			return err
 		}
 
-		newData.BIOSLastStatus = nil
-		newData.UseIDER = false
-		newData.BIOSSetup = false
-		newData.UseSOL = false
-		newData.BootMediaIndex = 0
-		newData.EnforceSecureBoot = bootSetting.BootDetails.EnforceSecureBoot
-		newData.UserPasswordBypass = false
-		newData.UefiBootNumberOfParams = params
-		newData.UefiBootParametersArray = base64.StdEncoding.EncodeToString(typeLengthValueBuffer)
-		newData.ForcedProgressEvents = true
+		setUEFIBootSettings(newData, bootSetting.BootDetails.EnforceSecureBoot, params, typeLengthValueBuffer)
+	case BootActionPBA, BootActionPowerOnPBA, BootActionWinREBoot, BootActionPowerOnWinREBoot:
+		if bootSetting.BootDetails.BootPath == "" {
+			return ErrValidationUseCase
+		}
+
+		typeLengthValueBuffer, params, err := ValidatePBAWinReBootParams(bootSetting.BootDetails.BootPath)
+		if err != nil {
+			return err
+		}
+
+		setUEFIBootSettings(newData, bootSetting.BootDetails.EnforceSecureBoot, params, typeLengthValueBuffer)
 	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM:
 		newData.IDERBootDevice = 1
 	default:
@@ -324,8 +334,20 @@ func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingD
 	return nil
 }
 
-func validateHTTPBootParams(url, username, password string) (buffer []byte, paramCount int, err error) {
-	// Example: Create TLV parameters for HTTPS boot
+func setUEFIBootSettings(newData *boot.BootSettingDataRequest, enforceSecureBoot bool, params int, typeLengthValueBuffer []byte) {
+	newData.BIOSLastStatus = nil
+	newData.UseIDER = false
+	newData.BIOSSetup = false
+	newData.UseSOL = false
+	newData.BootMediaIndex = 0
+	newData.EnforceSecureBoot = enforceSecureBoot
+	newData.UserPasswordBypass = false
+	newData.UefiBootNumberOfParams = params
+	newData.UefiBootParametersArray = base64.StdEncoding.EncodeToString(typeLengthValueBuffer)
+	newData.ForcedProgressEvents = true
+}
+
+func ValidateHTTPBootParams(url, username, password string) (buffer []byte, paramCount int, err error) {
 	parameters := []boot.TLVParameter{}
 
 	// Create a network device path (URI to HTTPS server)
@@ -387,9 +409,51 @@ func validateHTTPBootParams(url, username, password string) (buffer []byte, para
 	return tlvBuffer, len(parameters), nil
 }
 
+func ValidatePBAWinReBootParams(file string) (buffer []byte, paramCount int, err error) {
+	parameters := []boot.TLVParameter{}
+
+	// Create a network device path (URI to HTTPS server)
+	filePathParam, err := boot.NewStringParameter(
+		boot.OCR_EFI_FILE_DEVICE_PATH,
+		file,
+	)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	parameters = append(parameters, filePathParam)
+
+	// File path length
+	fileLen := len(file)
+	if fileLen >= math.MaxUint16 {
+		return nil, 0, ErrLargeFileUseCase
+	}
+
+	filePathLengthParam := boot.NewUint16Parameter(
+		boot.OCR_EFI_DEVICE_PATH_LEN,
+		uint16(fileLen),
+	)
+
+	parameters = append(parameters, filePathLengthParam)
+
+	// Validate the parameters before creating the buffer
+	valid, _ := boot.ValidateParameters(parameters)
+	if !valid {
+		return nil, 0, ErrValidationUseCase
+	}
+
+	// Create the TLV buffer
+	tlvBuffer, err := boot.CreateTLVBuffer(parameters)
+	if err != nil {
+		return nil, 0, err
+	}
+
+	return tlvBuffer, len(parameters), nil
+}
+
 // "Intel(r) AMT: Force PXE Boot".
 // "Intel(r) AMT: Force CD/DVD Boot".
-func getBootSource(bootSetting dto.BootSetting) string {
+func (uc *UseCase) getBootSource(guid string, bootSetting *dto.BootSetting) string {
 	switch bootSetting.Action {
 	case BootActionResetToPXE, BootActionPowerOnToPXE:
 		return string(cimBoot.PXE)
@@ -397,15 +461,61 @@ func getBootSource(bootSetting dto.BootSetting) string {
 		return string(cimBoot.CD)
 	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
 		return string(cimBoot.OCRUEFIHTTPS)
+	case BootActionPBA, BootActionPowerOnPBA:
+		return uc.getPbaBootSource(guid, bootSetting)
+	case BootActionWinREBoot, BootActionPowerOnWinREBoot:
+		return uc.getWinReBootSource(guid, bootSetting)
 	default:
 		return ""
 	}
 }
 
+func (uc *UseCase) getPbaBootSource(guid string, bootSetting *dto.BootSetting) string {
+	sources, err := uc.GetBootSourceSetting(context.Background(), guid)
+	if err != nil {
+		return ""
+	}
+
+	for _, src := range sources {
+		if src.BootString == bootSetting.BootDetails.BootPath {
+			return src.InstanceID
+		}
+	}
+
+	return ""
+}
+
+func (uc *UseCase) getWinReBootSource(guid string, bootSetting *dto.BootSetting) string {
+	sources, err := uc.GetBootSourceSetting(context.Background(), guid)
+	if err != nil {
+		return ""
+	}
+
+	if bootSetting.BootDetails.BootPath != "" {
+		for _, src := range sources {
+			if src.BootString == bootSetting.BootDetails.BootPath {
+				return src.InstanceID
+			}
+		}
+	} else {
+		for _, src := range sources {
+			if strings.Contains(src.BIOSBootString, "WinRe") &&
+				strings.HasPrefix(src.InstanceID, targetsPBAWinREInstanceID) {
+				bootSetting.BootDetails.BootPath = src.BootString
+
+				return src.InstanceID
+			}
+		}
+	}
+
+	return ""
+}
+
 func determineBootAction(bootSetting *dto.BootSetting) {
 	switch bootSetting.Action {
 	case BootActionResetToBIOS, BootActionHTTPSBoot, BootActionResetToIDERFloppy,
-		BootActionResetToIDERCDROM, BootActionResetToDiag, BootActionResetToPXE:
+		BootActionResetToIDERCDROM, BootActionResetToDiag, BootActionResetToPXE,
+		BootActionPBA, BootActionWinREBoot:
 		bootSetting.Action = int(power.MasterBusReset)
 	default:
 		bootSetting.Action = int(power.PowerOn)
@@ -429,4 +539,37 @@ func parseVersion(version []software.SoftwareIdentity) (int, error) {
 	}
 
 	return amtversion, nil
+}
+
+func (uc *UseCase) GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return nil, err
+	}
+
+	if item == nil || item.GUID == "" {
+		return nil, ErrNotFound
+	}
+
+	device := uc.device.SetupWsmanClient(*item, false, true)
+
+	settings, err := device.GetCIMBootSourceSetting()
+	if err != nil {
+		return nil, err
+	}
+
+	bootSources := []dto.BootSources{}
+
+	for _, setting := range settings.Body.PullResponse.BootSourceSettingItems {
+		bootSources = append(bootSources, dto.BootSources{
+			InstanceID:           setting.InstanceID,
+			BootString:           setting.BootString,
+			BIOSBootString:       setting.BIOSBootString,
+			ElementName:          setting.ElementName,
+			FailThroughSupported: int(setting.FailThroughSupported),
+			StructuredBootString: setting.StructuredBootString,
+		})
+	}
+
+	return bootSources, nil
 }

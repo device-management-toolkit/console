@@ -74,7 +74,7 @@ func TestCIRARepo_GetCount(t *testing.T) {
 		{
 			name: "Successful count",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id) VALUES (?,?)`, "cira1", "tenant1")
 				require.NoError(t, err)
 			},
 			tenantID: "tenant1",
@@ -144,7 +144,7 @@ func setupDatabase(t *testing.T) *sql.DB {
 	dbConn, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 
-	_, err = dbConn.Exec(schema)
+	_, err = dbConn.ExecContext(context.Background(), schema)
 	require.NoError(t, err)
 
 	return dbConn
@@ -165,7 +165,7 @@ func TestCIRARepo_Get(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"config1", "mpsaddress1", 1234, "user1", "pass1", "common1", 1, 1, "rootcert1", "proxydetail1", "tenant1")
 				require.NoError(t, err)
 			},
@@ -210,7 +210,7 @@ func TestCIRARepo_Get(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"config1", "mpsaddress1", "not-a-number", "user1", "pass1", "common1", 1, 1, "rootcert1", "proxydetail1", "tenant1")
 			},
 			top:      10,
@@ -267,7 +267,7 @@ func TestCIRARepo_GetByName(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ciraconfigs (
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (
 					cira_config_name, mps_server_address, mps_port, user_name, password, common_name,
 					server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id
 				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -309,7 +309,7 @@ func TestCIRARepo_GetByName(t *testing.T) {
 		{
 			name: "Rows scan error",
 			setup: func(dbConn *sql.DB) {
-				_, _ = dbConn.Exec(`INSERT INTO ciraconfigs (
+				_, _ = dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (
 					cira_config_name, mps_server_address, mps_port, user_name, password, common_name,
 					server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id
 				) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -358,7 +358,7 @@ func TestCIRARepo_Update(t *testing.T) {
 		{
 			name: "Successful update",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, tenant_id, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"config1", "tenant1", "old_address", 443, "old_user", "old_pass", "old_name", "ipv4", "digest", "old_cert", "old_proxy")
 				require.NoError(t, err)
 			},
@@ -468,7 +468,7 @@ func TestCIRARepo_Insert(t *testing.T) {
 		{
 			name: "Insert with not unique error",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"config1", "mps_address1", 443, "username1", "password1", "common_name1", "format1", "auth_method1", "root_cert1", "proxy_details1", "tenant1")
 				require.NoError(t, err)
 			},
@@ -545,7 +545,7 @@ func TestCIRARepo_Delete(t *testing.T) {
 		{
 			name: "Successful delete",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.Exec(`INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
 					"config1", "mps.address", 443, "user1", "pass1", "common1", "dns", "digest", "cert1", "proxy1", "tenant1")
 				require.NoError(t, err)
 			},

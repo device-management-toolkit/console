@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"fmt"
 	"os"
@@ -22,6 +23,13 @@ type loggerTest struct {
 	logLevel   zerolog.Level
 	logMessage string
 }
+
+const (
+	levelError = "error"
+	levelWarn  = "warn"
+	levelInfo  = "info"
+	levelDebug = "debug"
+)
 
 func TestLogger(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
 	tests := []loggerTest{
@@ -52,6 +60,7 @@ func TestLogger(t *testing.T) { //nolint:paralleltest // logging library is not 
 
 		t.Run(tc.name, func(t *testing.T) {
 			var buf bytes.Buffer
+
 			zl := zerolog.New(&buf).With().Timestamp().Logger().Level(tc.logLevel)
 
 			log := logger{logger: &zl}
@@ -62,22 +71,22 @@ func TestLogger(t *testing.T) { //nolint:paralleltest // logging library is not 
 			log.Error("error message")
 
 			switch strings.ToLower(tc.logLevel.String()) {
-			case "error":
+			case levelError:
 				assert.Contains(t, buf.String(), tc.logMessage)
 				assert.NotContains(t, buf.String(), "debug")
 				assert.NotContains(t, buf.String(), "info")
 				assert.NotContains(t, buf.String(), "warn")
-			case "warn":
+			case levelWarn:
 				assert.Contains(t, buf.String(), tc.logMessage)
 				assert.Contains(t, buf.String(), "error")
 				assert.NotContains(t, buf.String(), "debug")
 				assert.NotContains(t, buf.String(), "info")
-			case "info":
+			case levelInfo:
 				assert.Contains(t, buf.String(), tc.logMessage)
 				assert.Contains(t, buf.String(), "error")
 				assert.Contains(t, buf.String(), "warn")
 				assert.NotContains(t, buf.String(), "debug")
-			case "debug":
+			case levelDebug:
 				assert.Contains(t, buf.String(), tc.logMessage)
 				assert.Contains(t, buf.String(), "error")
 				assert.Contains(t, buf.String(), "info")
@@ -100,7 +109,7 @@ func TestFatal(t *testing.T) {
 		return
 	}
 
-	cmd := exec.Command(os.Args[0], "-test.run=TestFatal") // #nosec
+	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestFatal") // #nosec
 	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 
 	err := cmd.Run()
@@ -120,10 +129,10 @@ func TestNewLogger(t *testing.T) {
 		level         string
 		expectedLevel zerolog.Level
 	}{
-		{"debug", zerolog.DebugLevel},
-		{"info", zerolog.InfoLevel},
-		{"warn", zerolog.WarnLevel},
-		{"error", zerolog.ErrorLevel},
+		{levelDebug, zerolog.DebugLevel},
+		{levelInfo, zerolog.InfoLevel},
+		{levelWarn, zerolog.WarnLevel},
+		{levelError, zerolog.ErrorLevel},
 		{"invalid", zerolog.InfoLevel},
 	}
 

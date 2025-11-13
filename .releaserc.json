@@ -37,6 +37,10 @@
           {
             "path": "console_mac_arm64.tar.gz",
             "label": "Mac arm64 Console Executable"
+          },
+          {
+            "path": "licenses.zip",
+            "label": "Third-Party Licenses"
           }
         ]
       }
