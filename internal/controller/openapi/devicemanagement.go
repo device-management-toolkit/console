@@ -307,22 +307,7 @@ func (f *FuegoAdapter) addCertificate(_ fuego.ContextWithBody[dto.CertInfo]) (st
 	return "example-handle-123", nil
 }
 
-func (f *FuegoAdapter) deleteCertificate(c fuego.ContextWithBody[dto.DeleteCertificateRequest]) (any, error) {
-	// Extract path parameter
-	guid := c.PathParam("guid")
-
-	// Extract request body
-	body, err := c.Body()
-	if err != nil {
-		return nil, err
-	}
-
-	// Call the use case to delete the certificate
-	err = f.usecases.Devices.DeleteCertificate(c.Context(), guid, body.InstanceID)
-	if err != nil {
-		return nil, err
-	}
-
+func (f *FuegoAdapter) deleteCertificate(_ fuego.ContextWithBody[dto.DeleteCertificateRequest]) (any, error) {
 	return nil, nil
 }
 
