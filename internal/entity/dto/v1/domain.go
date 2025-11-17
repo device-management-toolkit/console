@@ -7,6 +7,9 @@ import (
 	"github.com/go-playground/validator/v10"
 )
 
+// alphanumHyphenUnderscoreRegex is a compiled regex pattern that matches alphanumeric characters, hyphens, and underscores.
+var alphanumHyphenUnderscoreRegex = regexp.MustCompile(`^[a-zA-Z0-9_-]+$`)
+
 type Domain struct {
 	// ProfileName is the unique identifier for the domain profile.
 	// Only alphanumeric characters, hyphens (-), and underscores (_) are allowed.
@@ -23,9 +26,5 @@ type Domain struct {
 
 // ValidateAlphaNumHyphenUnderscore validates that a field contains only alphanumeric characters, hyphens, and underscores.
 func ValidateAlphaNumHyphenUnderscore(fl validator.FieldLevel) bool {
-	// Pattern allows letters, numbers, hyphens (-), and underscores (_)
-	pattern := `^[a-zA-Z0-9_-]+$`
-	matched, _ := regexp.MatchString(pattern, fl.Field().String())
-
-	return matched
+	return alphanumHyphenUnderscoreRegex.MatchString(fl.Field().String())
 }
