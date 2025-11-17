@@ -40,6 +40,26 @@ func TestValidateAlphaNumHyphenUnderscore(t *testing.T) {
 			wantErr: false,
 		},
 		{
+			name:    "valid starting with hyphen",
+			input:   "-myprofile",
+			wantErr: false,
+		},
+		{
+			name:    "valid starting with underscore",
+			input:   "_standalone",
+			wantErr: false,
+		},
+		{
+			name:    "valid starting with number",
+			input:   "123profile",
+			wantErr: false,
+		},
+		{
+			name:    "valid single character",
+			input:   "a",
+			wantErr: false,
+		},
+		{
 			name:    "invalid with special chars",
 			input:   "test!@#",
 			wantErr: true,
@@ -47,6 +67,11 @@ func TestValidateAlphaNumHyphenUnderscore(t *testing.T) {
 		{
 			name:    "invalid with spaces",
 			input:   "test domain",
+			wantErr: true,
+		},
+		{
+			name:    "invalid with dots",
+			input:   "test.domain",
 			wantErr: true,
 		},
 		{
