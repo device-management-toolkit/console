@@ -4,6 +4,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
@@ -20,6 +22,15 @@ type domainRoutes struct {
 
 func NewDomainRoutes(handler *gin.RouterGroup, t domains.Feature, l logger.Interface) {
 	r := &domainRoutes{t, l}
+
+	if binding.Validator != nil {
+		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+			if err := v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore); err != nil {
+				validationErr := ErrValidationDomains.Wrap("NewDomainRoutes", "RegisterValidation", err)
+				l.Error(validationErr, "failed to register alphanumhyphenunderscore validation")
+			}
+		}
+	}
 
 	h := handler.Group("/domains")
 	{

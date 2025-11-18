@@ -16,7 +16,8 @@ import (
 )
 
 type response struct {
-	Error string `json:"error" example:"message"`
+	Error   string `json:"error,omitempty" example:"message"`
+	Message string `json:"message,omitempty" example:"message"`
 }
 
 func ErrorResponse(c *gin.Context, err error) {
@@ -49,26 +50,32 @@ func ErrorResponse(c *gin.Context, err error) {
 	case errors.As(err, &amtErr):
 		amtErrorHandle(c, amtErr)
 	case errors.As(err, &notSupportedErr):
-		c.AbortWithStatusJSON(http.StatusNotImplemented, response{notSupportedErr.Console.FriendlyMessage()})
+		msg := notSupportedErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusNotImplemented, response{Error: msg, Message: msg})
 	case errors.As(err, &certExpErr):
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{certExpErr.Console.FriendlyMessage()})
+		msg := certExpErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 	case errors.As(err, &certPasswordErr):
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{certPasswordErr.Console.FriendlyMessage()})
+		msg := certPasswordErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 	default:
-		c.AbortWithStatusJSON(http.StatusInternalServerError, response{"general error"})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response{Error: "general error", Message: "general error"})
 	}
 }
 
 func netErrorHandle(c *gin.Context, netErr net.Error) {
-	c.AbortWithStatusJSON(http.StatusGatewayTimeout, response{netErr.Error()})
+	msg := netErr.Error()
+	c.AbortWithStatusJSON(http.StatusGatewayTimeout, response{Error: msg, Message: msg})
 }
 
 func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Console.FriendlyMessage()})
+	msg := err.Console.FriendlyMessage()
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
 
 func validatorErrorHandle(c *gin.Context, err validator.ValidationErrors) {
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Error()})
+	msg := err.Error()
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
 
 func notFoundErrorHandle(c *gin.Context, err sqldb.NotFoundError) {
@@ -77,7 +84,7 @@ func notFoundErrorHandle(c *gin.Context, err sqldb.NotFoundError) {
 		message = err.Console.FriendlyMessage()
 	}
 
-	c.AbortWithStatusJSON(http.StatusNotFound, response{message})
+	c.AbortWithStatusJSON(http.StatusNotFound, response{Error: message, Message: message})
 }
 
 func dbErrorHandle(c *gin.Context, err sqldb.DatabaseError) {
@@ -92,22 +99,26 @@ func dbErrorHandle(c *gin.Context, err sqldb.DatabaseError) {
 	}
 
 	if errors.As(err.Console.OriginalError, &foreignKeyViolationErr) {
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{foreignKeyViolationErr.Console.FriendlyMessage()})
+		msg := foreignKeyViolationErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return
 	}
 
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Console.FriendlyMessage()})
+	msg := err.Console.FriendlyMessage()
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
 
 func amtErrorHandle(c *gin.Context, err devices.AMTError) {
+	msg := err.Console.FriendlyMessage()
 	if strings.Contains(err.Console.Error(), "400 Bad Request") {
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Console.FriendlyMessage()})
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 	} else {
-		c.AbortWithStatusJSON(http.StatusInternalServerError, response{err.Console.FriendlyMessage()})
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response{Error: msg, Message: msg})
 	}
 }
 
 func notUniqueErrorHandle(c *gin.Context, err sqldb.NotUniqueError) {
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{err.Console.FriendlyMessage()})
+	msg := err.Console.FriendlyMessage()
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
