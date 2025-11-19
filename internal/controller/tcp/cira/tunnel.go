@@ -248,6 +248,7 @@ func (s *Server) processData(conn net.Conn, data []byte, session *apf.Session, c
 		log.Printf("Authentication successful for device %s\n", currentDeviceID)
 		// apf.Process already generated the success response, just write it
 		_, err = conn.Write(response.Bytes())
+
 		return newDeviceID, true, false, err
 	}
 
@@ -255,6 +256,22 @@ func (s *Server) processData(conn net.Conn, data []byte, session *apf.Session, c
 	_, err = conn.Write(response.Bytes())
 	if err != nil {
 		return "", false, false, err
+	}
+
+	if authenticated && messageType == apf.APF_GLOBAL_REQUEST {
+		// set keep alive timer for device connection
+		var bin_buf bytes.Buffer
+
+		keepAliveOptionsRequest := apf.KeepAliveOptionsRequest(30, 90)
+		err := binary.Write(&bin_buf, binary.BigEndian, keepAliveOptionsRequest)
+		if err != nil {
+			return "", false, false, err
+		}
+
+		_, err = conn.Write(bin_buf.Bytes())
+		if err != nil {
+			return "", false, false, err
+		}
 	}
 
 	return newDeviceID, false, false, nil
