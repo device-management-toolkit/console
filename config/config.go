@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -29,6 +30,7 @@ type (
 		Name                 string `env-required:"true" yaml:"name" env:"APP_NAME"`
 		Repo                 string `env-required:"true" yaml:"repo" env:"APP_REPO"`
 		Version              string `env-required:"true"`
+		CommonName           string `env-required:"true" yaml:"common_name" env:"APP_COMMON_NAME"`
 		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
 	}
@@ -93,6 +95,28 @@ type (
 	}
 )
 
+// getPreferredIPAddress detects the most likely candidate IP address for this machine.
+// It prefers non-loopback IPv4 addresses and excludes link-local addresses.
+func getPreferredIPAddress() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return "localhost"
+	}
+
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				// Exclude link-local addresses (169.254.x.x)
+				if !ipNet.IP.IsLinkLocalUnicast() {
+					return ipNet.IP.String()
+				}
+			}
+		}
+	}
+
+	return "localhost"
+}
+
 // defaultConfig constructs the in-memory default configuration.
 func defaultConfig() *Config {
 	return &Config{
@@ -100,6 +124,7 @@ func defaultConfig() *Config {
 			Name:                 "console",
 			Repo:                 "device-management-toolkit/console",
 			Version:              "DEVELOPMENT",
+			CommonName:           getPreferredIPAddress(),
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,
 		},

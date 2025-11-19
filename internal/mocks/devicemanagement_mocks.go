@@ -61,11 +61,12 @@ func (mr *MockWSMANMockRecorder) DestroyWsmanClient(device any) *gomock.Call {
 }
 
 // SetupWsmanClient mocks base method.
-func (m *MockWSMAN) SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) wsman.Management {
+func (m *MockWSMAN) SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) (wsman.Management, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetupWsmanClient", device, isRedirection, logMessages)
 	ret0, _ := ret[0].(wsman.Management)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SetupWsmanClient indicates an expected call of SetupWsmanClient.
