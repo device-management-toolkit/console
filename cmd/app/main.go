@@ -12,6 +12,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/controller/openapi"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -40,6 +41,16 @@ func main() {
 	err = initializeAppFunc(cfg)
 	if err != nil {
 		log.Fatalf("App init error: %s", err)
+	}
+
+	root, privateKey, err := certificates.CheckAndLoadOrGenerateRootCertificate(true, cfg.CommonName, "US", "device-management-toolkit", true)
+	if err != nil {
+		log.Fatalf("Error loading or generating root certificate: %s", err)
+	}
+
+	_, _, err = certificates.CheckAndLoadOrGenerateWebServerCertificate(certificates.CertAndKeyType{Cert: root, Key: privateKey}, false, cfg.CommonName, "US", "device-management-toolkit", true)
+	if err != nil {
+		log.Fatalf("Error loading or generating web server certificate: %s", err)
 	}
 
 	handleEncryptionKey(cfg)

@@ -4,7 +4,10 @@
 # Config
 .env
 .DS_store
-*.pem
+#certs
+**/*.pem
+**/*.crt
+**/*.key
 **/*.yml
 **/*.yaml
 !config/config.yml
@@ -18,7 +21,7 @@ bin/
 *.db
 *.db-journal
 __debug_bin*
-
+*.app
 
 # Test binary, built with `go test -c`
 *.test

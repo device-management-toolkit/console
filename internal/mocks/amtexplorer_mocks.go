@@ -1072,11 +1072,12 @@ func (mr *MockAMTExplorerWSMANMockRecorder) DestroyWsmanClient(device any) *gomo
 }
 
 // SetupWsmanClient mocks base method.
-func (m *MockAMTExplorerWSMAN) SetupWsmanClient(device entity.Device, logMessages bool) amtexplorer.AMTExplorer {
+func (m *MockAMTExplorerWSMAN) SetupWsmanClient(device entity.Device, logMessages bool) (amtexplorer.AMTExplorer, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetupWsmanClient", device, logMessages)
 	ret0, _ := ret[0].(amtexplorer.AMTExplorer)
-	return ret0
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
 }
 
 // SetupWsmanClient indicates an expected call of SetupWsmanClient.

@@ -16,6 +16,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	consolehttp "github.com/device-management-toolkit/console/internal/controller/http"
+	"github.com/device-management-toolkit/console/internal/controller/tcp/cira"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/db"
@@ -76,6 +77,16 @@ func Run(cfg *config.Config) {
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
+
+	// Use the same certificates that were generated in main.go
+	ciraCertFile := fmt.Sprintf("config/%s_cert.pem", cfg.CommonName)
+	ciraKeyFile := fmt.Sprintf("config/%s_key.pem", cfg.CommonName)
+
+	ciraServer, err := cira.NewServer(ciraCertFile, ciraKeyFile, usecases.Devices)
+	if err != nil {
+		log.Fatal("CIRA Server failed: %v", err)
+	}
+
 	// Configure TLS based on config
 	tlsEnabled := cfg.TLS.Enabled
 	certFile := cfg.TLS.CertFile
@@ -97,11 +108,17 @@ func Run(cfg *config.Config) {
 		log.Info("app - Run - signal: " + s.String())
 	case err = <-httpServer.Notify():
 		log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+	case ciraErr := <-ciraServer.Notify():
+		log.Error(fmt.Errorf("app - Run - ciraServer.Notify: %w", ciraErr))
 	}
 
 	// Shutdown
 	err = httpServer.Shutdown()
 	if err != nil {
 		log.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
+	}
+	err = ciraServer.Shutdown()
+	if err != nil {
+		log.Error(fmt.Errorf("app - Run - ciraServer.Shutdown: %w", err))
 	}
 }
