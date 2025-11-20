@@ -42,6 +42,11 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		l.Fatal("Failed to initialize redfish: " + err.Error())
 	}
 
+	// Register redfish routes FIRST (before static files)
+	if err := redfish.RegisterRoutes(handler, l); err != nil {
+		l.Fatal("Failed to register redfish routes: " + err.Error())
+	}
+
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
 	fuegoAdapter.RegisterRoutes()
@@ -57,8 +62,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	if err != nil {
 		l.Fatal(err)
 	}
-
-	handler.StaticFileFS("/", "./", http.FS(staticFiles)) // Serve static files from "/" route
 
 	modifiedMainJS := injectConfigToMainJS(l, cfg)
 	handler.StaticFile("/main.js", modifiedMainJS)
@@ -125,14 +128,49 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		v2.NewAmtRoutes(h3, t.Devices, l)
 	}
 
-	// Register redfish routes directly
-	if err := redfish.RegisterRoutes(handler, l); err != nil {
-		l.Fatal("Failed to register redfish routes: " + err.Error())
-	}
+	// Serve SPA only for root path
+	handler.GET("/", func(c *gin.Context) {
+		c.FileFromFS("./index.html", http.FS(staticFiles))
+	})
 
-	// Setup default NoRoute handler for SPA
 	handler.NoRoute(func(c *gin.Context) {
-		c.FileFromFS("./", http.FS(staticFiles))
+		path := c.Request.URL.Path
+
+		// Handle Redfish API routes with Redfish-compliant 404 errors
+		if len(path) >= 10 && path[:10] == "/redfish/v" {
+			c.Header("Content-Type", "application/json; charset=utf-8")
+			c.Header("OData-Version", "4.0")
+
+			errorMessage := "Resource not found"
+			c.JSON(http.StatusNotFound, gin.H{
+				"error": gin.H{
+					"code":    "Base.1.22.0.ResourceMissingAtURI",
+					"message": errorMessage,
+					"@Message.ExtendedInfo": []gin.H{
+						{
+							"@odata.type": "#Message.v1_0_0.Message",
+							"MessageId":   "Base.1.22.0.ResourceMissingAtURI",
+							"Message":     errorMessage,
+							"MessageArgs": []string{path},
+							"Severity":    "Warning",
+							"Resolution":  "Remove the URI from the request and resubmit the request.",
+						},
+					},
+				},
+			})
+
+			return
+		}
+
+		// Handle API routes with regular JSON errors
+		if len(path) >= 4 && path[:4] == "/api" {
+			c.JSON(http.StatusNotFound, gin.H{"error": "Not Found"})
+
+			return
+		}
+
+		// Serve SPA for all other routes (client-side routing)
+		c.FileFromFS("./index.html", http.FS(staticFiles))
 	})
 }
 

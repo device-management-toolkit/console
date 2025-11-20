@@ -10,6 +10,8 @@
 !config/config.yml
 !redfish/openapi/dmtf/*.yaml
 !redfish/openapi/merged/*.yaml
+!.github/workflows/*.yml
+!.github/workflows/*.yaml
 # Binaries for programs and plugins
 *.exe
 *.exe~

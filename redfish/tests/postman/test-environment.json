@@ -1,0 +1,25 @@
+{
+  "name": "CI Test Environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8181",
+      "enabled": true
+    },
+    {
+      "key": "admin_username",
+      "value": "standalone",
+      "enabled": true
+    },
+    {
+      "key": "admin_password",
+      "value": "G@ppm0ym",
+      "enabled": true
+    },
+    {
+      "key": "system_id",
+      "value": "test-system-1",
+      "enabled": true
+    }
+  ]
+}

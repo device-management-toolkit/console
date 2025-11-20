@@ -3,6 +3,7 @@ package redfish
 
 import (
 	"errors"
+	"os"
 	"strings"
 
 	"github.com/gin-gonic/gin"
@@ -50,15 +51,27 @@ func Initialize(_ *gin.Engine, log logger.Interface, _ *db.SQL, usecases *dmtuse
 		BaseURL:      "/redfish/v1",
 	}
 
-	// Create Redfish-specific repository and use case using DMT's device management
-	devicesUC, ok := usecases.Devices.(*devices.UseCase)
-	if !ok {
-		log.Error("Failed to cast Devices usecase to *devices.UseCase")
+	// Check if we should use mock repository (for testing)
+	useMock := os.Getenv("REDFISH_USE_MOCK") == "true"
 
-		return nil // Return nil to not block other components
+	var repo redfishusecase.ComputerSystemRepository
+
+	if useMock {
+		log.Info("Using mock WSMAN repository for Redfish API")
+
+		repo = redfishusecase.NewMockComputerSystemRepo()
+	} else {
+		// Create Redfish-specific repository and use case using DMT's device management
+		devicesUC, ok := usecases.Devices.(*devices.UseCase)
+		if !ok {
+			log.Error("Failed to cast Devices usecase to *devices.UseCase")
+
+			return nil // Return nil to not block other components
+		}
+
+		repo = redfishusecase.NewWsmanComputerSystemRepo(devicesUC, log)
 	}
 
-	repo := redfishusecase.NewWsmanComputerSystemRepo(devicesUC, log)
 	computerSystemUC := &redfishusecase.ComputerSystemUseCase{Repo: repo}
 
 	// Initialize the Redfish server with shared infrastructure

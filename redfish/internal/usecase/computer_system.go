@@ -87,6 +87,21 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 	odataType := generated.OdataV4Type("#ComputerSystem.v1_22_0.ComputerSystem")
 	odataID := fmt.Sprintf("/redfish/v1/Systems/%s", systemID)
 
+	// Build Status if present
+	var status *generated.ResourceStatus
+
+	if system.Status != nil {
+		health := generated.ResourceStatus_Health{}
+		_ = health.FromResourceStatusHealth1(system.Status.Health)
+		state := generated.ResourceStatus_State{}
+		_ = state.FromResourceStatusState1(system.Status.State)
+
+		status = &generated.ResourceStatus{
+			State:  &state,
+			Health: &health,
+		}
+	}
+
 	result := generated.ComputerSystemComputerSystem{
 		OdataContext: &odataContext,
 		OdataId:      &odataID,
@@ -98,6 +113,7 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		SerialNumber: serialNumber,
 		PowerState:   powerState,
 		SystemType:   &systemType,
+		Status:       status,
 	}
 
 	return &result, nil

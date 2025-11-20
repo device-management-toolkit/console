@@ -3,15 +3,22 @@ package redfish
 
 // ComputerSystem represents a Redfish Computer System entity.
 type ComputerSystem struct {
-	ID           string
-	Name         string
-	SystemType   SystemType
-	Manufacturer string
-	Model        string
-	SerialNumber string
-	PowerState   PowerState
-	ODataID      string
-	ODataType    string
+	ID           string     `json:"Id"`
+	Name         string     `json:"Name"`
+	SystemType   SystemType `json:"SystemType"`
+	Manufacturer string     `json:"Manufacturer"`
+	Model        string     `json:"Model"`
+	SerialNumber string     `json:"SerialNumber"`
+	PowerState   PowerState `json:"PowerState"`
+	Status       *Status    `json:"Status,omitempty"`
+	ODataID      string     `json:"@odata.id"`
+	ODataType    string     `json:"@odata.type"`
+}
+
+// Status represents the status and health of a resource.
+type Status struct {
+	State  string `json:"State,omitempty"`
+	Health string `json:"Health,omitempty"`
 }
 
 // SystemType represents the type of computer system.

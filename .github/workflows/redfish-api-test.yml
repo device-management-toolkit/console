@@ -1,0 +1,106 @@
+name: Redfish API Integration Tests
+
+on:
+  push:
+    branches: [ main, develop, apiIntegrationTests2 ]
+  pull_request:
+    branches: [ main, develop ]
+
+jobs:
+  redfish-newman-tests:
+    name: Redfish Newman/Postman Tests
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Go
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a
+        with:
+          go-version: '1.24.x'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-htmlextra
+
+      - name: Create minimal config file
+        run: |
+          mkdir -p config
+          cp config/config.yml config/config.yml.bak 2>/dev/null || true
+          cat > config/config.yml << 'EOF'
+          app:
+            name: "console"
+            repo: "device-management-toolkit/console"
+            version: "test"
+            encryption_key: "test-encryption-key-for-ci-testing-only"
+          
+          http:
+            host: "localhost"
+            port: "8181"
+            allowed_origins: ["*"]
+            allowed_headers: ["*"]
+            ws_compression: false
+            tls:
+              enabled: false
+          
+          logger:
+            log_level: "info"
+          
+          postgres:
+            pool_max: 10
+            url: ""
+          
+          auth:
+            disabled: false
+            adminUsername: "standalone"
+            adminPassword: "G@ppm0ym"
+            jwtKey: "test-jwt-key-for-testing"
+            jwtExpiration: 1h
+            redirectionJWTExpiration: 5m
+          EOF
+
+      - name: Create results directory
+        run: mkdir -p redfish/tests/postman/results
+
+      - name: Make test script executable
+        run: chmod +x redfish/tests/run_tests.sh
+
+      - name: Run Redfish API tests with Newman
+        run: ./redfish/tests/run_tests.sh
+        env:
+          REDFISH_USE_MOCK: "true"
+          HTTP_TLS_ENABLED: "false"
+          HTTP_PORT: "8181"
+
+      - name: Show server logs on failure
+        if: failure()
+        run: |
+          echo "=== Server Log ==="
+          cat /tmp/redfish_test_server.log || echo "No log file found"
+
+      - name: Upload Newman test results
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: newman-redfish-results
+          path: redfish/tests/postman/results/
+
+      - name: Display test summary
+        if: always()
+        run: |
+          if [ -f redfish/tests/postman/results/newman-report.json ]; then
+            echo "=== Redfish API Test Summary ==="
+            cat redfish/tests/postman/results/newman-report.json | jq -r '
+              "Total Requests: \(.run.stats.requests.total)",
+              "Passed: \(.run.stats.assertions.total - .run.stats.assertions.failed)",
+              "Failed: \(.run.stats.assertions.failed)"
+            '
+          fi
