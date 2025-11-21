@@ -8,7 +8,7 @@ toolchain go1.24.9
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.16.0
+	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.32.4
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/pprof v1.5.3
