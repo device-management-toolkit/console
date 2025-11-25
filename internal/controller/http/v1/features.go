@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
@@ -33,19 +33,19 @@ func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 		return
 	}
 
-	v1Features := map[string]interface{}{
-		"redirection":           features.Redirection,
-		"KVM":                   features.EnableKVM,
-		"SOL":                   features.EnableSOL,
-		"IDER":                  features.EnableIDER,
-		"optInState":            features.OptInState,
-		"userConsent":           features.UserConsent,
-		"kvmAvailable":          features.KVMAvailable,
-		"ocr":                   features.OCR,
-		"httpsBootSupported":    features.HTTPSBootSupported,
-		"winREBootSupported":    features.WinREBootSupported,
-		"localPBABootSupported": features.LocalPBABootSupported,
-		"remoteErase":           features.RemoteErase,
+	v1Features := dto.GetFeaturesResponse{
+		Redirection:           features.Redirection,
+		KVM:                   features.EnableKVM,
+		SOL:                   features.EnableSOL,
+		IDER:                  features.EnableIDER,
+		OptInState:            features.OptInState,
+		UserConsent:           features.UserConsent,
+		KVMAvailable:          features.KVMAvailable,
+		OCR:                   features.OCR,
+		HTTPSBootSupported:    features.HTTPSBootSupported,
+		WinREBootSupported:    features.WinREBootSupported,
+		LocalPBABootSupported: features.LocalPBABootSupported,
+		RemoteErase:           features.RemoteErase,
 	}
 
 	c.JSON(http.StatusOK, v1Features)
