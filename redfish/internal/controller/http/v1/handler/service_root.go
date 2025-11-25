@@ -6,9 +6,11 @@ import (
 	"encoding/xml"
 	"fmt"
 	"net/http"
+	"os"
 	"sync"
 
 	"github.com/gin-gonic/gin"
+	"github.com/google/uuid"
 	"github.com/labstack/gommon/log"
 
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
@@ -84,10 +86,35 @@ func validateMetadataXML(xmlData string) error {
 	return nil
 }
 
+// generateServiceUUID generates a deterministic UUID v5 for the service instance.
+// Per Redfish specification, this UUID should be consistent across service restarts
+// to identify the same service instance. Uses UUID v5 with RFC 4122 DNS namespace
+// combined with hostname for deterministic generation unique to each deployment.
+func generateServiceUUID() string {
+	// Get hostname to make UUID unique per server/deployment
+	// Falls back to serviceRootID if hostname unavailable
+	hostname, err := os.Hostname()
+	if err != nil || hostname == "" {
+		hostname = serviceRootID
+	}
+
+	// Use RFC 4122 predefined DNS namespace (6ba7b810-9dad-11d1-80b4-00c04fd430c8)
+	// Combined with hostname to ensure same UUID across service restarts on same host
+	serviceIdentifier := "redfish-service-" + hostname
+	serviceUUID := uuid.NewSHA1(uuid.NameSpaceDNS, []byte(serviceIdentifier))
+
+	return serviceUUID.String()
+}
+
 // GetRedfishV1 returns the service root
 // Path: GET /redfish/v1
 // Spec: Redfish ServiceRoot.v1_19_0
+// This is the entry point for the Redfish API, providing links to all available resources.
+// Per Redfish specification, this endpoint must be accessible without authentication.
 func (s *RedfishServer) GetRedfishV1(c *gin.Context) {
+	// Set Redfish-compliant headers
+	SetRedfishHeaders(c)
+
 	serviceRoot := generated.ServiceRootServiceRoot{
 		OdataContext:   StringPtr(odataContextServiceRoot),
 		OdataId:        StringPtr(odataIDServiceRoot),
@@ -95,10 +122,26 @@ func (s *RedfishServer) GetRedfishV1(c *gin.Context) {
 		Id:             serviceRootID,
 		Name:           serviceRootName,
 		RedfishVersion: StringPtr(redfishVersion),
+		UUID:           StringPtr(generateServiceUUID()),
+		Product:        StringPtr("Device Management Toolkit - Redfish Service"),
+		Vendor:         StringPtr("Device Management Toolkit"),
+		Links: generated.ServiceRootLinks{
+			Sessions: generated.OdataV4IdRef{
+				OdataId: StringPtr("/redfish/v1/SessionService/Sessions"),
+			},
+		},
 		Systems: &generated.OdataV4IdRef{
 			OdataId: StringPtr("/redfish/v1/Systems"),
 		},
+		Registries: &generated.OdataV4IdRef{
+			OdataId: StringPtr("/redfish/v1/Registries"),
+		},
+		ProtocolFeaturesSupported: &generated.ServiceRootProtocolFeaturesSupported{
+			SelectQuery: BoolPtr(false),
+			FilterQuery: BoolPtr(false),
+		},
 	}
+
 	c.JSON(http.StatusOK, serviceRoot)
 }
 

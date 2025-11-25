@@ -474,6 +474,69 @@ type ResourceStatus_State struct {
 	union json.RawMessage
 }
 
+// ServiceRootDeepOperations The information about deep operations that the service supports.
+type ServiceRootDeepOperations struct {
+	// DeepPATCH An indication of whether the service supports the deep `PATCH` operation.
+	DeepPATCH *bool `json:"DeepPATCH,omitempty"`
+
+	// DeepPOST An indication of whether the service supports the deep `POST` operation.
+	DeepPOST *bool `json:"DeepPOST,omitempty"`
+
+	// MaxLevels The maximum levels of resources allowed in deep operations.
+	MaxLevels *int64 `json:"MaxLevels,omitempty"`
+}
+
+// ServiceRootExpand The information about the use of `$expand` in the service.
+type ServiceRootExpand struct {
+	// ExpandAll An indication of whether the service supports the asterisk (`*`) option of the `$expand` query parameter.
+	ExpandAll *bool `json:"ExpandAll,omitempty"`
+
+	// Levels An indication of whether the service supports the `$levels` option of the `$expand` query parameter.
+	Levels *bool `json:"Levels,omitempty"`
+
+	// Links An indication of whether this service supports the tilde (`~`) option of the `$expand` query parameter.
+	Links *bool `json:"Links,omitempty"`
+
+	// MaxLevels The maximum `$levels` option value in the `$expand` query parameter.
+	MaxLevels *int64 `json:"MaxLevels,omitempty"`
+
+	// NoLinks An indication of whether the service supports the period (`.`) option of the `$expand` query parameter.
+	NoLinks *bool `json:"NoLinks,omitempty"`
+}
+
+// ServiceRootLinks The links to other resources that are related to this resource.
+type ServiceRootLinks struct {
+	// ManagerProvidingService A reference to a resource.
+	ManagerProvidingService *OdataV4IdRef `json:"ManagerProvidingService,omitempty"`
+
+	// Oem The OEM extension.
+	Oem *ResourceOem `json:"Oem,omitempty"`
+
+	// Sessions A reference to a resource.
+	Sessions OdataV4IdRef `json:"Sessions"`
+}
+
+// ServiceRootProtocolFeaturesSupported The information about protocol features that the service supports.
+type ServiceRootProtocolFeaturesSupported struct {
+	// DeepOperations The information about deep operations that the service supports.
+	DeepOperations *ServiceRootDeepOperations `json:"DeepOperations,omitempty"`
+
+	// ExcerptQuery An indication of whether the service supports the `excerpt` query parameter.
+	ExcerptQuery *bool `json:"ExcerptQuery,omitempty"`
+
+	// ExpandQuery The information about the use of `$expand` in the service.
+	ExpandQuery *ServiceRootExpand `json:"ExpandQuery,omitempty"`
+
+	// FilterQuery An indication of whether the service supports the `$filter` query parameter.
+	FilterQuery *bool `json:"FilterQuery,omitempty"`
+
+	// OnlyMemberQuery An indication of whether the service supports the `only` query parameter.
+	OnlyMemberQuery *bool `json:"OnlyMemberQuery,omitempty"`
+
+	// SelectQuery An indication of whether the service supports the `$select` query parameter.
+	SelectQuery *bool `json:"SelectQuery,omitempty"`
+}
+
 // ServiceRootServiceRoot The `ServiceRoot` schema describes the root of the Redfish service, located at the '/redfish/v1' URI.  All other resources accessible through the Redfish interface on this device are linked directly or indirectly from the service root.
 type ServiceRootServiceRoot struct {
 	// OdataContext The OData description of a payload.
@@ -483,14 +546,14 @@ type ServiceRootServiceRoot struct {
 	OdataId *OdataV4Id `json:"@odata.id,omitempty"`
 
 	// OdataType The type of a resource.
-	OdataType *OdataV4Type `json:"@odata.type,omitempty"`
-
-	// Chassis A reference to a resource.
-	Chassis     *OdataV4IdRef                       `json:"Chassis,omitempty"`
+	OdataType   *OdataV4Type                        `json:"@odata.type,omitempty"`
 	Description *ServiceRootServiceRoot_Description `json:"Description,omitempty"`
 
 	// Id The unique identifier for this resource within the collection of similar resources.
 	Id ResourceId `json:"Id"`
+
+	// Links The links to other resources that are related to this resource.
+	Links ServiceRootLinks `json:"Links"`
 
 	// Managers A reference to a resource.
 	Managers *OdataV4IdRef `json:"Managers,omitempty"`
@@ -498,14 +561,26 @@ type ServiceRootServiceRoot struct {
 	// Name The name of the resource or array member.
 	Name ResourceName `json:"Name"`
 
+	// Product The product associated with this Redfish service.
+	Product *string `json:"Product"`
+
+	// ProtocolFeaturesSupported The information about protocol features that the service supports.
+	ProtocolFeaturesSupported *ServiceRootProtocolFeaturesSupported `json:"ProtocolFeaturesSupported,omitempty"`
+
 	// RedfishVersion The version of the Redfish service.
 	RedfishVersion *string `json:"RedfishVersion,omitempty"`
+
+	// Registries A reference to a resource.
+	Registries *OdataV4IdRef `json:"Registries,omitempty"`
 
 	// Systems A reference to a resource.
 	Systems *OdataV4IdRef `json:"Systems,omitempty"`
 
 	// UUID Unique identifier for a service instance.  When SSDP is used, this value contains the same UUID returned in an HTTP `200 OK` response from an SSDP `M-SEARCH` request during discovery.
 	UUID *string `json:"UUID"`
+
+	// Vendor The vendor or manufacturer associated with this Redfish service.
+	Vendor *string `json:"Vendor"`
 }
 
 // ServiceRootServiceRootDescription1 defines model for .

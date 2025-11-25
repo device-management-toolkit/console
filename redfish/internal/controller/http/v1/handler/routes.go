@@ -67,6 +67,11 @@ func Int64Ptr(i int64) *int64 {
 	return &i
 }
 
+// BoolPtr creates a pointer to a bool value.
+func BoolPtr(b bool) *bool {
+	return &b
+}
+
 // CreateDescription creates a Description from a string using ResourceDescription.
 // If an error occurs during description creation, it logs the error and returns nil.
 // This allows the calling code to continue with a nil description while ensuring
