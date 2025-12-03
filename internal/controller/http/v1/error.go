@@ -23,6 +23,7 @@ type response struct {
 func ErrorResponse(c *gin.Context, err error) {
 	var (
 		validatorErr    validator.ValidationErrors
+		cancelledError  dto.CanceledError
 		nfErr           sqldb.NotFoundError
 		notValidErr     dto.NotValidError
 		dbErr           sqldb.DatabaseError
@@ -37,6 +38,8 @@ func ErrorResponse(c *gin.Context, err error) {
 	switch {
 	case errors.As(err, &netErr):
 		netErrorHandle(c, netErr)
+	case errors.As(err, &cancelledError):
+		cancelledErrorHandle(c, cancelledError)
 	case errors.As(err, &notValidErr):
 		notValidErrorHandle(c, notValidErr)
 	case errors.As(err, &validatorErr):
@@ -66,6 +69,9 @@ func ErrorResponse(c *gin.Context, err error) {
 func netErrorHandle(c *gin.Context, netErr net.Error) {
 	msg := netErr.Error()
 	c.AbortWithStatusJSON(http.StatusGatewayTimeout, response{Error: msg, Message: msg})
+}
+func cancelledErrorHandle(c *gin.Context, cancelError dto.CanceledError) {
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{cancelError.Error()})
 }
 
 func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
