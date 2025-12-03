@@ -168,7 +168,7 @@ Console automatically generates OpenAPI documentation when running in debug mode
 2. **Run Console**: Start the application with `go run ./cmd/app/main.go`
 3. **Access OpenAPI Spec**: The OpenAPI specification is automatically generated and available at:
    - JSON format: `http://localhost:8181/openapi.json`
-   - The spec is also written to `doc/openapi.json` in your project directory
+   - The spec is also written to `doc/openapi.json` in your project directory.
 4. **To add API Documentation**: Check wiki `https://github.com/device-management-toolkit/console/wiki/API-Documentation-to-Console`
 
 > **Note**: OpenAPI generation only occurs in debug mode. Production builds will not expose these endpoints. 
