@@ -81,6 +81,7 @@ func (m *MockGenerator) GenerateSpec() ([]byte, error) {
 	args := m.Called()
 
 	var b []byte
+
 	if v := args.Get(0); v != nil {
 		if bb, ok := v.([]byte); ok {
 			b = bb

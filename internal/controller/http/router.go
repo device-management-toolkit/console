@@ -128,15 +128,16 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	}
 
 	protocol := "http://"
+	https := "https://"
 
 	requireHTTPSReplacement := ",requireHttps:!1"
 	if cfg.UI.RequireHTTPS {
 		requireHTTPSReplacement = ",requireHttps:!0"
-		protocol = "https://"
+		protocol = https
 	}
 
 	if cfg.TLS.Enabled {
-		protocol = "https://"
+		protocol = https
 	}
 
 	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
