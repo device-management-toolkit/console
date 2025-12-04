@@ -164,7 +164,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(context.Background(), true).
-					Return(amt)
+					Return(amt, nil)
 			},
 			res: &dto.Explorer{},
 			err: amtexplorer.ErrDatabase.Wrap("ExecuteCall", "uc.repo.GetByID", ErrExplorerGeneral),
@@ -180,7 +180,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 			},
 			res: &dto.Explorer{},
 			err: amtexplorer.ErrExplorerUseCase,
@@ -196,7 +196,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 
 				amt.EXPECT().
 					GetAMT8021xCredentialContext().
@@ -216,7 +216,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 
 				amt.EXPECT().
 					GetAMT8021xCredentialContext().
@@ -236,7 +236,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 
 				amt.EXPECT().
 					GetAMT8021xProfile().
@@ -256,7 +256,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMT8021xProfile().
 					Return(ieee8021x.Response{}, ErrExplorerGeneral)
@@ -275,7 +275,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTAlarmClockService().
 					Return(alarmclock.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -297,7 +297,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTAlarmClockService().
 					Return(alarmclock.Response{}, ErrExplorerGeneral)
@@ -316,7 +316,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTAuditLog().
 					Return(auditlog.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -338,7 +338,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTAuditLog().
 					Return(auditlog.Response{}, ErrExplorerGeneral)
@@ -357,7 +357,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTAuthorizationService().
 					Return(authorization.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -379,7 +379,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTAuthorizationService().
 					Return(authorization.Response{}, ErrExplorerGeneral)
@@ -398,7 +398,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTBootCapabilities().
 					Return(boot.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -417,7 +417,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTBootCapabilities().
 					Return(boot.Response{}, ErrExplorerGeneral)
@@ -436,7 +436,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTBootSettingData().
 					Return(boot.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -455,7 +455,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTBootSettingData().
 					Return(boot.Response{}, ErrExplorerGeneral)
@@ -474,7 +474,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTEnvironmentDetectionSettingData().
 					Return(environmentdetection.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -493,7 +493,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTEnvironmentDetectionSettingData().
 					Return(environmentdetection.Response{}, ErrExplorerGeneral)
@@ -512,7 +512,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTEthernetPortSettings().
 					Return(ethernetport.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -531,7 +531,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTEthernetPortSettings().
 					Return(ethernetport.Response{}, ErrExplorerGeneral)
@@ -550,7 +550,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTGeneralSettings().
 					Return(general.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -569,7 +569,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTGeneralSettings().
 					Return(general.Response{}, ErrExplorerGeneral)
@@ -588,7 +588,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTKerberosSettingData().
 					Return(kerberos.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -607,7 +607,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTKerberosSettingData().
 					Return(kerberos.Response{}, ErrExplorerGeneral)
@@ -626,7 +626,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTManagementPresenceRemoteSAP().
 					Return(managementpresence.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -645,7 +645,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTManagementPresenceRemoteSAP().
 					Return(managementpresence.Response{}, ErrExplorerGeneral)
@@ -664,7 +664,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTMessageLog().
 					Return(messagelog.Response{Message: &client.Message{
@@ -686,7 +686,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTMessageLog().
 					Return(messagelog.Response{}, ErrExplorerGeneral)
@@ -705,7 +705,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTMPSUsernamePassword().
 					Return(mps.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -724,7 +724,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTMPSUsernamePassword().
 					Return(mps.Response{}, ErrExplorerGeneral)
@@ -743,7 +743,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTPublicKeyCertificate().
 					Return(publickey.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -762,7 +762,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTPublicKeyCertificate().
 					Return(publickey.Response{}, ErrExplorerGeneral)
@@ -781,7 +781,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTPublicKeyManagementService().
 					Return(publickey.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -800,7 +800,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTPublicKeyManagementService().
 					Return(publickey.Response{}, ErrExplorerGeneral)
@@ -819,7 +819,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTPublicPrivateKeyPair().
 					Return(publicprivate.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -838,7 +838,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTPublicPrivateKeyPair().
 					Return(publicprivate.Response{}, ErrExplorerGeneral)
@@ -857,7 +857,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRedirectionService().
 					Return(redirection.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -876,7 +876,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRedirectionService().
 					Return(redirection.Response{}, ErrExplorerGeneral)
@@ -895,7 +895,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRemoteAccessPolicyAppliesToMPS().
 					Return(remoteaccess.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -914,7 +914,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRemoteAccessPolicyAppliesToMPS().
 					Return(remoteaccess.Response{}, ErrExplorerGeneral)
@@ -933,7 +933,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRemoteAccessPolicyRule().
 					Return(remoteaccess.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -952,7 +952,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRemoteAccessPolicyRule().
 					Return(remoteaccess.Response{}, ErrExplorerGeneral)
@@ -971,7 +971,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRemoteAccessService().
 					Return(remoteaccess.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -990,7 +990,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTRemoteAccessService().
 					Return(remoteaccess.Response{}, ErrExplorerGeneral)
@@ -1009,7 +1009,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTSetupAndConfigurationService().
 					Return(setupandconfiguration.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1028,7 +1028,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTSetupAndConfigurationService().
 					Return(setupandconfiguration.Response{}, ErrExplorerGeneral)
@@ -1047,7 +1047,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTimeSynchronizationService().
 					Return(timesynchronization.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1066,7 +1066,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTimeSynchronizationService().
 					Return(timesynchronization.Response{}, ErrExplorerGeneral)
@@ -1085,7 +1085,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTLSCredentialContext().
 					Return(tls.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1104,7 +1104,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTLSCredentialContext().
 					Return(tls.Response{}, ErrExplorerGeneral)
@@ -1123,7 +1123,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTLSProtocolEndpointCollection().
 					Return(tls.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1142,7 +1142,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTLSProtocolEndpointCollection().
 					Return(tls.Response{}, ErrExplorerGeneral)
@@ -1161,7 +1161,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTLSSettingData().
 					Return(tls.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1180,7 +1180,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTTLSSettingData().
 					Return(tls.Response{}, ErrExplorerGeneral)
@@ -1199,7 +1199,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTUserInitiatedConnectionService().
 					Return(userinitiatedconnection.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1218,7 +1218,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTUserInitiatedConnectionService().
 					Return(userinitiatedconnection.Response{}, ErrExplorerGeneral)
@@ -1237,7 +1237,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 
 				amt.EXPECT().
 					GetAMTWiFiPortConfigurationService().
@@ -1257,7 +1257,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetAMTWiFiPortConfigurationService().
 					Return(wifiportconfiguration.Response{}, ErrExplorerGeneral)
@@ -1276,7 +1276,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBIOSElement().
 					Return(bios.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1295,7 +1295,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBIOSElement().
 					Return(bios.Response{}, ErrExplorerGeneral)
@@ -1314,7 +1314,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBootConfigSetting().
 					Return(cimboot.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1333,7 +1333,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBootConfigSetting().
 					Return(cimboot.Response{}, ErrExplorerGeneral)
@@ -1352,7 +1352,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBootService().
 					Return(cimboot.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1371,7 +1371,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBootService().
 					Return(cimboot.Response{}, ErrExplorerGeneral)
@@ -1390,7 +1390,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBootSourceSetting().
 					Return(cimboot.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1409,7 +1409,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMBootSourceSetting().
 					Return(cimboot.Response{}, ErrExplorerGeneral)
@@ -1428,7 +1428,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMCard().
 					Return(card.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1447,7 +1447,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMCard().
 					Return(card.Response{}, ErrExplorerGeneral)
@@ -1466,7 +1466,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMChassis().
 					Return(chassis.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1485,7 +1485,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMChassis().
 					Return(chassis.Response{}, ErrExplorerGeneral)
@@ -1504,7 +1504,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMChip().
 					Return(chip.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1523,7 +1523,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMChip().
 					Return(chip.Response{}, ErrExplorerGeneral)
@@ -1542,7 +1542,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMComputerSystemPackage().
 					Return(computer.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1561,7 +1561,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMComputerSystemPackage().
 					Return(computer.Response{}, ErrExplorerGeneral)
@@ -1580,7 +1580,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMConcreteDependency().
 					Return(concrete.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1599,7 +1599,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMConcreteDependency().
 					Return(concrete.Response{}, ErrExplorerGeneral)
@@ -1618,7 +1618,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMCredentialContext().
 					Return(credential.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1637,7 +1637,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMCredentialContext().
 					Return(credential.Response{}, ErrExplorerGeneral)
@@ -1656,7 +1656,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMIEEE8021xSettings().
 					Return(cimieee8021x.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1675,7 +1675,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMIEEE8021xSettings().
 					Return(cimieee8021x.Response{}, ErrExplorerGeneral)
@@ -1694,7 +1694,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMKVMRedirectionSAP().
 					Return(kvm.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1713,7 +1713,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMKVMRedirectionSAP().
 					Return(kvm.Response{}, ErrExplorerGeneral)
@@ -1732,7 +1732,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMMediaAccessDevice().
 					Return(mediaaccess.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1751,7 +1751,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMMediaAccessDevice().
 					Return(mediaaccess.Response{}, ErrExplorerGeneral)
@@ -1770,7 +1770,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMPhysicalMemory().
 					Return(physical.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1789,7 +1789,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMPhysicalMemory().
 					Return(physical.Response{}, ErrExplorerGeneral)
@@ -1808,7 +1808,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMPhysicalPackage().
 					Return(physical.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1827,7 +1827,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMPhysicalPackage().
 					Return(physical.Response{}, ErrExplorerGeneral)
@@ -1846,7 +1846,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMPowerManagementService().
 					Return(power.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1865,7 +1865,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMPowerManagementService().
 					Return(power.Response{}, ErrExplorerGeneral)
@@ -1884,7 +1884,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMProcessor().
 					Return(processor.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1903,7 +1903,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMProcessor().
 					Return(processor.Response{}, ErrExplorerGeneral)
@@ -1922,7 +1922,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMServiceAvailableToElement().
 					Return(service.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1941,7 +1941,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMServiceAvailableToElement().
 					Return(service.Response{}, ErrExplorerGeneral)
@@ -1960,7 +1960,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMSoftwareIdentity().
 					Return(software.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -1979,7 +1979,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMSoftwareIdentity().
 					Return(software.Response{}, ErrExplorerGeneral)
@@ -1998,7 +1998,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMSystemPackaging().
 					Return(system.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2017,7 +2017,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMSystemPackaging().
 					Return(system.Response{}, ErrExplorerGeneral)
@@ -2036,7 +2036,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMWiFiEndpointSettings().
 					Return(wifi.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2055,7 +2055,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMWiFiEndpointSettings().
 					Return(wifi.Response{}, ErrExplorerGeneral)
@@ -2074,7 +2074,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMWiFiPort().
 					Return(wifi.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2093,7 +2093,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetCIMWiFiPort().
 					Return(wifi.Response{}, ErrExplorerGeneral)
@@ -2112,7 +2112,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPS8021xCredentialContext().
 					Return(ipsieee8021x.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2131,7 +2131,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPS8021xCredentialContext().
 					Return(ipsieee8021x.Response{}, ErrExplorerGeneral)
@@ -2150,7 +2150,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSAlarmClockOccurrence().
 					Return(ipsalarmclock.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2169,7 +2169,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSAlarmClockOccurrence().
 					Return(ipsalarmclock.Response{}, ErrExplorerGeneral)
@@ -2188,7 +2188,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSHostBasedSetupService().
 					Return(hostbasedsetup.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2207,7 +2207,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSHostBasedSetupService().
 					Return(hostbasedsetup.Response{}, ErrExplorerGeneral)
@@ -2226,7 +2226,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSIEEE8021xSettings().
 					Return(ipsieee8021x.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2245,7 +2245,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSIEEE8021xSettings().
 					Return(ipsieee8021x.Response{}, ErrExplorerGeneral)
@@ -2264,7 +2264,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSOptInService().
 					Return(optin.Response{Message: &client.Message{XMLInput: executeResponse.XMLInput, XMLOutput: executeResponse.XMLOutput}}, nil)
@@ -2283,7 +2283,7 @@ func TestExecuteCall(t *testing.T) {
 			amtMock: func(amt *mocks.MockAMTExplorer, man *mocks.MockAMTExplorerWSMAN) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), true).
-					Return(amt)
+					Return(amt, nil)
 				amt.EXPECT().
 					GetIPSOptInService().
 					Return(optin.Response{}, ErrExplorerGeneral)

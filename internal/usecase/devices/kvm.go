@@ -22,7 +22,7 @@ func (uc *UseCase) GetKVMScreenSettings(c context.Context, guid string) (dto.KVM
 		return dto.KVMScreenSettings{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device, _ := uc.device.SetupWsmanClient(*item, false, true)
 
 	resp, err := device.GetIPSScreenSettingData()
 	if err != nil {
@@ -80,7 +80,7 @@ func (uc *UseCase) SetKVMScreenSettings(c context.Context, guid string, reqData 
 		return dto.KVMScreenSettings{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device, _ := uc.device.SetupWsmanClient(*item, false, true)
 
 	pull, err := device.GetIPSKVMRedirectionSettingData()
 	if err != nil {

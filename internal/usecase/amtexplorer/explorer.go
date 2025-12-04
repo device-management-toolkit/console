@@ -48,7 +48,7 @@ func (uc *UseCase) ExecuteCall(ctx context.Context, guid, call, tenantID string)
 		return nil, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, true)
+	device, _ := uc.device.SetupWsmanClient(*item, true)
 	// Get the reflect.Value of the object
 	objValue := reflect.ValueOf(device)
 

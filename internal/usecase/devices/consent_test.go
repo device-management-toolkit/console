@@ -68,7 +68,7 @@ func TestCancelUserConsent(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					CancelUserConsentRequest().
 					Return(wsmanCancelResponse, nil)
@@ -103,7 +103,7 @@ func TestCancelUserConsent(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					CancelUserConsentRequest().
 					Return(optin.Response{}, ErrGeneral)
@@ -179,7 +179,7 @@ func TestGetUserConsentCode(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetUserConsentCode().
 					Return(wsmanResponse, nil)
@@ -212,7 +212,7 @@ func TestGetUserConsentCode(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetUserConsentCode().
 					Return(optin.Response{}, ErrGeneral)
@@ -283,7 +283,7 @@ func TestSendConsentCode(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					SendConsentCode(123456).
 					Return(wsmanSendResponse, nil)
@@ -316,7 +316,7 @@ func TestSendConsentCode(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					SendConsentCode(123456).
 					Return(optin.Response{}, ErrGeneral)

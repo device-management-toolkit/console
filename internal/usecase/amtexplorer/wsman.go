@@ -39,7 +39,7 @@ func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
 	}
 }
 
-func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) AMTExplorer {
+func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) (AMTExplorer, error) {
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
@@ -75,7 +75,7 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 		}
 	}
 
-	return connections[device.GUID]
+	return connections[device.GUID], nil
 }
 
 func removeConnection(guid string) {

@@ -52,7 +52,7 @@ func TestGetNetworkSettings(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetNetworkSettings().
 					Return(wsman.NetworkResults{
@@ -153,7 +153,7 @@ func TestGetNetworkSettings(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetNetworkSettings().
 					Return(wsman.NetworkResults{}, ErrGeneral)
