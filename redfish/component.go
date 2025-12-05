@@ -81,6 +81,9 @@ func Initialize(_ *gin.Engine, log logger.Interface, _ *db.SQL, usecases *dmtuse
 
 	computerSystemUC := &redfishusecase.ComputerSystemUseCase{Repo: repo}
 
+	// Set the package-level logger for service_root operations
+	v1.SetLogger(log)
+
 	// Initialize the Redfish server with configuration
 	server = &v1.RedfishServer{
 		ComputerSystemUC: computerSystemUC,

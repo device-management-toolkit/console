@@ -14,11 +14,28 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/labstack/gommon/log"
 	"gopkg.in/yaml.v2"
 
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 )
+
+// Package-level logger that gets set during initialization
+var pkgLogger interface {
+	Debug(message interface{}, args ...interface{})
+	Info(message string, args ...interface{})
+	Warn(message string, args ...interface{})
+	Error(message interface{}, args ...interface{})
+}
+
+// SetLogger sets the package-level logger for service_root operations
+func SetLogger(logger interface {
+	Debug(message interface{}, args ...interface{})
+	Info(message string, args ...interface{})
+	Warn(message string, args ...interface{})
+	Error(message interface{}, args ...interface{})
+}) {
+	pkgLogger = logger
+}
 
 // ServiceRoot OData metadata constants
 const (
@@ -65,7 +82,7 @@ func loadMetadata() {
 
 	data, err := metadataFS.ReadFile("metadata.xml")
 	if err != nil {
-		log.Warnf("Could not load embedded metadata.xml: %v", err)
+		pkgLogger.Warn("Could not load embedded metadata.xml: %v", err)
 
 		return
 	}
@@ -74,12 +91,12 @@ func loadMetadata() {
 
 	// Validate XML
 	if err := validateMetadataXML(metadataXML); err != nil {
-		log.Warnf("Invalid metadata.xml: %v", err)
+		pkgLogger.Warn("Invalid metadata.xml: %v", err)
 
 		return
 	}
 
-	log.Infof("Embedded metadata.xml loaded and validation passed")
+	pkgLogger.Info("Embedded metadata.xml loaded and validation passed")
 
 	metadataLoaded = true
 }
@@ -136,7 +153,7 @@ func loadOrCreateUUID(appName string) (string, error) {
 			return storedUUID, nil
 		}
 
-		log.Warnf("Invalid UUID in storage file, generating new one")
+		pkgLogger.Warn("Invalid UUID in storage file, generating new one")
 	}
 
 	// Create new UUID
@@ -146,7 +163,7 @@ func loadOrCreateUUID(appName string) (string, error) {
 
 	// Save to file
 	if err := os.WriteFile(file, []byte(newUUID), filePermissions); err != nil {
-		log.Warnf("Failed to save UUID to file: %v", err)
+		pkgLogger.Warn("Failed to save UUID to file: %v", err)
 		// Continue with the generated UUID even if save fails
 	}
 
@@ -171,7 +188,7 @@ func generateServiceUUID() string {
 	// Load or create persistent UUID
 	serviceUUID, err := loadOrCreateUUID("dmt-redfish-service")
 	if err != nil {
-		log.Warnf("Failed to load/create persistent UUID: %v, generating temporary UUID", err)
+		pkgLogger.Warn("Failed to load/create persistent UUID: %v, generating temporary UUID", err)
 		// Fallback to temporary UUID for this session (but cache it)
 		cachedUUID = uuid.New().String()
 
@@ -190,14 +207,14 @@ func generateServiceUUID() string {
 func ExtractServicesFromOpenAPIData(data []byte) ([]ODataService, error) {
 	var spec map[string]interface{}
 	if err := yaml.Unmarshal(data, &spec); err != nil {
-		log.Warnf("Could not parse OpenAPI spec: %v", err)
+		pkgLogger.Warn("Could not parse OpenAPI spec: %v", err)
 
 		return GetDefaultServices(), nil
 	}
 
 	pathsObj, ok := spec["paths"].(map[interface{}]interface{})
 	if !ok {
-		log.Warnf("No paths found in OpenAPI spec")
+		pkgLogger.Warn("No paths found in OpenAPI spec")
 
 		return GetDefaultServices(), nil
 	}
@@ -243,12 +260,12 @@ func ExtractServicesFromOpenAPIData(data []byte) ([]ODataService, error) {
 	}
 
 	if len(services) == 0 {
-		log.Warnf("No services found in OpenAPI spec, using defaults")
+		pkgLogger.Warn("No services found in OpenAPI spec, using defaults")
 
 		return GetDefaultServices(), nil
 	}
 
-	log.Infof("Loaded %d services from OpenAPI spec: %v", len(services), names)
+	pkgLogger.Info("Loaded %d services from OpenAPI spec: %v", len(services), names)
 
 	return services, nil
 }
