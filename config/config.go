@@ -17,12 +17,13 @@ var ConsoleConfig *Config
 type (
 	// Config -.
 	Config struct {
-		App  `yaml:"app"`
-		HTTP `yaml:"http"`
-		Log  `yaml:"logger"`
-		DB   `yaml:"postgres"`
-		EA   `yaml:"ea"`
-		Auth `yaml:"auth"`
+		App     `yaml:"app"`
+		HTTP    `yaml:"http"`
+		Log     `yaml:"logger"`
+		Secrets `yaml:"secrets"`
+		DB      `yaml:"postgres"`
+		EA      `yaml:"ea"`
+		Auth    `yaml:"auth"`
 	}
 
 	// App -.
@@ -55,6 +56,12 @@ type (
 	// Log -.
 	Log struct {
 		Level string `env-required:"true" yaml:"log_level"   env:"LOG_LEVEL"`
+	}
+
+	// Secrets -.
+	Secrets struct {
+		Address string `yaml:"address" env:"SECRETS_ADDR"`
+		Token   string `yaml:"token" env:"SECRETS_TOKEN"`
 	}
 
 	// DB -.
@@ -142,6 +149,10 @@ func defaultConfig() *Config {
 		},
 		Log: Log{
 			Level: "info",
+		},
+		Secrets: Secrets{
+			Address: "http://localhost:8200",
+			Token:   "",
 		},
 		DB: DB{
 			PoolMax: 2,

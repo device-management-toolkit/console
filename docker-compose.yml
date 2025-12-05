@@ -1,23 +1,34 @@
 services:
-  # postgres:
-  #   container_name: postgres
-  #   image: postgres
-  #   networks:
-  #     - openamtnetwork1
-  #   volumes:
-  #     - pg-data:/var/lib/postgresql/data
-  #   environment:
-  #     POSTGRES_USER: "postgresadmin"
-  #     POSTGRES_PASSWORD: "admin123"
-  #     POSTGRES_DB: "rpsdb"
-  #   ports:
-  #     - 5432:5432
+  vault:
+    image: hashicorp/vault
+    networks:
+      - dmtnetwork1
+    ports:
+      - '8200:8200'
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: myroot
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
+  postgres:
+    container_name: postgres
+    image: postgres
+    networks:
+      - dmtnetwork1
+    volumes:
+      - pg-data:/var/lib/postgresql
+    environment:
+      POSTGRES_USER: "postgresadmin"
+      POSTGRES_PASSWORD: "admin123"
+      POSTGRES_DB: "rpsdb"
+    ports:
+      - 5432:5432
   app:
     build: .
     container_name: app
     image: app
     networks:
-      - openamtnetwork1
+      - dmtnetwork1
     env_file:
       - .env
     environment:
@@ -43,5 +54,5 @@ services:
 volumes:
   pg-data:
 networks:
-  openamtnetwork1:
+  dmtnetwork1:
     driver: "bridge"
