@@ -101,7 +101,7 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 	// Compare password
 	if device.Password != password {
 		log.Printf("Password mismatch for device %s\n", h.deviceID)
-		//TODO: set back to false
+		// TODO: set back to false
 		return true
 	}
 

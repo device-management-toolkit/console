@@ -5,7 +5,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 
-	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 type Exporter interface {

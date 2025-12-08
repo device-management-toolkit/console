@@ -103,8 +103,17 @@ func handleOpenAPIGeneration() error {
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
+	if cfg.Secrets.Address == "" {
+		return nil, fmt.Errorf("vault address not configured")
+	}
+	if cfg.Secrets.Token == "" {
+		return nil, fmt.Errorf("vault token not configured")
+	}
+
+	log.Printf("Connecting to Vault at: %s", cfg.Secrets.Address)
 	secretsClient, err := secrets.NewClient(&cfg.Secrets)
 	if err != nil {
+		log.Printf("Failed to create Vault client: %v", err)
 		return nil, err
 	}
 
