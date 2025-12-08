@@ -2,6 +2,7 @@ package main
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"log"
 	"os"
@@ -121,7 +122,7 @@ func handleEncryptionKey(cfg *config.Config) {
 		remoteStorage = nil
 	}
 
-	// Try local keyring storage
+	// Try local keyring storage (simple key-value API)
 	localStorage := security.NewKeyRingStorage("device-management-toolkit")
 
 	cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
@@ -138,7 +139,7 @@ func handleEncryptionKey(cfg *config.Config) {
 		return
 	}
 
-	if err.Error() != "secret not found in keyring" {
+	if !errors.Is(err, security.ErrKeyNotFound) {
 		log.Fatal(err)
 		return
 	}
