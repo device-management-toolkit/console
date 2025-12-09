@@ -14,6 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/config"
 	consolehttp "github.com/device-management-toolkit/console/internal/controller/http"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
@@ -22,6 +24,9 @@ import (
 	"github.com/device-management-toolkit/console/pkg/httpserver"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
+
+// CertStore holds the certificate store for domain certificates (set during Init).
+var CertStore security.Storager
 
 var Version = "DEVELOPMENT"
 
@@ -41,7 +46,7 @@ func Run(cfg *config.Config) {
 	defer database.Close()
 
 	// Use case
-	usecases := usecase.NewUseCases(database, log)
+	usecases := usecase.NewUseCases(database, log, CertStore)
 
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)

@@ -58,17 +58,17 @@ func TestUsecases(t *testing.T) {
 
 				setupConfig()
 
-				return NewUseCases(mockDB, mockLogger)
+				return NewUseCases(mockDB, mockLogger, nil)
 			},
 			expectedResult: &Usecases{
-				Domains: domains.New(sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements),
+				Domains: domains.New(sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements, nil),
 				Devices: devices.New(sqldb.NewDeviceRepo(&db.SQL{}, mocks.NewMockLogger(nil)), wsman.NewGoWSMANMessages(mocks.NewMockLogger(nil), safeRequirements), devices.NewRedirector(safeRequirements), mocks.NewMockLogger(nil), safeRequirements),
 				Profiles: profiles.New(
 					sqldb.NewProfileRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					sqldb.NewWirelessRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					profilewificonfigs.New(sqldb.NewProfileWiFiConfigsRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),
 					ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil),
-					sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
+					domains.New(sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements, nil),
 					sqldb.NewCIRARepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					safeRequirements,
 				),
@@ -136,7 +136,7 @@ func TestInitialization(t *testing.T) {
 
 			mockLogger := mocks.NewMockLogger(mockCtl)
 
-			uc := NewUseCases(mockDB, mockLogger)
+			uc := NewUseCases(mockDB, mockLogger, nil)
 
 			require.NotNil(t, uc)
 			assert.NotNil(t, uc.Devices)

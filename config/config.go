@@ -32,6 +32,7 @@ type (
 		Version              string `env-required:"true"`
 		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
+		CommonName           string `yaml:"common_name" env:"APP_COMMON_NAME"`
 	}
 
 	// HTTP -.
@@ -60,6 +61,7 @@ type (
 	Secrets struct {
 		Address string `yaml:"address" env:"SECRETS_ADDR"`
 		Token   string `yaml:"token" env:"SECRETS_TOKEN"`
+		Path    string `yaml:"path" env:"SECRETS_PATH"`
 	}
 
 	// DB -.
@@ -109,6 +111,7 @@ func defaultConfig() *Config {
 			Version:              "DEVELOPMENT",
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,
+			CommonName:           "localhost",
 		},
 		HTTP: HTTP{
 			Host:           "localhost",
@@ -128,6 +131,7 @@ func defaultConfig() *Config {
 		Secrets: Secrets{
 			Address: "http://localhost:8200",
 			Token:   "",
+			Path:    "secret/data/console",
 		},
 		DB: DB{
 			PoolMax: 2,

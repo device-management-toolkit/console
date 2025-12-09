@@ -57,10 +57,11 @@ func TestGetKeyValue_Success(t *testing.T) {
 	}
 	mockSecret := &api.Secret{Data: secretData}
 
-	mockLogical.On("ReadWithContext", mock.Anything, "secret/data/console").Return(mockSecret, nil)
+	// New path structure: {basePath}/keys
+	mockLogical.On("ReadWithContext", mock.Anything, "secret/data/console/keys").Return(mockSecret, nil)
 
 	mockVaultAPI := &api.Client{}
-	client := &Client{client: mockVaultAPI}
+	client, _ := NewClient(nil, WithClient(mockVaultAPI))
 
 	// We need to inject the mock logical API - since we can't do this directly,
 	// we'll test the logic conceptually
