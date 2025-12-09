@@ -12,7 +12,90 @@ import (
 	"net/url"
 	"os"
 	"time"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 )
+
+// ObjectStorager extends security.Storager with object storage capabilities.
+type ObjectStorager interface {
+	security.Storager
+	GetObject(key string) (map[string]string, error)
+	SetObject(key string, data map[string]string) error
+}
+
+// LoadCertificateFromStore loads a certificate and private key from a security.Storager.
+// If the store implements ObjectStorager, certificates are stored as {cert, key} fields.
+// Path: certs/{name}
+func LoadCertificateFromStore(store security.Storager, name string) (*x509.Certificate, *rsa.PrivateKey, error) {
+	// Try object storage first (stores cert/key as proper fields)
+	if objStore, ok := store.(ObjectStorager); ok {
+		data, err := objStore.GetObject("certs/" + name)
+		if err != nil {
+			return nil, nil, err
+		}
+
+		certPEM, ok := data["cert"]
+		if !ok {
+			return nil, nil, fmt.Errorf("cert field not found in secret")
+		}
+
+		keyPEM, ok := data["key"]
+		if !ok {
+			return nil, nil, fmt.Errorf("key field not found in secret")
+		}
+
+		return ParseCertificateFromPEM(certPEM, keyPEM)
+	}
+
+	// Fallback: not supported for non-object stores
+	return nil, nil, fmt.Errorf("store does not support object storage")
+}
+
+// SaveCertificateToStore saves a certificate and private key to a security.Storager.
+// If the store implements ObjectStorager, certificates are stored as {cert, key} fields.
+// Path: certs/{name}
+func SaveCertificateToStore(store security.Storager, name string, cert *x509.Certificate, key *rsa.PrivateKey) error {
+	certPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
+	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
+
+	// Try object storage first (stores cert/key as proper fields)
+	if objStore, ok := store.(ObjectStorager); ok {
+		return objStore.SetObject("certs/"+name, map[string]string{
+			"cert": certPEM,
+			"key":  keyPEM,
+		})
+	}
+
+	// Fallback: not supported for non-object stores
+	return fmt.Errorf("store does not support object storage")
+}
+
+// ParseCertificateFromPEM parses PEM-encoded certificate and key strings.
+func ParseCertificateFromPEM(certPEM, keyPEM string) (*x509.Certificate, *rsa.PrivateKey, error) {
+	// Decode certificate PEM
+	certBlock, _ := pem.Decode([]byte(certPEM))
+	if certBlock == nil {
+		return nil, nil, fmt.Errorf("failed to decode certificate PEM")
+	}
+
+	cert, err := x509.ParseCertificate(certBlock.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	// Decode private key PEM
+	keyBlock, _ := pem.Decode([]byte(keyPEM))
+	if keyBlock == nil {
+		return nil, nil, fmt.Errorf("failed to decode private key PEM")
+	}
+
+	privateKey, err := x509.ParsePKCS1PrivateKey(keyBlock.Bytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse private key: %w", err)
+	}
+
+	return cert, privateKey, nil
+}
 
 // LoadCertificateFromFile loads a certificate and private key from PEM files
 func LoadCertificateFromFile(certPath, keyPath string) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -79,6 +162,69 @@ func CheckAndLoadOrGenerateRootCertificate(addThumbPrintToName bool, commonName,
 	return GenerateRootCertificate(addThumbPrintToName, commonName, country, organization, strong)
 }
 
+// LoadOrGenerateRootCertificateWithVault attempts to load the root certificate from Vault first,
+// falls back to local files, and generates new certificates if neither exists.
+// When a new certificate is generated, it is stored in Vault (if available) and locally.
+// Certificate is stored at: {basePath}/certs/root
+func LoadOrGenerateRootCertificateWithVault(store security.Storager, addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
+	const certName = "root"
+	certPath := "config/root_cert.pem"
+	keyPath := "config/root_key.pem"
+
+	// Try Vault first (primary store for high-value certs)
+	if store != nil {
+		cert, key, err := LoadCertificateFromStore(store, certName)
+		if err == nil {
+			fmt.Println("Root certificate loaded from Vault")
+			return cert, key, nil
+		}
+
+		fmt.Printf("Certificate not found in Vault: %v. Checking local files...\n", err)
+	}
+
+	// Try local files as fallback
+	_, certErr := os.Stat(certPath)
+	_, keyErr := os.Stat(keyPath)
+
+	if certErr == nil && keyErr == nil {
+		cert, key, err := LoadCertificateFromFile(certPath, keyPath)
+		if err == nil {
+			fmt.Println("Root certificate loaded from local files")
+			// Sync to Vault for future use
+			if store != nil {
+				if syncErr := SaveCertificateToStore(store, certName, cert, key); syncErr != nil {
+					fmt.Printf("Warning: Failed to sync root certificate to Vault: %v\n", syncErr)
+				} else {
+					fmt.Println("Root certificate synced to Vault")
+				}
+			}
+
+			return cert, key, nil
+		}
+
+		fmt.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...\n", err)
+	}
+
+	// Generate new certificates
+	cert, key, err := GenerateRootCertificate(addThumbPrintToName, commonName, country, organization, strong)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println("New root certificate generated")
+
+	// Store in Vault (primary)
+	if store != nil {
+		if storeErr := SaveCertificateToStore(store, certName, cert, key); storeErr != nil {
+			fmt.Printf("Warning: Failed to store root certificate in Vault: %v\n", storeErr)
+		} else {
+			fmt.Println("Root certificate stored in Vault")
+		}
+	}
+
+	return cert, key, nil
+}
+
 // CheckAndLoadOrGenerateWebServerCertificate checks if web server certificate files exist,
 // loads them if they do, or generates new ones if they don't
 func CheckAndLoadOrGenerateWebServerCertificate(rootCert CertAndKeyType, addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -101,6 +247,69 @@ func CheckAndLoadOrGenerateWebServerCertificate(rootCert CertAndKeyType, addThum
 
 	// Files don't exist or loading failed, generate new certificates
 	return IssueWebServerCertificate(rootCert, addThumbPrintToName, commonName, country, organization, strong)
+}
+
+// LoadOrGenerateWebServerCertificateWithVault attempts to load the web server certificate from Vault first,
+// falls back to local files, and generates new certificates if neither exists.
+// When a new certificate is generated, it is stored in Vault (if available) and locally.
+// Certificate is stored at: {basePath}/certs/webserver-{commonName}
+func LoadOrGenerateWebServerCertificateWithVault(store security.Storager, rootCert CertAndKeyType, addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
+	certName := "webserver-" + commonName
+	certPath := "config/" + commonName + "_cert.pem"
+	keyPath := "config/" + commonName + "_key.pem"
+
+	// Try Vault first (primary store for high-value certs)
+	if store != nil {
+		cert, key, err := LoadCertificateFromStore(store, certName)
+		if err == nil {
+			fmt.Println("Web server certificate loaded from Vault")
+			return cert, key, nil
+		}
+
+		fmt.Printf("Web server certificate not found in Vault: %v. Checking local files...\n", err)
+	}
+
+	// Try local files as fallback
+	_, certErr := os.Stat(certPath)
+	_, keyErr := os.Stat(keyPath)
+
+	if certErr == nil && keyErr == nil {
+		cert, key, err := LoadCertificateFromFile(certPath, keyPath)
+		if err == nil {
+			fmt.Println("Web server certificate loaded from local files")
+			// Sync to Vault for future use
+			if store != nil {
+				if syncErr := SaveCertificateToStore(store, certName, cert, key); syncErr != nil {
+					fmt.Printf("Warning: Failed to sync web server certificate to Vault: %v\n", syncErr)
+				} else {
+					fmt.Println("Web server certificate synced to Vault")
+				}
+			}
+
+			return cert, key, nil
+		}
+
+		fmt.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...\n", err)
+	}
+
+	// Generate new certificates
+	cert, key, err := IssueWebServerCertificate(rootCert, addThumbPrintToName, commonName, country, organization, strong)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	fmt.Println("New web server certificate generated")
+
+	// Store in Vault (primary)
+	if store != nil {
+		if storeErr := SaveCertificateToStore(store, certName, cert, key); storeErr != nil {
+			fmt.Printf("Warning: Failed to store web server certificate in Vault: %v\n", storeErr)
+		} else {
+			fmt.Println("Web server certificate stored in Vault")
+		}
+	}
+
+	return cert, key, nil
 }
 
 func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {

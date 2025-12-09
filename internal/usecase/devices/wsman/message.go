@@ -135,8 +135,8 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 				return
 			}
 			cp := client.Parameters{
-				IsRedirection:  false,
-				Connection:     connection.Conny,
+				IsRedirection: false,
+				// Connection:     connection.Conny,
 				Username:       device.MPSUsername,
 				Password:       device.Password,
 				UseDigest:      true,

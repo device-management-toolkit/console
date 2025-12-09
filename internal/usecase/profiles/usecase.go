@@ -31,7 +31,7 @@ type UseCase struct {
 	cira              ciraconfigs.Repository
 	ieee              ieee8021xconfigs.Feature
 	log               logger.Interface
-	domains           domains.Repository
+	domains           domains.Feature
 	safeRequirements  security.Cryptor
 }
 
@@ -43,7 +43,7 @@ var (
 )
 
 // New -.
-func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Repository, c ciraconfigs.Repository, safeRequirements security.Cryptor) *UseCase {
+func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor) *UseCase {
 	return &UseCase{
 		repo:              r,
 		wifiConfig:        wifiConfig,
@@ -200,14 +200,19 @@ func (uc *UseCase) GetDomainInformation(ctx context.Context, activation, domainN
 		return nil, nil
 	}
 
-	domain, err = uc.domains.GetByName(ctx, domainName, tenantID)
+	// Use GetByNameWithCert to retrieve domain with certificate from Vault
+	domain, err = uc.domains.GetByNameWithCert(ctx, domainName, tenantID)
 	if err != nil || domain == nil {
 		return nil, ErrNotFound.WrapWithMessage("Export", "uc.domains.Get", "No domain found")
 	}
 
-	domain.ProvisioningCertPassword, err = uc.safeRequirements.Decrypt(domain.ProvisioningCertPassword)
-	if err != nil {
-		return nil, err
+	// Decrypt password if it came from database (legacy) - Vault stores unencrypted
+	if domain.ProvisioningCertPassword != "" {
+		decrypted, err := uc.safeRequirements.Decrypt(domain.ProvisioningCertPassword)
+		if err == nil {
+			domain.ProvisioningCertPassword = decrypted
+		}
+		// If decryption fails, assume it's already in plain text (from Vault)
 	}
 
 	return domain, nil

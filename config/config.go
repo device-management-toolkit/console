@@ -62,6 +62,7 @@ type (
 	Secrets struct {
 		Address string `yaml:"address" env:"SECRETS_ADDR"`
 		Token   string `yaml:"token" env:"SECRETS_TOKEN"`
+		Path    string `yaml:"path" env:"SECRETS_PATH"`
 	}
 
 	// DB -.
@@ -153,6 +154,7 @@ func defaultConfig() *Config {
 		Secrets: Secrets{
 			Address: "http://localhost:8200",
 			Token:   "",
+			Path:    "secret/data/console",
 		},
 		DB: DB{
 			PoolMax: 2,

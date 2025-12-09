@@ -38,7 +38,8 @@ func domainsTest(t *testing.T) (*domains.UseCase, *mocks.MockDomainsRepository) 
 	repo := mocks.NewMockDomainsRepository(mockCtl)
 	log := logger.New("error")
 	crypto := mocks.MockCrypto{}
-	useCase := domains.New(repo, log, crypto)
+	// Pass nil for certStore in tests - domain certs will be stored in DB
+	useCase := domains.New(repo, log, crypto, nil)
 
 	return useCase, repo
 }

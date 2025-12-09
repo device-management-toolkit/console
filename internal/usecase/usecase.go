@@ -33,7 +33,7 @@ type Usecases struct {
 }
 
 // New -.
-func NewUseCases(database *db.SQL, log logger.Interface) *Usecases {
+func NewUseCases(database *db.SQL, log logger.Interface, certStore security.Storager) *Usecases {
 	pwc := profilewificonfigs.New(sqldb.NewProfileWiFiConfigsRepo(database, log), log)
 	ieee := ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(database, log), log)
 	wifiConfigRepo := sqldb.NewWirelessRepo(database, log)
@@ -48,14 +48,14 @@ func NewUseCases(database *db.SQL, log logger.Interface) *Usecases {
 	ciraRepo := sqldb.NewCIRARepo(database, log)
 	profileRepo := sqldb.NewProfileRepo(database, log)
 
-	domains1 := domains.New(domainRepo, log, safeRequirements)
+	domains1 := domains.New(domainRepo, log, safeRequirements, certStore)
 	wificonfig := wificonfigs.New(wifiConfigRepo, ieee, log, safeRequirements)
 
 	return &Usecases{
 		Domains:            domains1,
 		Devices:            devices.New(deviceRepo, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements),
 		AMTExplorer:        amtexplorer.New(deviceRepo, wsman2, log, safeRequirements),
-		Profiles:           profiles.New(profileRepo, wifiConfigRepo, pwc, ieee, log, domainRepo, ciraRepo, safeRequirements),
+		Profiles:           profiles.New(profileRepo, wifiConfigRepo, pwc, ieee, log, domains1, ciraRepo, safeRequirements),
 		IEEE8021xProfiles:  ieee,
 		CIRAConfigs:        ciraconfigs.New(ciraRepo, log, safeRequirements),
 		WirelessProfiles:   wificonfig,

@@ -39,7 +39,7 @@ func profilesTest(t *testing.T) (*profiles.UseCase, *mocks.MockProfilesRepositor
 	wificonfigs := mocks.NewMockWiFiConfigsRepository(mockCtl)
 	profilewificonfigs := mocks.NewMockProfileWiFiConfigsFeature(mockCtl)
 	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
-	domains := mocks.NewMockDomainsRepository(mockCtl)
+	domains := mocks.NewMockDomainsFeature(mockCtl)
 	cira := mocks.NewMockCIRAConfigsRepository(mockCtl)
 	security := mocks.MockCrypto{}
 	log := logger.New("error")
@@ -647,7 +647,7 @@ func TestGetDomainInformation(t *testing.T) {
 		name       string
 		activation string
 		domainName string
-		mock       func(domainsMock *mocks.MockDomainsRepository)
+		mock       func(domainsMock *mocks.MockDomainsFeature)
 		expected   *entity.Domain
 		err        error
 	}{
@@ -655,9 +655,9 @@ func TestGetDomainInformation(t *testing.T) {
 			name:       "successful retrieval for acmactivate",
 			activation: "acmactivate",
 			domainName: "vpro",
-			mock: func(domainsMock *mocks.MockDomainsRepository) {
+			mock: func(domainsMock *mocks.MockDomainsFeature) {
 				domainsMock.EXPECT().
-					GetByName(ctx, "vpro", tenantID).
+					GetByNameWithCert(ctx, "vpro", tenantID).
 					Return(&entity.Domain{
 						ProvisioningCertPassword: "encryptedCert",
 					}, nil)
@@ -671,9 +671,9 @@ func TestGetDomainInformation(t *testing.T) {
 			name:       "no domains found",
 			activation: "acmactivate",
 			domainName: "domainName",
-			mock: func(domainsMock *mocks.MockDomainsRepository) {
+			mock: func(domainsMock *mocks.MockDomainsFeature) {
 				domainsMock.EXPECT().
-					GetByName(ctx, "domainName", tenantID).
+					GetByNameWithCert(ctx, "domainName", tenantID).
 					Return((*entity.Domain)(nil), nil)
 			},
 			expected: nil,
@@ -683,9 +683,9 @@ func TestGetDomainInformation(t *testing.T) {
 			name:       "on error",
 			activation: "acmactivate",
 			domainName: "badRequest",
-			mock: func(domainsMock *mocks.MockDomainsRepository) {
+			mock: func(domainsMock *mocks.MockDomainsFeature) {
 				domainsMock.EXPECT().
-					GetByName(ctx, "badRequest", tenantID).
+					GetByNameWithCert(ctx, "badRequest", tenantID).
 					Return(nil, profiles.ErrNotFound)
 			},
 			expected: nil,
@@ -697,7 +697,7 @@ func TestGetDomainInformation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			domainsMock := mocks.NewMockDomainsRepository(gomock.NewController(t))
+			domainsMock := mocks.NewMockDomainsFeature(gomock.NewController(t))
 			cryptoMock := &mocks.MockCrypto{}
 
 			tc.mock(domainsMock)

@@ -4,12 +4,12 @@ go 1.24.2
 
 toolchain go1.24.9
 
-replace github.com/device-management-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
+// replace github.com/device-management-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.17.0
-	github.com/device-management-toolkit/go-wsman-messages/v2 v2.32.5
+	github.com/device-management-toolkit/go-wsman-messages/v2 v2.32.6
 	github.com/gin-contrib/cors v1.7.6
 	github.com/gin-contrib/pprof v1.5.3
 	github.com/gin-gonic/gin v1.11.0

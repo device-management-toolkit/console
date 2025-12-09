@@ -22,6 +22,7 @@ type (
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Domain, error)
 		GetDomainByDomainSuffix(ctx context.Context, domainSuffix, tenantID string) (*dto.Domain, error)
 		GetByName(ctx context.Context, name, tenantID string) (*dto.Domain, error)
+		GetByNameWithCert(ctx context.Context, name, tenantID string) (*entity.Domain, error)
 		Delete(ctx context.Context, name, tenantID string) error
 		Update(ctx context.Context, d *dto.Domain) (*dto.Domain, error)
 		Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, error)

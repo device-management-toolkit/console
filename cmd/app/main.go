@@ -17,7 +17,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/controller/openapi"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
-	"github.com/device-management-toolkit/console/pkg/secrets"
+	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
 
 // Function pointers for better testability.
@@ -45,12 +45,19 @@ func main() {
 		log.Fatalf("App init error: %s", err)
 	}
 
-	root, privateKey, err := certificates.CheckAndLoadOrGenerateRootCertificate(true, cfg.CommonName, "US", "device-management-toolkit", true)
+	// Initialize certificate store (Vault) for MPS and domain certificates
+	secretsClient, secretsErr := handleSecretsConfig(cfg)
+	if secretsErr == nil {
+		// Set the cert store for domain certificates (used by usecases)
+		app.CertStore = secretsClient
+	}
+
+	root, privateKey, err := certificates.LoadOrGenerateRootCertificateWithVault(secretsClient, true, cfg.CommonName, "US", "device-management-toolkit", true)
 	if err != nil {
 		log.Fatalf("Error loading or generating root certificate: %s", err)
 	}
 
-	_, _, err = certificates.CheckAndLoadOrGenerateWebServerCertificate(certificates.CertAndKeyType{Cert: root, Key: privateKey}, false, cfg.CommonName, "US", "device-management-toolkit", true)
+	_, _, err = certificates.LoadOrGenerateWebServerCertificateWithVault(secretsClient, certificates.CertAndKeyType{Cert: root, Key: privateKey}, false, cfg.CommonName, "US", "device-management-toolkit", true)
 	if err != nil {
 		log.Fatalf("Error loading or generating web server certificate: %s", err)
 	}
@@ -104,16 +111,16 @@ func handleOpenAPIGeneration() error {
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
 	if cfg.Secrets.Address == "" {
-		return nil, fmt.Errorf("vault address not configured")
+		return nil, fmt.Errorf("secret store address not configured")
 	}
 	if cfg.Secrets.Token == "" {
-		return nil, fmt.Errorf("vault token not configured")
+		return nil, fmt.Errorf("secret store token not configured")
 	}
 
-	log.Printf("Connecting to Vault at: %s", cfg.Secrets.Address)
+	log.Printf("Connecting to secret store at: %s", cfg.Secrets.Address)
 	secretsClient, err := secrets.NewClient(&cfg.Secrets)
 	if err != nil {
-		log.Printf("Failed to create Vault client: %v", err)
+		log.Printf("Failed to create secret store client: %v", err)
 		return nil, err
 	}
 
@@ -123,20 +130,26 @@ func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
 func handleEncryptionKey(cfg *config.Config) {
 	toolkitCrypto := security.Crypto{}
 
-	if cfg.EncryptionKey != "" {
-		return
-	}
-
 	var remoteStorage security.Storager
 
-	// Try to initialize Vault client and get key
+	// Try to initialize secret store client and get key
 	remoteStorage, err := handleSecretsConfig(cfg)
 	if err == nil {
-		cfg.EncryptionKey, err = remoteStorage.GetKeyValue("default-security-key")
-		if err == nil {
-			log.Println("Encryption key loaded from Vault")
+		// if using static EncryptionKey, store it in secret store (not recommended)
+		if cfg.EncryptionKey != "" {
+			err = remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
+			if err == nil {
+				log.Println("Encryption key stored in secret store")
 
-			return
+				return
+			}
+		} else { // retrieve from secret store
+			cfg.EncryptionKey, err = remoteStorage.GetKeyValue("default-security-key")
+			if err == nil {
+				log.Println("Encryption key loaded from secret store")
+
+				return
+			}
 		}
 	} else {
 		remoteStorage = nil
@@ -145,34 +158,43 @@ func handleEncryptionKey(cfg *config.Config) {
 	// Try local keyring storage (simple key-value API)
 	localStorage := security.NewKeyRingStorage("device-management-toolkit")
 
-	cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
-	if err == nil {
-		log.Println("Encryption key loaded from local keyring")
+	if cfg.EncryptionKey != "" {
+		err = localStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
+	} else {
+		cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
+		if err == nil {
+			log.Println("Encryption key loaded from local keyring")
 
-		if remoteStorage != nil {
-			syncErr := remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
-			if syncErr != nil {
-				log.Printf("Warning: Failed to sync key to Vault: %v", syncErr)
+			if remoteStorage != nil {
+				syncErr := remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
+				if syncErr != nil {
+					log.Printf("Warning: Failed to sync key to secret store: %v", syncErr)
+				} else {
+					log.Println("Encryption key synced to secret store")
+				}
 			}
-		}
 
-		return
+			return
+		}
 	}
 
+	// if we get an error other than key not found, log and exit
 	if !errors.Is(err, security.ErrKeyNotFound) {
 		log.Fatal(err)
 		return
 	}
 
 	// Key not found anywhere, generate a new one
-	handleKeyNotFound(cfg, toolkitCrypto, remoteStorage, localStorage)
+	cfg.EncryptionKey = handleKeyNotFound(toolkitCrypto, remoteStorage, localStorage)
+
+	saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage)
 }
 
 func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager) error {
 	if remoteStorage != nil {
 		err := remoteStorage.SetKeyValue("default-security-key", key)
 		if err == nil {
-			log.Println("Encryption key saved to Vault")
+			log.Println("Encryption key saved to secret store")
 
 			return nil
 		}
@@ -190,7 +212,7 @@ func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager
 	return nil
 }
 
-func handleKeyNotFound(cfg *config.Config, toolkitCrypto security.Crypto, remoteStorage, localStorage security.Storager) {
+func handleKeyNotFound(toolkitCrypto security.Crypto, remoteStorage, localStorage security.Storager) string {
 	log.Print("\033[31mWarning: Key Not Found, Generate new key? -- This will prevent access to existing data? Y/N: \033[0m")
 
 	var response string
@@ -199,18 +221,16 @@ func handleKeyNotFound(cfg *config.Config, toolkitCrypto security.Crypto, remote
 	if err != nil {
 		log.Fatal(err)
 
-		return
+		return ""
 	}
 
 	if response != "Y" && response != "y" {
 		log.Fatal("Exiting without generating a new key.")
 
-		return
+		return ""
 	}
 
-	cfg.EncryptionKey = toolkitCrypto.GenerateKey()
-
-	saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage)
+	return toolkitCrypto.GenerateKey()
 }
 
 // CommandExecutor is an interface to allow for mocking exec.Command in tests.
