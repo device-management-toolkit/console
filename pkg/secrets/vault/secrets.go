@@ -2,8 +2,17 @@ package secrets
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
+)
+
+// Sentinel errors for secret operations.
+var (
+	ErrSecretNotFound       = errors.New("secret not found")
+	ErrUnexpectedDataFormat = errors.New("unexpected secret data format")
+	ErrKeyNotFound          = errors.New("key not found in secret")
+	ErrValueNotString       = errors.New("value is not a string")
 )
 
 // GetKeyValue reads a value from Vault.
@@ -12,8 +21,10 @@ import (
 func (c *Client) GetKeyValue(key string) (string, error) {
 	ctx := context.Background()
 
-	var secretPath string
-	var dataKey string
+	var (
+		secretPath string
+		dataKey    string
+	)
 
 	if strings.Contains(key, "/") {
 		// Path-based storage: {basePath}/{key} with "value" field
@@ -31,23 +42,23 @@ func (c *Client) GetKeyValue(key string) (string, error) {
 	}
 
 	if secret == nil {
-		return "", fmt.Errorf("secret not found at path: %s", secretPath)
+		return "", fmt.Errorf("%w at path: %s", ErrSecretNotFound, secretPath)
 	}
 
 	// Extract data from KV v2 response
 	data, ok := secret.Data["data"].(map[string]interface{})
 	if !ok {
-		return "", fmt.Errorf("unexpected secret data format at %s", secretPath)
+		return "", fmt.Errorf("%w at %s", ErrUnexpectedDataFormat, secretPath)
 	}
 
 	value, ok := data[dataKey]
 	if !ok {
-		return "", fmt.Errorf("key %s not found in secret at path %s", dataKey, secretPath)
+		return "", fmt.Errorf("%w: %s at path %s", ErrKeyNotFound, dataKey, secretPath)
 	}
 
 	strValue, ok := value.(string)
 	if !ok {
-		return "", fmt.Errorf("value for key %s is not a string", dataKey)
+		return "", fmt.Errorf("%w: key %s", ErrValueNotString, dataKey)
 	}
 
 	return strValue, nil
@@ -59,8 +70,10 @@ func (c *Client) GetKeyValue(key string) (string, error) {
 func (c *Client) SetKeyValue(key, value string) error {
 	ctx := context.Background()
 
-	var secretPath string
-	var secretData map[string]interface{}
+	var (
+		secretPath string
+		secretData map[string]interface{}
+	)
 
 	if strings.Contains(key, "/") {
 		// Path-based storage: {basePath}/{key} with "value" field
@@ -94,6 +107,7 @@ func (c *Client) SetKeyValue(key, value string) error {
 	}
 
 	_, err := c.client.Logical().WriteWithContext(ctx, secretPath, secretData)
+
 	return err
 }
 
@@ -109,6 +123,7 @@ func (c *Client) DeleteKeyValue(key string) error {
 		// Convert secret/data/console/... to secret/metadata/console/...
 		metadataPath := strings.Replace(c.path, "/data/", "/metadata/", 1) + "/" + key
 		_, err := c.client.Logical().DeleteWithContext(ctx, metadataPath)
+
 		return err
 	}
 
@@ -122,13 +137,13 @@ func (c *Client) DeleteKeyValue(key string) error {
 	}
 
 	if secret == nil {
-		return fmt.Errorf("secret not found at path: %s", secretPath)
+		return fmt.Errorf("%w at path: %s", ErrSecretNotFound, secretPath)
 	}
 
 	// Extract data from KV v2 response
 	data, ok := secret.Data["data"].(map[string]interface{})
 	if !ok {
-		return fmt.Errorf("unexpected secret data format at %s", secretPath)
+		return fmt.Errorf("%w at %s", ErrUnexpectedDataFormat, secretPath)
 	}
 
 	delete(data, key)
@@ -138,6 +153,7 @@ func (c *Client) DeleteKeyValue(key string) error {
 	}
 
 	_, err = c.client.Logical().WriteWithContext(ctx, secretPath, secretData)
+
 	return err
 }
 
@@ -153,16 +169,17 @@ func (c *Client) GetObject(key string) (map[string]string, error) {
 	}
 
 	if secret == nil {
-		return nil, fmt.Errorf("secret not found at path: %s", secretPath)
+		return nil, fmt.Errorf("%w at path: %s", ErrSecretNotFound, secretPath)
 	}
 
 	// Extract data from KV v2 response
 	data, ok := secret.Data["data"].(map[string]interface{})
 	if !ok {
-		return nil, fmt.Errorf("unexpected secret data format at %s", secretPath)
+		return nil, fmt.Errorf("%w at %s", ErrUnexpectedDataFormat, secretPath)
 	}
 
 	result := make(map[string]string)
+
 	for k, v := range data {
 		if strVal, ok := v.(string); ok {
 			result[k] = strVal
@@ -189,5 +206,6 @@ func (c *Client) SetObject(key string, data map[string]string) error {
 	}
 
 	_, err := c.client.Logical().WriteWithContext(ctx, secretPath, secretData)
+
 	return err
 }

@@ -1,13 +1,18 @@
 package main
 
 import (
+	"crypto/rsa"
+	"crypto/x509"
 	"os"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -35,6 +40,15 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 	}
 
 	runAppFunc = func(_ *config.Config) {}
+
+	// Mock certificate functions
+	loadOrGenerateRootCertFunc = func(_ security.Storager, _ bool, _, _, _ string, _ bool) (*x509.Certificate, *rsa.PrivateKey, error) {
+		return &x509.Certificate{}, &rsa.PrivateKey{}, nil
+	}
+
+	loadOrGenerateWebServerCertFunc = func(_ security.Storager, _ certificates.CertAndKeyType, _ bool, _, _, _ string, _ bool) (*x509.Certificate, *rsa.PrivateKey, error) {
+		return &x509.Certificate{}, &rsa.PrivateKey{}, nil
+	}
 
 	// Call the main function
 	main()

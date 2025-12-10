@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "20183268-993e-43c1-a78f-d98832a4a362",
+		"_postman_id": "b52112b8-6f6f-46b3-b8d5-bfdd193c8dbe",
 		"name": "Console RPS APIs",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
-		"_exporter_id": "4929283",
-		"_collection_link": "https://restless-escape-842597.postman.co/workspace/Open-AMT-Cloud-Toolkit~0d3a781d-7dbd-469f-b6ee-a5b75bda71ca/collection/2229705-20183268-993e-43c1-a78f-d98832a4a362?action=share&source=collection_link&creator=4929283"
+		"_exporter_id": "2229705",
+		"_collection_link": "https://restless-escape-842597.postman.co/workspace/Open-AMT-Cloud-Toolkit~0d3a781d-7dbd-469f-b6ee-a5b75bda71ca/collection/2229705-b52112b8-6f6f-46b3-b8d5-bfdd193c8dbe?action=share&source=collection_link&creator=2229705"
 	},
 	"item": [
 		{
@@ -135,7 +135,9 @@
 									"    pm.expect(result.expirationDate).not.equal(null)\r",
 									"});"
 								],
-								"type": "text/javascript"
+								"type": "text/javascript",
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
@@ -154,7 +156,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"profileName\": \"NewDomain\",\r\n    \"domainSuffix\": \"test.com\",\r\n    \"provisioningCert\": \"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\",\r\n    \"provisioningCertStorageFormat\": \"raw\",\r\n    \"provisioningCertPassword\": \"Intel123!\",\r\n    \"expirationDate\": \"12/25/2023\"\r\n}"
+							"raw": "{\r\n    \"profileName\": \"NewDomain\",\r\n    \"domainSuffix\": \"test.com\",\r\n    \"provisioningCert\": \"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\",\r\n    \"provisioningCertStorageFormat\": \"raw\",\r\n    \"provisioningCertPassword\": \"Intel123!\"\r\n}"
 						},
 						"url": {
 							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
@@ -6063,479 +6065,411 @@
 				},
 				{
 					"name": "Export AMT Profile w/ Domains",
-					"item": []
-				},
-				{
-					"name": "Create Domain (vprodemo)",
-					"event": [
+					"item": [
 						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var result = pm.response.json();\r",
-									"pm.globals.set(\"domainVersion\", result.version);\r",
-									"\r",
-									"pm.test(\"Status code is 201\", function () {\r",
-									"    pm.response.to.have.status(201);\r",
-									"});\r",
-									"\r",
-									"pm.test(\"Creation should succeed\", function () {\r",
-									"    var result = pm.response.json();\r",
-									"    pm.expect(result.profileName).to.eql('vprodemo')\r",
-									"    pm.expect(result.domainSuffix).to.eql('vprodemo.com')\r",
-									"    pm.expect(result.provisioningCert).to.eql()\r",
-									"    pm.expect(result.provisioningCertStorageFormat).to.eql('raw')\r",
-									"    pm.expect(result.provisioningCertPassword).to.eql()\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
+							"name": "Create Domain (vprodemo)",
+							"event": [
 								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
+									"listen": "test",
+									"script": {
+										"exec": [
+											"var result = pm.response.json();\r",
+											"pm.globals.set(\"domainVersion\", result.version);\r",
+											"\r",
+											"pm.test(\"Status code is 201\", function () {\r",
+											"    pm.response.to.have.status(201);\r",
+											"});\r",
+											"\r",
+											"pm.test(\"Creation should succeed\", function () {\r",
+											"    var result = pm.response.json();\r",
+											"    pm.expect(result.profileName).to.eql('vprodemo')\r",
+											"    pm.expect(result.domainSuffix).to.eql('vprodemo.com')\r",
+											"    pm.expect(result.provisioningCert).to.eql()\r",
+											"    pm.expect(result.provisioningCertStorageFormat).to.eql('raw')\r",
+											"    pm.expect(result.provisioningCertPassword).to.eql()\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
 								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"profileName\": \"vprodemo\",\r\n    \"domainSuffix\": \"vprodemo.com\",\r\n    \"provisioningCert\": \"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\",\r\n    \"provisioningCertStorageFormat\": \"raw\",\r\n    \"provisioningCertPassword\": \"P@ssw0rd\"\r\n}"
-						},
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
 							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"domains"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Create AMT Profile",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"var result = pm.response.json();\r",
-									"pm.globals.set(\"wifiProfileVersion\", result.version);\r",
-									"\r",
-									"pm.test(\"Status code is 201\", function () {\r",
-									"    pm.response.to.have.status(201);\r",
-									"});\r",
-									"pm.test(\"Creation should succeed\", function () {\r",
-									"    var result = pm.response.json();\r",
-									"    pm.expect(result.profileName).to.eql(\"wifi-profile\"),\r",
-									"    pm.expect(result.amtPassword).to.match(/^.+$/);\r",
-									"    pm.expect(result.mebxPassword).to.match(/^.+$/);\r",
-									"    pm.expect(result.activation).to.eql(\"ccmactivate\")\r",
-									"    pm.expect(result.tags.length).to.equal(1)\r",
-									"    pm.expect(result.dhcpEnabled).to.equal(true)\r",
-									"    pm.expect(result.wifiConfigs.length).to.equal(2)\r",
-									"    pm.expect(result.wifiConfigs[0].priority).to.equal(1)\r",
-									"    pm.expect(result.wifiConfigs[0].profileName).to.equal(\"home\")\r",
-									"    pm.expect(result.wifiConfigs[1].priority).to.equal(2)\r",
-									"    pm.expect(result.wifiConfigs[1].profileName).to.equal(\"office\")\r",
-									"});"
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
 								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"profileName\": \"vprodemo\",\r\n    \"domainSuffix\": \"vprodemo.com\",\r\n    \"provisioningCert\": \"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\",\r\n    \"provisioningCertStorageFormat\": \"raw\",\r\n    \"provisioningCertPassword\": \"P@ssw0rd\"\r\n}"
+								},
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"domains"
+									]
 								}
-							]
-						},
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
 							},
-							{
-								"key": "X-RPS-API-Key",
-								"value": "APIKEYFORRPS123!",
-								"disabled": true
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"profileName\": \"acm\",\r\n    \"amtPassword\": \"P@ssw0rd\",\r\n    \"mebxPassword\": \"P@ssw0rd\",\r\n    \"activation\": \"acmactivate\",\r\n    \"tags\": [\"acm\"],\r\n    \"dhcpEnabled\": true,\r\n    \"wifiConfigs\": []\r\n}"
+							"response": []
 						},
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"profiles",
-								""
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "export profile",
-					"event": [
 						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// Get response data\r",
-									"var jsonData = pm.response.json();\r",
-									"if (jsonData && jsonData.version) {\r",
-									"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
-									"}\r",
-									"\r",
-									"// Test status code\r",
-									"pm.test(\"Status code is 200\", function() {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
-									"// Test response content\r",
-									"pm.test(\"Export should succeed with domain\", function() {\r",
-									"    var jsonData = pm.response.json();\r",
-									"    \r",
-									"    // Verify filename\r",
-									"    pm.expect(jsonData).to.have.property('filename');\r",
-									"    pm.expect(jsonData.filename).to.eql(\"acm.yaml\");\r",
-									"    \r",
-									"    // Verify content exists and is not null\r",
-									"    pm.expect(jsonData).to.have.property('content');\r",
-									"    pm.expect(jsonData.content).to.not.be.null;\r",
-									"    \r",
-									"    // Verify key exists and is not null\r",
-									"    pm.expect(jsonData).to.have.property('key');\r",
-									"    pm.expect(jsonData.key).to.not.be.null;\r",
-									"});"
+							"name": "Create AMT Profile",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"var result = pm.response.json();\r",
+											"pm.globals.set(\"wifiProfileVersion\", result.version);\r",
+											"\r",
+											"pm.test(\"Status code is 201\", function () {\r",
+											"    pm.response.to.have.status(201);\r",
+											"});\r",
+											"pm.test(\"Creation should succeed\", function () {\r",
+											"    var result = pm.response.json();\r",
+											"    pm.expect(result.profileName).to.eql(\"acm\"),\r",
+											"    pm.expect(result.amtPassword).to.match(/^.+$/);\r",
+											"    pm.expect(result.mebxPassword).to.match(/^.+$/);\r",
+											"    pm.expect(result.activation).to.eql(\"acmactivate\")\r",
+											"    pm.expect(result.dhcpEnabled).to.equal(true)\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "POST",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-RPS-API-Key",
+										"value": "APIKEYFORRPS123!",
+										"disabled": true
+									}
 								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"profileName\": \"acm\",\r\n    \"amtPassword\": \"P@ssw0rd\",\r\n    \"mebxPassword\": \"P@ssw0rd\",\r\n    \"activation\": \"acmactivate\",\r\n    \"tags\": [\"acm\"],\r\n    \"dhcpEnabled\": true,\r\n    \"wifiConfigs\": []\r\n}"
+								},
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"profiles",
+										""
+									]
 								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/export/acm?domainName=vprodemo.com",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"profiles",
-								"export",
-								"acm"
-							],
-							"query": [
-								{
-									"key": "domainName",
-									"value": "vprodemo.com"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "export profile with no domain",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"Copy// Get response data\r",
-									"var jsonData = pm.response.json();\r",
-									"if (jsonData && jsonData.version) {\r",
-									"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
-									"}\r",
-									"\r",
-									"// Test status code\r",
-									"pm.test(\"Status code is 200\", function() {\r",
-									"    pm.response.to.have.status(200);\r",
-									"});\r",
-									"\r",
-									"// Test response content\r",
-									"pm.test(\"Export should succeed without domain\", function() {\r",
-									"    var jsonData = pm.response.json();\r",
-									"    \r",
-									"    // Verify filename\r",
-									"    pm.expect(jsonData).to.have.property('filename');\r",
-									"    pm.expect(jsonData.filename).to.eql(\"acm.yaml\");\r",
-									"    \r",
-									"    // Verify content exists and is not null\r",
-									"    pm.expect(jsonData).to.have.property('content');\r",
-									"    pm.expect(jsonData.content).to.not.be.null;\r",
-									"    \r",
-									"    // Verify key exists and is not null\r",
-									"    pm.expect(jsonData).to.have.property('key');\r",
-									"    pm.expect(jsonData.key).to.not.be.null;\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/export/acm",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"profiles",
-								"export",
-								"acm"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "export profile - domain not found",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"// First save the exported profile version if response is successful\r",
-									"var jsonData = pm.response.json();\r",
-									"if (jsonData && jsonData.version) {\r",
-									"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
-									"}\r",
-									"\r",
-									"// Test for error status code\r",
-									"pm.test(\"Status code is 404\", function() {\r",
-									"    pm.response.to.have.status(404);\r",
-									"});\r",
-									"\r",
-									"// Test for error message content\r",
-									"pm.test(\"Export should fail with correct error message\", function() {\r",
-									"    var jsonData = pm.response.json();\r",
-									"    pm.expect(jsonData.error).to.eql(\"No domain found\");\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
-								}
-							]
-						},
-						"method": "GET",
-						"header": [],
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/export/acm?domainName=test.com",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"profiles",
-								"export",
-								"acm"
-							],
-							"query": [
-								{
-									"key": "domainName",
-									"value": "test.com"
-								}
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Remove Profile",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 204\", function () {\r",
-									"    pm.response.to.have.status(204);\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
-								}
-							]
-						},
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
 							},
-							{
-								"key": "X-RPS-API-Key",
-								"value": "APIKEYFORRPS123!",
-								"disabled": true
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
+							"response": []
 						},
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/acm",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
-							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"profiles",
-								"acm"
-							]
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Remove Domain",
-					"event": [
 						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 204\", function () {\r",
-									"    pm.response.to.have.status(204);\r",
-									"});"
-								],
-								"type": "text/javascript",
-								"packages": {}
-							}
-						}
-					],
-					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
+							"name": "export profile with no domain",
+							"event": [
 								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3MzcyMTkyODR9.8z7u2uOZcUvGWnfKjTVih6zDMm9OeT8WJvrGaUwpXHM",
-									"type": "string"
+									"listen": "test",
+									"script": {
+										"exec": [
+											"Copy// Get response data\r",
+											"var jsonData = pm.response.json();\r",
+											"if (jsonData && jsonData.version) {\r",
+											"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
+											"}\r",
+											"\r",
+											"// Test status code\r",
+											"pm.test(\"Status code is 200\", function() {\r",
+											"    pm.response.to.have.status(200);\r",
+											"});\r",
+											"\r",
+											"// Test response content\r",
+											"pm.test(\"Export should succeed without domain\", function() {\r",
+											"    var jsonData = pm.response.json();\r",
+											"    \r",
+											"    // Verify filename\r",
+											"    pm.expect(jsonData).to.have.property('filename');\r",
+											"    pm.expect(jsonData.filename).to.eql(\"acm.yaml\");\r",
+											"    \r",
+											"    // Verify content exists and is not null\r",
+											"    pm.expect(jsonData).to.have.property('content');\r",
+											"    pm.expect(jsonData.content).to.not.be.null;\r",
+											"    \r",
+											"    // Verify key exists and is not null\r",
+											"    pm.expect(jsonData).to.have.property('key');\r",
+											"    pm.expect(jsonData.key).to.not.be.null;\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
 								}
-							]
-						},
-						"method": "DELETE",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": ""
-						},
-						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains/vprodemo",
-							"protocol": "{{protocol}}",
-							"host": [
-								"{{host}}"
 							],
-							"path": [
-								"api",
-								"v1",
-								"admin",
-								"domains",
-								"vprodemo"
-							]
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/export/acm",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"profiles",
+										"export",
+										"acm"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "export profile",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// Get response data\r",
+											"var jsonData = pm.response.json();\r",
+											"if (jsonData && jsonData.version) {\r",
+											"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
+											"}\r",
+											"\r",
+											"// Test status code\r",
+											"pm.test(\"Status code is 200\", function() {\r",
+											"    pm.response.to.have.status(200);\r",
+											"});\r",
+											"\r",
+											"// Test response content\r",
+											"pm.test(\"Export should succeed with domain\", function() {\r",
+											"    var jsonData = pm.response.json();\r",
+											"    \r",
+											"    // Verify filename\r",
+											"    pm.expect(jsonData).to.have.property('filename');\r",
+											"    pm.expect(jsonData.filename).to.eql(\"acm.yaml\");\r",
+											"    \r",
+											"    // Verify content exists and is not null\r",
+											"    pm.expect(jsonData).to.have.property('content');\r",
+											"    pm.expect(jsonData.content).to.not.be.null;\r",
+											"    \r",
+											"    // Verify key exists and is not null\r",
+											"    pm.expect(jsonData).to.have.property('key');\r",
+											"    pm.expect(jsonData.key).to.not.be.null;\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/export/acm?domainName=vprodemo.com",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"profiles",
+										"export",
+										"acm"
+									],
+									"query": [
+										{
+											"key": "domainName",
+											"value": "vprodemo.com"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "export profile - domain not found",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"// First save the exported profile version if response is successful\r",
+											"var jsonData = pm.response.json();\r",
+											"if (jsonData && jsonData.version) {\r",
+											"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
+											"}\r",
+											"\r",
+											"// Test for error status code\r",
+											"pm.test(\"Status code is 404\", function() {\r",
+											"    pm.response.to.have.status(404);\r",
+											"});\r",
+											"\r",
+											"// Test for error message content\r",
+											"pm.test(\"Export should fail with correct error message\", function() {\r",
+											"    var jsonData = pm.response.json();\r",
+											"    pm.expect(jsonData.error).to.eql(\"No domain found\");\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "GET",
+								"header": [],
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/export/acm?domainName=test.com",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"profiles",
+										"export",
+										"acm"
+									],
+									"query": [
+										{
+											"key": "domainName",
+											"value": "test.com"
+										}
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Profile",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 204\", function () {\r",
+											"    pm.response.to.have.status(204);\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									},
+									{
+										"key": "X-RPS-API-Key",
+										"value": "APIKEYFORRPS123!",
+										"disabled": true
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/acm",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"profiles",
+										"acm"
+									]
+								}
+							},
+							"response": []
+						},
+						{
+							"name": "Remove Domain",
+							"event": [
+								{
+									"listen": "test",
+									"script": {
+										"exec": [
+											"pm.test(\"Status code is 204\", function () {\r",
+											"    pm.response.to.have.status(204);\r",
+											"});"
+										],
+										"type": "text/javascript",
+										"packages": {},
+										"requests": {}
+									}
+								}
+							],
+							"request": {
+								"method": "DELETE",
+								"header": [
+									{
+										"key": "Content-Type",
+										"value": "application/json"
+									}
+								],
+								"body": {
+									"mode": "raw",
+									"raw": ""
+								},
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/admin/domains/vprodemo",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"admin",
+										"domains",
+										"vprodemo"
+									]
+								}
+							},
+							"response": []
 						}
-					},
-					"response": []
+					]
 				}
 			]
 		},
@@ -8418,7 +8352,7 @@
 		"bearer": [
 			{
 				"key": "token",
-				"value": "",
+				"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjUzOTU1OTl9.2cEjByEMSu7g_PQG8uj5kOTwzQ8D4lnuflx4Tb9ElCY",
 				"type": "string"
 			}
 		]
@@ -8428,6 +8362,7 @@
 			"listen": "prerequest",
 			"script": {
 				"type": "text/javascript",
+				"requests": {},
 				"exec": [
 					""
 				]
@@ -8437,6 +8372,7 @@
 			"listen": "test",
 			"script": {
 				"type": "text/javascript",
+				"requests": {},
 				"exec": [
 					""
 				]
