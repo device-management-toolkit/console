@@ -17,7 +17,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
-	consolehttp "github.com/device-management-toolkit/console/internal/controller/http"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/db"
@@ -60,7 +60,7 @@ func Run(cfg *config.Config) {
 	defaultConfig.AllowHeaders = cfg.AllowedHeaders
 
 	handler.Use(cors.New(defaultConfig))
-	consolehttp.NewRouter(handler, log, *usecases, cfg)
+	httpapi.NewRouter(handler, log, *usecases, cfg)
 
 	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
 	if os.Getenv("ENABLE_PPROF") == "true" {

@@ -1,5 +1,5 @@
-// Package v1 implements routing paths. Each services in own file.
-package http
+// Package httpapi implements routing paths. Each services in own file.
+package httpapi
 
 import (
 	"embed"
@@ -14,8 +14,8 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 
 	"github.com/device-management-toolkit/console/config"
-	v1 "github.com/device-management-toolkit/console/internal/controller/http/v1"
-	v2 "github.com/device-management-toolkit/console/internal/controller/http/v2"
+	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
+	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"

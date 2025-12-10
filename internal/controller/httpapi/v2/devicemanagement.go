@@ -5,7 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
-	v1 "github.com/device-management-toolkit/console/internal/controller/http/v1"
+	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
