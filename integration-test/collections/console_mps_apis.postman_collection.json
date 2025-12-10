@@ -1,10 +1,10 @@
 {
 	"info": {
-		"_postman_id": "81cdc1e4-31bc-40ca-957f-1355cd87dedc",
+		"_postman_id": "eab0c07a-2ab9-4e7a-a631-f96e710199dd",
 		"name": "Console MPS APIs",
 		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
 		"_exporter_id": "4929283",
-		"_collection_link": "https://restless-escape-842597.postman.co/workspace/Open-AMT-Cloud-Toolkit~0d3a781d-7dbd-469f-b6ee-a5b75bda71ca/collection/2229705-81cdc1e4-31bc-40ca-957f-1355cd87dedc?action=share&source=collection_link&creator=4929283"
+		"_collection_link": "https://restless-escape-842597.postman.co/workspace/Open-AMT-Cloud-Toolkit~0d3a781d-7dbd-469f-b6ee-a5b75bda71ca/collection/4929283-eab0c07a-2ab9-4e7a-a631-f96e710199dd?action=share&source=collection_link&creator=4929283"
 	},
 	"item": [
 		{
@@ -120,21 +120,12 @@
 									""
 								],
 								"type": "text/javascript",
-								"packages": {}
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
 					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI5RW1SSlRiSWlJYjRiSWVTc21nY1dJanJSNkh5RVRxYyIsImV4cCI6MTYyOTU2NjYxMn0.T-RplTGb8wOVcjRcfvS1t-ktUrolErl4IY4I7ih5MKg",
-									"type": "string"
-								}
-							]
-						},
 						"method": "GET",
 						"header": [],
 						"url": {
@@ -172,21 +163,12 @@
 									""
 								],
 								"type": "text/javascript",
-								"packages": {}
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
 					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI5RW1SSlRiSWlJYjRiSWVTc21nY1dJanJSNkh5RVRxYyIsImV4cCI6MTYyOTU2NjYxMn0.T-RplTGb8wOVcjRcfvS1t-ktUrolErl4IY4I7ih5MKg",
-									"type": "string"
-								}
-							]
-						},
 						"method": "POST",
 						"header": [],
 						"body": {
@@ -233,21 +215,12 @@
 									""
 								],
 								"type": "text/javascript",
-								"packages": {}
+								"packages": {},
+								"requests": {}
 							}
 						}
 					],
 					"request": {
-						"auth": {
-							"type": "bearer",
-							"bearer": [
-								{
-									"key": "token",
-									"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiI5RW1SSlRiSWlJYjRiSWVTc21nY1dJanJSNkh5RVRxYyIsImV4cCI6MTYyOTU2NjYxMn0.T-RplTGb8wOVcjRcfvS1t-ktUrolErl4IY4I7ih5MKg",
-									"type": "string"
-								}
-							]
-						},
 						"method": "GET",
 						"header": [],
 						"url": {
@@ -1837,6 +1810,30 @@
 					"response": []
 				}
 			]
+		}
+	],
+	"event": [
+		{
+			"listen": "prerequest",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
+		},
+		{
+			"listen": "test",
+			"script": {
+				"type": "text/javascript",
+				"packages": {},
+				"requests": {},
+				"exec": [
+					""
+				]
+			}
 		}
 	]
 }

@@ -53,7 +53,7 @@ var (
 )
 
 // domainCertKey generates the key path for storing domain certificates in Vault.
-// Format: certs/domains/{tenantID}/{profileName}
+// Format: certs/domains/{tenantID}/{profileName}.
 func domainCertKey(tenantID, profileName string) string {
 	return fmt.Sprintf("certs/domains/%s/%s", tenantID, profileName)
 }

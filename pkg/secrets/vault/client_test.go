@@ -10,6 +10,8 @@ import (
 )
 
 func TestNewClient_WithInjectedClient(t *testing.T) {
+	t.Parallel()
+
 	mockVaultClient := &api.Client{}
 
 	client, err := NewClient(nil, WithClient(mockVaultClient))
@@ -21,6 +23,8 @@ func TestNewClient_WithInjectedClient(t *testing.T) {
 }
 
 func TestNewClient_WithInjectedClientAndPath(t *testing.T) {
+	t.Parallel()
+
 	mockVaultClient := &api.Client{}
 
 	client, err := NewClient(nil, WithClient(mockVaultClient), WithPath("secret/data/custom"))
@@ -32,6 +36,8 @@ func TestNewClient_WithInjectedClientAndPath(t *testing.T) {
 }
 
 func TestNewClient_ValidConfig(t *testing.T) {
+	t.Parallel()
+
 	cfg := &config.Secrets{
 		Address: "http://localhost:8200",
 		Token:   "test-token",
@@ -46,6 +52,8 @@ func TestNewClient_ValidConfig(t *testing.T) {
 }
 
 func TestNewClient_ConfigWithPath(t *testing.T) {
+	t.Parallel()
+
 	cfg := &config.Secrets{
 		Address: "http://localhost:8200",
 		Token:   "test-token",
@@ -60,6 +68,8 @@ func TestNewClient_ConfigWithPath(t *testing.T) {
 }
 
 func TestNewClient_EmptyToken(t *testing.T) {
+	t.Parallel()
+
 	cfg := &config.Secrets{
 		Address: "http://localhost:8200",
 		Token:   "",
@@ -75,6 +85,8 @@ func TestNewClient_EmptyToken(t *testing.T) {
 }
 
 func TestNewClient_EmptyAddress(t *testing.T) {
+	t.Parallel()
+
 	cfg := &config.Secrets{
 		Address: "",
 		Token:   "test-token",
@@ -87,6 +99,8 @@ func TestNewClient_EmptyAddress(t *testing.T) {
 }
 
 func TestWithPath_EmptyString(t *testing.T) {
+	t.Parallel()
+
 	mockVaultClient := &api.Client{}
 
 	// Empty path should not override default

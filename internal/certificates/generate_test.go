@@ -14,23 +14,26 @@ import (
 	"github.com/stretchr/testify/mock"
 )
 
-// MockObjectStorager implements ObjectStorager for testing
+// MockObjectStorager implements ObjectStorager for testing.
 type MockObjectStorager struct {
 	mock.Mock
 }
 
 func (m *MockObjectStorager) GetKeyValue(key string) (string, error) {
 	args := m.Called(key)
+
 	return args.String(0), args.Error(1)
 }
 
 func (m *MockObjectStorager) SetKeyValue(key, value string) error {
 	args := m.Called(key, value)
+
 	return args.Error(0)
 }
 
 func (m *MockObjectStorager) DeleteKeyValue(key string) error {
 	args := m.Called(key)
+
 	return args.Error(0)
 }
 
@@ -39,16 +42,25 @@ func (m *MockObjectStorager) GetObject(key string) (map[string]string, error) {
 	if args.Get(0) == nil {
 		return nil, args.Error(1)
 	}
-	return args.Get(0).(map[string]string), args.Error(1)
+
+	result, ok := args.Get(0).(map[string]string)
+	if !ok {
+		return nil, args.Error(1)
+	}
+
+	return result, args.Error(1)
 }
 
 func (m *MockObjectStorager) SetObject(key string, data map[string]string) error {
 	args := m.Called(key, data)
+
 	return args.Error(0)
 }
 
-// Helper to generate a test certificate and key
+// Helper to generate a test certificate and key.
 func generateTestCertAndKey(t *testing.T) (*x509.Certificate, *rsa.PrivateKey) {
+	t.Helper()
+
 	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
 	assert.NoError(t, err)
 
@@ -76,10 +88,10 @@ func generateTestCertAndKey(t *testing.T) (*x509.Certificate, *rsa.PrivateKey) {
 	return cert, privateKey
 }
 
-// Helper function to convert cert and key to PEM strings
-func certAndKeyToPEM(cert *x509.Certificate, key *rsa.PrivateKey) (string, string) {
-	certPEM := ""
-	keyPEM := ""
+// Helper function to convert cert and key to PEM strings.
+func certAndKeyToPEM(cert *x509.Certificate, key *rsa.PrivateKey) (certPEM, keyPEM string) {
+	certPEM = ""
+	keyPEM = ""
 
 	if cert != nil {
 		certPEM = string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
@@ -93,6 +105,8 @@ func certAndKeyToPEM(cert *x509.Certificate, key *rsa.PrivateKey) (string, strin
 }
 
 func TestParseCertificateFromPEM(t *testing.T) {
+	t.Parallel()
+
 	// Generate a test certificate
 	cert, key := generateTestCertAndKey(t)
 
@@ -108,12 +122,16 @@ func TestParseCertificateFromPEM(t *testing.T) {
 }
 
 func TestParseCertificateFromPEM_InvalidCert(t *testing.T) {
+	t.Parallel()
+
 	_, _, err := ParseCertificateFromPEM("invalid-pem", "-----BEGIN RSA PRIVATE KEY-----\ntest\n-----END RSA PRIVATE KEY-----")
 	assert.Error(t, err)
 	assert.Contains(t, err.Error(), "failed to decode certificate PEM")
 }
 
 func TestParseCertificateFromPEM_InvalidKey(t *testing.T) {
+	t.Parallel()
+
 	cert, _ := generateTestCertAndKey(t)
 	certPEM, _ := certAndKeyToPEM(cert, nil)
 
@@ -123,6 +141,8 @@ func TestParseCertificateFromPEM_InvalidKey(t *testing.T) {
 }
 
 func TestLoadCertificateFromStore_Success(t *testing.T) {
+	t.Parallel()
+
 	cert, key := generateTestCertAndKey(t)
 	certPEM, keyPEM := certAndKeyToPEM(cert, key)
 
@@ -142,6 +162,8 @@ func TestLoadCertificateFromStore_Success(t *testing.T) {
 }
 
 func TestLoadCertificateFromStore_NotFound(t *testing.T) {
+	t.Parallel()
+
 	mockStore := new(MockObjectStorager)
 	mockStore.On("GetObject", "certs/non-existent").Return(nil, assert.AnError)
 
@@ -152,6 +174,8 @@ func TestLoadCertificateFromStore_NotFound(t *testing.T) {
 }
 
 func TestSaveCertificateToStore_Success(t *testing.T) {
+	t.Parallel()
+
 	cert, key := generateTestCertAndKey(t)
 
 	mockStore := new(MockObjectStorager)
@@ -164,6 +188,8 @@ func TestSaveCertificateToStore_Success(t *testing.T) {
 }
 
 func TestSaveCertificateToStore_Error(t *testing.T) {
+	t.Parallel()
+
 	cert, key := generateTestCertAndKey(t)
 
 	mockStore := new(MockObjectStorager)

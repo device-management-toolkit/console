@@ -20,6 +20,12 @@ import (
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
 
+// Sentinel errors for configuration.
+var (
+	ErrSecretStoreAddressNotConfigured = errors.New("secret store address not configured")
+	ErrSecretStoreTokenNotConfigured   = errors.New("secret store token not configured")
+)
+
 // Function pointers for better testability.
 var (
 	initializeConfigFunc = config.NewConfig
@@ -32,6 +38,9 @@ var (
 	} {
 		return openapi.NewGenerator(u, l)
 	}
+	// Certificate loading functions for testability.
+	loadOrGenerateRootCertFunc      = certificates.LoadOrGenerateRootCertificateWithVault
+	loadOrGenerateWebServerCertFunc = certificates.LoadOrGenerateWebServerCertificateWithVault
 )
 
 func main() {
@@ -52,12 +61,12 @@ func main() {
 		app.CertStore = secretsClient
 	}
 
-	root, privateKey, err := certificates.LoadOrGenerateRootCertificateWithVault(secretsClient, true, cfg.CommonName, "US", "device-management-toolkit", true)
+	root, privateKey, err := loadOrGenerateRootCertFunc(secretsClient, true, cfg.CommonName, "US", "device-management-toolkit", true)
 	if err != nil {
 		log.Fatalf("Error loading or generating root certificate: %s", err)
 	}
 
-	_, _, err = certificates.LoadOrGenerateWebServerCertificateWithVault(secretsClient, certificates.CertAndKeyType{Cert: root, Key: privateKey}, false, cfg.CommonName, "US", "device-management-toolkit", true)
+	_, _, err = loadOrGenerateWebServerCertFunc(secretsClient, certificates.CertAndKeyType{Cert: root, Key: privateKey}, false, cfg.CommonName, "US", "device-management-toolkit", true)
 	if err != nil {
 		log.Fatalf("Error loading or generating web server certificate: %s", err)
 	}
@@ -110,84 +119,130 @@ func handleOpenAPIGeneration() error {
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
-	if cfg.Secrets.Address == "" {
-		return nil, fmt.Errorf("secret store address not configured")
-	}
-	if cfg.Secrets.Token == "" {
-		return nil, fmt.Errorf("secret store token not configured")
+	if cfg.Address == "" {
+		return nil, ErrSecretStoreAddressNotConfigured
 	}
 
-	log.Printf("Connecting to secret store at: %s", cfg.Secrets.Address)
+	if cfg.Token == "" {
+		return nil, ErrSecretStoreTokenNotConfigured
+	}
+
 	secretsClient, err := secrets.NewClient(&cfg.Secrets)
 	if err != nil {
-		log.Printf("Failed to create secret store client: %v", err)
+		log.Printf("Failed to connect to secret store: %v", err)
+
 		return nil, err
 	}
+
+	log.Printf("Connected to secret store at: %s", cfg.Address)
 
 	return secretsClient, nil
 }
 
 func handleEncryptionKey(cfg *config.Config) {
+	// If encryption key is already provided via config/env, just use it
+	if cfg.EncryptionKey != "" {
+		log.Println("Encryption key loaded from environment")
+
+		return
+	}
+
 	toolkitCrypto := security.Crypto{}
 
-	var remoteStorage security.Storager
-
-	// Try to initialize secret store client and get key
+	// Try to initialize secret store client for encryption key retrieval
 	remoteStorage, err := handleSecretsConfig(cfg)
-	if err == nil {
-		// if using static EncryptionKey, store it in secret store (not recommended)
-		if cfg.EncryptionKey != "" {
-			err = remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
-			if err == nil {
-				log.Println("Encryption key stored in secret store")
-
-				return
-			}
-		} else { // retrieve from secret store
-			cfg.EncryptionKey, err = remoteStorage.GetKeyValue("default-security-key")
-			if err == nil {
-				log.Println("Encryption key loaded from secret store")
-
-				return
-			}
-		}
-	} else {
+	if err != nil {
 		remoteStorage = nil
 	}
 
-	// Try local keyring storage (simple key-value API)
-	localStorage := security.NewKeyRingStorage("device-management-toolkit")
-
-	if cfg.EncryptionKey != "" {
-		err = localStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
-	} else {
-		cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
-		if err == nil {
-			log.Println("Encryption key loaded from local keyring")
-
-			if remoteStorage != nil {
-				syncErr := remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
-				if syncErr != nil {
-					log.Printf("Warning: Failed to sync key to secret store: %v", syncErr)
-				} else {
-					log.Println("Encryption key synced to secret store")
-				}
-			}
-
-			return
-		}
+	// Try remote storage first
+	if done := tryRemoteStorage(cfg, remoteStorage); done {
+		return
 	}
 
-	// if we get an error other than key not found, log and exit
-	if !errors.Is(err, security.ErrKeyNotFound) {
-		log.Fatal(err)
+	// Try local keyring storage
+	localStorage := security.NewKeyRingStorage("device-management-toolkit")
+
+	if done := tryLocalStorage(cfg, localStorage, remoteStorage); done {
 		return
 	}
 
 	// Key not found anywhere, generate a new one
 	cfg.EncryptionKey = handleKeyNotFound(toolkitCrypto, remoteStorage, localStorage)
 
-	saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage)
+	if err := saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage); err != nil {
+		log.Printf("Warning: Failed to save encryption key: %v", err)
+	}
+}
+
+// tryRemoteStorage attempts to store/retrieve the encryption key from remote storage.
+func tryRemoteStorage(cfg *config.Config, remoteStorage security.Storager) bool {
+	if remoteStorage == nil {
+		return false
+	}
+
+	if cfg.EncryptionKey != "" {
+		// Store static key in secret store (not recommended)
+		if err := remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey); err == nil {
+			log.Println("Encryption key stored in secret store")
+
+			return true
+		}
+	} else {
+		// Retrieve from secret store
+		key, err := remoteStorage.GetKeyValue("default-security-key")
+		if err == nil {
+			cfg.EncryptionKey = key
+
+			log.Println("Encryption key loaded from secret store")
+
+			return true
+		}
+	}
+
+	return false
+}
+
+// tryLocalStorage attempts to store/retrieve the encryption key from local keyring.
+func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.Storager) bool {
+	var err error
+
+	if cfg.EncryptionKey != "" {
+		err = localStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
+		if err == nil {
+			log.Println("Encryption key stored in local keyring")
+
+			return true
+		}
+	} else {
+		cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
+		if err == nil {
+			log.Println("Encryption key loaded from local keyring")
+			syncKeyToRemote(cfg.EncryptionKey, remoteStorage)
+
+			return true
+		}
+	}
+
+	// Check for unexpected errors
+	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
+		log.Fatal(err)
+	}
+
+	return false
+}
+
+// syncKeyToRemote syncs an encryption key to the remote storage if available.
+func syncKeyToRemote(key string, remoteStorage security.Storager) {
+	if remoteStorage == nil {
+		return
+	}
+
+	if err := remoteStorage.SetKeyValue("default-security-key", key); err != nil {
+		log.Printf("Warning: Failed to sync key to secret store: %v", err)
+	} else {
+		log.Println("Encryption key synced to secret store")
+	}
 }
 
 func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager) error {
@@ -209,10 +264,10 @@ func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager
 		return nil
 	}
 
-	return nil
+	return err
 }
 
-func handleKeyNotFound(toolkitCrypto security.Crypto, remoteStorage, localStorage security.Storager) string {
+func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) string {
 	log.Print("\033[31mWarning: Key Not Found, Generate new key? -- This will prevent access to existing data? Y/N: \033[0m")
 
 	var response string
