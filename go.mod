@@ -1,6 +1,6 @@
 module github.com/device-management-toolkit/console
 
-go 1.24.11
+go 1.25
 
 // replace github.com/device-management-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
