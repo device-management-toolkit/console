@@ -16,7 +16,7 @@ import (
 
 type (
 	WSMAN interface {
-		SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) wsmanAPI.Management
+		SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) wsmanAPI.Management
 		DestroyWsmanClient(device dto.Device)
 		Worker()
 	}

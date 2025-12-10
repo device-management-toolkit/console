@@ -18,7 +18,7 @@ func (uc *UseCase) GetTLSSettingData(c context.Context, guid string) ([]dto.Sett
 		return nil, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(*item, false, true)
+	device := uc.device.SetupWsmanClient(c, *item, false, true)
 
 	response, err := device.GetTLSSettingData()
 	if err != nil {
