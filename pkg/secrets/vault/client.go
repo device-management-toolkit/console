@@ -1,9 +1,11 @@
 package secrets
 
 import (
-	"github.com/device-management-toolkit/console/config"
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"github.com/hashicorp/vault/api"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
+	"github.com/device-management-toolkit/console/config"
 )
 
 // Default path for secrets if not configured.
