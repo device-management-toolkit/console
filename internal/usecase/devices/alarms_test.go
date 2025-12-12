@@ -55,7 +55,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(*device, false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetAlarmOccurrences().
 					Return([]alarmclock.AlarmClockOccurrence{}, nil)
@@ -85,7 +85,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetAlarmOccurrences().
 					Return([]alarmclock.AlarmClockOccurrence{}, ErrGeneral)
@@ -104,7 +104,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(*device, false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetAlarmOccurrences().
 					Return(nil, nil)
@@ -177,7 +177,7 @@ func TestCreateAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(*device, false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					CreateAlarmOccurrences(occ.InstanceID, occ.StartTime, 1, occ.DeleteOnCompletion).
 					Return(amtAlarmClock.AddAlarmOutput{}, nil)
@@ -207,7 +207,7 @@ func TestCreateAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(*device, false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					CreateAlarmOccurrences(occ.InstanceID, occ.StartTime, 1, occ.DeleteOnCompletion).
 					Return(amtAlarmClock.AddAlarmOutput{}, ErrGeneral)
@@ -268,7 +268,7 @@ func TestDeleteAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(*device, false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					DeleteAlarmOccurrences("").
 					Return(nil)
@@ -296,7 +296,7 @@ func TestDeleteAlarmOccurrences(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(*device, false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					DeleteAlarmOccurrences("").
 					Return(ErrGeneral)

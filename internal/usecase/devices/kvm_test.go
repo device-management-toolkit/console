@@ -41,7 +41,7 @@ func TestGetKVMScreenSettings(t *testing.T) {
 	device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 	useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 	// Respond with a minimal struct; not validating shape here
 	management.EXPECT().GetIPSScreenSettingData().Return(screensetting.Response{}, nil)
 	// Implementation also reads KVM redirection settings to determine default screen
@@ -58,7 +58,7 @@ func TestSetKVMScreenSettings_Success(t *testing.T) {
 	device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 	useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 
 	// Mock the KVM redirection settings calls with proper response
 	kvmResp := kvmredirection.Response{}
@@ -74,7 +74,7 @@ func TestSetKVMScreenSettings_Success(t *testing.T) {
 
 	// Mock the subsequent call to GetKVMScreenSettings
 	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 	// GetKVMScreenSettings will call both ScreenSettingData and KVMRedirectionSettingData
 	management.EXPECT().GetIPSScreenSettingData().Return(screensetting.Response{}, nil)
 	management.EXPECT().GetIPSKVMRedirectionSettingData().Return(kvmredirection.Response{}, nil)
@@ -90,7 +90,7 @@ func TestGetKVMScreenSettings_DisplaysMapping(t *testing.T) {
 	device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 	useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 
 	resp := screensetting.Response{}
 	resp.Body.PullResponse.ScreenSettingDataItems = []screensetting.ScreenSettingDataResponse{
@@ -130,7 +130,7 @@ func TestGetKVMScreenSettings_RoleAssignmentOnlyForActiveDisplays(t *testing.T) 
 	device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 	useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 
 	// Test case where tertiary and quaternary indices are 0 (not assigned)
 	resp := screensetting.Response{}
@@ -208,7 +208,7 @@ func TestGetKVMScreenSettings_ErrorCases(t *testing.T) {
 		device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 		useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 		repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 		management.EXPECT().GetIPSScreenSettingData().Return(screensetting.Response{}, errors.New("wsman error"))
 
 		_, err := useCase.GetKVMScreenSettings(context.Background(), device.GUID)
@@ -246,7 +246,7 @@ func TestSetKVMScreenSettings_ErrorCases(t *testing.T) {
 		device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 		useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 		repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 		management.EXPECT().GetIPSKVMRedirectionSettingData().Return(kvmredirection.Response{}, errors.New("redirection error"))
 
 		_, err := useCase.SetKVMScreenSettings(context.Background(), device.GUID, dto.KVMScreenSettingsRequest{})
@@ -260,7 +260,7 @@ func TestSetKVMScreenSettings_ErrorCases(t *testing.T) {
 		device := &entity.Device{GUID: "guid", TenantID: "tenant"}
 		useCase, wsmanMock, management, repo := initKVMScreenTest(t)
 		repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management)
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(management, nil)
 
 		kvmResp := kvmredirection.Response{}
 		kvmResp.Body.PullResponse.KVMRedirectionSettingsItems = []kvmredirection.KVMRedirectionSettingsResponse{{}}

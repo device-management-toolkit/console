@@ -18,6 +18,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
+	"github.com/device-management-toolkit/console/internal/controller/tcp/cira"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/db"
@@ -43,16 +44,32 @@ func Run(cfg *config.Config) {
 	if err != nil {
 		log.Fatal(fmt.Errorf("app - Run - db.New: %w", err))
 	}
+
 	defer database.Close()
 
 	// Use case
 	usecases := usecase.NewUseCases(database, log, CertStore)
 
+	handler := setupHTTPHandler(cfg, log, usecases)
+
+	ciraServer := setupCIRAServer(cfg, log, database, usecases)
+
+	httpServer := httpserver.New(
+		handler,
+		httpserver.Port(cfg.Host, cfg.Port),
+		httpserver.TLS(cfg.TLS.Enabled, cfg.TLS.CertFile, cfg.TLS.KeyFile),
+		httpserver.Logger(log),
+	)
+
+	waitForShutdown(log, httpServer, ciraServer)
+	shutdownServers(log, httpServer, ciraServer)
+}
+
+func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases) *gin.Engine {
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
 
-	// HTTP Server
 	handler := gin.New()
 
 	defaultConfig := cors.DefaultConfig()
@@ -64,49 +81,71 @@ func Run(cfg *config.Config) {
 
 	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
 	if os.Getenv("ENABLE_PPROF") == "true" {
-		// Register pprof handlers under /debug/pprof without exposing DefaultServeMux
 		ginpprof.Register(handler, "debug/pprof")
 		log.Info("pprof enabled at /debug/pprof/")
 	}
 
 	upgrader := &websocket.Upgrader{
-		// Larger buffers reduce per-frame overhead and syscalls for KVM streaming
-		ReadBufferSize:  64 * 1024,
-		WriteBufferSize: 64 * 1024,
-		Subprotocols:    []string{"direct"},
-		CheckOrigin: func(_ *http.Request) bool {
-			return true
-		},
+		ReadBufferSize:    64 * 1024,
+		WriteBufferSize:   64 * 1024,
+		Subprotocols:      []string{"direct"},
+		CheckOrigin:       func(_ *http.Request) bool { return true },
 		EnableCompression: cfg.WSCompression,
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
-	// Configure TLS based on config
-	tlsEnabled := cfg.TLS.Enabled
-	certFile := cfg.TLS.CertFile
-	keyFile := cfg.TLS.KeyFile
 
-	httpServer := httpserver.New(
-		handler,
-		httpserver.Port(cfg.Host, cfg.Port),
-		httpserver.TLS(tlsEnabled, certFile, keyFile),
-		httpserver.Logger(log),
-	)
+	return handler
+}
 
-	// Waiting signal
+func setupCIRAServer(cfg *config.Config, log logger.Interface, database *db.SQL, usecases *usecase.Usecases) *cira.Server {
+	if cfg.DisableCIRA {
+		return nil
+	}
+
+	ciraCertFile := fmt.Sprintf("config/%s_cert.pem", cfg.CommonName)
+	ciraKeyFile := fmt.Sprintf("config/%s_key.pem", cfg.CommonName)
+
+	ciraServer, err := cira.NewServer(ciraCertFile, ciraKeyFile, usecases.Devices, log)
+	if err != nil {
+		database.Close()
+		log.Fatal("CIRA Server failed: %v", err)
+	}
+
+	return ciraServer
+}
+
+func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraServer *cira.Server) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
-	select {
-	case s := <-interrupt:
-		log.Info("app - Run - signal: " + s.String())
-	case err = <-httpServer.Notify():
-		log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+	if ciraServer != nil {
+		select {
+		case s := <-interrupt:
+			log.Info("app - Run - signal: " + s.String())
+		case err := <-httpServer.Notify():
+			log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+		case ciraErr := <-ciraServer.Notify():
+			log.Error(fmt.Errorf("app - Run - ciraServer.Notify: %w", ciraErr))
+		}
+	} else {
+		select {
+		case s := <-interrupt:
+			log.Info("app - Run - signal: " + s.String())
+		case err := <-httpServer.Notify():
+			log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+		}
+	}
+}
+
+func shutdownServers(log logger.Interface, httpServer *httpserver.Server, ciraServer *cira.Server) {
+	if err := httpServer.Shutdown(); err != nil {
+		log.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
 	}
 
-	// Shutdown
-	err = httpServer.Shutdown()
-	if err != nil {
-		log.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
+	if ciraServer != nil {
+		if err := ciraServer.Shutdown(); err != nil {
+			log.Error(fmt.Errorf("app - Run - ciraServer.Shutdown: %w", err))
+		}
 	}
 }

@@ -291,11 +291,12 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 	var ciraConfig config.CIRA
 	if cira != nil {
 		ciraConfig = config.CIRA{
-			MPSUsername:          cira.Username,
-			MPSPassword:          cira.Password,
-			MPSAddress:           cira.MPSAddress,
-			MPSCert:              cira.MPSRootCertificate,
-			EnvironmentDetection: []string{},
+			MPSUsername:            cira.Username,
+			MPSPassword:            cira.Password,
+			MPSAddress:             cira.MPSAddress,
+			MPSCert:                cira.MPSRootCertificate,
+			EnvironmentDetection:   []string{},
+			GenerateRandomPassword: cira.GenerateRandomPassword,
 		}
 	} else {
 		ciraConfig = config.CIRA{
@@ -348,12 +349,14 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				Password: local.ConsoleConfig.Password,
 			},
 			AMTSpecific: config.AMTSpecific{
-				ControlMode:         data.Activation,
-				AdminPassword:       data.AMTPassword,
-				MEBXPassword:        data.MEBXPassword,
-				ProvisioningCert:    provisioningCert,
-				ProvisioningCertPwd: provisioningCertPwd,
-				CIRA:                ciraConfig,
+				ControlMode:                data.Activation,
+				GenerateRandomPassword:     data.GenerateRandomPassword,
+				AdminPassword:              data.AMTPassword,
+				GenerateRandomMEBXPassword: data.GenerateRandomMEBxPassword,
+				MEBXPassword:               data.MEBXPassword,
+				ProvisioningCert:           provisioningCert,
+				ProvisioningCertPwd:        provisioningCertPwd,
+				CIRA:                       ciraConfig,
 			},
 		},
 	}
@@ -382,6 +385,10 @@ func (uc *UseCase) Export(ctx context.Context, profileName, domainName, tenantID
 		return "", "", err
 	}
 
+	if data == nil {
+		return "", "", ErrNotFound
+	}
+
 	err = uc.DecryptPasswords(data)
 	if err != nil {
 		return "", "", err
@@ -405,6 +412,11 @@ func (uc *UseCase) Export(ctx context.Context, profileName, domainName, tenantID
 	var cira *entity.CIRAConfig
 	if data.CIRAConfigName != nil && *data.CIRAConfigName != "" {
 		cira, err = uc.cira.GetByName(ctx, *data.CIRAConfigName, tenantID)
+		if err != nil {
+			return "", "", err
+		}
+
+		cira.Password, err = uc.safeRequirements.Decrypt(cira.Password)
 		if err != nil {
 			return "", "", err
 		}

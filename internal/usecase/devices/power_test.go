@@ -77,7 +77,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					SendPowerAction(0).
 					Return(powerActionRes, nil)
@@ -96,7 +96,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
 					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
@@ -121,7 +121,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
 					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
@@ -143,7 +143,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
 					Return(ipspower.OSPowerSavingState(2), nil) // It emulates to be in FULL POWER
@@ -177,7 +177,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					SendPowerAction(0).
 					Return(power.PowerActionResponse{}, ErrGeneral)
@@ -196,7 +196,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					SendPowerAction(2).
 					Return(power.PowerActionResponse{}, ErrGeneral)
@@ -221,7 +221,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
 					Return(ipspower.OSPowerSavingState(3), nil) // It emulates to be in SAVING MODE
@@ -243,7 +243,7 @@ func TestSendPowerAction(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetOSPowerSavingState().
 					Return(ipspower.OSPowerSavingState(2), nil) // It emulates to be in FULL POWER
@@ -296,7 +296,7 @@ func TestGetPowerState(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetPowerState().
 					Return([]service.CIM_AssociatedPowerManagementService{{PowerState: 0}}, nil)
@@ -331,7 +331,7 @@ func TestGetPowerState(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetPowerState().
 					Return([]service.CIM_AssociatedPowerManagementService{}, ErrGeneral)
@@ -349,7 +349,7 @@ func TestGetPowerState(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetPowerState().
 					Return([]service.CIM_AssociatedPowerManagementService{{PowerState: 0}}, nil)
@@ -402,7 +402,7 @@ func TestGetPowerCapabilities(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetAMTVersion().
 					Return([]software.SoftwareIdentity{}, nil)
@@ -445,7 +445,7 @@ func TestGetPowerCapabilities(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
@@ -536,7 +536,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(bootResponse, nil)
@@ -580,7 +580,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(boot.BootSettingDataResponse{}, ErrGeneral)
@@ -598,7 +598,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(bootResponse, nil)
@@ -619,7 +619,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(bootResponse, nil)
@@ -643,7 +643,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(bootResponse, nil)
@@ -670,7 +670,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(bootResponse, nil)
@@ -700,7 +700,7 @@ func TestSetBootOptions(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(hmm)
+					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
 					Return(bootResponse, nil)
@@ -797,7 +797,7 @@ func TestGetBootSourceSetting(t *testing.T) {
 		{
 			name: "success",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
-				man.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(hmm)
+				man.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(hmm, nil)
 				hmm.EXPECT().GetCIMBootSourceSetting().Return(settingsResponse, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -818,7 +818,7 @@ func TestGetBootSourceSetting(t *testing.T) {
 		{
 			name: "GetCIMBootSourceSetting error",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
-				man.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(hmm)
+				man.EXPECT().SetupWsmanClient(gomock.Any(), false, true).Return(hmm, nil)
 				hmm.EXPECT().GetCIMBootSourceSetting().Return(settingsResponse, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {

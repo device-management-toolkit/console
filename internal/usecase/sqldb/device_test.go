@@ -43,6 +43,8 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			deviceinfo TEXT NOT NULL DEFAULT '',
 			username TEXT NOT NULL DEFAULT '',
 			password TEXT NOT NULL DEFAULT '',
+			mpspassword TEXT NOT NULL DEFAULT '',
+			mebxpassword TEXT NOT NULL DEFAULT '',
 			usetls BOOLEAN NOT NULL DEFAULT FALSE,
 			allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
 			certhash TEXT NOT NULL DEFAULT ''
@@ -654,6 +656,8 @@ func TestDeviceRepo_Delete(t *testing.T) {
 					deviceinfo TEXT NOT NULL DEFAULT '',
 					username TEXT NOT NULL DEFAULT '',
 					password TEXT NOT NULL DEFAULT '',
+					mpspassword TEXT NOT NULL DEFAULT '',
+					mebxpassword TEXT NOT NULL DEFAULT '',
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE
 				);
@@ -802,6 +806,8 @@ func TestDeviceRepo_Update(t *testing.T) {
 					deviceinfo TEXT NOT NULL DEFAULT '',
 					username TEXT NOT NULL DEFAULT '',
 					password TEXT NOT NULL DEFAULT '',
+					mpspassword TEXT NOT NULL DEFAULT '',
+					mebxpassword TEXT NOT NULL DEFAULT '',
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
 					certhash TEXT NOT NULL DEFAULT ''

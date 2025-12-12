@@ -288,10 +288,12 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-		Password: "encrypted",
-		Tags:     "hello,test",
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  "encrypted",
+		MEBXPassword: "encrypted",
+		Tags:         "hello,test",
 	}
 
 	deviceDTO := &dto.Device{
@@ -363,9 +365,11 @@ func TestInsert(t *testing.T) {
 			name: "successful insertion",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:     "device-guid-123",
-					Password: "encrypted",
-					TenantID: "tenant-id-456",
+					GUID:         "device-guid-123",
+					Password:     "encrypted",
+					MPSPassword:  "encrypted",
+					MEBXPassword: "encrypted",
+					TenantID:     "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -382,9 +386,11 @@ func TestInsert(t *testing.T) {
 			name: "insertion fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:     "device-guid-123",
-					Password: "encrypted",
-					TenantID: "tenant-id-456",
+					GUID:         "device-guid-123",
+					Password:     "encrypted",
+					MPSPassword:  "encrypted",
+					MEBXPassword: "encrypted",
+					TenantID:     "tenant-id-456",
 				}
 
 				repo.EXPECT().

@@ -87,7 +87,7 @@ func TestGetVersion(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
 					Return(softwares, nil)
@@ -174,7 +174,7 @@ func TestGetVersion(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
 					Return(softwares, ErrGeneral)
@@ -195,7 +195,7 @@ func TestGetVersion(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
 					Return(softwares, nil)
@@ -269,7 +269,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
 					Return(gomock.Any(), nil)
@@ -300,7 +300,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
 					Return(nil, ErrGeneral)
@@ -349,7 +349,7 @@ func TestGetAuditLog(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAuditLog(1).
 					Return(auditlog.Response{}, nil)
@@ -383,7 +383,7 @@ func TestGetAuditLog(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAuditLog(1).
 					Return(auditlog.Response{}, ErrGeneral)
@@ -432,7 +432,7 @@ func TestGetEventLog(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetEventLog(1, 10).
 					Return(messagelog.GetRecordsResponse{NoMoreRecords: true}, nil)
@@ -463,7 +463,7 @@ func TestGetEventLog(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetEventLog(1, 10).
 					Return(messagelog.GetRecordsResponse{}, ErrGeneral)
@@ -512,7 +512,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetGeneralSettings().
 					Return(gomock.Any(), nil)
@@ -543,7 +543,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetGeneralSettings().
 					Return(nil, ErrGeneral)
@@ -593,7 +593,7 @@ func TestGetDiskInfo(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
 					Return(gomock.Any(), nil)
@@ -624,7 +624,7 @@ func TestGetDiskInfo(t *testing.T) {
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
 					Return(nil, ErrGeneral)

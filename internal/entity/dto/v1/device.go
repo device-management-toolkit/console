@@ -29,6 +29,8 @@ type Device struct {
 	DeviceInfo       *DeviceInfo `json:"deviceInfo,omitempty"`
 	Username         string      `json:"username" binding:"max=16"`
 	Password         string      `json:"password"`
+	MPSPassword      string      `json:"mpspassword"`
+	MEBXPassword     string      `json:"mebxpassword"`
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`

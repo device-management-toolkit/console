@@ -90,6 +90,8 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 		// DeviceInfo:       d.DeviceInfo,
 		Username:        d.Username,
 		Password:        d.Password,
+		MPSPassword:     d.MPSPassword,
+		MEBXPassword:    d.MEBXPassword,
 		UseTLS:          d.UseTLS,
 		AllowSelfSigned: d.AllowSelfSigned,
 	}
@@ -99,6 +101,16 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
 	if err != nil {
 		uc.log.Error("Error encrypting password")
+	}
+
+	d1.MPSPassword, err = uc.safeRequirements.Encrypt(d1.MPSPassword)
+	if err != nil {
+		uc.log.Error("Error encrypting MPS password")
+	}
+
+	d1.MEBXPassword, err = uc.safeRequirements.Encrypt(d1.MEBXPassword)
+	if err != nil {
+		uc.log.Error("Error encrypting MEBX password")
 	}
 
 	if d.CertHash == "" {

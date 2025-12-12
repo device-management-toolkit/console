@@ -131,21 +131,21 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.CIRAConfig) (*dto.CIRAConf
 // convert dto.CIRAConfig to entity.CIRAConfig.
 func (uc *UseCase) dtoToEntity(d *dto.CIRAConfig) *entity.CIRAConfig {
 	d1 := &entity.CIRAConfig{
-		ConfigName:          d.ConfigName,
-		MPSAddress:          d.MPSAddress,
-		MPSPort:             d.MPSPort,
-		Username:            d.Username,
-		Password:            d.Password,
-		CommonName:          d.CommonName,
-		ServerAddressFormat: d.ServerAddressFormat,
-		AuthMethod:          d.AuthMethod,
-		MPSRootCertificate:  d.MPSRootCertificate,
-		ProxyDetails:        d.ProxyDetails,
-		TenantID:            d.TenantID,
-		RegeneratePassword:  d.RegeneratePassword,
-		Version:             d.Version,
+		ConfigName:             d.ConfigName,
+		MPSAddress:             d.MPSAddress,
+		MPSPort:                d.MPSPort,
+		Username:               d.Username,
+		Password:               d.Password,
+		CommonName:             d.CommonName,
+		ServerAddressFormat:    d.ServerAddressFormat,
+		AuthMethod:             d.AuthMethod,
+		MPSRootCertificate:     d.MPSRootCertificate,
+		ProxyDetails:           d.ProxyDetails,
+		TenantID:               d.TenantID,
+		GenerateRandomPassword: d.GenerateRandomPassword,
+		Version:                d.Version,
 	}
-
+	// Encrypt password before storing
 	d1.Password, _ = uc.safeRequirements.Encrypt(d.Password)
 
 	return d1
@@ -154,18 +154,18 @@ func (uc *UseCase) dtoToEntity(d *dto.CIRAConfig) *entity.CIRAConfig {
 // convert entity.CIRAConfig to dto.CIRAConfig.
 func (uc *UseCase) entityToDTO(d *entity.CIRAConfig) *dto.CIRAConfig {
 	d1 := &dto.CIRAConfig{
-		ConfigName:          d.ConfigName,
-		MPSAddress:          d.MPSAddress,
-		MPSPort:             d.MPSPort,
-		Username:            d.Username,
-		CommonName:          d.CommonName,
-		ServerAddressFormat: d.ServerAddressFormat,
-		AuthMethod:          d.AuthMethod,
-		MPSRootCertificate:  d.MPSRootCertificate,
-		ProxyDetails:        d.ProxyDetails,
-		TenantID:            d.TenantID,
-		RegeneratePassword:  d.RegeneratePassword,
-		Version:             d.Version,
+		ConfigName:             d.ConfigName,
+		MPSAddress:             d.MPSAddress,
+		MPSPort:                d.MPSPort,
+		Username:               d.Username,
+		CommonName:             d.CommonName,
+		ServerAddressFormat:    d.ServerAddressFormat,
+		AuthMethod:             d.AuthMethod,
+		MPSRootCertificate:     d.MPSRootCertificate,
+		ProxyDetails:           d.ProxyDetails,
+		TenantID:               d.TenantID,
+		GenerateRandomPassword: d.GenerateRandomPassword,
+		Version:                d.Version,
 	}
 
 	return d1
