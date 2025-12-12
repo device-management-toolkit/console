@@ -1,3 +1,8 @@
+/*********************************************************************
+ * Copyright (c) Intel Corporation 2023
+ * SPDX-License-Identifier: Apache-2.0
+ **********************************************************************/
+
 package dto
 
 // EventLog defines the structure of an event log.

@@ -1,3 +1,8 @@
+/*********************************************************************
+ * Copyright (c) Intel Corporation 2023
+ * SPDX-License-Identifier: Apache-2.0
+ **********************************************************************/
+
 package github
 
 // Release represents the structure of the GitHub API response for releases.
