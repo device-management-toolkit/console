@@ -49,50 +49,62 @@ func main() {
 		log.Fatalf("Config error: %s", err)
 	}
 
-	err = initializeAppFunc(cfg)
-	if err != nil {
+	if err = initializeAppFunc(cfg); err != nil {
 		log.Fatalf("App init error: %s", err)
 	}
 
 	// Initialize certificate store (Vault) for MPS and domain certificates
 	secretsClient, secretsErr := handleSecretsConfig(cfg)
 	if secretsErr == nil {
-		// Set the cert store for domain certificates (used by usecases)
 		app.CertStore = secretsClient
+	}
+
+	if err = setupCIRACertificates(cfg, secretsClient); err != nil {
+		log.Fatalf("CIRA certificate setup error: %s", err)
+	}
+
+	handleEncryptionKey(cfg)
+	handleDebugMode(cfg)
+	runAppFunc(cfg)
+}
+
+func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
+	if cfg.DisableCIRA {
+		return nil
 	}
 
 	root, privateKey, err := loadOrGenerateRootCertFunc(secretsClient, true, cfg.CommonName, "US", "device-management-toolkit", true)
 	if err != nil {
-		log.Fatalf("Error loading or generating root certificate: %s", err)
+		return fmt.Errorf("loading or generating root certificate: %w", err)
 	}
 
 	_, _, err = loadOrGenerateWebServerCertFunc(secretsClient, certificates.CertAndKeyType{Cert: root, Key: privateKey}, false, cfg.CommonName, "US", "device-management-toolkit", true)
 	if err != nil {
-		log.Fatalf("Error loading or generating web server certificate: %s", err)
+		return fmt.Errorf("loading or generating web server certificate: %w", err)
 	}
 
-	handleEncryptionKey(cfg)
+	return nil
+}
 
+func handleDebugMode(cfg *config.Config) {
 	if os.Getenv("GIN_MODE") != "debug" {
-		go func() {
-			scheme := "http"
-			if cfg.TLS.Enabled {
-				scheme = "https"
-			}
-
-			browserError := openBrowser(scheme+"://localhost:"+cfg.Port, runtime.GOOS)
-			if browserError != nil {
-				panic(browserError)
-			}
-		}()
+		go launchBrowser(cfg)
 	} else {
-		err = handleOpenAPIGeneration()
-		if err != nil {
+		if err := handleOpenAPIGeneration(); err != nil {
 			log.Fatalf("Failed to generate OpenAPI spec: %s", err)
 		}
 	}
+}
 
-	runAppFunc(cfg)
+func launchBrowser(cfg *config.Config) {
+	scheme := "http"
+	if cfg.TLS.Enabled {
+		scheme = "https"
+	}
+
+	if err := openBrowser(scheme+"://localhost:"+cfg.Port, runtime.GOOS); err != nil {
+		panic(err)
+	}
 }
 
 func handleOpenAPIGeneration() error {

@@ -46,8 +46,8 @@ type ciraconfigTest struct {
 }
 
 var (
-	requestCIRAConfig  = dto.CIRAConfig{ConfigName: "ciraconfig", MPSAddress: "https://example.com", MPSPort: 4433, Username: "username", Password: "password", CommonName: "example.com", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", RegeneratePassword: true, Version: "1.0.0"}
-	responseCIRAConfig = dto.CIRAConfig{ConfigName: "ciraconfig", MPSAddress: "https://example.com", MPSPort: 4433, Username: "username", Password: "password", CommonName: "example.com", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", RegeneratePassword: true, Version: "1.0.0"}
+	requestCIRAConfig  = dto.CIRAConfig{ConfigName: "ciraconfig", MPSAddress: "https://example.com", MPSPort: 4433, Username: "username", Password: "password", CommonName: "example.com", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", GenerateRandomPassword: true, Version: "1.0.0"}
+	responseCIRAConfig = dto.CIRAConfig{ConfigName: "ciraconfig", MPSAddress: "https://example.com", MPSPort: 4433, Username: "username", Password: "password", CommonName: "example.com", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", GenerateRandomPassword: true, Version: "1.0.0"}
 )
 
 func TestCIRAConfigRoutes(t *testing.T) {
@@ -117,19 +117,19 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			url:    "/api/v1/admin/ciraconfigs",
 			mock: func(ciraconfig *mocks.MockCIRAConfigsFeature) {
 				ciraconfigTest := &dto.CIRAConfig{
-					ConfigName:          "ciraconfig",
-					MPSAddress:          "https://example.com",
-					MPSPort:             4433,
-					Username:            "username",
-					Password:            "password",
-					CommonName:          "example.com",
-					ServerAddressFormat: 201,
-					AuthMethod:          2,
-					MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-					ProxyDetails:        "http://example.com",
-					TenantID:            "abc123",
-					RegeneratePassword:  true,
-					Version:             "1.0.0",
+					ConfigName:             "ciraconfig",
+					MPSAddress:             "https://example.com",
+					MPSPort:                4433,
+					Username:               "username",
+					Password:               "password",
+					CommonName:             "example.com",
+					ServerAddressFormat:    201,
+					AuthMethod:             2,
+					MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+					ProxyDetails:           "http://example.com",
+					TenantID:               "abc123",
+					GenerateRandomPassword: true,
+					Version:                "1.0.0",
 				}
 				ciraconfig.EXPECT().Insert(context.Background(), ciraconfigTest).Return(ciraconfigTest, nil)
 			},
@@ -143,19 +143,19 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			url:    "/api/v1/admin/ciraconfigs",
 			mock: func(ciraconfig *mocks.MockCIRAConfigsFeature) {
 				ciraconfigTest := &dto.CIRAConfig{
-					ConfigName:          "ciraconfig",
-					MPSAddress:          "https://example.com",
-					MPSPort:             4433,
-					Username:            "username",
-					Password:            "password",
-					CommonName:          "example.com",
-					ServerAddressFormat: 201,
-					AuthMethod:          2,
-					MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-					ProxyDetails:        "http://example.com",
-					TenantID:            "abc123",
-					RegeneratePassword:  true,
-					Version:             "1.0.0",
+					ConfigName:             "ciraconfig",
+					MPSAddress:             "https://example.com",
+					MPSPort:                4433,
+					Username:               "username",
+					Password:               "password",
+					CommonName:             "example.com",
+					ServerAddressFormat:    201,
+					AuthMethod:             2,
+					MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+					ProxyDetails:           "http://example.com",
+					TenantID:               "abc123",
+					GenerateRandomPassword: true,
+					Version:                "1.0.0",
 				}
 				ciraconfig.EXPECT().Insert(context.Background(), ciraconfigTest).Return(nil, ciraconfigs.ErrDatabase)
 			},
@@ -169,19 +169,19 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			url:    "/api/v1/admin/ciraconfigs",
 			mock: func(ciraconfig *mocks.MockCIRAConfigsFeature) {
 				ciraconfig400Test := &dto.CIRAConfig{
-					ConfigName:          "ciraconfig",
-					ServerAddressFormat: 201,
-					AuthMethod:          2,
-					MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-					ProxyDetails:        "http://example.com",
-					TenantID:            "abc123",
-					RegeneratePassword:  true,
-					Version:             "1.0.0",
+					ConfigName:             "ciraconfig",
+					ServerAddressFormat:    201,
+					AuthMethod:             2,
+					MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+					ProxyDetails:           "http://example.com",
+					TenantID:               "abc123",
+					GenerateRandomPassword: true,
+					Version:                "1.0.0",
 				}
 				ciraconfig.EXPECT().Insert(context.Background(), ciraconfig400Test).Return(nil, ciraconfigs.ErrDatabase)
 			},
 			response:     ciraconfigs.ErrDatabase,
-			requestBody:  dto.CIRAConfig{ConfigName: "ciraconfig", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", RegeneratePassword: true, Version: "1.0.0"},
+			requestBody:  dto.CIRAConfig{ConfigName: "ciraconfig", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", GenerateRandomPassword: true, Version: "1.0.0"},
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -210,19 +210,19 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			url:    "/api/v1/admin/ciraconfigs",
 			mock: func(ciraconfig *mocks.MockCIRAConfigsFeature) {
 				ciraconfigTest := &dto.CIRAConfig{
-					ConfigName:          "ciraconfig",
-					MPSAddress:          "https://example.com",
-					MPSPort:             4433,
-					Username:            "username",
-					Password:            "password",
-					CommonName:          "example.com",
-					ServerAddressFormat: 201,
-					AuthMethod:          2,
-					MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-					ProxyDetails:        "http://example.com",
-					TenantID:            "abc123",
-					RegeneratePassword:  true,
-					Version:             "1.0.0",
+					ConfigName:             "ciraconfig",
+					MPSAddress:             "https://example.com",
+					MPSPort:                4433,
+					Username:               "username",
+					Password:               "password",
+					CommonName:             "example.com",
+					ServerAddressFormat:    201,
+					AuthMethod:             2,
+					MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+					ProxyDetails:           "http://example.com",
+					TenantID:               "abc123",
+					GenerateRandomPassword: true,
+					Version:                "1.0.0",
 				}
 				ciraconfig.EXPECT().Update(context.Background(), ciraconfigTest).Return(ciraconfigTest, nil)
 			},
@@ -236,19 +236,19 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			url:    "/api/v1/admin/ciraconfigs",
 			mock: func(ciraconfig *mocks.MockCIRAConfigsFeature) {
 				ciraconfigTest := &dto.CIRAConfig{
-					ConfigName:          "ciraconfig",
-					MPSAddress:          "https://example.com",
-					MPSPort:             4433,
-					Username:            "username",
-					Password:            "password",
-					CommonName:          "example.com",
-					ServerAddressFormat: 201,
-					AuthMethod:          2,
-					MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-					ProxyDetails:        "http://example.com",
-					TenantID:            "abc123",
-					RegeneratePassword:  true,
-					Version:             "1.0.0",
+					ConfigName:             "ciraconfig",
+					MPSAddress:             "https://example.com",
+					MPSPort:                4433,
+					Username:               "username",
+					Password:               "password",
+					CommonName:             "example.com",
+					ServerAddressFormat:    201,
+					AuthMethod:             2,
+					MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+					ProxyDetails:           "http://example.com",
+					TenantID:               "abc123",
+					GenerateRandomPassword: true,
+					Version:                "1.0.0",
 				}
 				ciraconfig.EXPECT().Update(context.Background(), ciraconfigTest).Return(nil, ciraconfigs.ErrDatabase)
 			},

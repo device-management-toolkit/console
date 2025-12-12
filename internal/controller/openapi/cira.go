@@ -46,18 +46,18 @@ func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
 func (f *FuegoAdapter) getCIRAConfigs(_ fuego.ContextNoBody) (dto.CIRAConfigCountResponse, error) {
 	configs := []dto.CIRAConfig{
 		{
-			ConfigName:          "My CIRA Config",
-			MPSAddress:          "https://example.com",
-			MPSPort:             4433,
-			Username:            "my_username",
-			Password:            "my_password",
-			CommonName:          "example.com",
-			ServerAddressFormat: 201, // 3 = IPV4, 4 = IPV6, 201 = FQDN
-			AuthMethod:          2,   // 1 = Mutual Auth, 2 = Username and Password
-			MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-			ProxyDetails:        "http://example.com",
-			TenantID:            "abc123",
-			RegeneratePassword:  true,
+			ConfigName:             "My CIRA Config",
+			MPSAddress:             "https://example.com",
+			MPSPort:                4433,
+			Username:               "my_username",
+			Password:               "my_password",
+			CommonName:             "example.com",
+			ServerAddressFormat:    201, // 3 = IPV4, 4 = IPV6, 201 = FQDN
+			AuthMethod:             2,   // 1 = Mutual Auth, 2 = Username and Password
+			MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+			ProxyDetails:           "http://example.com",
+			TenantID:               "abc123",
+			GenerateRandomPassword: true,
 		},
 	}
 
@@ -71,18 +71,18 @@ func (f *FuegoAdapter) getCIRAConfigByName(c fuego.ContextNoBody) (dto.CIRAConfi
 	profileName := c.PathParam("name")
 
 	return dto.CIRAConfig{
-		ConfigName:          profileName,
-		MPSAddress:          "https://example.com",
-		MPSPort:             4433,
-		Username:            "my_username",
-		Password:            "my_password",
-		CommonName:          "example.com",
-		ServerAddressFormat: 201,
-		AuthMethod:          2,
-		MPSRootCertificate:  "-----BEGIN CERTIFICATE-----\n...",
-		ProxyDetails:        "http://example.com",
-		TenantID:            "abc123",
-		RegeneratePassword:  false,
+		ConfigName:             profileName,
+		MPSAddress:             "https://example.com",
+		MPSPort:                4433,
+		Username:               "my_username",
+		Password:               "my_password",
+		CommonName:             "example.com",
+		ServerAddressFormat:    201,
+		AuthMethod:             2,
+		MPSRootCertificate:     "-----BEGIN CERTIFICATE-----\n...",
+		ProxyDetails:           "http://example.com",
+		TenantID:               "abc123",
+		GenerateRandomPassword: false,
 	}, nil
 }
 
