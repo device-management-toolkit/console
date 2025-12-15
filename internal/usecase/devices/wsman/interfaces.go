@@ -71,4 +71,5 @@ type Management interface {
 	GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error)
 	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
 	DeleteCertificate(instanceID string) error
+	SetLinkPreference(linkPreference, timeout int) (int, error)
 }

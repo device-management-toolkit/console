@@ -81,7 +81,21 @@ var (
 
 	// ErrCIRADeviceNotConnected is returned when a CIRA device is not connected or not found.
 	ErrCIRADeviceNotConnected = errors.New("CIRA device not connected/not found")
+	// ErrWsmanMessage is used for wrapping wsman message errors.
+	ErrWsmanMessage = &wsmanError{}
+	// ErrNoWiFiPort is returned when no WiFi port is found on the device.
+	ErrNoWiFiPort = errors.New("no WiFi port found (PhysicalConnectionType=3)")
 )
+
+type wsmanError struct{}
+
+func (e *wsmanError) Error() string {
+	return "wsman message error"
+}
+
+func (e *wsmanError) Wrap(operation, context, message string) error {
+	return errors.New(operation + ": " + context + ": " + message)
+}
 
 type ConnectionEntry struct {
 	WsmanMessages wsman.Messages
@@ -1916,4 +1930,45 @@ func (c *ConnectionEntry) GetIPSKVMRedirectionSettingData() (kvmredirection.Resp
 
 func (c *ConnectionEntry) SetIPSKVMRedirectionSettingData(req *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error) {
 	return c.WsmanMessages.IPS.KVMRedirectionSettingData.Put(req)
+}
+
+// SetLinkPreference sets the link preference (ME or Host) on the WiFi port.
+// linkPreference: 1 for ME, 2 for Host
+// timeout: timeout in seconds
+// Returns the return value from the AMT device or an error.
+func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout int) (int, error) {
+	// Get all ethernet port settings to find WiFi port
+	enumResponse, err := c.WsmanMessages.AMT.EthernetPortSettings.Enumerate()
+	if err != nil {
+		return -1, err
+	}
+
+	pullResponse, err := c.WsmanMessages.AMT.EthernetPortSettings.Pull(enumResponse.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return -1, err
+	}
+
+	// Find WiFi port (PhysicalConnectionType = 3)
+	var wifiInstanceID string
+
+	for i := range pullResponse.Body.PullResponse.EthernetPortItems {
+		port := &pullResponse.Body.PullResponse.EthernetPortItems[i]
+		// PhysicalConnectionType: 3 = Wireless LAN
+		if port.PhysicalConnectionType == 3 {
+			wifiInstanceID = port.InstanceID
+			break
+		}
+	}
+
+	if wifiInstanceID == "" {
+		return -1, ErrNoWiFiPort
+	}
+
+	// Call SetLinkPreference on the WiFi port
+	response, err := c.WsmanMessages.AMT.EthernetPortSettings.SetLinkPreference(linkPreference, timeout, wifiInstanceID)
+	if err != nil {
+		return -1, err
+	}
+
+	return response.Body.SetLinkPreferenceResponse.ReturnValue, nil
 }
