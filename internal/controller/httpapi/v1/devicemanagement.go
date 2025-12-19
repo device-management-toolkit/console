@@ -67,4 +67,3 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("network/linkPreference/:guid", r.setLinkPreference)
 	}
 }
-

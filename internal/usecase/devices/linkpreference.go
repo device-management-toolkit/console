@@ -6,7 +6,7 @@ import (
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
-// SetLinkPreference sets the link preference (ME or Host) on a device's WiFi port.
+// SetLinkPreference sets the link preference (ME or Host) on a device's WiFi interface.
 func (uc *UseCase) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {

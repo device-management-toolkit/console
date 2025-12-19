@@ -10,7 +10,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
-// setLinkPreference sets the link preference (ME or Host) on a device's WiFi port.
+// setLinkPreference sets the link preference (ME or Host) on a device's WiFi interface.
 func (r *deviceManagementRoutes) setLinkPreference(c *gin.Context) {
 	guid := c.Param("guid")
 
@@ -28,7 +28,7 @@ func (r *deviceManagementRoutes) setLinkPreference(c *gin.Context) {
 		// Handle no WiFi port error with 404 and error message
 		if errors.Is(err, wsman.ErrNoWiFiPort) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Set Link Preference failed: No WiFi port found for guid : " + guid + ".",
+				"error": "Set Link Preference failed for guid : " + guid + ". - " + err.Error(),
 			})
 			return
 		}

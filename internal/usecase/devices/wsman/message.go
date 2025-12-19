@@ -83,8 +83,8 @@ var (
 	ErrCIRADeviceNotConnected = errors.New("CIRA device not connected/not found")
 	// ErrWsmanMessage is used for wrapping wsman message errors.
 	ErrWsmanMessage = &wsmanError{}
-	// ErrNoWiFiPort is returned when no WiFi port is found on the device.
-	ErrNoWiFiPort = errors.New("no WiFi port found (PhysicalConnectionType=3)")
+	// ErrNoWiFiPort is returned when no WiFi interface is found on the device.
+	ErrNoWiFiPort = errors.New("no WiFi interface found (InstanceID == Intel(r) AMT Ethernet Port Settings 1)")
 )
 
 type wsmanError struct{}
@@ -1932,12 +1932,12 @@ func (c *ConnectionEntry) SetIPSKVMRedirectionSettingData(req *kvmredirection.KV
 	return c.WsmanMessages.IPS.KVMRedirectionSettingData.Put(req)
 }
 
-// SetLinkPreference sets the link preference (ME or Host) on the WiFi port.
+// SetLinkPreference sets the link preference (ME or Host) on the WiFi interface.
 // linkPreference: 1 for ME, 2 for Host
 // timeout: timeout in seconds
 // Returns the return value from the AMT device or an error.
-func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout int) (int, error) {
-	// Get all ethernet port settings to find WiFi port
+func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout uint32) (int, error) {
+	// Get all ethernet port settings to find WiFi interface
 	enumResponse, err := c.WsmanMessages.AMT.EthernetPortSettings.Enumerate()
 	if err != nil {
 		return -1, err
@@ -1948,13 +1948,14 @@ func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout int) (int, e
 		return -1, err
 	}
 
-	// Find WiFi port (PhysicalConnectionType = 3)
+	// Prefer fixed InstanceID for WiFi interface (do not rely on PhysicalConnectionType)
+	const wifiInstanceIDConst = "Intel(r) AMT Ethernet Port Settings 1"
 	var wifiInstanceID string
 
 	for i := range pullResponse.Body.PullResponse.EthernetPortItems {
 		port := &pullResponse.Body.PullResponse.EthernetPortItems[i]
-		// PhysicalConnectionType: 3 = Wireless LAN
-		if port.PhysicalConnectionType == 3 {
+		// Select by InstanceID only
+		if port.InstanceID == wifiInstanceIDConst {
 			wifiInstanceID = port.InstanceID
 			break
 		}
@@ -1964,7 +1965,7 @@ func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout int) (int, e
 		return -1, ErrNoWiFiPort
 	}
 
-	// Call SetLinkPreference on the WiFi port
+	// Call SetLinkPreference on the WiFi interface
 	response, err := c.WsmanMessages.AMT.EthernetPortSettings.SetLinkPreference(linkPreference, timeout, wifiInstanceID)
 	if err != nil {
 		return -1, err
