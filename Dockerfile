@@ -12,13 +12,17 @@ RUN go mod download
 
 # Step 2: Builder
 FROM golang:1.25.5-alpine@sha256:72567335df90b4ed71c01bf91fb5f8cc09fc4d5f6f21e183a085bafc7ae1bec8 AS builder
+ARG BUILD_TAGS=""
 COPY --from=modules /go/pkg /go/pkg
 COPY . /app
 WORKDIR /app
 RUN go mod tidy
 RUN mkdir -p /app/tmp/
-RUN CGO_ENABLED=0 GOOS=linux GOARCH=amd64 \
-  go build -o /bin/app ./cmd/app
+RUN if [ -z "$BUILD_TAGS" ]; then \
+      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/app ./cmd/app; \
+    else \
+      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags="$BUILD_TAGS" -o /bin/app ./cmd/app; \
+    fi
 RUN mkdir -p /.config/device-management-toolkit
 # Step 3: Final
 FROM scratch

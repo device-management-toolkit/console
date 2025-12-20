@@ -29,6 +29,27 @@ run: ### run app
 	GIN_MODE=debug CGO_ENABLED=0 go run ./cmd/app
 .PHONY: run
 
+run-noui: ### run app without UI
+	go mod tidy && go mod download && \
+	GIN_MODE=debug CGO_ENABLED=0 go run -tags=noui ./cmd/app
+.PHONY: run-noui
+
+build: ### build app
+	CGO_ENABLED=0 go build -o ./bin/console ./cmd/app
+.PHONY: build
+
+build-noui: ### build app without UI
+	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
+.PHONY: build-noui
+
+build-nosqlite: ### build app without embedded SQLite (PostgreSQL-only)
+	CGO_ENABLED=0 go build -tags=nosqlite -o ./bin/console-pg ./cmd/app
+.PHONY: build-nosqlite
+
+build-minimal: ### build app without UI and without embedded SQLite (PostgreSQL-only API server)
+	CGO_ENABLED=0 go build -tags=noui,nosqlite -o ./bin/console-minimal ./cmd/app
+.PHONY: build-minimal
+
 docker-rm-volume: ### remove docker volume
 	docker volume rm go-clean-template_pg-data
 .PHONY: docker-rm-volume
