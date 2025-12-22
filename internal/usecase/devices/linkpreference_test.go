@@ -165,6 +165,36 @@ func TestSetLinkPreference(t *testing.T) {
 			res: dto.LinkPreferenceResponse{ReturnValue: 0},
 			err: ErrGeneral,
 		},
+		{
+			name: "failure - incorrect device type",
+			request: dto.LinkPreferenceRequest{
+				LinkPreference: 3, // Invalid
+				Timeout:        300,
+			},
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.LinkPreferenceResponse{},
+			err: devices.ErrValidationUseCase.Wrap("SetLinkPreference", "validate link preference", "linkPreference must be 1 (ME) or 2 (Host)"),
+		},
+		{
+			name: "failure - timeout beyond range",
+			request: dto.LinkPreferenceRequest{
+				LinkPreference: 1,
+				Timeout:        65536, // Beyond maxTimeout (65535)
+			},
+			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.LinkPreferenceResponse{},
+			err: devices.ErrValidationUseCase.Wrap("SetLinkPreference", "validate timeout", "timeout max value is 65535"),
+		},
 	}
 
 	for _, tc := range tests {
