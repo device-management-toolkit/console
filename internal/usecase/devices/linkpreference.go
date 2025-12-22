@@ -23,8 +23,10 @@ func (uc *UseCase) SetLinkPreference(c context.Context, guid string, req dto.Lin
 	}
 
 	// Validate timeout
-	if req.Timeout < 0 {
-		return dto.LinkPreferenceResponse{}, ErrValidationUseCase.Wrap("SetLinkPreference", "validate timeout", "timeout must be non-negative")
+	const maxTimeout = 65535
+
+	if req.Timeout > maxTimeout {
+		return dto.LinkPreferenceResponse{}, ErrValidationUseCase.Wrap("SetLinkPreference", "validate timeout", "timeout max value is 65535")
 	}
 
 	device, _ := uc.device.SetupWsmanClient(*item, false, true)

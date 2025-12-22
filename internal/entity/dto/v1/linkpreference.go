@@ -11,11 +11,11 @@ type LinkPreferenceResponse struct {
 	ReturnValue int `json:"returnValue" example:"0"` // Return code. 0 indicates success, -1 for no WiFi interface
 }
 
-// LinkPreference enumeration values
+// LinkPreference enumeration values.
 const (
 	LinkPreferenceME   = 1 // Management Engine
 	LinkPreferenceHost = 2 // Host
 )
 
-// Console-specific return value for no WiFi interface found
+// Console-specific return value for no WiFi interface found.
 const ReturnValueNoWiFiPort = -1
