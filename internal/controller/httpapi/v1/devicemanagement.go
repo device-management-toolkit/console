@@ -62,5 +62,8 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		// KVM display settings
 		h.GET("kvm/displays/:guid", r.getKVMDisplays)
 		h.PUT("kvm/displays/:guid", r.setKVMDisplays)
+
+		// Network link preference
+		h.POST("network/linkPreference/:guid", r.setLinkPreference)
 	}
 }

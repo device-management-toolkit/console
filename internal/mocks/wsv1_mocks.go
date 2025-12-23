@@ -240,6 +240,21 @@ func (mr *MockFeatureMockRecorder) GetAlarmOccurrences(ctx, guid any) *gomock.Ca
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAlarmOccurrences", reflect.TypeOf((*MockFeature)(nil).GetAlarmOccurrences), ctx, guid)
 }
 
+// SetLinkPreference mocks base method.
+func (m *MockFeature) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetLinkPreference", c, guid, req)
+	ret0, _ := ret[0].(dto.LinkPreferenceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetLinkPreference indicates an expected call of SetLinkPreference.
+func (mr *MockFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockFeature)(nil).SetLinkPreference), c, guid, req)
+}
+
 // GetAuditLog mocks base method.
 func (m *MockFeature) GetAuditLog(ctx context.Context, startIndex int, guid string) (dto.AuditLog, error) {
 	m.ctrl.T.Helper()

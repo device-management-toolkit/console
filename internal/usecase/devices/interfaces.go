@@ -86,5 +86,7 @@ type (
 		// KVM Screen Settings (IPS_ScreenSettingData)
 		GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
 		SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
+		// Link Preference (AMT_EthernetPortSettings)
+		SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error)
 	}
 )
