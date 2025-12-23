@@ -133,6 +133,39 @@ make run
 
 This will use the `DB_URL` you configured in `.env`.
 
+### 3. Build Options and CGO Considerations
+
+Console supports multiple build configurations with different CGO requirements:
+
+#### Default Build (with SQLite)
+- Uses `modernc.org/sqlite` (pure Go implementation)
+- **Requires CGO_ENABLED=1** for the default SQLite driver
+- Produces binaries with C dependencies
+
+#### `nosqlite` Build (PostgreSQL-only)
+- Uses only `github.com/jackc/pgx/v5` (pure Go PostgreSQL driver)
+- **Can use CGO_ENABLED=0** for fully static binaries
+- No C dependencies - produces truly static executables
+- Ideal for containerized environments and static linking
+
+**Build commands:**
+```sh
+# PostgreSQL-only (fully static)
+make build-nosqlite
+
+# Minimal build - no UI, PostgreSQL-only (fully static)
+make build-minimal
+```
+
+**Manual build examples:**
+```sh
+# Fully static binary for PostgreSQL-only
+CGO_ENABLED=0 go build -tags=nosqlite -o console-pg ./cmd/app
+
+# Fully static minimal binary (no UI, PostgreSQL-only)
+CGO_ENABLED=0 go build -tags=noui,nosqlite -o console-minimal ./cmd/app
+```
+
 ### 4. Running the Frontend
 
 ```sh
