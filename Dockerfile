@@ -12,12 +12,18 @@ RUN go mod download
 
 # Step 2: Builder
 FROM golang:1.25.5-alpine@sha256:72567335df90b4ed71c01bf91fb5f8cc09fc4d5f6f21e183a085bafc7ae1bec8 AS builder
+# Build tags control dependencies:
+# - Default (no tags): Includes SQLite (requires CGO_ENABLED=1)
+# - nosqlite: PostgreSQL-only, enables fully static binaries with CGO_ENABLED=0
+# - noui: Excludes web UI assets
 ARG BUILD_TAGS=""
 COPY --from=modules /go/pkg /go/pkg
 COPY . /app
 WORKDIR /app
 RUN go mod tidy
 RUN mkdir -p /app/tmp/
+# Note: CGO_ENABLED=0 produces fully static binaries when using nosqlite tag
+# Default build (with SQLite) should use CGO_ENABLED=1
 RUN if [ -z "$BUILD_TAGS" ]; then \
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/app ./cmd/app; \
     else \
