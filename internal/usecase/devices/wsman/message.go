@@ -81,6 +81,8 @@ var (
 
 	// ErrCIRADeviceNotConnected is returned when a CIRA device is not connected or not found.
 	ErrCIRADeviceNotConnected = errors.New("CIRA device not connected/not found")
+	// ErrNoWiFiPort is returned when no WiFi interface is found on the device.
+	ErrNoWiFiPort = errors.New("no WiFi interface found (InstanceID == Intel(r) AMT Ethernet Port Settings 1)")
 )
 
 type ConnectionEntry struct {
@@ -1916,4 +1918,48 @@ func (c *ConnectionEntry) GetIPSKVMRedirectionSettingData() (kvmredirection.Resp
 
 func (c *ConnectionEntry) SetIPSKVMRedirectionSettingData(req *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error) {
 	return c.WsmanMessages.IPS.KVMRedirectionSettingData.Put(req)
+}
+
+// SetLinkPreference sets the link preference (ME or Host) on the WiFi interface.
+// linkPreference: 1 for ME, 2 for Host
+// timeout: timeout in seconds
+// Returns the return value from the AMT device or an error.
+func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout uint32) (int, error) {
+	// Get all ethernet port settings to find WiFi interface
+	enumResponse, err := c.WsmanMessages.AMT.EthernetPortSettings.Enumerate()
+	if err != nil {
+		return -1, err
+	}
+
+	pullResponse, err := c.WsmanMessages.AMT.EthernetPortSettings.Pull(enumResponse.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return -1, err
+	}
+
+	// Prefer fixed InstanceID for WiFi interface (do not rely on PhysicalConnectionType)
+	const wifiInstanceIDConst = "Intel(r) AMT Ethernet Port Settings 1"
+
+	var wifiInstanceID string
+
+	for i := range pullResponse.Body.PullResponse.EthernetPortItems {
+		port := &pullResponse.Body.PullResponse.EthernetPortItems[i]
+		// Select by InstanceID only
+		if port.InstanceID == wifiInstanceIDConst {
+			wifiInstanceID = port.InstanceID
+
+			break
+		}
+	}
+
+	if wifiInstanceID == "" {
+		return -1, ErrNoWiFiPort
+	}
+
+	// Call SetLinkPreference on the WiFi interface
+	response, err := c.WsmanMessages.AMT.EthernetPortSettings.SetLinkPreference(linkPreference, timeout, wifiInstanceID)
+	if err != nil {
+		return -1, err
+	}
+
+	return response.Body.SetLinkPreferenceResponse.ReturnValue, nil
 }
