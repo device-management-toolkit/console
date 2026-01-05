@@ -22,12 +22,14 @@ COPY . /app
 WORKDIR /app
 RUN go mod tidy
 RUN mkdir -p /app/tmp/
-# Note: CGO_ENABLED=0 produces fully static binaries when using nosqlite tag
-# Default build (with SQLite) should use CGO_ENABLED=1
-RUN if [ -z "$BUILD_TAGS" ]; then \
-      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/app ./cmd/app; \
-    else \
+# Use CGO_ENABLED=0 only for nosqlite builds (fully static with pure Go PostgreSQL driver)
+# Default builds (with SQLite) require CGO_ENABLED=1
+RUN if echo "$BUILD_TAGS" | grep -q "nosqlite"; then \
       CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags="$BUILD_TAGS" -o /bin/app ./cmd/app; \
+    elif [ -n "$BUILD_TAGS" ]; then \
+      CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -tags="$BUILD_TAGS" -o /bin/app ./cmd/app; \
+    else \
+      CGO_ENABLED=1 GOOS=linux GOARCH=amd64 go build -o /bin/app ./cmd/app; \
     fi
 RUN mkdir -p /.config/device-management-toolkit
 # Step 3: Final

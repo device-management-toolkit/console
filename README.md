@@ -138,15 +138,16 @@ This will use the `DB_URL` you configured in `.env`.
 Console supports multiple build configurations with different CGO requirements:
 
 #### Default Build (with SQLite)
-- Uses `modernc.org/sqlite` (pure Go implementation)
-- **Requires CGO_ENABLED=1** for the default SQLite driver
+- Uses `modernc.org/sqlite` (SQLite implementation)
+- **Requires CGO_ENABLED=1**
 - Produces binaries with C dependencies
+- Ideal for development and single-instance deployments
 
 #### `nosqlite` Build (PostgreSQL-only)
 - Uses only `github.com/jackc/pgx/v5` (pure Go PostgreSQL driver)
-- **Can use CGO_ENABLED=0** for fully static binaries
+- **Uses CGO_ENABLED=0** for fully static binaries
 - No C dependencies - produces truly static executables
-- Ideal for containerized environments and static linking
+- Smallest binary size - ideal for containerized environments and production deployments
 
 **Build commands:**
 ```sh
