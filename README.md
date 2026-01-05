@@ -133,21 +133,22 @@ make run
 
 This will use the `DB_URL` you configured in `.env`.
 
-### 3. Build Options and CGO Considerations
+### 3. Build Options
 
-Console supports multiple build configurations with different CGO requirements:
+Console supports multiple build configurations optimized for different use cases:
 
 #### Default Build (with SQLite)
-- Uses `modernc.org/sqlite` (SQLite implementation)
-- **Requires CGO_ENABLED=1**
-- Produces binaries with C dependencies
+- Uses `modernc.org/sqlite` (pure Go SQLite implementation)
+- **Uses CGO_ENABLED=0** - fully static binary
+- No C dependencies
 - Ideal for development and single-instance deployments
 
 #### `nosqlite` Build (PostgreSQL-only)
 - Uses only `github.com/jackc/pgx/v5` (pure Go PostgreSQL driver)
-- **Uses CGO_ENABLED=0** for fully static binaries
-- No C dependencies - produces truly static executables
-- Smallest binary size - ideal for containerized environments and production deployments
+- **Uses CGO_ENABLED=0** - fully static binary
+- No C dependencies
+- Smallest Docker image size with scratch base
+- Ideal for containerized production deployments
 
 **Build commands:**
 ```sh

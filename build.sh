@@ -14,7 +14,7 @@ docker build --build-arg BUILD_TAGS="noui" \
              -t vprodemo.azurecr.io/console:latest-headless .
 
 # Minimal build (No UI + PostgreSQL-only)
-docker build --build-arg BUILD_TAGS="noui,nosqlite" \
+docker build --build-arg BUILD_TAGS="noui-nosqlite" \
              -t vprodemo.azurecr.io/console:v$version-minimal \
              -t vprodemo.azurecr.io/console:latest-minimal .
 
