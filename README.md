@@ -133,6 +133,50 @@ make run
 
 This will use the `DB_URL` you configured in `.env`.
 
+### 3. Build Options
+
+Console supports multiple build configurations optimized for different use cases:
+
+#### Default Build
+- Full build with embedded web UI
+- Ideal for development and single-instance deployments
+
+#### `noui` Build (Headless/API-only)
+- Excludes embedded web UI from binary
+- **Reduces binary size** by ~30MB
+- All API endpoints remain fully functional
+- Health checks, metrics, and API docs still available
+- Optional: Configure `ui.externalUrl` in `config.yml` to redirect UI requests to separately hosted frontend
+- Ideal for microservice architectures or when using a separate UI deployment
+
+**Configuration for headless builds:**
+
+Edit `config.yml`:
+```yaml
+ui:
+  # Redirect UI requests to external frontend (optional)
+  # If empty: UI requests return 404
+  # If set: UI requests redirect to this URL
+  externalUrl: "https://your-ui-domain.com"
+```
+
+Or use environment variable:
+```sh
+UI_EXTERNAL_URL=https://your-ui-domain.com ./console-noui
+```
+
+**Build commands:**
+```sh
+# Headless build (no UI)
+make build-noui
+```
+
+**Manual build examples:**
+```sh
+# Headless build (no UI)
+go build -tags=noui -o console-noui ./cmd/app
+```
+
 ### 4. Running the Frontend
 
 ```sh

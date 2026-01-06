@@ -141,6 +141,8 @@ jobs:
           go-version: ${{ matrix.go-version }}
       - name: build go
         run: go build ./cmd/app/main.go
+      - name: build noui (headless)
+        run: CGO_ENABLED=0 go build -tags=noui -o console-headless ./cmd/app/main.go
       - name: Install Test Converter and run tests
         run: |
           export GOPATH="$HOME/go/"

@@ -29,6 +29,19 @@ run: ### run app
 	GIN_MODE=debug CGO_ENABLED=0 go run ./cmd/app
 .PHONY: run
 
+run-noui: ### run app without UI
+	go mod tidy && go mod download && \
+	GIN_MODE=debug CGO_ENABLED=0 go run -tags=noui ./cmd/app
+.PHONY: run-noui
+
+build: ### build app
+	CGO_ENABLED=0 go build -o ./bin/console ./cmd/app
+.PHONY: build
+
+build-noui: ### build app without UI
+	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
+.PHONY: build-noui
+
 docker-rm-volume: ### remove docker volume
 	docker volume rm go-clean-template_pg-data
 .PHONY: docker-rm-volume

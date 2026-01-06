@@ -26,6 +26,7 @@ type (
 		DB      `yaml:"postgres"`
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
+		UI      `yaml:"ui"`
 	}
 
 	// App -.
@@ -103,6 +104,11 @@ type (
 		ResponseType                      string `yaml:"responseType"`
 		RequireHTTPS                      bool   `yaml:"requireHttps"`
 		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation"`
+	}
+
+	// UI -.
+	UI struct {
+		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
 	}
 )
 
@@ -187,6 +193,9 @@ func defaultConfig() *Config {
 				RequireHTTPS:                      false,
 				StrictDiscoveryDocumentValidation: true,
 			},
+		},
+		UI: UI{
+			ExternalURL: "",
 		},
 	}
 }
