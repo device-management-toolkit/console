@@ -42,14 +42,6 @@ build-noui: ### build app without UI
 	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
 .PHONY: build-noui
 
-build-nosqlite: ### build app without embedded SQLite (PostgreSQL-only, fully static binary with CGO_ENABLED=0)
-	CGO_ENABLED=0 go build -tags=nosqlite -o ./bin/console-pg ./cmd/app
-.PHONY: build-nosqlite
-
-build-minimal: ### build app without UI and without embedded SQLite (PostgreSQL-only API server, fully static binary with CGO_ENABLED=0)
-	CGO_ENABLED=0 go build -tags=noui,nosqlite -o ./bin/console-minimal ./cmd/app
-.PHONY: build-minimal
-
 docker-rm-volume: ### remove docker volume
 	docker volume rm go-clean-template_pg-data
 .PHONY: docker-rm-volume

@@ -28,39 +28,27 @@
         "assets": [
           {
             "path": "console_linux_x64.tar.gz",
-            "label": "Linux x64 Console (Full - SQLite + UI)"
+            "label": "Linux x64 Console (Full)"
           },
           {
             "path": "console_linux_x64_headless.tar.gz",
-            "label": "Linux x64 Console Headless (No UI - SQLite)"
-          },
-          {
-            "path": "console_linux_x64_minimal.tar.gz",
-            "label": "Linux x64 Console Minimal (No UI - PostgreSQL-only)"
+            "label": "Linux x64 Console Headless (No UI)"
           },
           {
             "path": "dist/windows/console_windows_x64.exe",
-            "label": "Windows x64 Console (Full - SQLite + UI)"
+            "label": "Windows x64 Console (Full)"
           },
           {
             "path": "dist/windows/console_windows_x64_headless.exe",
-            "label": "Windows x64 Console Headless (No UI - SQLite)"
-          },
-          {
-            "path": "dist/windows/console_windows_x64_minimal.exe",
-            "label": "Windows x64 Console Minimal (No UI - PostgreSQL-only)"
+            "label": "Windows x64 Console Headless (No UI)"
           },
           {
             "path": "console_mac_arm64.tar.gz",
-            "label": "macOS ARM64 Console (Full - SQLite + UI)"
+            "label": "macOS ARM64 Console (Full)"
           },
           {
             "path": "console_mac_arm64_headless.tar.gz",
-            "label": "macOS ARM64 Console Headless (No UI - SQLite)"
-          },
-          {
-            "path": "console_mac_arm64_minimal.tar.gz",
-            "label": "macOS ARM64 Console Minimal (No UI - PostgreSQL-only)"
+            "label": "macOS ARM64 Console Headless (No UI)"
           },
           {
             "path": "licenses.zip",
@@ -73,7 +61,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "./build.sh ${nextRelease.version} ",
-        "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-minimal && docker push vprodemo.azurecr.io/console:latest-minimal",
+        "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless",
         "verifyReleaseCmd": "echo v${nextRelease.version} > .VERSION"
       }
     ]

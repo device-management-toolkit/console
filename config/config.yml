@@ -47,4 +47,11 @@ auth:
     responseType: "code"
     requireHttps: false
     strictDiscoveryDocumentValidation: true
+ui:
+  # externalUrl: Only used when building with the 'noui' tag (headless builds)
+  # - If set: Redirects UI requests to this external URL (e.g., separately hosted UI)
+  # - If empty: UI requests return 404 (API-only mode)
+  # - Ignored: When building without 'noui' tag (embedded UI is served normally)
+  # Example: https://ui.example.com
+  externalUrl: ""
 

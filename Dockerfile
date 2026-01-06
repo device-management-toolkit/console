@@ -16,8 +16,7 @@ RUN go mod download
 # Step 2: Builder
 FROM golang:1.25.5-alpine@sha256:ac09a5f469f307e5da71e766b0bd59c9c49ea460a528cc3e6686513d64a6f1fb AS builder
 # Build tags control dependencies:
-# - Default (no tags): Includes SQLite using modernc.org/sqlite (pure Go)
-# - nosqlite: PostgreSQL-only
+# - Default (no tags): Full build with UI
 # - noui: Excludes web UI assets
 # Redeclare ARG to make it available in this stage
 ARG BUILD_TAGS
@@ -26,8 +25,6 @@ COPY . /app
 WORKDIR /app
 RUN go mod tidy
 RUN mkdir -p /app/tmp/
-# Use CGO_ENABLED=0 for all builds since modernc.org/sqlite is pure Go
-# This allows fully static binaries with scratch base image for all variants
 # Convert hyphens to commas for Go build tags, keep hyphens for Docker stage names
 RUN BUILD_TAGS_GO=$(echo "$BUILD_TAGS" | tr '-' ','); \
     if [ -n "$BUILD_TAGS" ]; then \

@@ -80,7 +80,7 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	protocol := protocolHTTP
 
 	requireHTTPSReplacement := ",requireHttps:!1"
-	if cfg.UI.RequireHTTPS {
+	if cfg.Auth.UI.RequireHTTPS {
 		requireHTTPSReplacement = ",requireHttps:!0"
 		protocol = protocolHTTPS
 	}
@@ -92,7 +92,7 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
 	if cfg.ClientID != "" {
 		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
-		if cfg.UI.StrictDiscoveryDocumentValidation {
+		if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
 			strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
 		}
 
@@ -100,10 +100,10 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 			",useOAuth:!1,":                         ",useOAuth:!0,",
 			",requireHttps:!0":                      requireHTTPSReplacement,
 			",strictDiscoveryDocumentValidation:!0": strictDiscoveryReplacement,
-			"##CLIENTID##":                          cfg.UI.ClientID,
-			"##ISSUER##":                            cfg.UI.Issuer,
-			"##SCOPE##":                             cfg.UI.Scope,
-			"##REDIRECTURI##":                       cfg.UI.RedirectURI,
+			"##CLIENTID##":                          cfg.Auth.UI.ClientID,
+			"##ISSUER##":                            cfg.Auth.UI.Issuer,
+			"##SCOPE##":                             cfg.Auth.UI.Scope,
+			"##REDIRECTURI##":                       cfg.Auth.UI.RedirectURI,
 		})
 	}
 
