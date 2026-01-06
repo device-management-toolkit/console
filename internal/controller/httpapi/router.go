@@ -16,6 +16,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -29,6 +30,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
+	handler.Use(middleware.ErrorHandling(l))
 
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)

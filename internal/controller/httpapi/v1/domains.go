@@ -51,7 +51,7 @@ func (r *domainRoutes) get(c *gin.Context) {
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
 		validationErr := ErrValidationDomains.Wrap("get", "ShouldBindQuery", err)
-		ErrorResponse(c, validationErr)
+		c.Error(validationErr)
 
 		return
 	}
@@ -59,7 +59,7 @@ func (r *domainRoutes) get(c *gin.Context) {
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
 	if err != nil {
 		r.l.Error(err, "http - v1 - getCount")
-		ErrorResponse(c, err)
+		c.Error(err)
 
 		return
 	}
@@ -68,7 +68,8 @@ func (r *domainRoutes) get(c *gin.Context) {
 		count, err := r.t.GetCount(c.Request.Context(), "")
 		if err != nil {
 			r.l.Error(err, "http - v1 - getCount")
-			ErrorResponse(c, err)
+			c.Error(err)
+			return
 		}
 
 		countResponse := DomainCountResponse{
@@ -88,7 +89,7 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 	item, err := r.t.GetByName(c.Request.Context(), name, "")
 	if err != nil {
 		r.l.Error(err, "http - v1 - getByName")
-		ErrorResponse(c, err)
+		c.Error(err)
 
 		return
 	}
@@ -100,7 +101,7 @@ func (r *domainRoutes) insert(c *gin.Context) {
 	var domain dto.Domain
 	if err := c.ShouldBindJSON(&domain); err != nil {
 		validationErr := ErrValidationDomains.Wrap("insert", "ShouldBindJSON", err)
-		ErrorResponse(c, validationErr)
+		c.Error(validationErr)
 
 		return
 	}
@@ -108,7 +109,7 @@ func (r *domainRoutes) insert(c *gin.Context) {
 	newDomain, err := r.t.Insert(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - insert")
-		ErrorResponse(c, err)
+		c.Error(err)
 
 		return
 	}
@@ -120,7 +121,7 @@ func (r *domainRoutes) update(c *gin.Context) {
 	var domain dto.Domain
 	if err := c.ShouldBindJSON(&domain); err != nil {
 		validationErr := ErrValidationDomains.Wrap("update", "ShouldBindJSON", err)
-		ErrorResponse(c, validationErr)
+		c.Error(validationErr)
 
 		return
 	}
@@ -128,7 +129,7 @@ func (r *domainRoutes) update(c *gin.Context) {
 	updatedDomain, err := r.t.Update(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - update")
-		ErrorResponse(c, err)
+		c.Error(err)
 
 		return
 	}
@@ -142,7 +143,7 @@ func (r *domainRoutes) delete(c *gin.Context) {
 	err := r.t.Delete(c.Request.Context(), name, "")
 	if err != nil {
 		r.l.Error(err, "http - v1 - delete")
-		ErrorResponse(c, err)
+		c.Error(err)
 
 		return
 	}
