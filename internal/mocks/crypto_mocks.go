@@ -8,6 +8,15 @@ import (
 
 type MockCrypto struct{}
 
+// MockError simulates crypto errors for testing.
+type MockError struct {
+	message string
+}
+
+func (e *MockError) Error() string {
+	return e.message
+}
+
 const encryptedData = "encrypted"
 
 // Encrypt encrypts a string.
@@ -24,7 +33,12 @@ func (c MockCrypto) GenerateKey() string {
 	return "key"
 }
 
-func (c MockCrypto) Decrypt(_ string) (string, error) {
+func (c MockCrypto) Decrypt(input string) (string, error) {
+	// Special case to simulate decryption failure for testing coverage
+	if input == "fail-decrypt" {
+		return "", &MockError{message: "mock decrypt failure"}
+	}
+
 	return "decrypted", nil
 }
 

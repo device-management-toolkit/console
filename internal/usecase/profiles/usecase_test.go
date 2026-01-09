@@ -2,6 +2,7 @@ package profiles_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -739,6 +740,30 @@ func TestDecryptPasswords(t *testing.T) {
 			},
 			err: nil,
 		},
+		{
+			name: "successful decryption with empty MEBX password",
+			data: &entity.Profile{
+				AMTPassword:  "encryptedAMT",
+				MEBXPassword: "",
+			},
+			expected: &entity.Profile{
+				AMTPassword:  "decrypted",
+				MEBXPassword: "",
+			},
+			err: nil,
+		},
+		{
+			name: "MEBX password decryption fails",
+			data: &entity.Profile{
+				AMTPassword:  "encryptedAMT",
+				MEBXPassword: "fail-decrypt", // This triggers the mock error
+			},
+			expected: &entity.Profile{
+				AMTPassword:  "decrypted",
+				MEBXPassword: "fail-decrypt",
+			},
+			err: &mocks.MockError{},
+		},
 	}
 
 	for _, tc := range tests {
@@ -753,7 +778,13 @@ func TestDecryptPasswords(t *testing.T) {
 
 			if tc.err != nil {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.err.Error())
+				// For MockError, just check that error occurred
+				var mockErr *mocks.MockError
+				if errors.As(tc.err, &mockErr) {
+					require.Contains(t, err.Error(), "mock decrypt failure")
+				} else {
+					require.Contains(t, err.Error(), tc.err.Error())
+				}
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.expected.AMTPassword, tc.data.AMTPassword)

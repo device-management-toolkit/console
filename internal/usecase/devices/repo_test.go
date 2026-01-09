@@ -235,6 +235,98 @@ func TestGetByID(t *testing.T) {
 	}
 }
 
+func TestGetByIDWithSecrets(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  "encrypted",
+		MEBXPassword: "encrypted",
+	}
+
+	deviceWithNullPasswords := &entity.Device{
+		GUID:         "device-guid-456",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  "", // null password
+		MEBXPassword: "", // null password
+	}
+
+	tests := []struct {
+		name     string
+		guid     string
+		tenantID string
+		device   *entity.Device
+		expected *dto.Device
+		err      error
+	}{
+		{
+			name:     "successful retrieval with all passwords",
+			guid:     "device-guid-123",
+			tenantID: "tenant-id-456",
+			device:   device,
+			expected: &dto.Device{
+				GUID:         "device-guid-123",
+				TenantID:     "tenant-id-456",
+				Password:     "decrypted",
+				MPSPassword:  "decrypted",
+				MEBXPassword: "decrypted",
+				Tags:         nil,
+			},
+			err: nil,
+		},
+		{
+			name:     "successful retrieval with null MPS and MEBX passwords",
+			guid:     "device-guid-456",
+			tenantID: "tenant-id-456",
+			device:   deviceWithNullPasswords,
+			expected: &dto.Device{
+				GUID:         "device-guid-456",
+				TenantID:     "tenant-id-456",
+				Password:     "decrypted",
+				MPSPassword:  "",
+				MEBXPassword: "",
+				Tags:         nil,
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			mockCtl := gomock.NewController(t)
+			defer mockCtl.Finish()
+
+			repo := mocks.NewMockDeviceManagementRepository(mockCtl)
+			wsmanMock := mocks.NewMockWSMAN(mockCtl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			cryptoMock := &mocks.MockCrypto{}
+			log := logger.New("error")
+			u := devices.New(repo, wsmanMock, mocks.NewMockRedirection(mockCtl), log, cryptoMock)
+
+			repo.EXPECT().
+				GetByID(context.Background(), tc.guid, tc.tenantID).
+				Return(tc.device, nil)
+
+			got, err := u.GetByID(context.Background(), tc.guid, tc.tenantID, true)
+
+			if tc.err != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.NoError(t, err)
+				require.Equal(t, tc.expected, got)
+			}
+		})
+	}
+}
+
 func TestDelete(t *testing.T) {
 	t.Parallel()
 

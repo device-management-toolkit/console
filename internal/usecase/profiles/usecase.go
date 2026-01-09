@@ -174,9 +174,11 @@ func (uc *UseCase) DecryptPasswords(data *entity.Profile) error {
 		return err
 	}
 
-	data.MEBXPassword, err = uc.safeRequirements.Decrypt(data.MEBXPassword)
-	if err != nil {
-		return err
+	if data.MEBXPassword != "" {
+		data.MEBXPassword, err = uc.safeRequirements.Decrypt(data.MEBXPassword)
+		if err != nil {
+			return err
+		}
 	}
 
 	return nil

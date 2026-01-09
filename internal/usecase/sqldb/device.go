@@ -168,9 +168,20 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	for rows.Next() {
 		d := &entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		var mpsPassword, mebxPassword sql.NullString
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &mpsPassword, &mebxPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
 		if err != nil {
 			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
+		}
+
+		// Handle nullable fields
+		if mpsPassword.Valid {
+			d.MPSPassword = mpsPassword.String
+		}
+
+		if mebxPassword.Valid {
+			d.MEBXPassword = mebxPassword.String
 		}
 
 		devices = append(devices, d)
