@@ -2,6 +2,8 @@ package main
 
 import (
 	"context"
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -25,6 +27,9 @@ var (
 	ErrSecretStoreAddressNotConfigured = errors.New("secret store address not configured")
 	ErrSecretStoreTokenNotConfigured   = errors.New("secret store token not configured")
 )
+
+// adminPasswordLength is the length of generated admin passwords.
+const adminPasswordLength = 16
 
 // Function pointers for better testability.
 var (
@@ -64,6 +69,7 @@ func main() {
 	}
 
 	handleEncryptionKey(cfg)
+	handleAdminPassword(cfg)
 	handleDebugMode(cfg)
 	runAppFunc(cfg)
 }
@@ -298,6 +304,137 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 	}
 
 	return toolkitCrypto.GenerateKey()
+}
+
+// generateRandomPassword creates a cryptographically secure random password.
+func generateRandomPassword(length int) (string, error) {
+	bytes := make([]byte, length)
+
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)[:length], nil
+}
+
+// handleAdminPassword manages the admin password - loading from keyring or generating a new one.
+func handleAdminPassword(cfg *config.Config) {
+	// If admin password is already provided via config/env, just use it
+	if cfg.AdminPassword != "" {
+		log.Println("Admin password loaded from configuration")
+
+		return
+	}
+
+	// Try to initialize secret store client for password retrieval
+	remoteStorage, err := handleSecretsConfig(cfg)
+	if err != nil {
+		remoteStorage = nil
+	}
+
+	// Try remote storage first
+	if done := tryRemoteAdminPassword(cfg, remoteStorage); done {
+		return
+	}
+
+	// Try local keyring storage
+	localStorage := security.NewKeyRingStorage("device-management-toolkit")
+
+	if done := tryLocalAdminPassword(cfg, localStorage, remoteStorage); done {
+		return
+	}
+
+	// Password not found anywhere, generate a new one
+	password, err := generateRandomPassword(adminPasswordLength)
+	if err != nil {
+		log.Fatalf("Failed to generate admin password: %v", err)
+	}
+
+	cfg.AdminPassword = password
+
+	if err := saveAdminPassword(password, remoteStorage, localStorage); err != nil {
+		log.Printf("Warning: Failed to save admin password: %v", err)
+	}
+
+	// Output the generated password so the user knows what to use
+	log.Printf("\033[33m========================================\033[0m")
+	log.Printf("\033[33mGenerated Admin Password: %s\033[0m", password)
+	log.Printf("\033[33mThis password has been saved to your system keyring.\033[0m")
+	log.Printf("\033[33m========================================\033[0m")
+}
+
+// tryRemoteAdminPassword attempts to retrieve the admin password from remote storage.
+func tryRemoteAdminPassword(cfg *config.Config, remoteStorage security.Storager) bool {
+	if remoteStorage == nil {
+		return false
+	}
+
+	password, err := remoteStorage.GetKeyValue("admin-password")
+	if err == nil && password != "" {
+		cfg.AdminPassword = password
+
+		log.Println("Admin password loaded from secret store")
+
+		return true
+	}
+
+	return false
+}
+
+// tryLocalAdminPassword attempts to retrieve the admin password from local keyring.
+func tryLocalAdminPassword(cfg *config.Config, localStorage, remoteStorage security.Storager) bool {
+	password, err := localStorage.GetKeyValue("admin-password")
+	if err == nil && password != "" {
+		cfg.AdminPassword = password
+
+		log.Println("Admin password loaded from local keyring")
+		syncAdminPasswordToRemote(password, remoteStorage)
+
+		return true
+	}
+
+	// Check for unexpected errors
+	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
+		log.Printf("Warning: Failed to read admin password from keyring: %v", err)
+	}
+
+	return false
+}
+
+// syncAdminPasswordToRemote syncs the admin password to remote storage if available.
+func syncAdminPasswordToRemote(password string, remoteStorage security.Storager) {
+	if remoteStorage == nil {
+		return
+	}
+
+	if err := remoteStorage.SetKeyValue("admin-password", password); err != nil {
+		log.Printf("Warning: Failed to sync admin password to secret store: %v", err)
+	} else {
+		log.Println("Admin password synced to secret store")
+	}
+}
+
+func saveAdminPassword(password string, remoteStorage, localStorage security.Storager) error {
+	if remoteStorage != nil {
+		err := remoteStorage.SetKeyValue("admin-password", password)
+		if err == nil {
+			log.Println("Admin password saved to secret store")
+
+			return nil
+		}
+
+		return err
+	}
+
+	err := localStorage.SetKeyValue("admin-password", password)
+	if err == nil {
+		log.Println("Admin password saved to local keyring")
+
+		return nil
+	}
+
+	return err
 }
 
 // CommandExecutor is an interface to allow for mocking exec.Command in tests.

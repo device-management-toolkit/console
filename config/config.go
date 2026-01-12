@@ -177,7 +177,7 @@ func defaultConfig() *Config {
 		},
 		Auth: Auth{
 			AdminUsername:            "standalone",
-			AdminPassword:            "G@ppm0ym",
+			AdminPassword:            "", // Generated and stored in keyring if not provided
 			JWTKey:                   "your_secret_jwt_key",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
