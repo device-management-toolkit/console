@@ -14,6 +14,10 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+func ptr(s string) *string {
+	return &s
+}
+
 type testUsecase struct {
 	name     string
 	guid     string
@@ -291,8 +295,8 @@ func TestUpdate(t *testing.T) {
 		GUID:         "device-guid-123",
 		TenantID:     "tenant-id-456",
 		Password:     "encrypted",
-		MPSPassword:  "encrypted",
-		MEBXPassword: "encrypted",
+		MPSPassword:  nil,
+		MEBXPassword: nil,
 		Tags:         "hello,test",
 	}
 
@@ -367,8 +371,8 @@ func TestInsert(t *testing.T) {
 				device := &entity.Device{
 					GUID:         "device-guid-123",
 					Password:     "encrypted",
-					MPSPassword:  "encrypted",
-					MEBXPassword: "encrypted",
+					MPSPassword:  nil,
+					MEBXPassword: nil,
 					TenantID:     "tenant-id-456",
 				}
 
@@ -388,8 +392,8 @@ func TestInsert(t *testing.T) {
 				device := &entity.Device{
 					GUID:         "device-guid-123",
 					Password:     "encrypted",
-					MPSPassword:  "encrypted",
-					MEBXPassword: "encrypted",
+					MPSPassword:  nil,
+					MEBXPassword: nil,
 					TenantID:     "tenant-id-456",
 				}
 
@@ -430,4 +434,170 @@ func TestInsert(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestUpdateWithPasswords(t *testing.T) {
+	t.Parallel()
+
+	// Entity with encrypted passwords (what gets stored in DB)
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+		Tags:         "hello,test",
+	}
+
+	// DTO with plaintext passwords (what comes from API)
+	deviceDTOWithPasswords := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         []string{"hello", "test"},
+		MPSPassword:  "mpspass",
+		MEBXPassword: "mebxpass",
+	}
+
+	// Expected DTO result (passwords not returned without includeSecrets)
+	expectedDTO := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         []string{"hello", "test"},
+		MPSPassword:  "encrypted",
+		MEBXPassword: "encrypted",
+	}
+
+	t.Run("successful update with passwords", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+
+		repo.EXPECT().
+			Update(context.Background(), deviceWithPasswords).
+			Return(true, nil)
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil)
+		management.EXPECT().
+			DestroyWsmanClient(*expectedDTO)
+
+		result, err := useCase.Update(context.Background(), deviceDTOWithPasswords)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTO, result)
+	})
+}
+
+func TestInsertWithPasswords(t *testing.T) {
+	t.Parallel()
+
+	t.Run("successful insertion with passwords", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		// Entity with encrypted passwords
+		deviceWithPasswords := &entity.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Password:     "encrypted",
+			MPSPassword:  ptr("encrypted"),
+			MEBXPassword: ptr("encrypted"),
+		}
+
+		repo.EXPECT().
+			Insert(context.Background(), deviceWithPasswords).
+			Return("unique-device-id", nil)
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil)
+
+		// DTO with plaintext passwords
+		deviceDTO := &dto.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Tags:         []string{""},
+			MPSPassword:  "mpspass",
+			MEBXPassword: "mebxpass",
+		}
+
+		insertedDevice, err := useCase.Insert(context.Background(), deviceDTO)
+
+		require.NoError(t, err)
+		require.Equal(t, deviceDTO.TenantID, insertedDevice.TenantID)
+		require.Equal(t, "encrypted", insertedDevice.MPSPassword)
+		require.Equal(t, "encrypted", insertedDevice.MEBXPassword)
+	})
+}
+
+func TestGetByIDWithSecrets(t *testing.T) {
+	t.Parallel()
+
+	// Entity with encrypted passwords from DB
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+	}
+
+	// Expected DTO with decrypted passwords
+	expectedDTO := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         nil,
+		Password:     "decrypted",
+		MPSPassword:  "decrypted",
+		MEBXPassword: "decrypted",
+	}
+
+	t.Run("successful retrieval with secrets", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil)
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTO, got)
+	})
+
+	t.Run("retrieval with secrets - nil passwords", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		// Entity with nil passwords
+		deviceNilPasswords := &entity.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Password:     "encrypted",
+			MPSPassword:  nil,
+			MEBXPassword: nil,
+		}
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceNilPasswords, nil)
+
+		// Expected DTO - passwords should be empty strings when nil
+		expectedDTONilPasswords := &dto.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Tags:         nil,
+			Password:     "decrypted",
+			MPSPassword:  "",
+			MEBXPassword: "",
+		}
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTONilPasswords, got)
+	})
 }
