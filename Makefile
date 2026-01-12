@@ -42,6 +42,18 @@ build-noui: ### build app without UI
 	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
 .PHONY: build-noui
 
+build-all-platforms: ### cross-compile for all platforms (Linux, Windows, macOS)
+	@echo "Building for all platforms using cross-compilation (CGO_ENABLED=0)..."
+	@mkdir -p dist/linux dist/windows dist/darwin
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
+	@echo "All platform binaries built successfully!"
+.PHONY: build-all-platforms
+
 docker-rm-volume: ### remove docker volume
 	docker volume rm go-clean-template_pg-data
 .PHONY: docker-rm-volume

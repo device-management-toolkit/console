@@ -98,7 +98,20 @@ GIN_MODE=debug
 # DB_URL=postgres://postgresadmin:admin123@localhost:5432/rpsdb  # uncomment for Postgres
 ```
 
-### 2. Running the Backend
+### 2. Configure Backend for Development
+
+For local development with a separate UI, configure `config/config.yml` to point to your frontend:
+
+```yaml
+ui:
+  externalUrl: "http://localhost:4200"
+```
+
+This tells the backend to redirect UI requests to the separately running frontend application.
+
+### 3. Running the Backend
+
+> **Important**: For development, use the `console-noui` binary or build with the `noui` tag. This allows the backend to work with a separately running frontend without embedding UI files.
 
 #### Option A: SQLite (default, easiest)
 
@@ -106,15 +119,18 @@ GIN_MODE=debug
 # Install dependencies
 go mod tidy && go mod download
 
-# Run Console
-go run ./cmd/app/main.go
+# Run Console with noui tag
+go run -tags=noui ./cmd/app/main.go
+
+# OR use the pre-built noui binary
+./bin/console-noui -config ./config/config.yml
 ```
 
 **First run**: When prompted with `Warning: Key Not Found, Generate new key? Y/N`, type `Y` and press Enter.
 
 > **Custom Config**: You can specify a custom configuration file:
 > ```sh
-> go run ./cmd/app/main.go --config "/absolute/path/to/config.yml"
+> go run -tags=noui ./cmd/app/main.go --config "/absolute/path/to/config.yml"
 > ```
 
 > **Database Location**: SQLite database is automatically created at:
@@ -127,13 +143,13 @@ go run ./cmd/app/main.go
 # Start Postgres via Docker
 make compose-up
 
-# Run Console with database migrations
-make run
+# Run Console with database migrations (noui)
+make run-noui
 ```
 
 This will use the `DB_URL` you configured in `.env`.
 
-### 3. Build Options
+### 4. Build Options
 
 Console supports multiple build configurations optimized for different use cases:
 
@@ -167,17 +183,40 @@ UI_EXTERNAL_URL=https://your-ui-domain.com ./console-noui
 
 **Build commands:**
 ```sh
-# Headless build (no UI)
+# Default build (with UI) for current platform
+make build
+
+# Headless build (no UI) for current platform
 make build-noui
+
+# Cross-compile for all platforms (Linux, Windows, macOS)
+# Produces binaries in dist/ directory for distribution
+make build-all-platforms
 ```
 
 **Manual build examples:**
 ```sh
-# Headless build (no UI)
+# Build for current platform
+go build -o console ./cmd/app
 go build -tags=noui -o console-noui ./cmd/app
+
+# Cross-compilation examples (CGO_ENABLED=0 produces static binaries)
+# Linux
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o console-linux ./cmd/app
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -o console-linux-headless ./cmd/app
+
+# Windows
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o console.exe ./cmd/app
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -o console-headless.exe ./cmd/app
+
+# macOS
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o console-macos ./cmd/app
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -o console-macos-headless ./cmd/app
 ```
 
-### 4. Running the Frontend
+> **Note**: With `CGO_ENABLED=0`, Go produces statically-linked binaries that are cross-platform compatible. You can build binaries for any target platform from any development machine.
+
+### 5. Running the Frontend
 
 ```sh
 # Clone Sample Web UI
