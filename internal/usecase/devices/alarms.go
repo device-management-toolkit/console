@@ -27,7 +27,10 @@ func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid string) ([]dto.Al
 		return nil, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return nil, err
+	}
 
 	alarms, err := device.GetAlarmOccurrences()
 	if err != nil {
@@ -61,7 +64,10 @@ func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid string, alarm 
 
 	alarm.InstanceID = alarm.ElementName
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return dto.AddAlarmOutput{}, err
+	}
 
 	alarmReference, err := device.CreateAlarmOccurrences(alarm.InstanceID, alarm.StartTime, alarm.Interval, alarm.DeleteOnCompletion)
 	if err != nil {
@@ -83,7 +89,10 @@ func (uc *UseCase) DeleteAlarmOccurrences(c context.Context, guid, instanceID st
 		return ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return err
+	}
 
 	err = device.DeleteAlarmOccurrences(instanceID)
 	if err != nil {
