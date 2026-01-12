@@ -1,4 +1,8 @@
-# this script builds the docker image and packages the binaries into tar files for CI/CD on Github
+#!/bin/bash
+# This script builds Docker images and packages binaries into tar files for CI/CD on Github
+#
+# With CGO_ENABLED=0, Go produces static binaries that are cross-platform compatible.
+# All platform binaries are built using cross-compilation from a single environment.
 
 # Get version from the first argument
 version=$1

@@ -56,10 +56,7 @@ jobs:
 
   build:
     needs: prepare
-    strategy:
-      matrix:
-        os: [ubuntu-latest, macos-latest, windows-latest]
-    runs-on: ${{ matrix.os }}
+    runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
@@ -102,43 +99,32 @@ jobs:
       - shell: bash
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
-      #build linux
-      - shell: bash
-        if: matrix.os == 'ubuntu-latest'
+
+      # Cross-compile all platform binaries from a single runner using CGO_ENABLED=0
+      # Static Go binaries are cross-platform compatible, so we can build all targets from Linux
+      - name: Build all platform binaries
+        shell: bash
         run: |
+          # Linux builds
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app/main.go
           CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app/main.go
-
-      - shell: bash
-        if: matrix.os == 'windows-latest'
-        run: |
+          
+          # Windows builds
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app/main.go
           CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app/main.go
-
-      - shell: bash
-        if: matrix.os == 'macos-latest'
-        run: |
+          
+          # macOS builds
           CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app/main.go
           CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app/main.go
 
+      # Cache all build artifacts in a single step
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        if: matrix.os == 'ubuntu-latest'
         with:
-          path: dist/linux
-          key: linux-${{ env.sha_short }}
-
-      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        if: matrix.os == 'macos-latest'
-        with:
-          path: dist/darwin
-          key: darwin-${{ env.sha_short }}
-
-      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        if: matrix.os == 'windows-latest'
-        with:
-          path: dist/windows
-          key: windows-${{ env.sha_short }}
-          enableCrossOsArchive: true
+          path: |
+            dist/linux
+            dist/darwin
+            dist/windows
+          key: all-platforms-${{ env.sha_short }}
 
   release:
     permissions:
@@ -156,26 +142,18 @@ jobs:
         with:
           persist-credentials: false
   
-      # copy the caches from prepare
+      # Restore unified build cache
       - shell: bash
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
         with:
-          path: dist/linux
-          key: linux-${{ env.sha_short }}
-
-      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: dist/darwin
-          key: darwin-${{ env.sha_short }}
-
-      - uses: actions/cache@1bd1e32a3bdc45362d1e726936510720a7c30a57 # v4.2.0
-        with:
-          path: dist/windows
-          key: windows-${{ env.sha_short }}
-          enableCrossOsArchive: true
+          path: |
+            dist/linux
+            dist/darwin
+            dist/windows
+          key: all-platforms-${{ env.sha_short }}
       
       # Generate licenses.zip
       - name: Use Node.js 22.x
