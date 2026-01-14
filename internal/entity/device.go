@@ -18,8 +18,8 @@ type Device struct {
 	DeviceInfo       string
 	Username         string
 	Password         string
-	MPSPassword      string
-	MEBXPassword     string
+	MPSPassword      *string
+	MEBXPassword     *string
 	UseTLS           bool
 	AllowSelfSigned  bool
 	CertHash         *string
