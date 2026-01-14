@@ -224,7 +224,7 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 		data, err := uc.redirection.RedirectListen(deviceConnection.ctx, deviceConnection)
 		recvDuration := time.Since(recvStart)
 		kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(recvDuration.Seconds())
-		
+
 		if recvDuration.Milliseconds() > 100 {
 			uc.log.Debug("KVM_TIMING: Device receive blocked", "duration_ms", recvDuration.Milliseconds(), "mode", deviceConnection.Mode)
 		}
@@ -258,7 +258,7 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 
 		writeDuration := time.Since(start)
 		kvmDeviceToBrowserWriteSeconds.WithLabelValues(deviceConnection.Mode).Observe(writeDuration.Seconds())
-		
+
 		if writeDuration.Milliseconds() > 50 {
 			uc.log.Debug("KVM_TIMING: Device to browser write slow", "duration_ms", writeDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(toSend))
 		}
@@ -295,7 +295,7 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 		_, msg, err := deviceConnection.Conn.ReadMessage()
 		readDuration := time.Since(readStart)
 		kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(readDuration.Seconds())
-		
+
 		if readDuration.Milliseconds() > 100 {
 			uc.log.Debug("KVM_TIMING: Browser read blocked", "duration_ms", readDuration.Milliseconds(), "mode", deviceConnection.Mode)
 		}
@@ -327,7 +327,7 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 		err = uc.redirection.RedirectSend(deviceConnection.ctx, deviceConnection, toSend)
 		sendDuration := time.Since(start)
 		kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(sendDuration.Seconds())
-		
+
 		if sendDuration.Milliseconds() > 50 {
 			uc.log.Debug("KVM_TIMING: Browser to device send slow", "duration_ms", sendDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(toSend))
 		}
