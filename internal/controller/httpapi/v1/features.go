@@ -26,6 +26,7 @@ func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 	start := time.Now()
+
 	defer func() {
 		devices.RecordAPIRequest(time.Since(start), "amt_features")
 	}()

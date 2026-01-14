@@ -12,6 +12,7 @@ import (
 
 func (r *deviceManagementRoutes) getPowerState(c *gin.Context) {
 	start := time.Now()
+
 	defer func() {
 		devices.RecordAPIRequest(time.Since(start), "power_state")
 	}()

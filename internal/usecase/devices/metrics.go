@@ -95,7 +95,7 @@ var (
 		[]string{"mode"},
 	)
 
-	// KVM Connection Performance Metrics
+	// KVM Connection Performance Metrics.
 	kvmDeviceLookupSeconds = promauto.NewHistogram(
 		prometheus.HistogramOpts{
 			Name:    "kvm_device_lookup_seconds",
@@ -149,12 +149,12 @@ var (
 	)
 )
 
-// RecordWebsocketUpgrade records the WebSocket upgrade duration metric
+// RecordWebsocketUpgrade records the WebSocket upgrade duration metric.
 func RecordWebsocketUpgrade(duration time.Duration) {
 	kvmWebsocketUpgradeSeconds.Observe(duration.Seconds())
 }
 
-// RecordTotalConnection records the total KVM connection time metric
+// RecordTotalConnection records the total KVM connection time metric.
 func RecordTotalConnection(duration time.Duration, mode string) {
 	kvmTotalConnectionSeconds.WithLabelValues(mode).Observe(duration.Seconds())
 }

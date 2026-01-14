@@ -13,6 +13,7 @@ import (
 // getKVMDisplays returns current IPS_ScreenSettingData for the device
 func (r *deviceManagementRoutes) getKVMDisplays(c *gin.Context) {
 	start := time.Now()
+
 	defer func() {
 		devices.RecordAPIRequest(time.Since(start), "kvm_displays")
 	}()
