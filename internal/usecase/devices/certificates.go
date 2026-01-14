@@ -169,7 +169,10 @@ func (uc *UseCase) GetCertificates(c context.Context, guid string) (dto.Security
 		return dto.SecuritySettings{}, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return dto.SecuritySettings{}, err
+	}
 
 	response, err := device.GetCertificates()
 	if err != nil {
@@ -263,7 +266,10 @@ func (uc *UseCase) GetDeviceCertificate(c context.Context, guid string) (dto.Cer
 		return dto.Certificate{}, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return dto.Certificate{}, err
+	}
 
 	cert1, err := device.GetDeviceCertificate()
 	if err != nil {
@@ -370,7 +376,10 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 
 	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return "", err
+	}
 
 	if certInfo.IsTrusted {
 		handle, err = device.AddTrustedRootCert(cleanedCert)
@@ -433,7 +442,10 @@ func (uc *UseCase) DeleteCertificate(c context.Context, guid, instanceID string)
 	}
 
 	// If the certificate is not associated with any profiles and is not read-only, proceed with deletion
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return err
+	}
 
 	err = device.DeleteCertificate(instanceID)
 	if err != nil {
