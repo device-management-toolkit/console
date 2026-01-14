@@ -73,6 +73,7 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 	}
 
 	d2 := uc.entityToDTO(data)
+
 	if includeSecrets {
 		d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
 		if err != nil {
