@@ -52,7 +52,10 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 		return power.PowerActionResponse{}, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
 
 	if action == OsToFullPower || action == OsToPowerSaving {
 		response, err := handleOSPowerSavingStateChange(device, action)
@@ -161,7 +164,10 @@ func (uc *UseCase) GetPowerCapabilities(c context.Context, guid string) (dto.Pow
 		return dto.PowerCapabilities{}, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return dto.PowerCapabilities{}, err
+	}
 
 	version, err := device.GetAMTVersion()
 	if err != nil {
@@ -233,7 +239,10 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		return power.PowerActionResponse{}, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
 
 	bootData, err := device.GetBootData()
 	if err != nil {
@@ -554,7 +563,10 @@ func (uc *UseCase) GetBootSourceSetting(c context.Context, guid string) ([]dto.B
 		return nil, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return nil, err
+	}
 
 	settings, err := device.GetCIMBootSourceSetting()
 	if err != nil {
