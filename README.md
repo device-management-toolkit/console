@@ -263,8 +263,8 @@ Console automatically generates OpenAPI documentation when running in debug mode
 - Ensure code is formatted correctly with `gofumpt -l -w -extra ./`
 - Ensure all unit tests pass with `go test ./...`
 - Ensure code has been linted with:
-  - Windows: `docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run -v`
-  - Unix: `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run -v`
+  - Windows: `docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
+  - Unix: `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
 
 
 ## Additional Resources

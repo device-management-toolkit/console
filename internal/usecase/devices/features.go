@@ -50,7 +50,10 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 		return settingsResults, settingsResultsV2, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return dto.Features{}, dtov2.Features{}, err
+	}
 
 	// Get redirection settings from AMT
 	err = getRedirectionService(&settingsResultsV2, device)
@@ -189,7 +192,10 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 		return settingsResults, settingsResultsV2, ErrNotFound
 	}
 
-	device, _ := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return settingsResults, settingsResultsV2, err
+	}
 
 	// redirection
 	state, listenerEnabled, err := redirectionRequestStateChange(features.EnableSOL, features.EnableIDER, &settingsResultsV2, device)

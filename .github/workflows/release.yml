@@ -230,8 +230,8 @@ jobs:
       - name: Check if OpenAPI files changed
         id: check-openapi-changes
         run: |
-          git fetch origin main:main
-          if git diff --name-only main HEAD | grep -q '^internal/controller/openapi/'; then
+          git fetch origin main
+          if git diff --name-only origin/main HEAD | grep -q '^internal/controller/openapi/'; then
             echo "changed=true" >> $GITHUB_OUTPUT
           else
             echo "changed=false" >> $GITHUB_OUTPUT
