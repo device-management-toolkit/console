@@ -48,7 +48,12 @@ type DeviceConnection struct {
 }
 
 func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode string) error {
+	// KVM_TIMING: Measure device lookup latency
+	lookupStart := time.Now()
 	device, err := uc.repo.GetByID(c, guid, "")
+	kvmDeviceLookupSeconds.Observe(time.Since(lookupStart).Seconds())
+	uc.log.Debug("KVM_TIMING: Device lookup", "duration_ms", time.Since(lookupStart).Milliseconds(), "guid", guid)
+
 	if err != nil {
 		return err
 	}
@@ -64,7 +69,12 @@ func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode 
 		return err
 	}
 
+	// KVM_TIMING: Measure connection setup latency
+	connectStart := time.Now()
 	err = uc.redirection.RedirectConnect(c, deviceConnection)
+	kvmConnectionSetupSeconds.WithLabelValues(mode).Observe(time.Since(connectStart).Seconds())
+	uc.log.Debug("KVM_TIMING: Connection setup", "duration_ms", time.Since(connectStart).Milliseconds(), "mode", mode, "guid", guid)
+
 	if err != nil {
 		deviceConnection.cancel()
 
@@ -212,7 +222,12 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 		// Measure time blocked waiting for device data
 		recvStart := time.Now()
 		data, err := uc.redirection.RedirectListen(deviceConnection.ctx, deviceConnection)
-		kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(recvStart).Seconds())
+		recvDuration := time.Since(recvStart)
+		kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(recvDuration.Seconds())
+		
+		if recvDuration.Milliseconds() > 100 {
+			uc.log.Debug("KVM_TIMING: Device receive blocked", "duration_ms", recvDuration.Milliseconds(), "mode", deviceConnection.Mode)
+		}
 
 		if err != nil {
 			break
@@ -241,7 +256,12 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 
 		err = conn.WriteMessage(websocket.BinaryMessage, toSend)
 
-		kvmDeviceToBrowserWriteSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(start).Seconds())
+		writeDuration := time.Since(start)
+		kvmDeviceToBrowserWriteSeconds.WithLabelValues(deviceConnection.Mode).Observe(writeDuration.Seconds())
+		
+		if writeDuration.Milliseconds() > 50 {
+			uc.log.Debug("KVM_TIMING: Device to browser write slow", "duration_ms", writeDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(toSend))
+		}
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -273,7 +293,12 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 
 		readStart := time.Now()
 		_, msg, err := deviceConnection.Conn.ReadMessage()
-		kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(readStart).Seconds())
+		readDuration := time.Since(readStart)
+		kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(readDuration.Seconds())
+		
+		if readDuration.Milliseconds() > 100 {
+			uc.log.Debug("KVM_TIMING: Browser read blocked", "duration_ms", readDuration.Milliseconds(), "mode", deviceConnection.Mode)
+		}
 
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
@@ -300,7 +325,12 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 		kvmBrowserToDeviceMessages.WithLabelValues(deviceConnection.Mode).Inc()
 		// Send the message to the TCP Connection on the device
 		err = uc.redirection.RedirectSend(deviceConnection.ctx, deviceConnection, toSend)
-		kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(time.Since(start).Seconds())
+		sendDuration := time.Since(start)
+		kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(sendDuration.Seconds())
+		
+		if sendDuration.Milliseconds() > 50 {
+			uc.log.Debug("KVM_TIMING: Browser to device send slow", "duration_ms", sendDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(toSend))
+		}
 
 		if err != nil {
 			_ = fmt.Errorf("interceptor - listenToBrowser - error sending message to device: %w", err)
