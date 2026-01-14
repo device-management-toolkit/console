@@ -73,24 +73,27 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 	}
 
 	d2 := uc.entityToDTO(data)
-	if includeSecrets {
-		d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
+
+	if !includeSecrets {
+		return d2, nil
+	}
+
+	d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
+	if err != nil {
+		return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt Password", err)
+	}
+
+	if data.MPSPassword != nil {
+		d2.MPSPassword, err = uc.safeRequirements.Decrypt(*data.MPSPassword)
 		if err != nil {
-			return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt Password", err)
+			return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt MPSPassword", err)
 		}
+	}
 
-		if data.MPSPassword != nil {
-			d2.MPSPassword, err = uc.safeRequirements.Decrypt(*data.MPSPassword)
-			if err != nil {
-				return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt MPSPassword", err)
-			}
-		}
-
-		if data.MEBXPassword != nil {
-			d2.MEBXPassword, err = uc.safeRequirements.Decrypt(*data.MEBXPassword)
-			if err != nil {
-				return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt MEBXPassword", err)
-			}
+	if data.MEBXPassword != nil {
+		d2.MEBXPassword, err = uc.safeRequirements.Decrypt(*data.MEBXPassword)
+		if err != nil {
+			return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt MEBXPassword", err)
 		}
 	}
 
