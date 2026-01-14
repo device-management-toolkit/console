@@ -92,8 +92,7 @@ mock: ### run mockgen
 	mockgen -source ./internal/usecase/wificonfigs/interfaces.go        -package mocks  -mock_names Repository=MockWiFiConfigsRepository,Feature=MockWiFiConfigsFeature > ./internal/mocks/wificonfigs_mocks.go
 	mockgen -source ./internal/usecase/profilewificonfigs/interfaces.go -package mocks  -mock_names Repository=MockProfileWiFiConfigsRepository,Feature=MockProfileWiFiConfigsFeature > ./internal/mocks/profileswificonfigs_mocks.go
 	mockgen -source ./internal/app/interface.go                         -package mocks  > ./internal/mocks/app_mocks.go
-	
-	
+	mockgen -package mocks github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security Cryptor > ./internal/mocks/cryptor_mocks.go
 .PHONY: mock
 
 migrate-create:  ### create new migration

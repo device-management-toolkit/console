@@ -27,16 +27,15 @@ func (e InternalError) FriendlyMessage() string {
 	return e.Message
 }
 
-func (e *InternalError) Wrap(call, function string, err error) error {
-	e.Call = call
-	e.Function = function
-
-	e.OriginalError = err
-	if err != nil {
-		e.InnerTrace = "" // err.Error()
+func (e InternalError) Wrap(call, function string, err error) error {
+	return &InternalError{
+		file:          e.file,
+		Function:      function,
+		Call:          call,
+		Message:       e.Message,
+		OriginalError: err,
+		InnerTrace:    "",
 	}
-
-	return e
 }
 
 func CreateConsoleError(file string) InternalError {

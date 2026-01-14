@@ -533,29 +533,29 @@ func TestInsertWithPasswords(t *testing.T) {
 func TestGetByIDWithSecrets(t *testing.T) {
 	t.Parallel()
 
-	// Entity with encrypted passwords from DB
-	deviceWithPasswords := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Password:     "encrypted",
-		MPSPassword:  ptr("encrypted"),
-		MEBXPassword: ptr("encrypted"),
-	}
-
-	// Expected DTO with decrypted passwords
-	expectedDTO := &dto.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Tags:         nil,
-		Password:     "decrypted",
-		MPSPassword:  "decrypted",
-		MEBXPassword: "decrypted",
-	}
-
 	t.Run("successful retrieval with secrets", func(t *testing.T) {
 		t.Parallel()
 
 		useCase, repo, _ := devicesTest(t)
+
+		// Entity with encrypted passwords from DB
+		deviceWithPasswords := &entity.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Password:     "encrypted",
+			MPSPassword:  ptr("encrypted"),
+			MEBXPassword: ptr("encrypted"),
+		}
+
+		// Expected DTO with decrypted passwords
+		expectedDTO := &dto.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Tags:         nil,
+			Password:     "decrypted",
+			MPSPassword:  "decrypted",
+			MEBXPassword: "decrypted",
+		}
 
 		repo.EXPECT().
 			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
@@ -600,4 +600,121 @@ func TestGetByIDWithSecrets(t *testing.T) {
 		require.NoError(t, err)
 		require.Equal(t, expectedDTONilPasswords, got)
 	})
+}
+
+func devicesTestWithCryptoMock(t *testing.T) (*devices.UseCase, *mocks.MockDeviceManagementRepository, *mocks.MockCryptor) {
+	t.Helper()
+
+	mockCtl := gomock.NewController(t)
+	defer mockCtl.Finish()
+
+	repo := mocks.NewMockDeviceManagementRepository(mockCtl)
+	wsmanMock := mocks.NewMockWSMAN(mockCtl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	cryptoMock := mocks.NewMockCryptor(mockCtl)
+
+	log := logger.New("error")
+	u := devices.New(repo, wsmanMock, mocks.NewMockRedirection(mockCtl), log, cryptoMock)
+
+	return u, repo, cryptoMock
+}
+
+func TestGetByIDDecryptPasswordFails(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo, cryptoMock := devicesTestWithCryptoMock(t)
+
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-pwd",
+		TenantID:     "tenant-id-pwd",
+		Password:     "encrypted-pwd",
+		MPSPassword:  ptr("encrypted-mps"),
+		MEBXPassword: ptr("encrypted-mebx"),
+	}
+
+	gomock.InOrder(
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-pwd", "tenant-id-pwd").
+			Return(deviceWithPasswords, nil),
+		cryptoMock.EXPECT().
+			Decrypt("encrypted-pwd").
+			Return("", mocks.ErrDecryptFailed),
+	)
+
+	got, err := useCase.GetByID(context.Background(), "device-guid-pwd", "tenant-id-pwd", true)
+
+	require.Error(t, err)
+	require.Nil(t, got)
+	require.Contains(t, err.Error(), "decryptSecrets")
+	require.Contains(t, err.Error(), "Password")
+}
+
+func TestGetByIDDecryptMPSPasswordFails(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo, cryptoMock := devicesTestWithCryptoMock(t)
+
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-mps",
+		TenantID:     "tenant-id-mps",
+		Password:     "encrypted-pwd",
+		MPSPassword:  ptr("encrypted-mps"),
+		MEBXPassword: ptr("encrypted-mebx"),
+	}
+
+	gomock.InOrder(
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-mps", "tenant-id-mps").
+			Return(deviceWithPasswords, nil),
+		cryptoMock.EXPECT().
+			Decrypt("encrypted-pwd").
+			Return("decrypted", nil),
+		cryptoMock.EXPECT().
+			Decrypt("encrypted-mps").
+			Return("", mocks.ErrDecryptFailed),
+	)
+
+	got, err := useCase.GetByID(context.Background(), "device-guid-mps", "tenant-id-mps", true)
+
+	require.Error(t, err)
+	require.Nil(t, got)
+	require.Contains(t, err.Error(), "decryptSecrets")
+	require.Contains(t, err.Error(), "MPSPassword")
+}
+
+func TestGetByIDDecryptMEBXPasswordFails(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo, cryptoMock := devicesTestWithCryptoMock(t)
+
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-mebx",
+		TenantID:     "tenant-id-mebx",
+		Password:     "encrypted-pwd",
+		MPSPassword:  ptr("encrypted-mps"),
+		MEBXPassword: ptr("encrypted-mebx"),
+	}
+
+	gomock.InOrder(
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-mebx", "tenant-id-mebx").
+			Return(deviceWithPasswords, nil),
+		cryptoMock.EXPECT().
+			Decrypt("encrypted-pwd").
+			Return("decrypted", nil),
+		cryptoMock.EXPECT().
+			Decrypt("encrypted-mps").
+			Return("decrypted", nil),
+		cryptoMock.EXPECT().
+			Decrypt("encrypted-mebx").
+			Return("", mocks.ErrDecryptFailed),
+	)
+
+	got, err := useCase.GetByID(context.Background(), "device-guid-mebx", "tenant-id-mebx", true)
+
+	require.Error(t, err)
+	require.Nil(t, got)
+	require.Contains(t, err.Error(), "decryptSecrets")
+	require.Contains(t, err.Error(), "MEBXPassword")
 }

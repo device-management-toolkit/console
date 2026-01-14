@@ -1,6 +1,10 @@
 package domains
 
-import "github.com/device-management-toolkit/console/pkg/consoleerrors"
+import (
+	"errors"
+
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+)
 
 const certExpired = "certificate has expired"
 
@@ -13,7 +17,13 @@ func (e CertExpirationError) Error() string {
 }
 
 func (e CertExpirationError) Wrap(call, function string, err error) error {
-	_ = e.Console.Wrap(call, function, err)
+	wrapped := e.Console.Wrap(call, function, err)
+
+	var internalErr *consoleerrors.InternalError
+	if errors.As(wrapped, &internalErr) {
+		e.Console = *internalErr
+	}
+
 	e.Console.Message = certExpired
 
 	return e

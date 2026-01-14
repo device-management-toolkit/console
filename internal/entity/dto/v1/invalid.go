@@ -1,6 +1,8 @@
 package dto
 
 import (
+	"errors"
+
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
@@ -13,7 +15,13 @@ func (e NotValidError) Error() string {
 }
 
 func (e NotValidError) Wrap(function, call string, err error) error {
-	_ = e.Console.Wrap(function, call, err)
+	wrapped := e.Console.Wrap(function, call, err)
+
+	var internalErr *consoleerrors.InternalError
+	if errors.As(wrapped, &internalErr) {
+		e.Console = *internalErr
+	}
+
 	e.Console.Message = "Invalid input: " + err.Error()
 
 	return e
