@@ -30,8 +30,8 @@ const (
 	ConnectionTimeout          = 5 * time.Minute
 	InactivityTimeout          = 30 * time.Second // Close connection if no data for 30 seconds
 	HeartbeatInterval          = 30 * time.Second // Check connection health every 30 seconds
-	SlowReceiveThreshold       = 100               // Milliseconds threshold for slow device receive
-	SlowWriteThreshold         = 50                // Milliseconds threshold for slow write operations
+	SlowReceiveThreshold       = 100              // Milliseconds threshold for slow device receive
+	SlowWriteThreshold         = 50               // Milliseconds threshold for slow write operations
 )
 
 type DeviceConnection struct {

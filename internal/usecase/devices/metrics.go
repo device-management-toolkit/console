@@ -159,12 +159,12 @@ func RecordTotalConnection(duration time.Duration, mode string) {
 	kvmTotalConnectionSeconds.WithLabelValues(mode).Observe(duration.Seconds())
 }
 
-// RecordConsentCodeWait records the consent code wait time metric
+// RecordConsentCodeWait records the consent code wait time metric.
 func RecordConsentCodeWait(duration time.Duration, mode string) {
 	kvmConsentCodeWaitSeconds.WithLabelValues(mode).Observe(duration.Seconds())
 }
 
-// RecordAPIRequest records the API request duration metric
+// RecordAPIRequest records the API request duration metric.
 func RecordAPIRequest(duration time.Duration, endpoint string) {
 	kvmAPIRequestSeconds.WithLabelValues(endpoint).Observe(duration.Seconds())
 }
