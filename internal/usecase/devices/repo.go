@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -75,27 +76,37 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 	d2 := uc.entityToDTO(data)
 
 	if includeSecrets {
-		d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
-		if err != nil {
-			return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt Password", err)
-		}
-
-		if data.MPSPassword != nil {
-			d2.MPSPassword, err = uc.safeRequirements.Decrypt(*data.MPSPassword)
-			if err != nil {
-				return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt MPSPassword", err)
-			}
-		}
-
-		if data.MEBXPassword != nil {
-			d2.MEBXPassword, err = uc.safeRequirements.Decrypt(*data.MEBXPassword)
-			if err != nil {
-				return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt MEBXPassword", err)
-			}
+		if err := uc.decryptSecrets(d2, data); err != nil {
+			return nil, err
 		}
 	}
 
 	return d2, nil
+}
+
+func (uc *UseCase) decryptSecrets(d2 *dto.Device, data *entity.Device) error {
+	var err error
+
+	d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
+	if err != nil {
+		return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt Password", err)
+	}
+
+	if data.MPSPassword != nil {
+		d2.MPSPassword, err = uc.safeRequirements.Decrypt(*data.MPSPassword)
+		if err != nil {
+			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MPSPassword", err)
+		}
+	}
+
+	if data.MEBXPassword != nil {
+		d2.MEBXPassword, err = uc.safeRequirements.Decrypt(*data.MEBXPassword)
+		if err != nil {
+			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MEBXPassword", err)
+		}
+	}
+
+	return nil
 }
 
 func (uc *UseCase) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
