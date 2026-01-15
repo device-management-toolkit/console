@@ -75,16 +75,16 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 				mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 				mockLogger.EXPECT().Info("Websocket connection opened")
 
-				if tc.redirectError != nil {
-					mockLogger.EXPECT().Error(tc.redirectError, "http - devices - v1 - redirect")
-				} else {
-					// Expect the KVM_TIMING Debug call for successful connections
-					mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "someMode")
-				}
-
 				mockFeature.EXPECT().
 					Redirect(gomock.Any(), gomock.Any(), "someHost", "someMode").
 					Return(tc.redirectError)
+
+				// Total connection time is always logged after Redirect completes
+				mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "someMode")
+
+				if tc.redirectError != nil {
+					mockLogger.EXPECT().Error(tc.redirectError, "http - devices - v1 - redirect")
+				}
 			}
 
 			r := gin.Default()
