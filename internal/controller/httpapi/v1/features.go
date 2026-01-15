@@ -2,10 +2,12 @@ package v1
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
 func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
@@ -23,6 +25,12 @@ func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 }
 
 func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
+	start := time.Now()
+
+	defer func() {
+		devices.RecordAPIRequest(time.Since(start), "amt_features")
+	}()
+
 	guid := c.Param("guid")
 
 	features, _, err := r.d.GetFeatures(c.Request.Context(), guid)

@@ -2,13 +2,21 @@ package v1
 
 import (
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
 func (r *deviceManagementRoutes) getPowerState(c *gin.Context) {
+	start := time.Now()
+
+	defer func() {
+		devices.RecordAPIRequest(time.Since(start), "power_state")
+	}()
+
 	guid := c.Param("guid")
 
 	state, err := r.d.GetPowerState(c.Request.Context(), guid)
