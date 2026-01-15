@@ -70,6 +70,7 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 					Upgrade(gomock.Any(), gomock.Any(), nil).
 					Return(&websocket.Conn{}, nil)
 
+				mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
 				mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 				mockLogger.EXPECT().Info("Websocket connection opened")
 
