@@ -108,6 +108,12 @@ jobs:
       - name: Build Linux x64 headless
         run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app/main.go
 
+      - name: Build Linux arm64
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_arm64 ./cmd/app/main.go
+
+      - name: Build Linux arm64 headless
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_arm64_headless ./cmd/app/main.go
+
       - name: Build Windows x64
         run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app/main.go
 
