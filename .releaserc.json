@@ -68,7 +68,7 @@
     [
       "@semantic-release/exec",
       {
-       "prepareCmd": "./build.sh ${nextRelease.version} ",
+        "prepareCmd": "./build.sh ${nextRelease.version} ",
         "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless",
         "verifyReleaseCmd": "echo v${nextRelease.version} > .VERSION"
       }
