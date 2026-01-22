@@ -68,8 +68,8 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "./build.sh ${nextRelease.version} ghcr.io/$GITHUB_REPOSITORY",
-        "publishCmd": "docker push ghcr.io/$GITHUB_REPOSITORY:v${nextRelease.version} && docker push ghcr.io/$GITHUB_REPOSITORY:latest && docker push ghcr.io/$GITHUB_REPOSITORY:v${nextRelease.version}-headless && docker push ghcr.io/$GITHUB_REPOSITORY:latest-headless",
+       "prepareCmd": "./build.sh ${nextRelease.version} ",
+        "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless",
         "verifyReleaseCmd": "echo v${nextRelease.version} > .VERSION"
       }
     ]
