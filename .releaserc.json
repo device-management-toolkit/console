@@ -35,6 +35,14 @@
             "label": "Linux x64 Console Headless (No UI)"
           },
           {
+            "path": "console_linux_arm64.tar.gz",
+            "label": "Linux ARM64 Console (Full)"
+          },
+          {
+            "path": "console_linux_arm64_headless.tar.gz",
+            "label": "Linux ARM64 Console Headless (No UI)"
+          },
+          {
             "path": "dist/windows/console_windows_x64.exe",
             "label": "Windows x64 Console (Full)"
           },
