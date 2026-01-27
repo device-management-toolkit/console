@@ -13,6 +13,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	ipsPower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -63,6 +64,9 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 			return power.PowerActionResponse{}, err
 		}
 
+		// Invalidate power state cache after action
+		uc.cache.Delete(cache.MakePowerStateKey(guid))
+
 		return response, nil
 	}
 
@@ -77,6 +81,9 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
+
+	// Invalidate power state cache after action
+	uc.cache.Delete(cache.MakePowerStateKey(guid))
 
 	return response, nil
 }
@@ -121,6 +128,18 @@ func ensureFullPowerBeforeReset(device wsman.Management) (power.PowerActionRespo
 }
 
 func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState, error) {
+	// Check cache first - use short TTL since power state changes frequently
+	cacheKey := cache.MakePowerStateKey(guid)
+	if cached, found := uc.cache.Get(cacheKey); found {
+		if state, ok := cached.(dto.PowerState); ok {
+			uc.log.Info("Cache hit for power state", "guid", guid)
+
+			return state, nil
+		}
+	}
+
+	uc.log.Info("Cache miss for power state, fetching from AMT", "guid", guid)
+
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return dto.PowerState{}, err
@@ -142,16 +161,25 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 
 	stateOS, err := device.GetOSPowerSavingState()
 	if err != nil {
-		return dto.PowerState{
+		powerState := dto.PowerState{
 			PowerState:         int(state[0].PowerState),
 			OSPowerSavingState: 0, // UNKNOWN
-		}, err
+		}
+		// Still cache partial result
+		uc.cache.Set(cacheKey, powerState, cache.PowerStateTTL)
+
+		return powerState, err
 	}
 
-	return dto.PowerState{
+	powerState := dto.PowerState{
 		PowerState:         int(state[0].PowerState),
 		OSPowerSavingState: int(stateOS),
-	}, nil
+	}
+
+	// Cache power state
+	uc.cache.Set(cacheKey, powerState, cache.PowerStateTTL)
+
+	return powerState, nil
 }
 
 func (uc *UseCase) GetPowerCapabilities(c context.Context, guid string) (dto.PowerCapabilities, error) {
