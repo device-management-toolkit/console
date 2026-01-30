@@ -12,6 +12,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -40,7 +41,24 @@ type OCRData struct {
 	bootData           boot.BootSettingDataResponse
 }
 
+type cachedFeatures struct {
+	V1 dto.Features
+	V2 dtov2.Features
+}
+
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
+	// Check cache first
+	cacheKey := cache.MakeFeaturesKey(guid)
+	if cached, found := uc.cache.Get(cacheKey); found {
+		if features, ok := cached.(cachedFeatures); ok {
+			uc.log.Info("Cache hit for features", "guid", guid)
+
+			return features.V1, features.V2, nil
+		}
+	}
+
+	uc.log.Info("Cache miss for features, fetching from AMT", "guid", guid)
+
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return dto.Features{}, dtov2.Features{}, err
@@ -96,6 +114,12 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+
+	// Cache the results
+	uc.cache.Set(cacheKey, cachedFeatures{
+		V1: settingsResults,
+		V2: settingsResultsV2,
+	}, cache.FeaturesTTL)
 
 	return settingsResults, settingsResultsV2, nil
 }
