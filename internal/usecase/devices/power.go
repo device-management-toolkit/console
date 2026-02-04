@@ -469,8 +469,8 @@ func (uc *UseCase) getBootSource(guid string, bootSetting *dto.BootSetting) stri
 	switch bootSetting.Action {
 	case BootActionResetToPXE, BootActionPowerOnToPXE:
 		return string(cimBoot.PXE)
-	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM:
-		return string(cimBoot.CD)
+	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM, BootActionResetToIDERFloppy:
+		return ""
 	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
 		return string(cimBoot.OCRUEFIHTTPS)
 	case BootActionPBA, BootActionPowerOnPBA:
