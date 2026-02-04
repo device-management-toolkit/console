@@ -106,8 +106,8 @@ func TestGetBootSource(t *testing.T) {
 			},
 		},
 		{
-			name: "Action 202",
-			res:  string(cimBoot.CD),
+			name: "Action 202 - IDER CDROM",
+			res:  "",
 			bootSettings: dto.BootSetting{
 				Action: 202,
 			},
