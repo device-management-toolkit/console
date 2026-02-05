@@ -78,7 +78,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		ConnectionStatus: d.ConnectionStatus,
 		MPSInstance:      d.MPSInstance,
 		Hostname:         d.Hostname,
-		GUID:             d.GUID,
+		GUID:             strings.ToLower(d.GUID), // Normalize GUID to lowercase for case-insensitive matching
 		MPSUsername:      d.MPSUsername,
 		Tags:             tags,
 		TenantID:         d.TenantID,
