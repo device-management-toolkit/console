@@ -2,6 +2,7 @@ package cira
 
 import (
 	"context"
+	"strings"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
 
@@ -36,8 +37,10 @@ func (h *APFHandler) DeviceID() string {
 
 // OnProtocolVersion is called when an APF_PROTOCOLVERSION message is received.
 // Extracts and stores the device UUID for later use.
+// The UUID is normalized to lowercase to ensure case-insensitive matching
+// since AMT devices send UUIDs in uppercase but users may add devices with lowercase UUIDs.
 func (h *APFHandler) OnProtocolVersion(info apf.ProtocolVersionInfo) error {
-	h.deviceID = info.UUID
+	h.deviceID = strings.ToLower(info.UUID)
 
 	h.log.Debug("APF Protocol Version - Version: %d.%d, Trigger: %d, UUID: %s",
 		info.MajorVersion, info.MinorVersion, info.TriggerReason, info.UUID)
