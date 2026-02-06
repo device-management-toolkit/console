@@ -601,3 +601,130 @@ func TestGetByIDWithSecrets(t *testing.T) {
 		require.Equal(t, expectedDTONilPasswords, got)
 	})
 }
+
+func TestGetByID_UUIDNormalization(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		TenantID: "tenant-id-456",
+	}
+
+	tests := []struct {
+		name       string
+		inputGUID  string
+		expectGUID string
+	}{
+		{
+			name:       "uppercase UUID is normalized to lowercase",
+			inputGUID:  "AAF0C395-C2A2-992E-5655-48210B50D8C9",
+			expectGUID: "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		},
+		{
+			name:       "lowercase UUID stays lowercase",
+			inputGUID:  "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			expectGUID: "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			// Expect the normalized (lowercase) GUID to be passed to the repository
+			repo.EXPECT().
+				GetByID(context.Background(), tc.expectGUID, "tenant-id-456").
+				Return(device, nil)
+
+			got, err := useCase.GetByID(context.Background(), tc.inputGUID, "tenant-id-456", false)
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, tc.expectGUID, got.GUID)
+		})
+	}
+}
+
+// TestDelete_UUIDNormalization tests that UUID is normalized for delete operations.
+func TestDelete_UUIDNormalization(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		inputGUID  string
+		expectGUID string
+	}{
+		{
+			name:       "uppercase UUID is normalized to lowercase",
+			inputGUID:  "AAF0C395-C2A2-992E-5655-48210B50D8C9",
+			expectGUID: "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			// Expect the normalized (lowercase) GUID to be passed to the repository
+			repo.EXPECT().
+				Delete(context.Background(), tc.expectGUID, "tenant-id-456").
+				Return(true, nil)
+
+			err := useCase.Delete(context.Background(), tc.inputGUID, "tenant-id-456")
+
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestUpdate_UUIDNormalization tests that UUID is normalized for update operations.
+func TestUpdate_UUIDNormalization(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uppercase UUID is normalized to lowercase", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+
+		// Input DTO with uppercase GUID
+		inputDTO := &dto.Device{
+			GUID:     "AAF0C395-C2A2-992E-5655-48210B50D8C9",
+			TenantID: "tenant-id-456",
+			Tags:     []string{},
+		}
+
+		// Expected entity with lowercase GUID (after normalization)
+		expectedEntity := &entity.Device{
+			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID: "tenant-id-456",
+			Password: "encrypted",
+		}
+
+		// Expected DTO result
+		expectedDTO := &dto.Device{
+			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID: "tenant-id-456",
+			Tags:     nil,
+		}
+
+		repo.EXPECT().
+			Update(context.Background(), expectedEntity).
+			Return(true, nil)
+		repo.EXPECT().
+			GetByID(context.Background(), "aaf0c395-c2a2-992e-5655-48210b50d8c9", "tenant-id-456").
+			Return(expectedEntity, nil)
+		management.EXPECT().
+			DestroyWsmanClient(*expectedDTO)
+
+		result, err := useCase.Update(context.Background(), inputDTO)
+
+		require.NoError(t, err)
+		require.Equal(t, "aaf0c395-c2a2-992e-5655-48210b50d8c9", result.GUID)
+	})
+}
