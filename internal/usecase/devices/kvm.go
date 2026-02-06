@@ -5,6 +5,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
@@ -13,6 +14,14 @@ var ErrNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateCons
 
 // GetKVMScreenSettings returns IPS_ScreenSettingData for the device.
 func (uc *UseCase) GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error) {
+	// Check cache first
+	cacheKey := cache.MakeKVMDisplayKey(guid)
+	if cached, found := uc.cache.Get(cacheKey); found {
+		if settings, ok := cached.(dto.KVMScreenSettings); ok {
+			return settings, nil
+		}
+	}
+
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return dto.KVMScreenSettings{}, err
@@ -68,7 +77,12 @@ func (uc *UseCase) GetKVMScreenSettings(c context.Context, guid string) (dto.KVM
 		}
 	}
 
-	return dto.KVMScreenSettings{Displays: displays}, nil
+	settings := dto.KVMScreenSettings{Displays: displays}
+
+	// Cache display settings (use default TTL - KVM settings are relatively static)
+	uc.cache.Set(cacheKey, settings, 0)
+
+	return settings, nil
 }
 
 // SetKVMScreenSettings updates IPS_ScreenSettingData; currently not supported via wsman lib

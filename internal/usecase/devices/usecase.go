@@ -6,6 +6,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -45,12 +46,13 @@ type UseCase struct {
 	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	cache            *cache.Cache
 }
 
 var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
 
 // New -.
-func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, safeRequirements security.Cryptor) *UseCase {
+func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, safeRequirements security.Cryptor, cacheInstance *cache.Cache) *UseCase {
 	uc := &UseCase{
 		repo:             r,
 		device:           d,
@@ -58,6 +60,7 @@ func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, s
 		redirConnections: make(map[string]*DeviceConnection),
 		log:              log,
 		safeRequirements: safeRequirements,
+		cache:            cacheInstance,
 	}
 	// start up the worker
 	go d.Worker()

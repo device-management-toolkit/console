@@ -38,7 +38,7 @@ type Feature interface {
 	GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
 	// Management Calls
 	GetVersion(ctx context.Context, guid string) (dto.Version, dtov2.Version, error)
-	GetFeatures(ctx context.Context, guid string) (dto.Features, dtov2.Features, error)
+	GetFeatures(ctx context.Context, guid string, bypassCache bool) (dto.Features, dtov2.Features, error)
 	SetFeatures(ctx context.Context, guid string, features dto.Features) (dto.Features, dtov2.Features, error)
 	GetAlarmOccurrences(ctx context.Context, guid string) ([]dto.AlarmClockOccurrence, error)
 	CreateAlarmOccurrences(ctx context.Context, guid string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error)
@@ -66,4 +66,8 @@ type Feature interface {
 	// KVM Screen Settings
 	GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
 	SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
+	// KVM Initialization Data - combined endpoint for display, power, redirection, and features
+	GetKVMInitData(c context.Context, guid string) (dto.KVMInitResponse, error)
+	// Link Preference (AMT_EthernetPortSettings)
+	SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error)
 }
