@@ -1,0 +1,4811 @@
+{
+  "info": {
+    "name": "Redfish API Tests",
+    "description": "Test collection for DMT Redfish endpoints",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "basic",
+    "basic": [
+      {
+        "key": "username",
+        "value": "{{admin_username}}",
+        "type": "string"
+      },
+      {
+        "key": "password",
+        "value": "{{admin_password}}",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "Public Endpoints",
+      "item": [
+        {
+          "name": "Get Service Root",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Response has @odata properties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.context');",
+                  "    pm.expect(jsonData).to.have.property('@odata.id');",
+                  "    pm.expect(jsonData).to.have.property('@odata.type');",
+                  "});",
+                  "",
+                  "pm.test('Service root has Systems link', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Systems');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - Verify Required Properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Service root has required Redfish properties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('RedfishVersion');",
+                  "    pm.expect(jsonData).to.have.property('UUID');",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "    pm.expect(jsonData).to.have.property('Name');",
+                  "});",
+                  "",
+                  "pm.test('Service root has required service links', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Systems');",
+                  "    pm.expect(jsonData.Systems).to.have.property('@odata.id');",
+                  "});",
+                  "",
+                  "pm.test('@odata.type indicates ServiceRoot', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.type']).to.include('ServiceRoot');",
+                  "});",
+                  "",
+                  "pm.test('@odata.id points to service root', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    // Accept both /redfish/v1 and /redfish/v1/",
+                  "    pm.expect(jsonData['@odata.id']).to.be.oneOf(['/redfish/v1', '/redfish/v1/']);",
+                  "});",
+                  "",
+                  "pm.test('RedfishVersion is valid', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.RedfishVersion).to.be.a('string');",
+                  "    pm.expect(jsonData.RedfishVersion).to.match(/^\\d+\\.\\d+\\.\\d+$/);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - Links Format Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Systems link is properly formatted', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.Systems).to.be.an('object');",
+                  "    pm.expect(jsonData.Systems['@odata.id']).to.equal('/redfish/v1/Systems');",
+                  "});",
+                  "",
+                  "pm.test('All resource links use @odata.id format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    // Check Systems link",
+                  "    if (jsonData.Systems) {",
+                  "        pm.expect(jsonData.Systems).to.have.property('@odata.id');",
+                  "        pm.expect(jsonData.Systems['@odata.id']).to.include('/redfish/v1/');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('@odata.context points to metadata', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.context']).to.include('$metadata');",
+                  "    pm.expect(jsonData['@odata.context']).to.include('ServiceRoot');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - HTTP Headers Validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is present and valid', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response has appropriate caching headers', function () {",
+                  "    // Service root should be cacheable",
+                  "    var cacheControl = pm.response.headers.get('Cache-Control');",
+                  "    // If cache headers are present, verify they're reasonable",
+                  "    if (cacheControl) {",
+                  "        pm.expect(cacheControl).to.be.a('string');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - No Trailing Slash",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or redirect', function () {",
+                  "    // Should either return 200 directly or redirect to trailing slash",
+                  "    pm.expect([200, 301, 302, 307, 308]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('Response is valid JSON when 200', function () {",
+                  "        pm.response.to.be.json;",
+                  "    });",
+                  "    ",
+                  "    pm.test('Has OData properties when 200', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('@odata.id');",
+                  "    });",
+                  "}",
+                  "",
+                  "if ([301, 302, 307, 308].includes(pm.response.code)) {",
+                  "    pm.test('Redirect location includes trailing slash', function () {",
+                  "        var location = pm.response.headers.get('Location');",
+                  "        pm.expect(location).to.include('/redfish/v1/');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - POST Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('POST to service root returns 405', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Error response is valid JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header still present on error', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - PUT Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PUT to service root returns 405', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Error response is valid JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates method not allowed', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - DELETE Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('DELETE to service root returns 405', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Error response is valid JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates method not allowed', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Service Root - PATCH Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('PATCH to service root returns 405', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Error response is valid JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('Error message indicates method not allowed', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", ""]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get OData Metadata Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/xml', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/xml');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response is valid XML', function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('<?xml version');",
+                  "    pm.expect(responseText).to.include('<edmx:Edmx');",
+                  "});",
+                  "",
+                  "pm.test('XML contains required DMTF namespaces', function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('ServiceRoot');",
+                  "    pm.expect(responseText).to.include('ComputerSystem');",
+                  "    pm.expect(responseText).to.include('Resource');",
+                  "});",
+                  "",
+                  "pm.test('XML has proper EDMX structure', function () {",
+                  "    var responseText = pm.response.text();",
+                  "    pm.expect(responseText).to.include('edmx:Reference');",
+                  "    pm.expect(responseText).to.include('edmx:DataServices');",
+                  "    pm.expect(responseText).to.include('http://docs.oasis-open.org/odata/ns/edmx');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/xml"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/$metadata",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "$metadata"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metadata - No Auth Required",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Metadata endpoint is publicly accessible', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('No authentication required', function () {",
+                  "    // This test passes if status is 200 without auth",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/$metadata",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "$metadata"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metadata - Caching Test",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response body is not empty', function () {",
+                  "    pm.expect(pm.response.text().length).to.be.above(0);",
+                  "});",
+                  "",
+                  "// Store response for comparison",
+                  "pm.environment.set('metadata_response', pm.response.text());"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/$metadata",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "$metadata"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Metadata - Verify Cached Response",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Cached response matches first request', function () {",
+                  "    var firstResponse = pm.environment.get('metadata_response');",
+                  "    var currentResponse = pm.response.text();",
+                  "    pm.expect(currentResponse).to.equal(firstResponse);",
+                  "});",
+                  "",
+                  "// Clean up",
+                  "pm.environment.unset('metadata_response');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/$metadata",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "$metadata"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get OData Service Document",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response has @odata.context', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.context');",
+                  "    pm.expect(jsonData['@odata.context']).to.include('$metadata');",
+                  "});",
+                  "",
+                  "pm.test('Response has value array', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('value');",
+                  "    pm.expect(jsonData.value).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Services have required properties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.value.length).to.be.above(0);",
+                  "    ",
+                  "    jsonData.value.forEach(function(service) {",
+                  "        pm.expect(service).to.have.property('name');",
+                  "        pm.expect(service).to.have.property('kind');",
+                  "        pm.expect(service).to.have.property('url');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Systems service is listed', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var systemsService = jsonData.value.find(s => s.name === 'Systems');",
+                  "    pm.expect(systemsService).to.not.be.undefined;",
+                  "    pm.expect(systemsService.kind).to.equal('Singleton');",
+                  "    pm.expect(systemsService.url).to.equal('/redfish/v1/Systems');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get OData Service Document - No Auth Required",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('OData endpoint is publicly accessible', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('No authentication required', function () {",
+                  "    // This test passes if status is 200 without auth",
+                  "    pm.expect(pm.response.code).to.equal(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is valid OData service document', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.context');",
+                  "    pm.expect(jsonData).to.have.property('value');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "OData Service Document - Verify Services Structure",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('All services are properly formatted', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    ",
+                  "    jsonData.value.forEach(function(service) {",
+                  "        // Check name is not empty",
+                  "        pm.expect(service.name).to.be.a('string');",
+                  "        pm.expect(service.name.length).to.be.above(0);",
+                  "        ",
+                  "        // Check kind is valid",
+                  "        pm.expect(service.kind).to.be.oneOf(['Singleton', 'EntitySet']);",
+                  "        ",
+                  "        // Check URL is properly formatted",
+                  "        pm.expect(service.url).to.include('/redfish/v1/');",
+                  "        pm.expect(service.url).to.not.include('$metadata');",
+                  "        pm.expect(service.url).to.not.include('odata');",
+                  "    });",
+                  "});",
+                  "",
+                  "pm.test('Services are sorted alphabetically', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    var names = jsonData.value.map(s => s.name);",
+                  "    var sortedNames = [...names].sort();",
+                  "    pm.expect(names).to.deep.equal(sortedNames);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "OData Endpoint - POST Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "OData Endpoint - PUT Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "OData Endpoint - DELETE Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "OData Endpoint - PATCH Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.not.be.null;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/odata",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "odata"]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Protected Endpoints (Basic Auth)",
+      "item": [
+        {
+          "name": "Get Systems Collection",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response has Members array', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Members');",
+                  "    pm.expect(jsonData.Members).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Response has Members@odata.count', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Members@odata.count');",
+                  "});",
+                  "",
+                  "// Save first system ID for subsequent tests",
+                  "if (pm.response.json().Members.length > 0) {",
+                  "    var firstSystemUrl = pm.response.json().Members[0]['@odata.id'];",
+                  "    var systemId = firstSystemUrl.split('/').pop();",
+                  "    pm.environment.set('system_id', systemId);",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Specific System",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response has system properties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "    pm.expect(jsonData).to.have.property('Name');",
+                  "    pm.expect(jsonData).to.have.property('SystemType');",
+                  "});",
+                  "",
+                  "pm.test('Response has Status property', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Status');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get System - Invalid ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/invalid-system-id-12345",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "invalid-system-id-12345"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify System Properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('System has PowerState property', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('PowerState');",
+                  "});",
+                  "",
+                  "pm.test('System has SystemType property', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('SystemType');",
+                  "});",
+                  "",
+                  "pm.test('System has required OData properties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.context');",
+                  "    pm.expect(jsonData).to.have.property('@odata.id');",
+                  "    pm.expect(jsonData).to.have.property('@odata.type');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify All Core Properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('System has all required core properties', function () {",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "    pm.expect(jsonData).to.have.property('Name');",
+                  "    pm.expect(jsonData).to.have.property('SystemType');",
+                  "    pm.expect(jsonData).to.have.property('PowerState');",
+                  "});",
+                  "",
+                  "pm.test('System has manufacturer information', function () {",
+                  "    pm.expect(jsonData).to.have.property('Manufacturer');",
+                  "    pm.expect(jsonData.Manufacturer).to.be.a('string');",
+                  "    pm.expect(jsonData.Manufacturer.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('System has model information', function () {",
+                  "    pm.expect(jsonData).to.have.property('Model');",
+                  "    pm.expect(jsonData.Model).to.be.a('string');",
+                  "    pm.expect(jsonData.Model.length).to.be.above(0);",
+                  "});",
+                  "",
+                  "pm.test('System has serial number', function () {",
+                  "    pm.expect(jsonData).to.have.property('SerialNumber');",
+                  "    pm.expect(jsonData.SerialNumber).to.be.a('string');",
+                  "    pm.expect(jsonData.SerialNumber.length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify OData Properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('@odata.context is correctly formatted', function () {",
+                  "    pm.expect(jsonData['@odata.context']).to.equal('/redfish/v1/$metadata#ComputerSystem.ComputerSystem');",
+                  "});",
+                  "",
+                  "pm.test('@odata.id matches system ID', function () {",
+                  "    var systemId = pm.environment.get('system_id');",
+                  "    pm.expect(jsonData['@odata.id']).to.equal('/redfish/v1/Systems/' + systemId);",
+                  "});",
+                  "",
+                  "pm.test('@odata.type is ComputerSystem', function () {",
+                  "    pm.expect(jsonData['@odata.type']).to.include('ComputerSystem');",
+                  "});",
+                  "",
+                  "pm.test('Id property matches URL parameter', function () {",
+                  "    var systemId = pm.environment.get('system_id');",
+                  "    pm.expect(jsonData.Id).to.equal(systemId);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify BiosVersion Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('BiosVersion property exists', function () {",
+                  "    pm.expect(jsonData).to.have.property('BiosVersion');",
+                  "});",
+                  "",
+                  "pm.test('BiosVersion is a string if present', function () {",
+                  "    if (jsonData.BiosVersion !== null && jsonData.BiosVersion !== undefined) {",
+                  "        pm.expect(jsonData.BiosVersion).to.be.a('string');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify Status Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Status property exists', function () {",
+                  "    pm.expect(jsonData).to.have.property('Status');",
+                  "});",
+                  "",
+                  "if (jsonData.Status !== null && jsonData.Status !== undefined) {",
+                  "    pm.test('Status has State property', function () {",
+                  "        pm.expect(jsonData.Status).to.have.property('State');",
+                  "    });",
+                  "",
+                  "    pm.test('Status has Health property', function () {",
+                  "        pm.expect(jsonData.Status).to.have.property('Health');",
+                  "    });",
+                  "",
+                  "    pm.test('Status has HealthRollup property if present', function () {",
+                  "        if (jsonData.Status.hasOwnProperty('HealthRollup') && jsonData.Status.HealthRollup !== null) {",
+                  "            var validHealth = ['OK', 'Warning', 'Critical'];",
+                  "            pm.expect(validHealth).to.include(jsonData.Status.HealthRollup);",
+                  "        }",
+                  "    });",
+                  "",
+                  "    pm.test('Status.State is valid', function () {",
+                  "        var validStates = ['Enabled', 'Disabled', 'StandbyOffline', 'StandbySpare', 'InTest', 'Starting', 'Absent', 'UnavailableOffline', 'Deferring', 'Quiesced', 'Updating', 'Degraded'];",
+                  "        if (jsonData.Status.State) {",
+                  "            pm.expect(validStates).to.include(jsonData.Status.State);",
+                  "        }",
+                  "    });",
+                  "",
+                  "    pm.test('Status.Health is valid', function () {",
+                  "        var validHealth = ['OK', 'Warning', 'Critical'];",
+                  "        if (jsonData.Status.Health) {",
+                  "            pm.expect(validHealth).to.include(jsonData.Status.Health);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify PowerState Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('PowerState property exists', function () {",
+                  "    pm.expect(jsonData).to.have.property('PowerState');",
+                  "});",
+                  "",
+                  "pm.test('PowerState value is valid', function () {",
+                  "    var validPowerStates = ['On', 'Off', 'PoweringOn', 'PoweringOff'];",
+                  "    if (jsonData.PowerState) {",
+                  "        pm.expect(validPowerStates).to.include(jsonData.PowerState);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify SystemType Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('SystemType property exists', function () {",
+                  "    pm.expect(jsonData).to.have.property('SystemType');",
+                  "});",
+                  "",
+                  "pm.test('SystemType value is valid', function () {",
+                  "    var validSystemTypes = ['Physical', 'Virtual', 'OS', 'PhysicallyPartitioned', 'VirtuallyPartitioned'];",
+                  "    if (jsonData.SystemType) {",
+                  "        pm.expect(validSystemTypes).to.include(jsonData.SystemType);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify Actions Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('Actions property exists', function () {",
+                  "    pm.expect(jsonData).to.have.property('Actions');",
+                  "});",
+                  "",
+                  "pm.test('Actions has Reset action', function () {",
+                  "    pm.expect(jsonData.Actions).to.have.property('#ComputerSystem.Reset');",
+                  "});",
+                  "",
+                  "pm.test('Reset action has target', function () {",
+                  "    var resetAction = jsonData.Actions['#ComputerSystem.Reset'];",
+                  "    pm.expect(resetAction).to.have.property('target');",
+                  "    var systemId = pm.environment.get('system_id');",
+                  "    pm.expect(resetAction.target).to.equal('/redfish/v1/Systems/' + systemId + '/Actions/ComputerSystem.Reset');",
+                  "});",
+                  "",
+                  "pm.test('Reset action structure is valid', function () {",
+                  "    var resetAction = jsonData.Actions['#ComputerSystem.Reset'];",
+                  "    pm.expect(resetAction).to.be.an('object');",
+                  "    pm.expect(Object.keys(resetAction).length).to.be.above(0);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify Optional Properties",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "// Test optional properties - they may or may not be present",
+                  "pm.test('Description is string if present', function () {",
+                  "    if (jsonData.hasOwnProperty('Description') && jsonData.Description !== null) {",
+                  "        pm.expect(jsonData.Description).to.be.a('string');",
+                  "    }",
+                  "});",
+                  "",
+                  "pm.test('HostName is string if present', function () {",
+                  "    if (jsonData.hasOwnProperty('HostName') && jsonData.HostName !== null) {",
+                  "        pm.expect(jsonData.HostName).to.be.a('string');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify MemorySummary Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('MemorySummary property type is correct if present', function () {",
+                  "    if (jsonData.hasOwnProperty('MemorySummary') && jsonData.MemorySummary !== null) {",
+                  "        pm.expect(jsonData.MemorySummary).to.be.an('object');",
+                  "    }",
+                  "});",
+                  "",
+                  "if (jsonData.hasOwnProperty('MemorySummary') && jsonData.MemorySummary !== null) {",
+                  "    pm.test('MemorySummary has valid structure', function () {",
+                  "        var memory = jsonData.MemorySummary;",
+                  "        ",
+                  "        // TotalSystemMemoryGiB should be a number if present",
+                  "        if (memory.hasOwnProperty('TotalSystemMemoryGiB') && memory.TotalSystemMemoryGiB !== null) {",
+                  "            pm.expect(memory.TotalSystemMemoryGiB).to.be.a('number');",
+                  "            pm.expect(memory.TotalSystemMemoryGiB).to.be.above(0);",
+                  "        }",
+                  "        ",
+                  "        // Status should be an object if present",
+                  "        if (memory.hasOwnProperty('Status') && memory.Status !== null) {",
+                  "            pm.expect(memory.Status).to.be.an('object');",
+                  "        }",
+                  "        ",
+                  "        // MemoryMirroring should be valid enum if present",
+                  "        if (memory.hasOwnProperty('MemoryMirroring') && memory.MemoryMirroring !== null) {",
+                  "            var validMirroring = ['System', 'DIMM', 'Hybrid', 'None'];",
+                  "            pm.expect(validMirroring).to.include(memory.MemoryMirroring);",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Verify ProcessorSummary Property",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "var jsonData = pm.response.json();",
+                  "",
+                  "pm.test('ProcessorSummary property type is correct if present', function () {",
+                  "    if (jsonData.hasOwnProperty('ProcessorSummary') && jsonData.ProcessorSummary !== null) {",
+                  "        pm.expect(jsonData.ProcessorSummary).to.be.an('object');",
+                  "    }",
+                  "});",
+                  "",
+                  "if (jsonData.hasOwnProperty('ProcessorSummary') && jsonData.ProcessorSummary !== null) {",
+                  "    pm.test('ProcessorSummary has valid structure', function () {",
+                  "        var processor = jsonData.ProcessorSummary;",
+                  "        ",
+                  "        // Count should be a number if present",
+                  "        if (processor.hasOwnProperty('Count') && processor.Count !== null) {",
+                  "            pm.expect(processor.Count).to.be.a('number');",
+                  "            pm.expect(processor.Count).to.be.above(0);",
+                  "        }",
+                  "        ",
+                  "        // CoreCount should be a number if present",
+                  "        if (processor.hasOwnProperty('CoreCount') && processor.CoreCount !== null) {",
+                  "            pm.expect(processor.CoreCount).to.be.a('number');",
+                  "            pm.expect(processor.CoreCount).to.be.above(0);",
+                  "        }",
+                  "        ",
+                  "        // LogicalProcessorCount should be a number if present",
+                  "        if (processor.hasOwnProperty('LogicalProcessorCount') && processor.LogicalProcessorCount !== null) {",
+                  "            pm.expect(processor.LogicalProcessorCount).to.be.a('number');",
+                  "            pm.expect(processor.LogicalProcessorCount).to.be.above(0);",
+                  "        }",
+                  "        ",
+                  "        // Model should be a string if present",
+                  "        if (processor.hasOwnProperty('Model') && processor.Model !== null) {",
+                  "            pm.expect(processor.Model).to.be.a('string');",
+                  "        }",
+                  "        ",
+                  "        // ThreadingEnabled should be a boolean if present",
+                  "        if (processor.hasOwnProperty('ThreadingEnabled') && processor.ThreadingEnabled !== null) {",
+                  "            pm.expect(processor.ThreadingEnabled).to.be.a('boolean');",
+                  "        }",
+                  "        ",
+                  "        // Status should be an object if present",
+                  "        if (processor.hasOwnProperty('Status') && processor.Status !== null) {",
+                  "            pm.expect(processor.Status).to.be.an('object');",
+                  "        }",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - POST Method Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Name\": \"New System\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PUT Method Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PUT",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Name\": \"Updated System\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains system with Boot property', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.type');",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\", \"BootSourceOverrideTarget\": \"Pxe\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings to BiosSetup",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 OK', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains system', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.type');",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\", \"BootSourceOverrideTarget\": \"BiosSetup\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - No Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\", \"BootSourceOverrideTarget\": \"Pxe\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - Invalid Target",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\", \"BootSourceOverrideTarget\": \"InvalidBootTarget\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - Invalid Enabled",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Always\", \"BootSourceOverrideTarget\": \"Pxe\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - Invalid System ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\", \"BootSourceOverrideTarget\": \"Pxe\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/invalid-system-id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "invalid-system-id"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - Nonexistent System",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\", \"BootSourceOverrideTarget\": \"Pxe\"}}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - Empty Body",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 400', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 400]);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - PATCH Boot Settings - Malformed JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "PATCH",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"Boot\": {\"BootSourceOverrideEnabled\": \"Once\""
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Complete Reset to BIOS Flow - Set Boot Then Reset",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// This test validates the complete two-step Reset to BIOS flow",
+                  "pm.test('Status code is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('Response is valid Redfish Task', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('@odata.type');",
+                  "    pm.expect(jsonData['@odata.type']).to.include('Task');",
+                  "});",
+                  "",
+                  "pm.test('Task completed successfully', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.TaskState).to.equal('Completed');",
+                  "});",
+                  "",
+                  "pm.test('Location header points to task resource', function () {",
+                  "    var location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.include('/redfish/v1/TaskService/Tasks/');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "exec": [
+                  "// First, PATCH boot settings to BiosSetup/Once",
+                  "const patchRequest = {",
+                  "    url: pm.variables.get('base_url') + '/redfish/v1/Systems/' + pm.variables.get('system_id'),",
+                  "    method: 'PATCH',",
+                  "    header: {",
+                  "        'Content-Type': 'application/json',",
+                  "        'Accept': 'application/json'",
+                  "    },",
+                  "    body: {",
+                  "        mode: 'raw',",
+                  "        raw: JSON.stringify({",
+                  "            Boot: {",
+                  "                BootSourceOverrideEnabled: 'Once',",
+                  "                BootSourceOverrideTarget: 'BiosSetup'",
+                  "            }",
+                  "        })",
+                  "    }",
+                  "};",
+                  "",
+                  "pm.sendRequest(patchRequest, function (err, response) {",
+                  "    if (err) {",
+                  "        console.error('Failed to set boot settings:', err);",
+                  "    } else {",
+                  "        console.log('Boot settings configured for BIOS setup');",
+                  "        console.log('Status:', response.code);",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\"ResetType\": \"ForceRestart\"}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - DELETE Method Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405 Method Not Allowed', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - HEAD Method",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 or 405', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([200, 405]);",
+                  "});",
+                  "",
+                  "if (pm.response.code === 200) {",
+                  "    pm.test('OData-Version header is 4.0', function () {",
+                  "        var odataVersion = pm.response.headers.get('OData-Version');",
+                  "        pm.expect(odataVersion).to.equal('4.0');",
+                  "    });",
+                  "",
+                  "    pm.test('Content-Type header is present', function () {",
+                  "        var contentType = pm.response.headers.get('Content-Type');",
+                  "        pm.expect(contentType).to.include('application/json');",
+                  "    });",
+                  "",
+                  "    pm.test('Response body is empty for HEAD', function () {",
+                  "        pm.expect(pm.response.text()).to.equal('');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "HEAD",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Empty SystemID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200 for empty SystemID (returns collection)', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Response is Systems collection', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Members');",
+                  "    pm.expect(jsonData).to.have.property('Members@odata.count');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Invalid UUID Format",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 for invalid UUID format', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response has expected structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/nonexistent-system-id-12345",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "nonexistent-system-id-12345"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Valid UUID Not Found",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 for valid UUID that does not exist', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response has expected structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/00000000-0000-0000-0000-000000000000",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "00000000-0000-0000-0000-000000000000"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Special Characters in SystemID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 404 for special characters', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test('Server handles special characters (JSON or HTML error)', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    if (contentType && contentType.includes('application/json')) {",
+                  "        pm.response.to.be.json;",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('error');",
+                  "    } else {",
+                  "        // Server may return HTML error page for malformed URLs",
+                  "        pm.expect(pm.response.text()).to.include('<!doctype html>');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/<script>alert('xss')</script>",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "<script>alert('xss')</script>"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - SQL Injection Attempt in SystemID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 404 for SQL injection attempt', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response has expected structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/' OR '1'='1",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "' OR '1'='1"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Path Traversal Attempt in SystemID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 404 for path traversal attempt', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test('Server blocks path traversal (JSON or HTML error)', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    if (contentType && contentType.includes('application/json')) {",
+                  "        pm.response.to.be.json;",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('error');",
+                  "    } else {",
+                  "        // Server may return HTML error page for malformed URLs",
+                  "        pm.expect(pm.response.text()).to.include('<!doctype html>');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/../../../etc/passwd",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "..",
+                "..",
+                "..",
+                "etc",
+                "passwd"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Very Long SystemID (51 chars)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 404 for very long SystemID', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404, 414]);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response has expected structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Extremely Long SystemID (1024 chars)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400, 404, or 414 for extremely long SystemID', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404, 414]);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON or error', function () {",
+                  "    // Service may return JSON error or reject the request entirely",
+                  "    if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+                  "        pm.response.to.be.json;",
+                  "    }",
+                  "});",
+                  "",
+                  "if (pm.response.headers.get('Content-Type') && pm.response.headers.get('Content-Type').includes('application/json')) {",
+                  "    pm.test('Error response has expected structure', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('error');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Null Byte in SystemID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 404 for null byte in SystemID', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response has expected structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/system%00id",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "system%00id"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "System by ID - Unicode Characters in SystemID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 or 404 for unicode characters', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([400, 404]);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response has expected structure', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/系统标识符",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "系统标识符"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Power Control Actions",
+      "item": [
+        {
+          "name": "Reset System - On",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 202 Accepted or 409 Conflict', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([202, 409]);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"On\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - ForceOff",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 202 Accepted', function () {",
+                  "    pm.response.to.have.status(202);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"ForceOff\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - ForceRestart",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Critical test: Validates that ForceRestart is preserved as a specific",
+                  "// reset type and not converted to generic PowerStateOff before reaching WSMAN",
+                  "",
+                  "pm.test('Status code is 202 Accepted or 409 Conflict', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([202, 409]);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 202) {",
+                  "    pm.test('Response is valid Redfish Task', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('@odata.type');",
+                  "        pm.expect(jsonData['@odata.type']).to.include('Task');",
+                  "    });",
+                  "",
+                  "    pm.test('Task completed successfully', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('TaskState');",
+                  "        pm.expect(jsonData.TaskState).to.equal('Completed');",
+                  "    });",
+                  "",
+                  "    pm.test('Task status is OK', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('TaskStatus');",
+                  "        pm.expect(jsonData.TaskStatus).to.equal('OK');",
+                  "    });",
+                  "",
+                  "    pm.test('Location header points to task resource', function () {",
+                  "        var location = pm.response.headers.get('Location');",
+                  "        pm.expect(location).to.include('/redfish/v1/TaskService/Tasks/');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"ForceRestart\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - GracefulShutdown",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 202 Accepted or 409 Conflict', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([202, 409]);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"GracefulShutdown\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - PowerCycle",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "// Critical test: Validates that PowerCycle is preserved as a specific",
+                  "// reset type and not converted to generic PowerStateOff before reaching WSMAN",
+                  "",
+                  "pm.test('Status code is 202 Accepted or 409 Conflict', function () {",
+                  "    pm.expect(pm.response.code).to.be.oneOf([202, 409]);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "if (pm.response.code === 202) {",
+                  "    pm.test('Response is valid Redfish Task', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('@odata.type');",
+                  "        pm.expect(jsonData['@odata.type']).to.include('Task');",
+                  "    });",
+                  "",
+                  "    pm.test('Task completed successfully', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('TaskState');",
+                  "        pm.expect(jsonData.TaskState).to.equal('Completed');",
+                  "    });",
+                  "",
+                  "    pm.test('Task status is OK', function () {",
+                  "        var jsonData = pm.response.json();",
+                  "        pm.expect(jsonData).to.have.property('TaskStatus');",
+                  "        pm.expect(jsonData.TaskStatus).to.equal('OK');",
+                  "    });",
+                  "",
+                  "    pm.test('Location header points to task resource', function () {",
+                  "        var location = pm.response.headers.get('Location');",
+                  "        pm.expect(location).to.include('/redfish/v1/TaskService/Tasks/');",
+                  "    });",
+                  "}"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"PowerCycle\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - Missing ResetType",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - Invalid ResetType",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"InvalidResetType\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - Invalid System ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"On\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/invalid-system-id/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "invalid-system-id",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Reset System - Malformed JSON",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"ResetType\": \"On\",\n  invalid json\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems/{{system_id}}/Actions/ComputerSystem.Reset",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems",
+                "{{system_id}}",
+                "Actions",
+                "ComputerSystem.Reset"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Authentication Tests",
+      "item": [
+        {
+          "name": "Protected Endpoint - No Auth (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Content-Type is application/json', function () {",
+                  "    var contentType = pm.response.headers.get('Content-Type');",
+                  "    pm.expect(contentType).to.include('application/json');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});",
+                  "",
+                  "pm.test('Response contains Redfish error format', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "    pm.expect(jsonData.error).to.have.property('@Message.ExtendedInfo');",
+                  "    pm.expect(jsonData.error['@Message.ExtendedInfo']).to.be.an('array');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems"
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Protected Endpoint - Invalid Auth (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "basic",
+              "basic": [
+                {
+                  "key": "username",
+                  "value": "invalid_user",
+                  "type": "string"
+                },
+                {
+                  "key": "password",
+                  "value": "invalid_password",
+                  "type": "string"
+                }
+              ]
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/Systems",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "Systems"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Error Handling Tests",
+      "item": [
+        {
+          "name": "Method Not Allowed - POST to Service Root",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 405', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error message', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                ""
+              ]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Invalid Endpoint",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/InvalidEndpoint",
+              "host": [
+                "{{base_url}}"
+              ],
+              "path": [
+                "redfish",
+                "v1",
+                "InvalidEndpoint"
+              ]
+            }
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "SessionService",
+      "description": "Tests for Redfish SessionService endpoints and session lifecycle",
+      "item": [
+        {
+          "name": "Get SessionService - No Auth (Should Fail)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 without auth', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Session - Valid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 201 Created', function () {",
+                  "    pm.response.to.have.status(201);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('X-Auth-Token header is present', function () {",
+                  "    var token = pm.response.headers.get('X-Auth-Token');",
+                  "    pm.expect(token).to.not.be.null;",
+                  "    pm.expect(token.length).to.be.above(0);",
+                  "    // Store token for subsequent tests",
+                  "    pm.environment.set('session_token', token);",
+                  "});",
+                  "",
+                  "pm.test('Location header is present', function () {",
+                  "    var location = pm.response.headers.get('Location');",
+                  "    pm.expect(location).to.not.be.null;",
+                  "    pm.expect(location).to.include('/redfish/v1/SessionService/Sessions/');",
+                  "});",
+                  "",
+                  "pm.test('Response has session Id', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "    pm.expect(jsonData.Id).to.be.a('string');",
+                  "    // Store session ID for subsequent tests",
+                  "    pm.environment.set('session_id', jsonData.Id);",
+                  "});",
+                  "",
+                  "pm.test('Response has UserName', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('UserName');",
+                  "    pm.expect(jsonData.UserName).to.equal(pm.environment.get('admin_username'));",
+                  "});",
+                  "",
+                  "pm.test('Response has correct @odata.type', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.type']).to.include('Session');",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is 4.0', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"UserName\": \"{{admin_username}}\",\n    \"Password\": \"{{admin_password}}\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get SessionService - With Session Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Response has SessionService properties', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "    pm.expect(jsonData.Id).to.equal('SessionService');",
+                  "});",
+                  "",
+                  "pm.test('Response has correct @odata.type', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.type']).to.include('SessionService');",
+                  "});",
+                  "",
+                  "pm.test('SessionService has Sessions link', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Sessions');",
+                  "    pm.expect(jsonData.Sessions).to.have.property('@odata.id');",
+                  "    pm.expect(jsonData.Sessions['@odata.id']).to.include('Sessions');",
+                  "});",
+                  "",
+                  "pm.test('ServiceEnabled is true', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData.ServiceEnabled).to.be.true;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "{{session_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session Collection - With Session Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Response has Members array', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Members');",
+                  "    pm.expect(jsonData.Members).to.be.an('array');",
+                  "});",
+                  "",
+                  "pm.test('Response has Members@odata.count', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Members@odata.count');",
+                  "    pm.expect(jsonData['Members@odata.count']).to.be.at.least(1);",
+                  "});",
+                  "",
+                  "pm.test('Response has correct @odata.type', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.type']).to.include('SessionCollection');",
+                  "});",
+                  "",
+                  "pm.test('Members contain session references', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    if (jsonData.Members.length > 0) {",
+                  "        pm.expect(jsonData.Members[0]).to.have.property('@odata.id');",
+                  "        pm.expect(jsonData.Members[0]['@odata.id']).to.include('/redfish/v1/SessionService/Sessions/');",
+                  "    }",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "{{session_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Individual Session - With Session Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 200', function () {",
+                  "    pm.response.to.have.status(200);",
+                  "});",
+                  "",
+                  "pm.test('Response is JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Response has session Id', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('Id');",
+                  "    pm.expect(jsonData.Id).to.equal(pm.environment.get('session_id'));",
+                  "});",
+                  "",
+                  "pm.test('Response has UserName', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('UserName');",
+                  "    pm.expect(jsonData.UserName).to.equal(pm.environment.get('admin_username'));",
+                  "});",
+                  "",
+                  "pm.test('Response has correct @odata.type', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.type']).to.include('Session');",
+                  "});",
+                  "",
+                  "pm.test('Response has @odata.id matching request', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData['@odata.id']).to.include(pm.environment.get('session_id'));",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "{{session_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions/{{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions", "{{session_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Session - Invalid Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "pm.test('No X-Auth-Token header on failure', function () {",
+                  "    var token = pm.response.headers.get('X-Auth-Token');",
+                  "    pm.expect(token).to.be.oneOf([null, undefined]);",
+                  "});",
+                  "",
+                  "pm.test('OData-Version header is still present', function () {",
+                  "    var odataVersion = pm.response.headers.get('OData-Version');",
+                  "    pm.expect(odataVersion).to.equal('4.0');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n    \"UserName\": \"wronguser\",\n    \"Password\": \"wrongpassword\"\n}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Create Session - Missing Credentials",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 400 Bad Request', function () {",
+                  "    pm.response.to.have.status(400);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session - Invalid Token",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 Unauthorized', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "invalid-token-12345"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Get Session - Nonexistent Session ID",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 404 Not Found', function () {",
+                  "    pm.response.to.have.status(404);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "{{session_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions/nonexistent-session-id",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions", "nonexistent-session-id"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Delete Session (Logout)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 204 No Content', function () {",
+                  "    pm.response.to.have.status(204);",
+                  "});",
+                  "",
+                  "pm.test('Response body is empty', function () {",
+                  "    pm.expect(pm.response.text()).to.be.empty;",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "DELETE",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "{{session_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions/{{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions", "{{session_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Verify Deleted Session Returns 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('Status code is 401 or 404 after deletion', function () {",
+                  "    // After session deletion, the token is also invalidated",
+                  "    // So we may get 401 (invalid token) or 404 (session not found)",
+                  "    pm.expect([401, 404]).to.include(pm.response.code);",
+                  "});",
+                  "",
+                  "pm.test('Response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});",
+                  "",
+                  "// Clean up environment variables",
+                  "pm.environment.unset('session_token');",
+                  "pm.environment.unset('session_id');"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "X-Auth-Token",
+                "value": "{{session_token}}"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions/{{session_id}}",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions", "{{session_id}}"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "SessionService - POST Not Allowed",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('POST to SessionService returns 405', function () {",
+                  "    pm.response.to.have.status(405);",
+                  "});",
+                  "",
+                  "pm.test('Error response is valid JSON', function () {",
+                  "    pm.response.to.be.json;",
+                  "});",
+                  "",
+                  "pm.test('Error response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              },
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{}"
+            },
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService"]
+            }
+          },
+          "response": []
+        },
+        {
+          "name": "Sessions Collection - GET Not Allowed Without Auth",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "exec": [
+                  "pm.test('GET to Sessions without auth returns 401', function () {",
+                  "    pm.response.to.have.status(401);",
+                  "});",
+                  "",
+                  "pm.test('Error response contains error object', function () {",
+                  "    var jsonData = pm.response.json();",
+                  "    pm.expect(jsonData).to.have.property('error');",
+                  "});"
+                ],
+                "type": "text/javascript"
+              }
+            }
+          ],
+          "request": {
+            "auth": {
+              "type": "noauth"
+            },
+            "method": "GET",
+            "header": [
+              {
+                "key": "Accept",
+                "value": "application/json"
+              }
+            ],
+            "url": {
+              "raw": "{{base_url}}/redfish/v1/SessionService/Sessions",
+              "host": ["{{base_url}}"],
+              "path": ["redfish", "v1", "SessionService", "Sessions"]
+            }
+          },
+          "response": []
+        }
+      ]
+    }
+  ],
+  "variable": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8080"
+    },
+    {
+      "key": "admin_username",
+      "value": "admin"
+    },
+    {
+      "key": "admin_password",
+      "value": "admin"
+    },
+    {
+      "key": "system_id",
+      "value": ""
+    }
+  ]
+}

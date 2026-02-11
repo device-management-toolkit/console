@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<edmx:Edmx xmlns:edmx="http://docs.oasis-open.org/odata/ns/edmx" Version="4.0">
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ActionInfo_v1.xml">
+        <edmx:Include Namespace="ActionInfo"/>
+        <edmx:Include Namespace="ActionInfo.1_5_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ComputerSystemCollection_v1.xml">
+        <edmx:Include Namespace="ComputerSystemCollection"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ComputerSystem_v1.xml">
+        <edmx:Include Namespace="ComputerSystem"/>
+        <edmx:Include Namespace="ComputerSystem.1_26_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Message_v1.xml">
+        <edmx:Include Namespace="Message"/>
+        <edmx:Include Namespace="Message.1_2_1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ResolutionStep_v1.xml">
+        <edmx:Include Namespace="ResolutionStep"/>
+        <edmx:Include Namespace="ResolutionStep.1_0_1"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Resource_v1.xml">
+        <edmx:Include Namespace="Resource"/>
+        <edmx:Include Namespace="Resource.1_23_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/ServiceRoot_v1.xml">
+        <edmx:Include Namespace="ServiceRoot"/>
+        <edmx:Include Namespace="ServiceRoot.1_19_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SessionCollection_v1.xml">
+        <edmx:Include Namespace="SessionCollection"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/SessionService_v1.xml">
+        <edmx:Include Namespace="SessionService"/>
+        <edmx:Include Namespace="SessionService.1_2_0"/>
+    </edmx:Reference>
+    <edmx:Reference Uri="http://redfish.dmtf.org/schemas/v1/Session_v1.xml">
+        <edmx:Include Namespace="Session"/>
+        <edmx:Include Namespace="Session.1_8_0"/>
+    </edmx:Reference>
+    <edmx:DataServices>
+        <Schema xmlns="http://docs.oasis-open.org/odata/ns/edm" Namespace="Service">
+            <EntityContainer Name="Service" Extends="ServiceRoot.v1_19_0.ServiceContainer"/>
+        </Schema>
+    </edmx:DataServices>
+</edmx:Edmx>
