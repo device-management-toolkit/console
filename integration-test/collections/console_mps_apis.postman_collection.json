@@ -516,6 +516,70 @@
 					"response": []
 				},
 				{
+					"name": "Send Advanced Power Action - EnforceSecureBoot false in CCM",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"// This test validates the CCM restriction for EnforceSecureBoot\r",
+									"// When a device is in Client Control Mode (CCM), EnforceSecureBoot cannot be turned off\r",
+									"// Expected: 400 Bad Request with error message about CCM restriction\r",
+									"// Note: This test requires a device in CCM mode to properly validate\r",
+									"\r",
+									"pm.test(\"Status code is 400 or 404\", function () {\r",
+									"    // 400 = CCM restriction error (expected for CCM device)\r",
+									"    // 404 = Device not found (if no device configured)\r",
+									"    pm.expect(pm.response.code).to.be.oneOf([400, 404]);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response contains appropriate error message\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    if (pm.response.code === 400) {\r",
+									"        pm.expect(jsonData.error).to.include(\"EnforceSecureBoot\");\r",
+									"        pm.expect(jsonData.error).to.include(\"CCM\");\r",
+									"    } else if (pm.response.code === 404) {\r",
+									"        pm.expect(jsonData.error).to.eq(\"Error not found\");\r",
+									"    }\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"action\": 105,\r\n    \"useSOL\": false,\r\n    \"bootDetails\": {\r\n        \"url\": \"https://example.com/boot.efi\",\r\n        \"enforceSecureBoot\": false\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/power/bootoptions/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"power",
+								"bootoptions",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Get AMT Features",
 					"event": [
 						{
