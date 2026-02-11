@@ -9,6 +9,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func TestRun(t *testing.T) {
@@ -45,7 +46,7 @@ func TestRun(t *testing.T) {
 			cfg: cfg,
 			expectFunc: func(_ *testing.T) {
 				go func() {
-					app.Run(cfg)
+					app.Run(cfg, logger.New("info"))
 				}()
 			},
 		},
