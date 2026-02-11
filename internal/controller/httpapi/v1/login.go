@@ -2,6 +2,8 @@ package v1
 
 import (
 	"context"
+	"errors"
+	"fmt"
 	"net/http"
 	"strings"
 	"time"
@@ -15,7 +17,10 @@ import (
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
-var ErrLogin = consoleerrors.CreateConsoleError("LoginHandler")
+var (
+	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
+	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+)
 
 type LoginRoute struct {
 	Config   *config.Config
@@ -99,11 +104,17 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 			if err != nil {
 				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid access token"})
 				c.Abort()
+
+				return
 			}
 		} else {
 			claims := &jwt.MapClaims{}
 
-			token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
+			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+					return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
+				}
+
 				return []byte(lr.Config.JWTKey), nil
 			})
 
