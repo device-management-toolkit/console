@@ -12,14 +12,21 @@ import (
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	redfish "github.com/device-management-toolkit/console/redfish"
 )
 
-// NewRouter -.
-func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
+// NewRouter sets up the HTTP router with redfish support.
+func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config, database *db.SQL) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
+
+	// Initialize redfish directly
+	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
+		l.Fatal("Failed to initialize redfish: " + err.Error())
+	}
 
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
@@ -71,5 +78,10 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	h3 := protected.Group("/v2")
 	{
 		v2.NewAmtRoutes(h3, t.Devices, l)
+	}
+
+	// Register redfish routes directly
+	if err := redfish.RegisterRoutes(handler, l); err != nil {
+		l.Fatal("Failed to register redfish routes: " + err.Error())
 	}
 }

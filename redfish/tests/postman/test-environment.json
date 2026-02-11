@@ -1,0 +1,35 @@
+{
+  "name": "CI Test Environment",
+  "values": [
+    {
+      "key": "base_url",
+      "value": "http://localhost:8181",
+      "enabled": true
+    },
+    {
+      "key": "admin_username",
+      "value": "standalone",
+      "enabled": true
+    },
+    {
+      "key": "admin_password",
+      "value": "G@ppm0ym",
+      "enabled": true
+    },
+    {
+      "key": "system_id",
+      "value": "550e8400-e29b-41d4-a716-446655440001",
+      "enabled": true
+    },
+    {
+      "key": "session_token",
+      "value": "",
+      "enabled": true
+    },
+    {
+      "key": "session_id",
+      "value": "",
+      "enabled": true
+    }
+  ]
+}

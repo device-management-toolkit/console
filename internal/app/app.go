@@ -50,7 +50,7 @@ func Run(cfg *config.Config) {
 	// Use case
 	usecases := usecase.NewUseCases(database, log, CertStore)
 
-	handler := setupHTTPHandler(cfg, log, usecases)
+	handler := setupHTTPHandler(cfg, log, usecases, database)
 
 	ciraServer := setupCIRAServer(cfg, log, database, usecases)
 
@@ -65,7 +65,7 @@ func Run(cfg *config.Config) {
 	shutdownServers(log, httpServer, ciraServer)
 }
 
-func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases) *gin.Engine {
+func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases, database *db.SQL) *gin.Engine {
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -77,7 +77,7 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	defaultConfig.AllowHeaders = cfg.AllowedHeaders
 
 	handler.Use(cors.New(defaultConfig))
-	httpapi.NewRouter(handler, log, *usecases, cfg)
+	httpapi.NewRouter(handler, log, *usecases, cfg, database)
 
 	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
 	if os.Getenv("ENABLE_PPROF") == "true" {

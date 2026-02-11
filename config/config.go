@@ -27,6 +27,7 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
+		Redfish `yaml:"redfish"`
 	}
 
 	// App -.
@@ -109,6 +110,10 @@ type (
 	// UI -.
 	UI struct {
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
+	}
+	// Redfish -.
+	Redfish struct {
+		EnvironmentUUID string `yaml:"environment_uuid" env:"REDFISH_ENV_UUID"`
 	}
 )
 
@@ -196,6 +201,9 @@ func defaultConfig() *Config {
 		},
 		UI: UI{
 			ExternalURL: "",
+		},
+		Redfish: Redfish{
+			EnvironmentUUID: "",
 		},
 	}
 }

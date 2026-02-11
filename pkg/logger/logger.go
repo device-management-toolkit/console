@@ -40,7 +40,7 @@ func New(level string) Interface {
 		l = zerolog.InfoLevel
 	}
 
-	skipFrameCount := 3
+	skipFrameCount := 2
 
 	var z zerolog.Logger
 
