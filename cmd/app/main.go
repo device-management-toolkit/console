@@ -90,9 +90,7 @@ func handleDebugMode(cfg *config.Config) {
 	if os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	} else {
-		if err := handleOpenAPIGeneration(); err != nil {
-			log.Fatalf("Failed to generate OpenAPI spec: %s", err)
-		}
+		handleOpenAPIGeneration(cfg)
 	}
 }
 
@@ -107,8 +105,8 @@ func launchBrowser(cfg *config.Config) {
 	}
 }
 
-func handleOpenAPIGeneration() error {
-	l := logger.New("info")
+func handleOpenAPIGeneration(cfg *config.Config) {
+	l := logger.New(cfg.Level)
 	usecases := usecase.Usecases{}
 
 	// Create OpenAPI generator
@@ -117,17 +115,19 @@ func handleOpenAPIGeneration() error {
 	// Generate specification
 	spec, err := generator.GenerateSpec()
 	if err != nil {
-		return err
+		l.Warn("Failed to generate OpenAPI spec: %s", err)
+
+		return
 	}
 
 	// Save to file
 	if err := generator.SaveSpec(spec, "doc/openapi.json"); err != nil {
-		return err
+		l.Warn("Failed to save OpenAPI spec: %s", err)
+
+		return
 	}
 
 	log.Println("OpenAPI specification generated at doc/openapi.json")
-
-	return nil
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
