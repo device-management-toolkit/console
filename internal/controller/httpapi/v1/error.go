@@ -29,6 +29,7 @@ func ErrorResponse(c *gin.Context, err error) {
 		NotUniqueErr    sqldb.NotUniqueError
 		amtErr          devices.AMTError
 		notSupportedErr devices.NotSupportedError
+		validationErr   devices.ValidationError
 		certExpErr      domains.CertExpirationError
 		certPasswordErr domains.CertPasswordError
 		netErr          net.Error
@@ -49,6 +50,9 @@ func ErrorResponse(c *gin.Context, err error) {
 		dbErrorHandle(c, dbErr)
 	case errors.As(err, &amtErr):
 		amtErrorHandle(c, amtErr)
+	case errors.As(err, &validationErr):
+		msg := validationErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 	case errors.As(err, &notSupportedErr):
 		msg := notSupportedErr.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusNotImplemented, response{Error: msg, Message: msg})
