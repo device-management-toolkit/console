@@ -1,0 +1,53 @@
+name: Redfish API Integration Tests
+
+on:
+  push:
+    branches: [ main, develop, redfish ]
+  pull_request:
+    branches: [ main, develop, redfish ]
+
+jobs:
+  redfish-newman-tests:
+    name: Redfish Newman/Postman Tests
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        with:
+          egress-policy: audit
+
+      - name: Checkout code
+        uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683
+
+      - name: Set up Go
+        uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a
+        with:
+          go-version: '1.24.x'
+
+      - name: Install dependencies
+        run: go mod download
+
+      - name: Install Newman
+        run: npm install -g newman newman-reporter-htmlextra --ignore-scripts
+
+      - name: Create results directory
+        run: mkdir -p redfish/tests/postman/results
+
+      - name: Make test script executable
+        run: chmod +x redfish/tests/run_tests.sh
+
+      - name: Run Redfish API tests with Newman
+        run: ./redfish/tests/run_tests.sh
+        env:
+          CI: "true"
+          REDFISH_USE_MOCK: "true"
+          HTTP_TLS_ENABLED: "false"
+          HTTP_PORT: "8181"
+
+      - name: Upload Newman test results
+        if: always()
+        uses: actions/upload-artifact@6f51ac03b9356f520e9adb1b1b7802705f340c2b # v4.5.0
+        with:
+          name: newman-redfish-results
+          path: redfish/tests/postman/results/

@@ -54,4 +54,7 @@ ui:
   # - Ignored: When building without 'noui' tag (embedded UI is served normally)
   # Example: https://ui.example.com
   externalUrl: ""
-
+redfish:
+  # Optional: Set a fixed UUID for this Redfish service instance
+  # If not set, a persistent UUID will be auto-generated and stored in ~/.config/dmt-redfish-service/service_uuid
+  # environment_uuid: ""

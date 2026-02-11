@@ -1,0 +1,122 @@
+{
+  "@odata.type": "#MessageRegistry.v1_6_2.MessageRegistry",
+  "Id": "Base.1.22.0",
+  "Name": "Base Message Registry",
+  "Language": "en",
+  "Description": "This registry defines the base messages for Redfish",
+  "RegistryPrefix": "Base",
+  "RegistryVersion": "1.22.0",
+  "OwningEntity": "DMTF",
+  "Messages": {
+    "Success": {
+      "Description": "A general success message.",
+      "Message": "The request completed successfully.",
+      "MessageSeverity": "OK",
+      "Severity": "OK",
+      "NumberOfArgs": 0,
+      "Resolution": "None"
+    },
+    "GeneralError": {
+      "Description": "A general error has occurred.",
+      "Message": "A general error has occurred. See Resolution for information on how to resolve the error, or @Message.ExtendedInfo if Resolution is not provided.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 0,
+      "Resolution": "None"
+    },
+    "InsufficientPrivilege": {
+      "Description": "Insufficient privilege for the operation.",
+      "Message": "There are insufficient privileges for the account or credentials associated with the current session to perform the requested operation.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 0,
+      "Resolution": "Either abandon the operation or change the associated access rights and resubmit the request if the operation failed."
+    },
+    "ResourceInUse": {
+      "Description": "The resource is in use.",
+      "Message": "The change to the requested resource failed because the resource is in use or in transition.",
+      "MessageSeverity": "Warning",
+      "Severity": "Warning",
+      "NumberOfArgs": 0,
+      "Resolution": "Remove the condition and resubmit the request if the operation failed."
+    },
+    "ResourceCannotBeDeleted": {
+      "Description": "The resource cannot be deleted.",
+      "Message": "The delete request failed because the resource requested cannot be deleted.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 0,
+      "Resolution": "Do not attempt to delete a non-deletable resource."
+    },
+    "MethodNotAllowed": {
+      "Description": "The HTTP method is not allowed on this resource.",
+      "Message": "The HTTP method is not allowed on this resource.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 0,
+      "Resolution": "None"
+    },
+    "MalformedJSON": {
+      "Description": "The request body contains malformed JSON.",
+      "Message": "The request body submitted was malformed JSON and could not be parsed by the receiving service.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 0,
+      "Resolution": "Ensure that the request body is valid JSON and resubmit the request."
+    },
+    "PropertyMissing": {
+      "Description": "The required property is missing from the request.",
+      "Message": "The property %1 is a required property and must be included in the request.",
+      "MessageSeverity": "Warning",
+      "Severity": "Warning",
+      "NumberOfArgs": 1,
+      "ParamTypes": [
+        "string"
+      ],
+      "Resolution": "Ensure that the property is in the request body and has a valid value and resubmit the request if the operation failed."
+    },
+    "PropertyValueNotInList": {
+      "Description": "The property value is not in the list of acceptable values.",
+      "Message": "The value %1 for the property %2 is not in the list of acceptable values.",
+      "MessageSeverity": "Warning",
+      "Severity": "Warning",
+      "NumberOfArgs": 2,
+      "ParamTypes": [
+        "string",
+        "string"
+      ],
+      "Resolution": "Choose a value from the enumeration list that the implementation can support and resubmit the request if the operation failed."
+    },
+    "ResourceMissing": {
+      "Description": "The requested resource does not exist.",
+      "Message": "The requested resource of type %1 named %2 was not found.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 2,
+      "ParamTypes": [
+        "string",
+        "string"
+      ],
+      "Resolution": "Provide a valid resource identifier and resubmit the request."
+    },
+    "InternalError": {
+      "Description": "The request failed due to an internal service error.",
+      "Message": "The request failed due to an internal service error.  The service is still operational.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 0,
+      "Resolution": "Resubmit the request.  If the problem persists, consider resetting the service."
+    },
+    "ServiceTemporarilyUnavailable": {
+      "Description": "The service is temporarily unavailable.",
+      "Message": "The service is temporarily unavailable.  Retry in %1 seconds.",
+      "MessageSeverity": "Critical",
+      "Severity": "Critical",
+      "NumberOfArgs": 1,
+      "ParamTypes": [
+        "string"
+      ],
+      "Resolution": "Wait for the indicated retry duration and retry the operation."
+    }
+  }
+}
