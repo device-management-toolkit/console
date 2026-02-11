@@ -21,7 +21,7 @@ type Profile struct {
 	DHCPEnabled                bool                 `json:"dhcpEnabled" example:"true"`
 	IPSyncEnabled              bool                 `json:"ipSyncEnabled" example:"true"`
 	LocalWiFiSyncEnabled       bool                 `json:"localWifiSyncEnabled" example:"true"`
-	WiFiConfigs                []ProfileWiFiConfigs `json:"wifiConfigs,omitempty" binding:"excluded_if=DHCPEnabled false,dive"`
+	WiFiConfigs                []ProfileWiFiConfigs `json:"wifiConfigs,omitempty" binding:"wifidhcp,dive"`
 	TenantID                   string               `json:"tenantId" example:"abc123"`
 	TLSMode                    int                  `json:"tlsMode,omitempty" binding:"omitempty,min=1,max=4,ciraortls" example:"1"`
 	TLSCerts                   *TLSCerts            `json:"tlsCerts,omitempty"`
@@ -64,6 +64,18 @@ var ValidateUserConsent validator.Func = func(fl validator.FieldLevel) bool {
 	}
 
 	return userConsent == "none" || userConsent == "kvm" || userConsent == "all"
+}
+
+var ValidateWiFiDHCP validator.Func = func(fl validator.FieldLevel) bool {
+	dhcpEnabled := fl.Parent().FieldByName("DHCPEnabled").Bool()
+	wifiConfigs := fl.Field()
+
+	// If WiFiConfigs has items and DHCP is disabled, fail validation
+	if wifiConfigs.Len() > 0 && !dhcpEnabled {
+		return false
+	}
+
+	return true
 }
 
 type ProfileCountResponse struct {

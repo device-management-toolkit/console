@@ -6,9 +6,13 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"reflect"
+	"sync"
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
@@ -18,8 +22,83 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// defaultValidator implements the gin binding.StructValidator interface
+type defaultValidator struct {
+	once     sync.Once
+	validate *validator.Validate
+}
+
+func (v *defaultValidator) ValidateStruct(obj any) error {
+	if obj == nil {
+		return nil
+	}
+
+	value := reflect.ValueOf(obj)
+	switch value.Kind() {
+	case reflect.Ptr:
+		if value.IsNil() {
+			return nil
+		}
+
+		return v.ValidateStruct(value.Elem().Interface())
+	case reflect.Struct:
+		return v.validateStruct(obj)
+	case reflect.Slice, reflect.Array:
+		count := value.Len()
+		validateRet := make(binding.SliceValidationError, 0)
+
+		for i := 0; i < count; i++ {
+			if err := v.ValidateStruct(value.Index(i).Interface()); err != nil {
+				validateRet = append(validateRet, err)
+			}
+		}
+
+		if len(validateRet) == 0 {
+			return nil
+		}
+
+		return validateRet
+	case reflect.Invalid, reflect.Bool, reflect.Int, reflect.Int8, reflect.Int16, reflect.Int32,
+		reflect.Int64, reflect.Uint, reflect.Uint8, reflect.Uint16, reflect.Uint32, reflect.Uint64,
+		reflect.Uintptr, reflect.Float32, reflect.Float64, reflect.Complex64, reflect.Complex128,
+		reflect.Chan, reflect.Func, reflect.Interface, reflect.Map, reflect.String, reflect.UnsafePointer:
+		return nil
+	default:
+		return nil
+	}
+}
+
+func (v *defaultValidator) validateStruct(obj any) error {
+	v.lazyinit()
+
+	return v.validate.Struct(obj)
+}
+
+func (v *defaultValidator) Engine() any {
+	v.lazyinit()
+
+	return v.validate
+}
+
+func (v *defaultValidator) lazyinit() {
+	v.once.Do(func() {
+		v.validate = validator.New()
+		v.validate.SetTagName("binding")
+
+		// Register custom validators
+		_ = v.validate.RegisterValidation("genpasswordwone", dto.ValidateAMTPassOrGenRan)
+		_ = v.validate.RegisterValidation("ciraortls", dto.ValidateCIRAOrTLS)
+		_ = v.validate.RegisterValidation("wifidhcp", dto.ValidateWiFiDHCP)
+	})
+}
+
 func profilesTest(t *testing.T) (*mocks.MockProfilesFeature, *gin.Engine) {
 	t.Helper()
+
+	// Enable validation for tests
+	if binding.Validator == nil {
+		binding.Validator = &defaultValidator{}
+	}
 
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
@@ -73,9 +152,7 @@ var profileTest = dto.Profile{
 	UEFIWiFiSyncEnabled:        false,
 }
 
-func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test function
-	t.Parallel()
-
+func TestProfileRoutes(t *testing.T) { //nolint:gocognit,paralleltest // this is a test function
 	tests := []testProfiles{
 		{
 			name:   "get all profiles",
@@ -260,12 +337,10 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 		},
 	}
 
-	for _, tc := range tests {
+	for _, tc := range tests { //nolint:paralleltest // tests run sequentially for simplicity
 		tc := tc
 
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
 			profileFeature, engine := profilesTest(t)
 
 			tc.mock(profileFeature)
@@ -277,6 +352,7 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 			if tc.requestBody.ProfileName != "" {
 				reqBody, _ := json.Marshal(tc.requestBody)
 				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req.Header.Set("Content-Type", "application/json")
 			} else {
 				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
@@ -308,4 +384,191 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 			}
 		})
 	}
+}
+
+func TestProfileValidation(t *testing.T) { //nolint:paralleltest // tests run sequentially for simplicity
+	tests := []struct {
+		name         string
+		profile      dto.Profile
+		expectedCode int
+	}{
+		{
+			name: "valid profile - CCM with CIRA",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "ccmactivate",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				CIRAConfigName:             stringPtr("cira-config"),
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name: "valid profile - ACM with TLS",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "acmactivate",
+				GenerateRandomPassword:     true,
+				MEBXPassword:               "P@ssw0rd123",
+				GenerateRandomMEBxPassword: false,
+				TLSMode:                    1,
+				TLSSigningAuthority:        "SelfSigned",
+				DHCPEnabled:                true,
+				UserConsent:                "KVM",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusCreated,
+		},
+		{
+			name: "invalid - both CIRA and TLS",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "ccmactivate",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				CIRAConfigName:             stringPtr("cira-config"),
+				TLSMode:                    1,
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - wifi configs without DHCP",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "ccmactivate",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				DHCPEnabled:                false,
+				WiFiConfigs: []dto.ProfileWiFiConfigs{
+					{ProfileName: "wifi1", Priority: 1},
+				},
+				UserConsent: "All",
+				TenantID:    "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - password set with genRandom true",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "ccmactivate",
+				AMTPassword:                "P@ssw0rd123",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - invalid activation",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "invalidactivation",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - invalid TLS signing authority",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "acmactivate",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				TLSMode:                    1,
+				TLSSigningAuthority:        "InvalidAuthority",
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - TLS mode out of range",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "acmactivate",
+				GenerateRandomPassword:     true,
+				GenerateRandomMEBxPassword: true,
+				TLSMode:                    5,
+				TLSSigningAuthority:        "SelfSigned",
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - password too short",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "acmactivate",
+				AMTPassword:                "short",
+				GenerateRandomPassword:     false,
+				MEBXPassword:               "P@ssw0rd123",
+				GenerateRandomMEBxPassword: false,
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name: "invalid - password missing special character",
+			profile: dto.Profile{
+				ProfileName:                "test-profile",
+				Activation:                 "acmactivate",
+				AMTPassword:                "Password123",
+				GenerateRandomPassword:     false,
+				MEBXPassword:               "P@ssw0rd123",
+				GenerateRandomMEBxPassword: false,
+				DHCPEnabled:                true,
+				UserConsent:                "All",
+				TenantID:                   "tenant1",
+			},
+			expectedCode: http.StatusBadRequest,
+		},
+	}
+
+	for _, tc := range tests { //nolint:paralleltest // tests run sequentially for simplicity
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			profileFeature, engine := profilesTest(t)
+
+			if tc.expectedCode == http.StatusCreated {
+				profileFeature.EXPECT().Insert(context.Background(), &tc.profile).Return(&tc.profile, nil)
+			}
+
+			reqBody, _ := json.Marshal(tc.profile)
+			req, err := http.NewRequestWithContext(
+				context.Background(),
+				http.MethodPost,
+				"/api/v1/admin/profiles",
+				bytes.NewBuffer(reqBody),
+			)
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, tc.expectedCode, w.Code)
+		})
+	}
+}
+
+func stringPtr(s string) *string {
+	return &s
 }
