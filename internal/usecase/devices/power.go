@@ -8,6 +8,7 @@ import (
 	"strings"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
@@ -244,6 +245,18 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		return power.PowerActionResponse{}, err
 	}
 
+	// Validate EnforceSecureBoot restriction in CCM
+	if bootSetting.BootDetails.EnforceSecureBoot != nil && !*bootSetting.BootDetails.EnforceSecureBoot {
+		setupConfig, err := device.GetSetupAndConfiguration()
+		if err != nil {
+			return power.PowerActionResponse{}, err
+		}
+
+		if len(setupConfig) > 0 && setupConfig[0].ProvisioningMode == setupandconfiguration.ClientControlMode {
+			return power.PowerActionResponse{}, ValidationError{}.Wrap("SetBootOptions", "validate provisioning mode", "EnforceSecureBoot cannot be turned off in CCM")
+		}
+	}
+
 	bootData, err := device.GetBootData()
 	if err != nil {
 		return power.PowerActionResponse{}, err
@@ -325,7 +338,8 @@ func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingD
 			return err
 		}
 
-		setUEFIBootSettings(newData, bootSetting.BootDetails.EnforceSecureBoot, params, typeLengthValueBuffer)
+		enforceSecureBoot := getEnforceSecureBoot(bootSetting.BootDetails.EnforceSecureBoot, newData.EnforceSecureBoot)
+		setUEFIBootSettings(newData, enforceSecureBoot, params, typeLengthValueBuffer)
 	case BootActionPBA, BootActionPowerOnPBA, BootActionWinREBoot, BootActionPowerOnWinREBoot:
 		if bootSetting.BootDetails.BootPath == "" {
 			return ErrValidationUseCase
@@ -336,7 +350,8 @@ func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingD
 			return err
 		}
 
-		setUEFIBootSettings(newData, bootSetting.BootDetails.EnforceSecureBoot, params, typeLengthValueBuffer)
+		enforceSecureBoot := getEnforceSecureBoot(bootSetting.BootDetails.EnforceSecureBoot, newData.EnforceSecureBoot)
+		setUEFIBootSettings(newData, enforceSecureBoot, params, typeLengthValueBuffer)
 	case BootActionResetToIDERCDROM, BootActionPowerOnIDERCDROM:
 		newData.IDERBootDevice = 1
 	default:
@@ -346,6 +361,19 @@ func determineBootDevice(bootSetting dto.BootSetting, newData *boot.BootSettingD
 	return nil
 }
 
+// getEnforceSecureBoot returns the EnforceSecureBoot value from the request if provided,
+// otherwise falls back to the current device value.
+func getEnforceSecureBoot(requestValue *bool, currentValue bool) bool {
+	if requestValue != nil {
+		return *requestValue
+	}
+
+	return currentValue
+}
+
+// setUEFIBootSettings expects enforceSecureBoot to be a fully resolved value.
+// Callers should resolve any optional request value (for example, via getEnforceSecureBoot)
+// before invoking this function, as it no longer accepts a *bool.
 func setUEFIBootSettings(newData *boot.BootSettingDataRequest, enforceSecureBoot bool, params int, typeLengthValueBuffer []byte) {
 	newData.BIOSLastStatus = nil
 	newData.UseIDER = false
