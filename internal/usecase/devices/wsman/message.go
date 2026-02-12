@@ -131,7 +131,15 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
-		device.Password, _ = g.safeRequirements.Decrypt(device.Password)
+		decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
+		if err != nil {
+			errChan <- err
+
+			return
+		}
+
+		device.Password = decryptedPassword
+
 		if device.MPSUsername != "" {
 			if len(Connections) == 0 {
 				errChan <- ErrCIRADeviceNotConnected

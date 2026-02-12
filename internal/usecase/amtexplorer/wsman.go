@@ -54,7 +54,12 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 		clientParams.PinnedCert = *device.CertHash
 	}
 
-	clientParams.Password, _ = g.safeRequirements.Decrypt(device.Password)
+	decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	clientParams.Password = decryptedPassword
 
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()

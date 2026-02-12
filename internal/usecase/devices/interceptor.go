@@ -111,9 +111,17 @@ func (uc *UseCase) getOrCreateConnection(c context.Context, conn *websocket.Conn
 }
 
 func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
-	wsmanConnection := uc.redirection.SetupWsmanClient(*device, true, true)
+	wsmanConnection, err := uc.redirection.SetupWsmanClient(*device, true, true)
+	if err != nil {
+		return nil, err
+	}
 
-	device.Password, _ = uc.safeRequirements.Decrypt(device.Password)
+	decryptedPassword, err := uc.safeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	device.Password = decryptedPassword
 
 	ctx, cancel := context.WithCancel(c)
 	now := time.Now()
