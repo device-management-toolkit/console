@@ -172,7 +172,10 @@ func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) erro
 }
 
 func (uc *UseCase) Update(ctx context.Context, d *dto.Domain) (*dto.Domain, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	updated, err := uc.repo.Update(ctx, d1)
 	if err != nil {
@@ -199,7 +202,11 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 		return nil, err
 	}
 
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
+
 	d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
 
 	// Store certificate in Vault (if available) - cert goes to Vault, not DB
@@ -267,7 +274,7 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 }
 
 // convert dto.Domain to entity.Domain.
-func (uc *UseCase) dtoToEntity(d *dto.Domain) *entity.Domain {
+func (uc *UseCase) dtoToEntity(d *dto.Domain) (*entity.Domain, error) {
 	d1 := &entity.Domain{
 		ProfileName:                   d.ProfileName,
 		DomainSuffix:                  d.DomainSuffix,
@@ -278,9 +285,14 @@ func (uc *UseCase) dtoToEntity(d *dto.Domain) *entity.Domain {
 		Version:                       d.Version,
 	}
 
-	d1.ProvisioningCertPassword, _ = uc.safeRequirements.Encrypt(d.ProvisioningCertPassword)
+	var err error
 
-	return d1
+	d1.ProvisioningCertPassword, err = uc.safeRequirements.Encrypt(d.ProvisioningCertPassword)
+	if err != nil {
+		return nil, ErrDomainsUseCase.Wrap("dtoToEntity", "failed to encrypt provisioning cert password", err)
+	}
+
+	return d1, nil
 }
 
 // convert entity.Domain to dto.Domain.
