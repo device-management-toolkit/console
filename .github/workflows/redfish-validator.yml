@@ -2,9 +2,9 @@ name: Redfish Service Validator
 
 on:
   push:
-    branches: [ main, develop, redfish ]
+    branches: [ redfish ]
   pull_request:
-    branches: [ main, develop, redfish ]
+    branches: [ redfish ]
   workflow_dispatch:
 
 permissions:
@@ -32,18 +32,19 @@ jobs:
         run: |
           echo "Waiting for application to start..."
           sleep 10
-          timeout 60 bash -c 'until curl -k -f http://localhost:8181/redfish/v1 > /dev/null 2>&1; do sleep 2; done' || echo "Service may not be ready"
+          timeout 60 bash -c 'until curl -f http://localhost:8181/redfish/v1 > /dev/null 2>&1; do sleep 2; done' || echo "Service may not be ready"
 
       - name: Checkout Redfish Service Validator
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           repository: DMTF/Redfish-Service-Validator
+          ref: 2.5.1
           path: redfish-validator
 
       - name: Set up Python
         uses: actions/setup-python@0b93645e9fea7318ecaed2b359559ac225c90a2b # v5.3.0
         with:
-          python-version: '3.x'
+          python-version: '3.12'
 
       - name: Install Redfish Service Validator
         run: |
@@ -55,8 +56,7 @@ jobs:
           cd redfish-validator
           python3 RedfishServiceValidator.py \
           -i http://localhost:8181 \
-          --logdir ../validator-results \
-          --debugging
+          --logdir ../validator-results
 
       - name: Upload validation results
         if: always()
@@ -74,6 +74,26 @@ jobs:
           if [ -d validator-results ]; then
             echo "Validation completed. Check artifacts for detailed results."
             ls -la validator-results/
+            
+            # Check for failures in the validation results
+            for file in validator-results/*; do
+              if [ -f "$file" ]; then
+                echo "Checking $file for failures..."
+                if grep -q "Fail: [1-9]" "$file"; then
+                  echo "❌ Validation FAILED - Found failures in $file"
+                  grep "Results Summary:" "$file"
+                  exit 1
+                fi
+              fi
+            done
+            
+            # Display summary if no failures found
+            for file in validator-results/*; do
+              if [ -f "$file" ] && grep -q "Results Summary:" "$file"; then
+                echo "✅ Validation PASSED"
+                grep "Results Summary:" "$file"
+              fi
+            done
           else
             echo "Warning: Validation results not found"
             exit 1
