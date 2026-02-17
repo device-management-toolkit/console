@@ -40,4 +40,5 @@ vendor/
 # Documentation files
 doc/openapi.json
 # Newman test results
-**/postman/results/
+**/postman/results/dist/
+dist/

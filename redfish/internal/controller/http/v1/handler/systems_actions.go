@@ -8,7 +8,6 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/labstack/gommon/log"
 
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	"github.com/device-management-toolkit/console/redfish/internal/usecase"
@@ -40,7 +39,7 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 		return
 	}
 
-	log.Infof("Received reset request for ComputerSystem %s with ResetType %s", computerSystemID, *req.ResetType)
+	log.Info("Received reset request for ComputerSystem %s with ResetType %s", computerSystemID, *req.ResetType)
 
 	if err := s.ComputerSystemUC.SetPowerState(c.Request.Context(), computerSystemID, *req.ResetType); err != nil {
 		switch {

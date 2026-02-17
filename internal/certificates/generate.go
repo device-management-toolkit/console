@@ -9,14 +9,18 @@ import (
 	"encoding/pem"
 	"errors"
 	"fmt"
-	"log"
 	"math/big"
 	"net/url"
 	"os"
 	"time"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
+
+// Package-level logger for certificate operations.
+var log = logger.New("info")
 
 // Certificate file path constants.
 const (
@@ -170,7 +174,7 @@ func CheckAndLoadOrGenerateRootCertificate(addThumbPrintToName bool, commonName,
 			return cert, key, nil
 		}
 		// If loading fails, fall through to generation
-		log.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
+		log.Warn("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
 	}
 
 	// Files don't exist or loading failed, generate new certificates
@@ -184,16 +188,21 @@ func CheckAndLoadOrGenerateRootCertificate(addThumbPrintToName bool, commonName,
 func LoadOrGenerateRootCertificateWithVault(store security.Storager, addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
 	const certName = "root"
 
+	log.Info("[Certificate Flow] Loading root certificate (certName=%s)", certName)
+
 	// Try Vault first (primary store for high-value certs)
 	if store != nil {
+		log.Info("[Certificate Flow] [Vault Storage] Attempting to load root certificate from Vault")
 		cert, key, err := LoadCertificateFromStore(store, certName)
 		if err == nil {
-			log.Println("Root certificate loaded from Vault")
+			log.Info("[Certificate Flow] ✓ SUCCESS: Root certificate loaded from Vault")
 
 			return cert, key, nil
 		}
 
-		log.Printf("Certificate not found in Vault: %v. Checking local files...", err)
+		log.Warn("[Certificate Flow] ✗ Vault load failed: %v. Proceeding to Local Files...", err)
+	} else {
+		log.Info("[Certificate Flow] Vault client not available (store=nil), skipping Vault Storage")
 	}
 
 	// Try local files as fallback
@@ -208,29 +217,36 @@ func LoadOrGenerateRootCertificateWithVault(store security.Storager, addThumbPri
 
 // tryLoadRootCertFromFiles attempts to load root certificate from local files and sync to vault.
 func tryLoadRootCertFromFiles(store security.Storager, certName string) (*x509.Certificate, *rsa.PrivateKey, error) {
+	log.Info("[Certificate Flow] [Local Files] Checking for certificate files: %s, %s", RootCertPath, RootKeyPath)
+
 	_, certErr := os.Stat(RootCertPath)
 	_, keyErr := os.Stat(RootKeyPath)
 
 	if certErr != nil || keyErr != nil {
+		log.Warn("[Certificate Flow] ✗ Local certificate files not found at %s and %s, proceeding to Generate New", RootCertPath, RootKeyPath)
 		return nil, nil, ErrCertFilesNotFound
 	}
 
+	log.Info("[Certificate Flow] Certificate files found at %s and %s, attempting to load...", RootCertPath, RootKeyPath)
 	cert, key, err := LoadCertificateFromFile(RootCertPath, RootKeyPath)
 	if err != nil {
-		log.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
+		log.Warn("[Certificate Flow] ✗ Failed to parse local certificates: %v. Proceeding to Generate New", err)
 
 		return nil, nil, err
 	}
 
-	log.Println("Root certificate loaded from local files")
+	log.Info("[Certificate Flow] ✓ SUCCESS: Root certificate loaded from local files (%s)", RootCertPath)
 
 	// Sync to Vault for future use
 	if store != nil {
+		log.Info("[Certificate Flow] Syncing local certificate to Vault for future use...")
 		if syncErr := SaveCertificateToStore(store, certName, cert, key); syncErr != nil {
-			log.Printf("Warning: Failed to sync root certificate to Vault: %v", syncErr)
+			log.Warn("[Certificate Flow] ✗ Warning: Failed to sync root certificate to Vault: %v", syncErr)
 		} else {
-			log.Println("Root certificate synced to Vault")
+			log.Info("[Certificate Flow] ✓ Root certificate synced to Vault successfully")
 		}
+	} else {
+		log.Info("[Certificate Flow] Vault not available, skipping sync")
 	}
 
 	return cert, key, nil
@@ -238,20 +254,26 @@ func tryLoadRootCertFromFiles(store security.Storager, certName string) (*x509.C
 
 // generateAndStoreRootCert generates a new root certificate and stores it.
 func generateAndStoreRootCert(store security.Storager, certName string, addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
+	log.Info("[Certificate Flow] [Generate New] Generating new root certificate...")
+
 	cert, key, err := GenerateRootCertificate(addThumbPrintToName, commonName, country, organization, strong)
 	if err != nil {
+		log.Error("[Certificate Flow] ✗ FAILED: Certificate generation error: %v", err)
 		return nil, nil, err
 	}
 
-	log.Println("New root certificate generated")
+	log.Info("[Certificate Flow] ✓ New root certificate generated successfully (will be saved to %s)", RootCertPath)
 
 	// Store in Vault (primary)
 	if store != nil {
+		log.Info("[Certificate Flow] Storing generated certificate in Vault...")
 		if storeErr := SaveCertificateToStore(store, certName, cert, key); storeErr != nil {
-			log.Printf("Warning: Failed to store root certificate in Vault: %v", storeErr)
+			log.Warn("[Certificate Flow] ✗ Warning: Failed to store root certificate in Vault: %v", storeErr)
 		} else {
-			log.Println("Root certificate stored in Vault")
+			log.Info("[Certificate Flow] ✓ Root certificate stored in Vault")
 		}
+	} else {
+		log.Info("[Certificate Flow] Vault not available, certificate will only be stored locally at %s and %s", RootCertPath, RootKeyPath)
 	}
 
 	return cert, key, nil
@@ -274,7 +296,7 @@ func CheckAndLoadOrGenerateWebServerCertificate(rootCert CertAndKeyType, addThum
 			return cert, key, nil
 		}
 		// If loading fails, fall through to generation
-		log.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
+		log.Warn("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
 	}
 
 	// Files don't exist or loading failed, generate new certificates
@@ -290,16 +312,21 @@ func LoadOrGenerateWebServerCertificateWithVault(store security.Storager, rootCe
 	certPath := "config/" + commonName + "_cert.pem"
 	keyPath := "config/" + commonName + "_key.pem"
 
+	log.Info("[Certificate Flow] Loading web server certificate (certName=%s, commonName=%s)", certName, commonName)
+
 	// Try Vault first (primary store for high-value certs)
 	if store != nil {
+		log.Info("[Certificate Flow] [Vault Storage] Attempting to load web server certificate from Vault")
 		cert, key, err := LoadCertificateFromStore(store, certName)
 		if err == nil {
-			log.Println("Web server certificate loaded from Vault")
+			log.Info("[Certificate Flow] ✓ SUCCESS: Web server certificate loaded from Vault")
 
 			return cert, key, nil
 		}
 
-		log.Printf("Web server certificate not found in Vault: %v. Checking local files...", err)
+		log.Warn("[Certificate Flow] ✗ Vault load failed: %v. Proceeding to Local Files...", err)
+	} else {
+		log.Info("[Certificate Flow] Vault client not available (store=nil), skipping Vault Storage")
 	}
 
 	// Try local files as fallback
@@ -314,29 +341,36 @@ func LoadOrGenerateWebServerCertificateWithVault(store security.Storager, rootCe
 
 // tryLoadWebServerCertFromFiles attempts to load web server certificate from local files and sync to vault.
 func tryLoadWebServerCertFromFiles(store security.Storager, certName, certPath, keyPath string) (*x509.Certificate, *rsa.PrivateKey, error) {
+	log.Info("[Certificate Flow] [Local Files] Checking for certificate files: %s, %s", certPath, keyPath)
+
 	_, certErr := os.Stat(certPath)
 	_, keyErr := os.Stat(keyPath)
 
 	if certErr != nil || keyErr != nil {
+		log.Warn("[Certificate Flow] ✗ Local certificate files not found at %s and %s, proceeding to Generate New", certPath, keyPath)
 		return nil, nil, ErrCertFilesNotFound
 	}
 
+	log.Info("[Certificate Flow] Certificate files found at %s and %s, attempting to load...", certPath, keyPath)
 	cert, key, err := LoadCertificateFromFile(certPath, keyPath)
 	if err != nil {
-		log.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
+		log.Warn("[Certificate Flow] ✗ Failed to parse local certificates: %v. Proceeding to Generate New", err)
 
 		return nil, nil, err
 	}
 
-	log.Println("Web server certificate loaded from local files")
+	log.Info("[Certificate Flow] ✓ SUCCESS: Web server certificate loaded from local files (%s)", certPath)
 
 	// Sync to Vault for future use
 	if store != nil {
+		log.Info("[Certificate Flow] Syncing local certificate to Vault for future use...")
 		if syncErr := SaveCertificateToStore(store, certName, cert, key); syncErr != nil {
-			log.Printf("Warning: Failed to sync web server certificate to Vault: %v", syncErr)
+			log.Warn("[Certificate Flow] ✗ Warning: Failed to sync web server certificate to Vault: %v", syncErr)
 		} else {
-			log.Println("Web server certificate synced to Vault")
+			log.Info("[Certificate Flow] ✓ Web server certificate synced to Vault successfully")
 		}
+	} else {
+		log.Info("[Certificate Flow] Vault not available, skipping sync")
 	}
 
 	return cert, key, nil
@@ -344,20 +378,28 @@ func tryLoadWebServerCertFromFiles(store security.Storager, certName, certPath, 
 
 // generateAndStoreWebServerCert generates a new web server certificate and stores it.
 func generateAndStoreWebServerCert(store security.Storager, rootCert CertAndKeyType, certName string, addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
+	certPath := "config/" + commonName + "_cert.pem"
+	log.Info("[Certificate Flow] [Generate New] Generating new web server certificate (will be saved to %s)...", certPath)
+
 	cert, key, err := IssueWebServerCertificate(rootCert, addThumbPrintToName, commonName, country, organization, strong)
 	if err != nil {
+		log.Error("[Certificate Flow] ✗ FAILED: Certificate generation error: %v", err)
 		return nil, nil, err
 	}
 
-	log.Println("New web server certificate generated")
+	log.Info("[Certificate Flow] ✓ New web server certificate generated successfully")
 
 	// Store in Vault (primary)
 	if store != nil {
+		log.Info("[Certificate Flow] Storing generated certificate in Vault...")
 		if storeErr := SaveCertificateToStore(store, certName, cert, key); storeErr != nil {
-			log.Printf("Warning: Failed to store web server certificate in Vault: %v", storeErr)
+			log.Warn("[Certificate Flow] ✗ Warning: Failed to store web server certificate in Vault: %v", storeErr)
 		} else {
-			log.Println("Web server certificate stored in Vault")
+			log.Info("[Certificate Flow] ✓ Web server certificate stored in Vault")
 		}
+	} else {
+		keyPath := "config/" + commonName + "_key.pem"
+		log.Info("[Certificate Flow] Vault not available, certificate will only be stored locally at %s and %s", certPath, keyPath)
 	}
 
 	return cert, key, nil

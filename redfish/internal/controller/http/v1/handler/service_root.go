@@ -14,11 +14,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/google/uuid"
-	"github.com/labstack/gommon/log"
 	"gopkg.in/yaml.v2"
 
+	"github.com/device-management-toolkit/console/pkg/logger"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 )
+
+var log = logger.New("info")
 
 // ServiceRoot OData metadata constants
 const (
@@ -65,7 +67,7 @@ func loadMetadata() {
 
 	data, err := metadataFS.ReadFile("metadata.xml")
 	if err != nil {
-		log.Warnf("Could not load embedded metadata.xml: %v", err)
+		log.Warn("Could not load embedded metadata.xml: %v", err)
 
 		return
 	}
@@ -74,12 +76,12 @@ func loadMetadata() {
 
 	// Validate XML
 	if err := validateMetadataXML(metadataXML); err != nil {
-		log.Warnf("Invalid metadata.xml: %v", err)
+		log.Warn("Invalid metadata.xml: %v", err)
 
 		return
 	}
 
-	log.Infof("Embedded metadata.xml loaded and validation passed")
+	log.Info("Embedded metadata.xml loaded and validation passed")
 
 	metadataLoaded = true
 }
@@ -136,7 +138,7 @@ func loadOrCreateUUID(appName string) (string, error) {
 			return storedUUID, nil
 		}
 
-		log.Warnf("Invalid UUID in storage file, generating new one")
+		log.Warn("Invalid UUID in storage file, generating new one")
 	}
 
 	// Create new UUID
@@ -146,7 +148,7 @@ func loadOrCreateUUID(appName string) (string, error) {
 
 	// Save to file
 	if err := os.WriteFile(file, []byte(newUUID), filePermissions); err != nil {
-		log.Warnf("Failed to save UUID to file: %v", err)
+		log.Warn("Failed to save UUID to file: %v", err)
 		// Continue with the generated UUID even if save fails
 	}
 
@@ -173,7 +175,7 @@ func generateServiceUUID(envUUID string) string {
 			return envUUID
 		}
 
-		log.Warnf("Invalid environment UUID configured: %s, falling back to persistent UUID", envUUID)
+		log.Warn("Invalid environment UUID configured: %s, falling back to persistent UUID", envUUID)
 	}
 
 	// Priority 2: Return cached UUID if available
@@ -184,7 +186,7 @@ func generateServiceUUID(envUUID string) string {
 	// Priority 3: Load or create persistent UUID
 	serviceUUID, err := loadOrCreateUUID("dmt-redfish-service")
 	if err != nil {
-		log.Warnf("Failed to load/create persistent UUID: %v, generating temporary UUID", err)
+		log.Warn("Failed to load/create persistent UUID: %v, generating temporary UUID", err)
 		// Fallback to temporary UUID for this session (but cache it)
 		cachedUUID = uuid.New().String()
 
@@ -203,14 +205,14 @@ func generateServiceUUID(envUUID string) string {
 func ExtractServicesFromOpenAPIData(data []byte) ([]ODataService, error) {
 	var spec map[string]interface{}
 	if err := yaml.Unmarshal(data, &spec); err != nil {
-		log.Warnf("Could not parse OpenAPI spec: %v", err)
+		log.Warn("Could not parse OpenAPI spec: %v", err)
 
 		return GetDefaultServices(), nil
 	}
 
 	pathsObj, ok := spec["paths"].(map[interface{}]interface{})
 	if !ok {
-		log.Warnf("No paths found in OpenAPI spec")
+		log.Warn("No paths found in OpenAPI spec")
 
 		return GetDefaultServices(), nil
 	}
@@ -257,12 +259,12 @@ func ExtractServicesFromOpenAPIData(data []byte) ([]ODataService, error) {
 	}
 
 	if len(services) == 0 {
-		log.Warnf("No services found in OpenAPI spec, using defaults")
+		log.Warn("No services found in OpenAPI spec, using defaults")
 
 		return GetDefaultServices(), nil
 	}
 
-	log.Infof("Loaded %d services from OpenAPI spec: %v", len(services), names)
+	log.Info("Loaded %d services from OpenAPI spec: %v", len(services), names)
 
 	return services, nil
 }

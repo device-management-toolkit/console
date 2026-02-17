@@ -110,12 +110,16 @@ func (s *Server) serveTLS() error {
 			return err
 		}
 
+		s.log.Info("TLS: using provided certificate cert=%s key=%s", s.certFile, s.keyFile)
+
 		if s.listener != nil {
 			return s.server.ServeTLS(s.listener, s.certFile, s.keyFile)
 		}
 
 		return s.server.ListenAndServeTLS(s.certFile, s.keyFile)
 	}
+
+	s.log.Info("TLS: no certificate provided, generating self-signed certificate")
 
 	return s.generateAndServeSelfSignedTLS()
 }

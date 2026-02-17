@@ -10,6 +10,7 @@ import (
 	"runtime"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+	"gopkg.in/yaml.v2"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
@@ -19,6 +20,9 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
+
+// Package-level logger for main application.
+var appLog = logger.New("info")
 
 // Sentinel errors for configuration.
 var (
@@ -46,21 +50,31 @@ var (
 func main() {
 	cfg, err := initializeConfigFunc()
 	if err != nil {
-		log.Fatalf("Config error: %s", err)
+		appLog.Fatal("Config error: %s", err)
+	}
+
+	// Log configuration in readable YAML format (matches config file structure)
+	if cfgYAML, err := yaml.Marshal(cfg); err == nil {
+		log.Printf("Configuration loaded:\n%s", string(cfgYAML))
+	} else {
+		log.Printf("Configuration loaded: %+v", cfg)
 	}
 
 	if err = initializeAppFunc(cfg); err != nil {
-		log.Fatalf("App init error: %s", err)
+		appLog.Fatal("App init error: %s", err)
 	}
 
 	// Initialize certificate store (Vault) for MPS and domain certificates
 	secretsClient, secretsErr := handleSecretsConfig(cfg)
 	if secretsErr == nil {
+		appLog.Info("Secrets client initialized successfully, setting as certificate store")
 		app.CertStore = secretsClient
+	} else {
+		appLog.Warn("Secrets client initialization failed: %v (certificates will use local filesystem storage at config/)", secretsErr)
 	}
 
 	if err = setupCIRACertificates(cfg, secretsClient); err != nil {
-		log.Fatalf("CIRA certificate setup error: %s", err)
+		appLog.Fatal("CIRA certificate setup error: %s", err)
 	}
 
 	handleEncryptionKey(cfg)
@@ -69,8 +83,18 @@ func main() {
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
+	appLog.Info("=== CIRA Certificate Setup ===")
+
 	if cfg.DisableCIRA {
+		appLog.Info("CIRA is disabled in configuration, skipping certificate setup")
 		return nil
+	}
+
+	appLog.Info("CIRA is enabled, proceeding with certificate setup")
+	if secretsClient != nil {
+		appLog.Info("Vault client available for certificate storage")
+	} else {
+		appLog.Warn("WARNING: Vault client not available, certificates will use local filesystem storage only")
 	}
 
 	root, privateKey, err := loadOrGenerateRootCertFunc(secretsClient, true, cfg.CommonName, "US", "device-management-toolkit", true)
@@ -83,6 +107,7 @@ func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) 
 		return fmt.Errorf("loading or generating web server certificate: %w", err)
 	}
 
+	appLog.Info("=== CIRA Certificate Setup Complete ===")
 	return nil
 }
 
@@ -91,7 +116,7 @@ func handleDebugMode(cfg *config.Config) {
 		go launchBrowser(cfg)
 	} else {
 		if err := handleOpenAPIGeneration(); err != nil {
-			log.Fatalf("Failed to generate OpenAPI spec: %s", err)
+			appLog.Fatal("Failed to generate OpenAPI spec: %s", err)
 		}
 	}
 }
@@ -125,7 +150,7 @@ func handleOpenAPIGeneration() error {
 		return err
 	}
 
-	log.Println("OpenAPI specification generated at doc/openapi.json")
+	appLog.Info("OpenAPI specification generated at doc/openapi.json")
 
 	return nil
 }
@@ -141,12 +166,12 @@ func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
 
 	secretsClient, err := secrets.NewClient(&cfg.Secrets)
 	if err != nil {
-		log.Printf("Failed to connect to secret store: %v", err)
+		appLog.Warn("Failed to connect to secret store: %v", err)
 
 		return nil, err
 	}
 
-	log.Printf("Connected to secret store at: %s", cfg.Address)
+	appLog.Info("Connected to secret store at: %s", cfg.Address)
 
 	return secretsClient, nil
 }
@@ -154,7 +179,7 @@ func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
 func handleEncryptionKey(cfg *config.Config) {
 	// If encryption key is already provided via config/env, just use it
 	if cfg.EncryptionKey != "" {
-		log.Println("Encryption key loaded from environment")
+		appLog.Info("Encryption key loaded from environment")
 
 		return
 	}
@@ -183,7 +208,7 @@ func handleEncryptionKey(cfg *config.Config) {
 	cfg.EncryptionKey = handleKeyNotFound(toolkitCrypto, remoteStorage, localStorage)
 
 	if err := saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage); err != nil {
-		log.Printf("Warning: Failed to save encryption key: %v", err)
+		appLog.Warn("Warning: Failed to save encryption key: %v", err)
 	}
 }
 
@@ -196,7 +221,7 @@ func tryRemoteStorage(cfg *config.Config, remoteStorage security.Storager) bool 
 	if cfg.EncryptionKey != "" {
 		// Store static key in secret store (not recommended)
 		if err := remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey); err == nil {
-			log.Println("Encryption key stored in secret store")
+			appLog.Info("Encryption key stored in secret store")
 
 			return true
 		}
@@ -206,7 +231,7 @@ func tryRemoteStorage(cfg *config.Config, remoteStorage security.Storager) bool 
 		if err == nil {
 			cfg.EncryptionKey = key
 
-			log.Println("Encryption key loaded from secret store")
+			appLog.Info("Encryption key loaded from secret store")
 
 			return true
 		}
@@ -222,14 +247,14 @@ func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.St
 	if cfg.EncryptionKey != "" {
 		err = localStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
 		if err == nil {
-			log.Println("Encryption key stored in local keyring")
+			appLog.Info("Encryption key stored in local keyring")
 
 			return true
 		}
 	} else {
 		cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
 		if err == nil {
-			log.Println("Encryption key loaded from local keyring")
+			appLog.Info("Encryption key loaded from local keyring")
 			syncKeyToRemote(cfg.EncryptionKey, remoteStorage)
 
 			return true
@@ -238,7 +263,7 @@ func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.St
 
 	// Check for unexpected errors
 	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
-		log.Fatal(err)
+		appLog.Fatal(err)
 	}
 
 	return false
@@ -251,9 +276,9 @@ func syncKeyToRemote(key string, remoteStorage security.Storager) {
 	}
 
 	if err := remoteStorage.SetKeyValue("default-security-key", key); err != nil {
-		log.Printf("Warning: Failed to sync key to secret store: %v", err)
+		appLog.Warn("Warning: Failed to sync key to secret store: %v", err)
 	} else {
-		log.Println("Encryption key synced to secret store")
+		appLog.Info("Encryption key synced to secret store")
 	}
 }
 
@@ -261,7 +286,7 @@ func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager
 	if remoteStorage != nil {
 		err := remoteStorage.SetKeyValue("default-security-key", key)
 		if err == nil {
-			log.Println("Encryption key saved to secret store")
+			appLog.Info("Encryption key saved to secret store")
 
 			return nil
 		}
@@ -271,7 +296,7 @@ func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager
 
 	err := localStorage.SetKeyValue("default-security-key", key)
 	if err == nil {
-		log.Println("Encryption key saved to local keyring")
+		appLog.Info("Encryption key saved to local keyring")
 
 		return nil
 	}
@@ -286,13 +311,13 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 
 	_, err := fmt.Scanln(&response)
 	if err != nil {
-		log.Fatal(err)
+		appLog.Fatal(err)
 
 		return ""
 	}
 
 	if response != "Y" && response != "y" {
-		log.Fatal("Exiting without generating a new key.")
+		appLog.Fatal("Exiting without generating a new key.")
 
 		return ""
 	}
