@@ -17,6 +17,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/internal/controller/tcp/cira"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
@@ -106,6 +107,21 @@ func setupCIRAServer(cfg *config.Config, log logger.Interface, database *db.SQL,
 	ciraCertFile := fmt.Sprintf("config/%s_cert.pem", cfg.CommonName)
 	ciraKeyFile := fmt.Sprintf("config/%s_key.pem", cfg.CommonName)
 
+	// Try to load certificate from Vault first, then fall back to local files
+	// Note: Vault stores webserver certificates with "webserver-" prefix
+	_, _, err := certificates.LoadCertificateWithFallback(
+		CertStore,
+		"webserver-"+cfg.CommonName,
+		ciraCertFile,
+		ciraKeyFile,
+	)
+	if err != nil {
+		database.Close()
+		log.Fatal("Failed to load CIRA certificates: %v", err)
+	}
+
+	// Create CIRA server using the certificate files
+	// (certificates may have been loaded from Vault or local storage)
 	ciraServer, err := cira.NewServer(ciraCertFile, ciraKeyFile, usecases.Devices, log)
 	if err != nil {
 		database.Close()

@@ -12,6 +12,7 @@ import (
 	"math/big"
 	"net/url"
 	"os"
+	"strings"
 	"time"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
@@ -160,6 +161,73 @@ func LoadCertificateFromFile(certPath, keyPath string) (*x509.Certificate, *rsa.
 	return cert, privateKey, nil
 }
 
+// LoadCertificateWithFallback attempts to load a certificate from Vault first,
+// falling back to local file if Vault is unavailable or doesn't contain the certificate.
+// If loaded from Vault, the certificate is also written to local files for caching.
+// This provides resilience in environments where Vault may not always be accessible.
+func LoadCertificateWithFallback(store security.Storager, name, certPath, keyPath string) (*x509.Certificate, *rsa.PrivateKey, error) {
+	// Try loading from Vault first if store is available
+	if store != nil {
+		cert, key, err := LoadCertificateFromStore(store, name)
+		if err == nil {
+			log.Info("certificate loaded from Vault: %s", name)
+
+			// Write to local files for caching (ignore errors as this is best-effort)
+			if saveErr := SaveCertificateToFile(cert, key, certPath, keyPath); saveErr != nil {
+				log.Warn("failed to cache certificate to local storage: %v", saveErr)
+			} else {
+				log.Info("certificate cached to local storage: %s", certPath)
+			}
+
+			return cert, key, nil
+		}
+		// Log the Vault error but continue to local fallback
+		log.Warn("failed to load certificate from Vault, falling back to local storage: %v", err)
+	}
+
+	// Fallback to local file storage
+	cert, key, err := LoadCertificateFromFile(certPath, keyPath)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to load certificate from both Vault and local storage: %w", err)
+	}
+
+	log.Info("certificate loaded from local storage: %s at %s", name, certPath)
+	return cert, key, nil
+}
+
+// SaveCertificateToFile saves a certificate and private key to PEM files.
+func SaveCertificateToFile(cert *x509.Certificate, key *rsa.PrivateKey, certPath, keyPath string) error {
+	// Encode certificate to PEM
+	certPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "CERTIFICATE",
+		Bytes: cert.Raw,
+	})
+	if certPEM == nil {
+		return errors.New("failed to encode certificate to PEM")
+	}
+
+	// Write certificate file
+	if err := os.WriteFile(certPath, certPEM, 0600); err != nil {
+		return fmt.Errorf("failed to write certificate file: %w", err)
+	}
+
+	// Encode private key to PEM
+	keyPEM := pem.EncodeToMemory(&pem.Block{
+		Type:  "RSA PRIVATE KEY",
+		Bytes: x509.MarshalPKCS1PrivateKey(key),
+	})
+	if keyPEM == nil {
+		return errors.New("failed to encode private key to PEM")
+	}
+
+	// Write private key file
+	if err := os.WriteFile(keyPath, keyPEM, 0600); err != nil {
+		return fmt.Errorf("failed to write private key file: %w", err)
+	}
+
+	return nil
+}
+
 // CheckAndLoadOrGenerateRootCertificate checks if root certificate files exist,
 // loads them if they do, or generates new ones if they don't.
 func CheckAndLoadOrGenerateRootCertificate(addThumbPrintToName bool, commonName, country, organization string, strong bool) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -200,7 +268,12 @@ func LoadOrGenerateRootCertificateWithVault(store security.Storager, addThumbPri
 			return cert, key, nil
 		}
 
-		log.Warn("[Certificate Flow] ✗ Vault load failed: %v. Proceeding to Local Files...", err)
+		// "secret not found" is expected on first run - log as info
+		if strings.Contains(err.Error(), "secret not found") {
+			log.Info("[Certificate Flow] Certificate not yet in Vault (first run). Checking local files...")
+		} else {
+			log.Warn("[Certificate Flow] ✗ Vault load failed: %v. Proceeding to Local Files...", err)
+		}
 	} else {
 		log.Info("[Certificate Flow] Vault client not available (store=nil), skipping Vault Storage")
 	}
@@ -324,7 +397,12 @@ func LoadOrGenerateWebServerCertificateWithVault(store security.Storager, rootCe
 			return cert, key, nil
 		}
 
-		log.Warn("[Certificate Flow] ✗ Vault load failed: %v. Proceeding to Local Files...", err)
+		// "secret not found" is expected on first run - log as info
+		if strings.Contains(err.Error(), "secret not found") {
+			log.Info("[Certificate Flow] Certificate not yet in Vault (first run). Checking local files...")
+		} else {
+			log.Warn("[Certificate Flow] ✗ Vault load failed: %v. Proceeding to Local Files...", err)
+		}
 	} else {
 		log.Info("[Certificate Flow] Vault client not available (store=nil), skipping Vault Storage")
 	}
@@ -463,6 +541,12 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 		return nil, nil, err
 	}
 
+	// Parse the certificate to populate the Raw field (needed for Vault storage)
+	cert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse generated certificate: %w", err)
+	}
+
 	// Encoding certificate to PEM format
 	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
 
@@ -491,7 +575,7 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 
 	keyOut.Close()
 
-	return &template, privateKey, nil
+	return cert, privateKey, nil
 }
 
 type CertAndKeyType struct {
@@ -565,12 +649,18 @@ func IssueWebServerCertificate(rootCert CertAndKeyType, addThumbPrintToName bool
 		return nil, nil, err
 	}
 
+	// Parse the certificate to populate the Raw field (needed for Vault storage)
+	cert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, nil, fmt.Errorf("failed to parse generated certificate: %w", err)
+	}
+
 	// Save certificate and key to files
 	if err := saveCertAndKeyToFiles(commonName, certBytes, keys); err != nil {
 		return nil, nil, err
 	}
 
-	return &template, keys, nil
+	return cert, keys, nil
 }
 
 // saveCertAndKeyToFiles saves a certificate and private key to PEM files.

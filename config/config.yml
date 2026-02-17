@@ -20,7 +20,7 @@ http:
     - "*"
 logger:
   log_level: info
-secrets: 
+secrets:
   address: http://localhost:8200
   token: ""
 postgres:
@@ -39,7 +39,7 @@ auth:
   redirectionJWTExpiration: 5m0s
   clientId: ""
   issuer: ""
-  ui: 
+  ui:
     clientId: ""
     issuer: ""
     scope: ""
