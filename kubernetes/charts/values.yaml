@@ -1,0 +1,55 @@
+#/*********************************************************************
+# Copyright (c) Intel Corporation 2026
+# SPDX-License-Identifier: Apache-2.0
+#**********************************************************************/
+# Default values for console-chart.
+# This is a YAML-formatted file.
+# Declare variables to be passed into your templates.
+
+images:
+  console: "vprodemo.azurecr.io/console:latest"
+  webui: "intel/device-mgmt-toolkit-web-ui:latest"
+  mpsrouter: "intel/device-mgmt-toolkit-mps-router:latest"
+  postgres: "postgres:15"
+console:
+  commonName:
+  replicaCount: 1
+  logLevel: "info"
+  jwtExpiration: 24h
+  port: 8181
+  tlsEnabled: "false"
+  authDisabled: "false"
+ui:
+  replicaCount: 1
+mpsrouter:
+  replicaCount: 1
+  port: 8003
+postgres:
+  user: "postgresadmin"
+  database: "rpsdb"
+  port: 5432
+  storageSize: "5Gi"
+vault:
+  injector:
+    annotations:
+      kuma.io/sidecar-injection: disabled
+  server:
+    annotations:
+      kuma.io/sidecar-injection: disabled
+  ui:
+    annotations:
+      kuma.io/sidecar-injection: disabled
+    enabled: true
+    serviceType: "LoadBalancer"
+kong:
+  podAnnotations:
+      kuma.io/sidecar-injection: enabled
+      kuma.io/gateway: enabled
+  env:
+    UPSTREAM_KEEPALIVE_POOL_SIZE: 0
+  proxy:
+    annotations:
+      service.beta.kubernetes.io/azure-dns-label-name: ""
+    stream: []
+    http:
+      enabled: false

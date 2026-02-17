@@ -1,0 +1,68 @@
+#/*********************************************************************
+# Copyright (c) Intel Corporation 2026
+# SPDX-License-Identifier: Apache-2.0
+#**********************************************************************/
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: mpsrouter
+  name: mpsrouter
+spec:
+  ports:
+  - port: {{ .Values.mpsrouter.port }}
+    name: mpsrouter
+    protocol: TCP
+    targetPort: {{ .Values.mpsrouter.port }}
+  selector:
+    app: mpsrouter
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mpsrouter
+  namespace: default
+spec:
+  replicas: {{ .Values.mpsrouter.replicaCount }}
+  selector:
+    matchLabels:
+      app: mpsrouter
+  template:
+    metadata:
+      annotations:
+        kuma.io/direct-access-services: "console_default_svc_{{ .Values.console.port }}"
+      labels:
+        app: mpsrouter
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: mpsrouter
+          securityContext:
+            runAsUser: 999
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          image: {{ .Values.images.mpsrouter }}
+          imagePullPolicy: {{ .Values.imagePullPolicy | default "IfNotPresent" }}
+          readinessProbe:
+            exec:
+              command: ["/app","--health"]
+            initialDelaySeconds: 5
+            periodSeconds: 5
+          env:
+            - name: "MPS_CONNECTION_STRING"
+              valueFrom:
+                secretKeyRef:
+                  name: mpsrouter
+                  key: connectionString
+            - name: "PORT"
+              value: "{{ .Values.mpsrouter.port }}"
+            - name: "MPS_PORT"
+              value: "{{ .Values.console.port }}"
+          ports:
+            - containerPort: {{ .Values.mpsrouter.port }}
+              name: mpsrouter

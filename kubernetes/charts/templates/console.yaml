@@ -1,0 +1,110 @@
+#/*********************************************************************
+# Copyright (c) Intel Corporation 2026
+# SPDX-License-Identifier: Apache-2.0
+#**********************************************************************/
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: console
+  name: console
+spec:
+  ports:
+  - port: {{ .Values.console.port }}
+    name: webapi
+    protocol: TCP
+    targetPort: {{ .Values.console.port }}
+  selector:
+    app: console
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: console
+  namespace: default
+spec:
+  replicas: {{ .Values.console.replicaCount }}
+  selector:
+    matchLabels:
+      app: console
+  template:
+    metadata:
+      labels:
+        app: console
+    spec:
+      {{- if .Values.imagePullSecrets }}
+      imagePullSecrets:
+        {{- range .Values.imagePullSecrets }}
+        - name: {{ . }}
+        {{- end }}
+      {{- end }}
+      containers:
+        - name: console
+          securityContext:
+            runAsUser: 999
+            runAsNonRoot: true
+            allowPrivilegeEscalation: false
+          image: {{ .Values.images.console }}
+          imagePullPolicy: {{ .Values.imagePullPolicy | default "IfNotPresent" }}
+          readinessProbe:
+            httpGet:
+              path: /healthz
+              port: {{ .Values.console.port }}
+            initialDelaySeconds: 5
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          env:
+            - name: "GIN_MODE"
+              value: "debug"
+            - name: "APP_NAME"
+              value: "console"
+            - name: "LOG_LEVEL"
+              value: "{{ .Values.console.logLevel }}"
+            - name: "APP_COMMON_NAME"
+              value: "{{ .Values.console.commonName }}"
+            - name: "HTTP_HOST"
+              value: ""
+            - name: "HTTP_PORT"
+              value: "{{ .Values.console.port }}"
+            - name: "HTTP_TLS_ENABLED"
+              value: "{{ .Values.console.tlsEnabled }}"
+            - name: "AUTH_DISABLED"
+              value: "{{ .Values.console.authDisabled }}"
+            - name: "AUTH_JWT_EXPIRATION"
+              value: "{{ .Values.console.jwtExpiration }}"
+            - name: "DB_URL"
+              valueFrom:
+                secretKeyRef:
+                  name: console
+                  key: connectionString
+            - name: "APP_ENCRYPTION_KEY"
+              valueFrom:
+                secretKeyRef:
+                  name: console
+                  key: encryptionKey
+            - name: "AUTH_JWT_KEY"
+              valueFrom:
+                secretKeyRef:
+                  name: console
+                  key: jwtKey
+            - name: "SECRET_ADDR"
+              value: "http://{{ .Release.Name }}-vault:8200"
+            - name: "SECRET_TOKEN"
+              valueFrom:
+                secretKeyRef:
+                  name: vault
+                  key: vaultKey
+            - name: AUTH_ADMIN_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: consoleweb
+                  key: user
+            - name: AUTH_ADMIN_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: consoleweb
+                  key: password
+          ports:
+            - containerPort: {{ .Values.console.port }}
+              name: console

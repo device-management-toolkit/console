@@ -1,0 +1,25 @@
+#/*********************************************************************
+# Copyright (c) Intel Corporation 2026
+# SPDX-License-Identifier: Apache-2.0
+#**********************************************************************/
+apiVersion: v2
+name: console-chart
+description: A Helm chart to install Console, MPS Router, Web UI, PostgreSQL and Vault
+
+# Application chart
+type: application
+
+# Chart version
+version: 1.0.0
+
+# Application version
+appVersion: 1.0.0
+
+dependencies:
+- name: vault
+  version: "^0.32.0"
+  repository: https://helm.releases.hashicorp.com
+
+- name: kong
+  version: "^3.0.0"
+  repository: https://charts.konghq.com

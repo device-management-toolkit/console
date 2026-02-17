@@ -1,0 +1,156 @@
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: web-console
+  namespace: default
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: device-mgmt-cors
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: webui
+                port:
+                  number: 80
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: console-login
+  namespace: default
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: device-mgmt-cors,console-login-rewrite
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /mps/login/api/v1/authorize
+            pathType: Exact
+            backend:
+              service:
+                name: console
+                port:
+                  number: {{ .Values.console.port }}
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: console-login-rewrite
+config:
+  replace:
+    uri: "/api/v1/authorize"
+plugin: request-transformer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mps-redirection
+  namespace: default
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: device-mgmt-cors,mps-redirection-rewrite
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /mps/ws/relay/(.*)
+            pathType: Prefix
+            backend:
+              service:
+                name: mpsrouter
+                port:
+                  number: {{ .Values.mpsrouter.port }}
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: mps-redirection-rewrite
+config:
+  replace:
+    uri: "/relay/$(uri_captures[1])"
+plugin: request-transformer
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: rps
+  namespace: default
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: device-mgmt-toolkit-jwt, device-mgmt-cors,admin-acl
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /rps
+            pathType: Prefix
+            backend:
+              service:
+                name: console
+                port:
+                  number: {{ .Values.console.port }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: mps
+  namespace: default
+  annotations:
+    konghq.com/strip-path: "true"
+    konghq.com/plugins: device-mgmt-toolkit-jwt,device-mgmt-cors, admin-acl
+spec:
+  ingressClassName: kong
+  rules:
+    - http:
+        paths:
+          - path: /mps
+            pathType: Prefix
+            backend:
+              service:
+                name: mpsrouter
+                port:
+                  number: {{ .Values.mpsrouter.port }}
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: device-mgmt-toolkit-jwt
+plugin: jwt
+config:
+  claims_to_verify:
+    - exp
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: device-mgmt-cors
+plugin: cors
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongConsumer
+metadata:
+  name: admin
+  annotations:
+    kubernetes.io/ingress.class: kong
+username: admin
+credentials:
+  - device-mgmt-toolkit-admin-jwt
+  - device-mgmt-toolkit-admin-acl
+---
+apiVersion: configuration.konghq.com/v1
+kind: KongPlugin
+metadata:
+  name: admin-acl
+plugin: acl
+config:
+  allow: ["device-mgmt-toolkit-admin"]
