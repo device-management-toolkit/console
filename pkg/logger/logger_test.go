@@ -154,3 +154,56 @@ func TestNewLogger(t *testing.T) {
 		})
 	}
 }
+
+func TestFormatCaller(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		file     string
+		line     int
+		expected string
+	}{
+		{
+			name:     "Short path - padded with spaces",
+			file:     "./main.go",
+			line:     174,
+			expected: "./main.go:174                                      ",
+		},
+		{
+			name:     "Long path - truncation applied",
+			file:     "github.com/device-management-toolkit/console/internal/certificates/generate.go",
+			line:     259,
+			expected: "github.c...le/internal/certificates/generate.go:259",
+		},
+		{
+			name:     "Exactly 48 characters - padded with spaces",
+			file:     "short/path/to/file/that/is/exactly/48.go",
+			line:     1,
+			expected: "short/path/to/file/that/is/exactly/48.go:1         ",
+		},
+		{
+			name:     "Another long path",
+			file:     "github.com/device-management-toolkit/console/pkg/httpserver/server.go",
+			line:     122,
+			expected: "github.c...kit/console/pkg/httpserver/server.go:122",
+		},
+		{
+			name:     "Very short path - padded",
+			file:     "app.go",
+			line:     1,
+			expected: "app.go:1                                           ",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			result := formatCaller(0, tt.file, tt.line)
+			assert.Equal(t, tt.expected, result)
+			// Verify all outputs have consistent width
+			assert.Equal(t, 51, len(result), "All formatted caller strings should be 51 characters wide")
+		})
+	}
+}

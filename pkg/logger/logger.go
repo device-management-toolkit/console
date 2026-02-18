@@ -9,6 +9,24 @@ import (
 	"github.com/rs/zerolog"
 )
 
+// formatCaller formats the caller field to show only first 8 and last 40 characters for long paths.
+// Short paths are padded with spaces for consistent formatting (width: 51 characters).
+func formatCaller(pc uintptr, file string, line int) string {
+	caller := fmt.Sprintf("%s:%d", file, line)
+
+	const maxWidth = 51 // 8 + "..." (3) + 40 = 51
+
+	// If caller is longer than 48 characters (8 + 40), truncate the middle
+	if len(caller) > 48 {
+		// Keep first 8 characters and last 40 characters
+		truncated := caller[:8] + "..." + caller[len(caller)-40:]
+		return truncated
+	}
+
+	// Pad short paths with spaces to match the max width
+	return fmt.Sprintf("%-*s", maxWidth, caller)
+}
+
 // Interface -.
 type Interface interface {
 	Debug(message interface{}, args ...interface{})
@@ -39,6 +57,9 @@ func New(level string) Interface {
 	default:
 		l = zerolog.InfoLevel
 	}
+
+	// Set custom caller formatter
+	zerolog.CallerMarshalFunc = formatCaller
 
 	skipFrameCount := 2
 

@@ -2,6 +2,7 @@
 package httpapi
 
 import (
+	"fmt"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -20,7 +21,16 @@ import (
 // NewRouter sets up the HTTP router with redfish support.
 func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config, database *db.SQL) {
 	// Options
-	handler.Use(gin.Logger())
+	// Custom logger formatter without timestamp (timestamp is already in the JSON log)
+	handler.Use(gin.LoggerWithFormatter(func(param gin.LogFormatterParams) string {
+		return fmt.Sprintf("[GIN] %3d | %13v | %15s | %-7s %#v\n",
+			param.StatusCode,
+			param.Latency,
+			param.ClientIP,
+			param.Method,
+			param.Path,
+		)
+	}))
 	handler.Use(gin.Recovery())
 
 	// Initialize redfish directly
