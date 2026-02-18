@@ -27,6 +27,7 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 	_, _ = config.NewConfig()
 
 	config.ConsoleConfig.Disabled = true
+	config.ConsoleConfig.WSCompression = false // Disable compression for predictable test behavior
 	mockFeature := mocks.NewMockFeature(ctrl)
 	mockUpgrader := mocks.NewMockUpgrader(ctrl)
 	mockLogger := mocks.NewMockLogger(ctrl)
@@ -60,21 +61,28 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 	for _, tc := range tests { //nolint:paralleltest // logging library is not thread-safe for tests
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
+			// Expect initial websocket request log
+			mockLogger.EXPECT().Info("Websocket connection request: host=%s, mode=%s, client=%s", "someHost", "someMode", gomock.Any())
+
 			if tc.upgraderError != nil {
 				mockUpgrader.EXPECT().
 					Upgrade(gomock.Any(), gomock.Any(), nil).
 					Return(nil, tc.upgraderError)
 				mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
+				mockLogger.EXPECT().Error(tc.upgraderError, "Websocket upgrade failed (host=%s, mode=%s)", "someHost", "someMode")
 			} else {
 				mockUpgrader.EXPECT().
 					Upgrade(gomock.Any(), gomock.Any(), nil).
 					Return(&websocket.Conn{}, nil)
 
 				mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
-				mockLogger.EXPECT().Info("Websocket connection opened")
+				mockLogger.EXPECT().Debug("Websocket compression disabled (host=%s, mode=%s)", "someHost", "someMode")
+				mockLogger.EXPECT().Info("Websocket connection opened successfully (host=%s, mode=%s)", "someHost", "someMode")
 
 				if tc.redirectError != nil {
-					mockLogger.EXPECT().Error(tc.redirectError, "http - devices - v1 - redirect")
+					mockLogger.EXPECT().Error(tc.redirectError, "Redirect failed (host=%s, mode=%s)", "someHost", "someMode")
+				} else {
+					mockLogger.EXPECT().Info("Websocket connection closed normally (host=%s, mode=%s)", "someHost", "someMode")
 				}
 
 				mockFeature.EXPECT().

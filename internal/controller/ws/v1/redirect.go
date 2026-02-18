@@ -29,11 +29,17 @@ func RegisterRoutes(r *gin.Engine, l logger.Interface, t devices.Feature, u Upgr
 }
 
 func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
+	host := c.Query("host")
+	mode := c.Query("mode")
+
+	r.l.Info("Websocket connection request: host=%s, mode=%s, client=%s", host, mode, c.ClientIP())
+
 	tokenString := c.GetHeader("Sec-Websocket-Protocol")
 
 	// validate jwt token in the Sec-Websocket-protocol header
 	if !config.ConsoleConfig.Disabled {
 		if tokenString == "" {
+			r.l.Warn("Websocket connection rejected: missing access token (host=%s, mode=%s)", host, mode)
 			http.Error(c.Writer, "request does not contain an access token", http.StatusUnauthorized)
 
 			return
@@ -46,10 +52,13 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		})
 
 		if err != nil || !token.Valid {
+			r.l.Warn("Websocket connection rejected: invalid access token (host=%s, mode=%s, error=%v)", host, mode, err)
 			http.Error(c.Writer, "invalid access token", http.StatusUnauthorized)
 
 			return
 		}
+
+		r.l.Debug("JWT token validated for websocket connection (host=%s, mode=%s)", host, mode)
 	}
 
 	upgrader, ok := r.u.(*websocket.Upgrader)
@@ -61,6 +70,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	conn, err := r.u.Upgrade(c.Writer, c.Request, nil)
 	if err != nil {
+		r.l.Error(err, "Websocket upgrade failed (host=%s, mode=%s)", host, mode)
 		http.Error(c.Writer, "Could not open websocket connection", http.StatusInternalServerError)
 
 		return
@@ -70,16 +80,20 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 	if config.ConsoleConfig.WSCompression {
 		conn.EnableWriteCompression(true)
 		_ = conn.SetCompressionLevel(flate.BestSpeed)
+		r.l.Debug("Websocket compression enabled (host=%s, mode=%s)", host, mode)
 	} else {
 		conn.EnableWriteCompression(false)
 		_ = conn.SetCompressionLevel(flate.NoCompression)
+		r.l.Debug("Websocket compression disabled (host=%s, mode=%s)", host, mode)
 	}
 
-	r.l.Info("Websocket connection opened")
+	r.l.Info("Websocket connection opened successfully (host=%s, mode=%s)", host, mode)
 
-	err = r.d.Redirect(c, conn, c.Query("host"), c.Query("mode"))
+	err = r.d.Redirect(c, conn, host, mode)
 	if err != nil {
-		r.l.Error(err, "http - devices - v1 - redirect")
+		r.l.Error(err, "Redirect failed (host=%s, mode=%s)", host, mode)
 		errorResponse(c, http.StatusInternalServerError, "redirect failed")
+	} else {
+		r.l.Info("Websocket connection closed normally (host=%s, mode=%s)", host, mode)
 	}
 }
