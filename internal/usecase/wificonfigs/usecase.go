@@ -106,11 +106,14 @@ func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) err
 }
 
 func (uc *UseCase) Update(ctx context.Context, d *dto.WirelessConfig) (*dto.WirelessConfig, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	// check if the IEEE profile is exists in the database
 	if d1.IEEE8021xProfileName != nil && *d1.IEEE8021xProfileName != "" {
-		_, err := uc.ieee.GetByName(ctx, *d1.IEEE8021xProfileName, d.TenantID)
+		_, err = uc.ieee.GetByName(ctx, *d1.IEEE8021xProfileName, d.TenantID)
 		if err != nil {
 			return nil, err
 		}
@@ -136,17 +139,20 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.WirelessConfig) (*dto.Wire
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.WirelessConfig) (*dto.WirelessConfig, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	// check if the IEEE profile is exists in the database
 	if d1.IEEE8021xProfileName != nil && *d1.IEEE8021xProfileName != "" {
-		_, err := uc.ieee.GetByName(ctx, *d1.IEEE8021xProfileName, d.TenantID)
+		_, err = uc.ieee.GetByName(ctx, *d1.IEEE8021xProfileName, d.TenantID)
 		if err != nil {
 			return nil, err
 		}
 	}
 
-	_, err := uc.repo.Insert(ctx, d1)
+	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
@@ -162,7 +168,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.WirelessConfig) (*dto.Wire
 }
 
 // convert dto.WirelessConfig to entity.WirelessConfig.
-func (uc *UseCase) dtoToEntity(d *dto.WirelessConfig) *entity.WirelessConfig {
+func (uc *UseCase) dtoToEntity(d *dto.WirelessConfig) (*entity.WirelessConfig, error) {
 	// convert []int to comma separated string
 	linkPolicy := strings.Trim(strings.Join(strings.Fields(fmt.Sprint(d.LinkPolicy)), ","), "[]")
 
@@ -179,9 +185,14 @@ func (uc *UseCase) dtoToEntity(d *dto.WirelessConfig) *entity.WirelessConfig {
 		Version:              d.Version,
 	}
 
-	d1.PSKPassphrase, _ = uc.safeRequirements.Encrypt(d.PSKPassphrase)
+	var err error
 
-	return d1
+	d1.PSKPassphrase, err = uc.safeRequirements.Encrypt(d.PSKPassphrase)
+	if err != nil {
+		return nil, ErrDomainsUseCase.Wrap("dtoToEntity", "failed to encrypt PSK passphrase", err)
+	}
+
+	return d1, nil
 }
 
 // convert entity.WirelessConfig to dto.WirelessConfig.

@@ -14,7 +14,7 @@ type Redirector struct {
 	SafeRequirements security.Cryptor
 }
 
-func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) wsman.Messages {
+func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, error) {
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
@@ -29,9 +29,14 @@ func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAM
 		clientParams.PinnedCert = *device.CertHash
 	}
 
-	clientParams.Password, _ = g.SafeRequirements.Decrypt(device.Password)
+	decryptedPassword, err := g.SafeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return wsman.Messages{}, err
+	}
 
-	return wsman.NewMessages(clientParams)
+	clientParams.Password = decryptedPassword
+
+	return wsman.NewMessages(clientParams), nil
 }
 
 func NewRedirector(safeRequirements security.Cryptor) *Redirector {

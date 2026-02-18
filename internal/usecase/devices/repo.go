@@ -64,7 +64,7 @@ func (uc *UseCase) GetByColumn(ctx context.Context, columnName, queryValue, tena
 }
 
 func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
-	data, err := uc.repo.GetByID(ctx, guid, tenantID)
+	data, err := uc.repo.GetByID(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
 	}
@@ -146,7 +146,7 @@ func (uc *UseCase) GetByTags(ctx context.Context, tags, method string, limit, of
 }
 
 func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
-	isSuccessful, err := uc.repo.Delete(ctx, guid, tenantID)
+	isSuccessful, err := uc.repo.Delete(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
 		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
