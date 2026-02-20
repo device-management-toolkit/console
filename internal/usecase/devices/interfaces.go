@@ -28,7 +28,7 @@ type (
 	}
 
 	Redirection interface {
-		SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) wsman.Messages
+		SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) (wsman.Messages, error)
 		RedirectConnect(ctx context.Context, deviceConnection *DeviceConnection) error
 		RedirectClose(ctx context.Context, deviceConnection *DeviceConnection) error
 		RedirectListen(ctx context.Context, deviceConnection *DeviceConnection) ([]byte, error)

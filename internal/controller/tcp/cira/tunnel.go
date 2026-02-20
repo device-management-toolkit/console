@@ -28,6 +28,7 @@ const (
 	weakCipherSuiteCount = 3
 	keepAliveInterval    = 30
 	keepAliveTimeout     = 90
+	apfSessionTimeout    = 3 * time.Second
 )
 
 var (
@@ -145,8 +146,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 		conn:    conn,
 		tlsConn: tlsConn,
 		handler: NewAPFHandler(s.devices, s.log),
-		session: &apf.Session{},
-		log:     s.log,
+		session: &apf.Session{
+			Timer: time.NewTimer(apfSessionTimeout),
+		},
+		log: s.log,
 	}
 	ctx.processor = apf.NewProcessor(ctx.handler)
 
@@ -161,6 +164,17 @@ func (ctx *connectionContext) cleanup() {
 		mu.Lock()
 		delete(wsman.Connections, deviceID)
 		mu.Unlock()
+	}
+
+	// Stop and clean up the session timer
+	if ctx.session != nil && ctx.session.Timer != nil {
+		if !ctx.session.Timer.Stop() {
+			// Drain the channel if the timer fired
+			select {
+			case <-ctx.session.Timer.C:
+			default:
+			}
+		}
 	}
 }
 

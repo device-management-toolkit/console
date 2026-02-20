@@ -126,8 +126,7 @@ func TestHandleOpenAPIGeneration_Success(t *testing.T) {
 	mockGen.On("GenerateSpec").Return(expectedSpec, nil)
 	mockGen.On("SaveSpec", expectedSpec, "doc/openapi.json").Return(nil)
 
-	err := handleOpenAPIGeneration()
-	assert.NoError(t, err)
+	handleOpenAPIGeneration(&config.Config{Log: config.Log{Level: "info"}})
 
 	mockGen.AssertExpectations(t)
 }
@@ -145,8 +144,7 @@ func TestHandleOpenAPIGeneration_GenerateFails(t *testing.T) {
 
 	mockGen.On("GenerateSpec").Return([]byte(nil), assert.AnError)
 
-	err := handleOpenAPIGeneration()
-	assert.Error(t, err)
+	handleOpenAPIGeneration(&config.Config{Log: config.Log{Level: "info"}})
 
 	mockGen.AssertExpectations(t)
 }
