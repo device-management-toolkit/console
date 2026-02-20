@@ -432,11 +432,6 @@ func (c *ConnectionEntry) hardwareGets() (GetHWResults, error) {
 		return results, err
 	}
 
-	results.ChipResult, err = c.WsmanMessages.CIM.Chip.Get()
-	if err != nil {
-		return results, err
-	}
-
 	results.BiosResult, err = c.WsmanMessages.CIM.BIOSElement.Get()
 	if err != nil {
 		return results, err
@@ -465,6 +460,16 @@ func (c *ConnectionEntry) hardwarePulls() (PullHWResults, error) {
 		return results, err
 	}
 
+	chipEnumerateResult, err := c.WsmanMessages.CIM.Chip.Enumerate()
+	if err != nil {
+		return results, err
+	}
+
+	results.ChipResult, err = c.WsmanMessages.CIM.Chip.Pull(chipEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return results, err
+	}
+
 	return results, nil
 }
 
@@ -481,7 +486,7 @@ func (c *ConnectionEntry) GetHardwareInfo() (interface{}, error) {
 
 	hwResults := HWResults{
 		ChassisResult:        getHWResults.ChassisResult,
-		ChipResult:           getHWResults.ChipResult,
+		ChipResult:           pullHWResults.ChipResult,
 		CardResult:           getHWResults.CardResult,
 		PhysicalMemoryResult: pullHWResults.PhysicalMemoryResult,
 		BiosResult:           getHWResults.BiosResult,
@@ -493,13 +498,13 @@ func (c *ConnectionEntry) GetHardwareInfo() (interface{}, error) {
 
 type GetHWResults struct {
 	ChassisResult   chassis.Response
-	ChipResult      chip.Response
 	CardResult      card.Response
 	BiosResult      bios.Response
 	ProcessorResult processor.Response
 }
 type PullHWResults struct {
 	PhysicalMemoryResult physical.Response
+	ChipResult           chip.Response
 }
 type HWResults struct {
 	ChassisResult        chassis.Response
