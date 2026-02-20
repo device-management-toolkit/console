@@ -1,6 +1,8 @@
 package devices
 
 import (
+	"time"
+
 	"github.com/prometheus/client_golang/prometheus"
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
@@ -92,4 +94,73 @@ var (
 		},
 		[]string{"mode"},
 	)
+
+	// KVM Connection Performance Metrics.
+	kvmDeviceLookupSeconds = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "kvm_device_lookup_seconds",
+			Help:    "Time to look up device from database during KVM connection (KVM_TIMING)",
+			Buckets: []float64{0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2},
+		},
+	)
+
+	kvmConnectionSetupSeconds = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "kvm_connection_setup_seconds",
+			Help:    "Time to establish TCP connection to device during KVM setup (KVM_TIMING)",
+			Buckets: []float64{0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10},
+		},
+		[]string{"mode"},
+	)
+
+	kvmWebsocketUpgradeSeconds = promauto.NewHistogram(
+		prometheus.HistogramOpts{
+			Name:    "kvm_websocket_upgrade_seconds",
+			Help:    "Time to upgrade HTTP connection to WebSocket for KVM (KVM_TIMING)",
+			Buckets: []float64{0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1},
+		},
+	)
+
+	kvmTotalConnectionSeconds = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "kvm_total_connection_seconds",
+			Help:    "Total time from request to ready KVM connection (KVM_TIMING)",
+			Buckets: []float64{0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30},
+		},
+		[]string{"mode"},
+	)
+
+	kvmConsentCodeWaitSeconds = promauto.NewHistogramVec(
+		prometheus.HistogramOpts{
+			Name:    "kvm_consent_code_wait_seconds",
+			Help:    "Time spent waiting for consent code handling during KVM setup (KVM_TIMING)",
+			Buckets: []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60},
+		},
+		[]string{"mode"},
+	)
 )
+
+// RecordWebsocketUpgrade records the WebSocket upgrade duration metric.
+func RecordWebsocketUpgrade(duration time.Duration) {
+	kvmWebsocketUpgradeSeconds.Observe(duration.Seconds())
+}
+
+// RecordTotalConnection records the total KVM connection time metric.
+func RecordTotalConnection(duration time.Duration, mode string) {
+	kvmTotalConnectionSeconds.WithLabelValues(mode).Observe(duration.Seconds())
+}
+
+// RecordConsentCodeWait records the consent code wait time metric.
+func RecordConsentCodeWait(duration time.Duration, mode string) {
+	kvmConsentCodeWaitSeconds.WithLabelValues(mode).Observe(duration.Seconds())
+}
+
+// RecordDeviceLookup records the device lookup duration metric.
+func RecordDeviceLookup(duration time.Duration) {
+	kvmDeviceLookupSeconds.Observe(duration.Seconds())
+}
+
+// RecordConnectionSetup records the TCP connection setup duration metric.
+func RecordConnectionSetup(duration time.Duration, mode string) {
+	kvmConnectionSetupSeconds.WithLabelValues(mode).Observe(duration.Seconds())
+}
