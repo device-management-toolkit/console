@@ -2,6 +2,8 @@ package v1
 
 import (
 	"compress/flate"
+	"errors"
+	"fmt"
 	"net/http"
 	"time"
 
@@ -13,6 +15,8 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
+
+var ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
 
 type RedirectRoutes struct {
 	d devices.Feature
@@ -42,7 +46,11 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 		claims := &jwt.MapClaims{}
 
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
+			}
+
 			return []byte(config.ConsoleConfig.JWTKey), nil
 		})
 
