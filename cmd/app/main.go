@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"runtime"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -95,17 +92,6 @@ func handleDebugMode(cfg *config.Config, l logger.Interface) {
 		go launchBrowser(cfg)
 	} else {
 		handleOpenAPIGeneration(l)
-	}
-}
-
-func launchBrowser(cfg *config.Config) {
-	scheme := "http"
-	if cfg.TLS.Enabled {
-		scheme = "https"
-	}
-
-	if err := openBrowser(scheme+"://localhost:"+cfg.Port, runtime.GOOS); err != nil {
-		panic(err)
 	}
 }
 
@@ -301,39 +287,4 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 	}
 
 	return toolkitCrypto.GenerateKey()
-}
-
-// CommandExecutor is an interface to allow for mocking exec.Command in tests.
-type CommandExecutor interface {
-	Execute(name string, arg ...string) error
-}
-
-// RealCommandExecutor is a real implementation of CommandExecutor.
-type RealCommandExecutor struct{}
-
-func (e *RealCommandExecutor) Execute(name string, arg ...string) error {
-	return exec.CommandContext(context.Background(), name, arg...).Start()
-}
-
-// Global command executor, can be replaced in tests.
-var cmdExecutor CommandExecutor = &RealCommandExecutor{}
-
-func openBrowser(url, currentOS string) error {
-	var cmd string
-
-	var args []string
-
-	switch currentOS {
-	case "darwin":
-		cmd = "open"
-		args = []string{url}
-	case "windows":
-		cmd = "cmd"
-		args = []string{"/c", "start", url}
-	default:
-		cmd = "xdg-open"
-		args = []string{url}
-	}
-
-	return cmdExecutor.Execute(cmd, args...)
 }
