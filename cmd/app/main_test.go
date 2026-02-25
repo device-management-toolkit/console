@@ -22,14 +22,14 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 
 	// Mock functions
 	initializeConfigFunc = func() (*config.Config, error) {
-		return &config.Config{HTTP: config.HTTP{Port: "8080"}, App: config.App{EncryptionKey: "test"}}, nil
+		return &config.Config{HTTP: config.HTTP{Port: "8080"}, App: config.App{EncryptionKey: "test"}, Log: config.Log{Level: "info"}}, nil
 	}
 
 	initializeAppFunc = func(_ *config.Config) error {
 		return nil
 	}
 
-	runAppFunc = func(_ *config.Config) {}
+	runAppFunc = func(_ *config.Config, _ logger.Interface) {}
 
 	// Mock certificate functions
 	loadOrGenerateRootCertFunc = func(_ security.Storager, _ bool, _, _, _ string, _ bool) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -83,7 +83,7 @@ func TestHandleOpenAPIGeneration_Success(t *testing.T) {
 	mockGen.On("GenerateSpec").Return(expectedSpec, nil)
 	mockGen.On("SaveSpec", expectedSpec, "doc/openapi.json").Return(nil)
 
-	handleOpenAPIGeneration(&config.Config{Log: config.Log{Level: "info"}})
+	handleOpenAPIGeneration(logger.New("info"))
 
 	mockGen.AssertExpectations(t)
 }
@@ -101,7 +101,7 @@ func TestHandleOpenAPIGeneration_GenerateFails(t *testing.T) {
 
 	mockGen.On("GenerateSpec").Return([]byte(nil), assert.AnError)
 
-	handleOpenAPIGeneration(&config.Config{Log: config.Log{Level: "info"}})
+	handleOpenAPIGeneration(logger.New("info"))
 
 	mockGen.AssertExpectations(t)
 }

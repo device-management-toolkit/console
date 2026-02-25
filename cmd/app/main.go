@@ -27,7 +27,9 @@ var (
 var (
 	initializeConfigFunc = config.NewConfig
 	initializeAppFunc    = app.Init
-	runAppFunc           = app.Run
+	runAppFunc           = func(cfg *config.Config, log logger.Interface) {
+		app.Run(cfg, log)
+	}
 	// NewGeneratorFunc allows tests to inject a fake OpenAPI generator.
 	NewGeneratorFunc = func(u usecase.Usecases, l logger.Interface) interface {
 		GenerateSpec() ([]byte, error)
@@ -60,9 +62,11 @@ func main() {
 		log.Fatalf("CIRA certificate setup error: %s", err)
 	}
 
+	l := logger.New(cfg.Level)
+
 	handleEncryptionKey(cfg)
-	handleDebugMode(cfg)
-	runAppFunc(cfg)
+	handleDebugMode(cfg, l)
+	runAppFunc(cfg, l)
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
@@ -83,16 +87,15 @@ func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) 
 	return nil
 }
 
-func handleDebugMode(cfg *config.Config) {
+func handleDebugMode(cfg *config.Config, l logger.Interface) {
 	if os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	} else {
-		handleOpenAPIGeneration(cfg)
+		handleOpenAPIGeneration(l)
 	}
 }
 
-func handleOpenAPIGeneration(cfg *config.Config) {
-	l := logger.New(cfg.Level)
+func handleOpenAPIGeneration(l logger.Interface) {
 	usecases := usecase.Usecases{}
 
 	// Create OpenAPI generator
@@ -113,7 +116,7 @@ func handleOpenAPIGeneration(cfg *config.Config) {
 		return
 	}
 
-	log.Println("OpenAPI specification generated at doc/openapi.json")
+	l.Info("OpenAPI specification generated at doc/openapi.json")
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
