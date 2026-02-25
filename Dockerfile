@@ -37,10 +37,12 @@ RUN mkdir -p /.config/device-management-toolkit
 # Step 3: Final - Use scratch for all builds (all are fully static with pure Go)
 FROM scratch
 ENV TMPDIR=/tmp
-COPY --from=builder /app/tmp /tmp
-COPY --from=builder /app/config /config
+ENV XDG_CONFIG_HOME=/.config
+COPY --chown=65534:65534 --from=builder /app/tmp /tmp
+COPY --chown=65534:65534 --from=builder /app/config /config
 COPY --from=builder /app/internal/app/migrations /migrations
 COPY --from=builder /bin/app /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /.config/device-management-toolkit /.config/device-management-toolkit
+COPY --chown=65534:65534 --from=builder /.config/device-management-toolkit /.config/device-management-toolkit
+USER 65534:65534
 CMD ["/app"]
