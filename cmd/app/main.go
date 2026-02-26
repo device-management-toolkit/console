@@ -1,13 +1,10 @@
 package main
 
 import (
-	"context"
 	"errors"
 	"fmt"
 	"log"
 	"os"
-	"os/exec"
-	"runtime"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -30,7 +27,9 @@ var (
 var (
 	initializeConfigFunc = config.NewConfig
 	initializeAppFunc    = app.Init
-	runAppFunc           = app.Run
+	runAppFunc           = func(cfg *config.Config, log logger.Interface) {
+		app.Run(cfg, log)
+	}
 	// NewGeneratorFunc allows tests to inject a fake OpenAPI generator.
 	NewGeneratorFunc = func(u usecase.Usecases, l logger.Interface) interface {
 		GenerateSpec() ([]byte, error)
@@ -63,9 +62,11 @@ func main() {
 		log.Fatalf("CIRA certificate setup error: %s", err)
 	}
 
+	l := logger.New(cfg.Level)
+
 	handleEncryptionKey(cfg)
-	handleDebugMode(cfg)
-	runAppFunc(cfg)
+	handleDebugMode(cfg, l)
+	runAppFunc(cfg, l)
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
@@ -86,27 +87,15 @@ func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) 
 	return nil
 }
 
-func handleDebugMode(cfg *config.Config) {
+func handleDebugMode(cfg *config.Config, l logger.Interface) {
 	if os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	} else {
-		handleOpenAPIGeneration(cfg)
+		handleOpenAPIGeneration(l)
 	}
 }
 
-func launchBrowser(cfg *config.Config) {
-	scheme := "http"
-	if cfg.TLS.Enabled {
-		scheme = "https"
-	}
-
-	if err := openBrowser(scheme+"://localhost:"+cfg.Port, runtime.GOOS); err != nil {
-		panic(err)
-	}
-}
-
-func handleOpenAPIGeneration(cfg *config.Config) {
-	l := logger.New(cfg.Level)
+func handleOpenAPIGeneration(l logger.Interface) {
 	usecases := usecase.Usecases{}
 
 	// Create OpenAPI generator
@@ -127,7 +116,7 @@ func handleOpenAPIGeneration(cfg *config.Config) {
 		return
 	}
 
-	log.Println("OpenAPI specification generated at doc/openapi.json")
+	l.Info("OpenAPI specification generated at doc/openapi.json")
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
@@ -298,39 +287,4 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 	}
 
 	return toolkitCrypto.GenerateKey()
-}
-
-// CommandExecutor is an interface to allow for mocking exec.Command in tests.
-type CommandExecutor interface {
-	Execute(name string, arg ...string) error
-}
-
-// RealCommandExecutor is a real implementation of CommandExecutor.
-type RealCommandExecutor struct{}
-
-func (e *RealCommandExecutor) Execute(name string, arg ...string) error {
-	return exec.CommandContext(context.Background(), name, arg...).Start()
-}
-
-// Global command executor, can be replaced in tests.
-var cmdExecutor CommandExecutor = &RealCommandExecutor{}
-
-func openBrowser(url, currentOS string) error {
-	var cmd string
-
-	var args []string
-
-	switch currentOS {
-	case "darwin":
-		cmd = "open"
-		args = []string{url}
-	case "windows":
-		cmd = "cmd"
-		args = []string{"/c", "start", url}
-	default:
-		cmd = "xdg-open"
-		args = []string{url}
-	}
-
-	return cmdExecutor.Execute(cmd, args...)
 }

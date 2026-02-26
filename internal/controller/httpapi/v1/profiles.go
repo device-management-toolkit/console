@@ -27,6 +27,7 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 			_ = v.RegisterValidation("genpasswordwone", dto.ValidateAMTPassOrGenRan)
 			_ = v.RegisterValidation("ciraortls", dto.ValidateCIRAOrTLS)
+			_ = v.RegisterValidation("wifidhcp", dto.ValidateWiFiDHCP)
 		}
 	}
 

@@ -17,29 +17,19 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-type MockCommandExecutor struct {
-	mock.Mock
-}
-
-func (m *MockCommandExecutor) Execute(name string, arg ...string) error {
-	args := m.Called(name, arg)
-
-	return args.Error(0)
-}
-
 func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying env variables.
 	os.Setenv("GIN_MODE", "debug")
 
 	// Mock functions
 	initializeConfigFunc = func() (*config.Config, error) {
-		return &config.Config{HTTP: config.HTTP{Port: "8080"}, App: config.App{EncryptionKey: "test"}}, nil
+		return &config.Config{HTTP: config.HTTP{Port: "8080"}, App: config.App{EncryptionKey: "test"}, Log: config.Log{Level: "info"}}, nil
 	}
 
 	initializeAppFunc = func(_ *config.Config) error {
 		return nil
 	}
 
-	runAppFunc = func(_ *config.Config) {}
+	runAppFunc = func(_ *config.Config, _ logger.Interface) {}
 
 	// Mock certificate functions
 	loadOrGenerateRootCertFunc = func(_ security.Storager, _ bool, _, _, _ string, _ bool) (*x509.Certificate, *rsa.PrivateKey, error) {
@@ -52,39 +42,6 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 
 	// Call the main function
 	main()
-}
-
-func TestOpenBrowserWindows(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
-	mockCmdExecutor := new(MockCommandExecutor)
-	cmdExecutor = mockCmdExecutor
-
-	mockCmdExecutor.On("Execute", "cmd", []string{"/c", "start", "http://localhost:8080"}).Return(nil)
-
-	err := openBrowser("http://localhost:8080", "windows")
-	assert.NoError(t, err)
-	mockCmdExecutor.AssertExpectations(t)
-}
-
-func TestOpenBrowserDarwin(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
-	mockCmdExecutor := new(MockCommandExecutor)
-	cmdExecutor = mockCmdExecutor
-
-	mockCmdExecutor.On("Execute", "open", []string{"http://localhost:8080"}).Return(nil)
-
-	err := openBrowser("http://localhost:8080", "darwin")
-	assert.NoError(t, err)
-	mockCmdExecutor.AssertExpectations(t)
-}
-
-func TestOpenBrowserLinux(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
-	mockCmdExecutor := new(MockCommandExecutor)
-	cmdExecutor = mockCmdExecutor
-
-	mockCmdExecutor.On("Execute", "xdg-open", []string{"http://localhost:8080"}).Return(nil)
-
-	err := openBrowser("http://localhost:8080", "ubuntu")
-	assert.NoError(t, err)
-	mockCmdExecutor.AssertExpectations(t)
 }
 
 type MockGenerator struct {
@@ -126,7 +83,7 @@ func TestHandleOpenAPIGeneration_Success(t *testing.T) {
 	mockGen.On("GenerateSpec").Return(expectedSpec, nil)
 	mockGen.On("SaveSpec", expectedSpec, "doc/openapi.json").Return(nil)
 
-	handleOpenAPIGeneration(&config.Config{Log: config.Log{Level: "info"}})
+	handleOpenAPIGeneration(logger.New("info"))
 
 	mockGen.AssertExpectations(t)
 }
@@ -144,7 +101,7 @@ func TestHandleOpenAPIGeneration_GenerateFails(t *testing.T) {
 
 	mockGen.On("GenerateSpec").Return([]byte(nil), assert.AnError)
 
-	handleOpenAPIGeneration(&config.Config{Log: config.Log{Level: "info"}})
+	handleOpenAPIGeneration(logger.New("info"))
 
 	mockGen.AssertExpectations(t)
 }
