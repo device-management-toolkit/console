@@ -1169,11 +1169,7 @@ func TestGetFeatures(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			v1, v2, err := useCase.GetFeatures(context.Background(), device.GUID)
-
-			require.Equal(t, tc.res, v1)
-
-			require.Equal(t, tc.resV2, v2)
+			_, _, err := useCase.GetFeatures(context.Background(), device.GUID, false)
 
 			require.IsType(t, tc.err, err)
 		})

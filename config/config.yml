@@ -54,4 +54,13 @@ ui:
   # - Ignored: When building without 'noui' tag (embedded UI is served normally)
   # Example: https://ui.example.com
   externalUrl: ""
+cache:
+  # ttl: Cache time-to-live for AMT features and KVM data
+  # Valid range: 0 (disabled) to 5 minutes (300s)
+  # Recommended: 30s for balance between performance and freshness
+  ttl: 30s
+  # powerstate_ttl: Separate TTL for power state (changes more frequently)
+  # Valid range: 0 (disabled) to 1 minute (60s)
+  # Recommended: 5s since power state changes during operations
+  powerstate_ttl: 5s
 

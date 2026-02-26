@@ -12,6 +12,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -40,7 +41,22 @@ type OCRData struct {
 	bootData           boot.BootSettingDataResponse
 }
 
-func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
+type cachedFeatures struct {
+	V1 dto.Features
+	V2 dtov2.Features
+}
+
+func (uc *UseCase) GetFeatures(c context.Context, guid string, bypassCache bool) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
+	// Check cache first (unless bypass is requested)
+	cacheKey := cache.MakeFeaturesKey(guid)
+	if !bypassCache {
+		if cached, found := uc.cache.Get(cacheKey); found {
+			if features, ok := cached.(cachedFeatures); ok {
+				return features.V1, features.V2, nil
+			}
+		}
+	}
+
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return dto.Features{}, dtov2.Features{}, err
@@ -96,6 +112,12 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+
+	// Cache the results (uses configured TTL)
+	uc.cache.Set(cacheKey, cachedFeatures{
+		V1: settingsResults,
+		V2: settingsResultsV2,
+	}, 0) // 0 means use default TTL from config
 
 	return settingsResults, settingsResultsV2, nil
 }

@@ -13,8 +13,6 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
-	"github.com/device-management-toolkit/console/internal/usecase/devices"
-	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
 	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
@@ -62,7 +60,7 @@ func TestUsecases(t *testing.T) {
 			},
 			expectedResult: &Usecases{
 				Domains: domains.New(sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements, nil),
-				Devices: devices.New(sqldb.NewDeviceRepo(&db.SQL{}, mocks.NewMockLogger(nil)), wsman.NewGoWSMANMessages(mocks.NewMockLogger(nil), safeRequirements), devices.NewRedirector(safeRequirements), mocks.NewMockLogger(nil), safeRequirements),
+				// Devices not compared due to cache with background goroutine
 				Profiles: profiles.New(
 					sqldb.NewProfileRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					sqldb.NewWirelessRepo(&db.SQL{}, mocks.NewMockLogger(nil)),
@@ -98,7 +96,8 @@ func TestUsecases(t *testing.T) {
 			assert.NotNil(t, uc.WirelessProfiles)
 
 			assert.Equal(t, tc.expectedResult.Domains, uc.Domains)
-			assert.Equal(t, tc.expectedResult.Devices, uc.Devices)
+			// Don't deep compare Devices due to cache with background goroutine
+			assert.NotNil(t, uc.Devices)
 			assert.Equal(t, tc.expectedResult.Profiles, uc.Profiles)
 			assert.Equal(t, tc.expectedResult.ProfileWiFiConfigs, uc.ProfileWiFiConfigs)
 			assert.Equal(t, tc.expectedResult.IEEE8021xProfiles, uc.IEEE8021xProfiles)

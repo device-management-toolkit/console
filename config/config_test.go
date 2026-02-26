@@ -3,6 +3,7 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 )
@@ -106,4 +107,87 @@ postgres:
 	assert.Equal(t, "debug", cfg.Level)
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
+}
+
+func TestValidateCacheConfig(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		cache         Cache
+		expectedError string
+	}{
+		{
+			name: "valid default values",
+			cache: Cache{
+				TTL:           30 * time.Second,
+				PowerStateTTL: 5 * time.Second,
+			},
+			expectedError: "",
+		},
+		{
+			name: "valid disabled cache",
+			cache: Cache{
+				TTL:           0,
+				PowerStateTTL: 0,
+			},
+			expectedError: "",
+		},
+		{
+			name: "valid maximum values",
+			cache: Cache{
+				TTL:           MaxCacheTTL,
+				PowerStateTTL: MaxPowerStateTTL,
+			},
+			expectedError: "",
+		},
+		{
+			name: "negative ttl",
+			cache: Cache{
+				TTL:           -1 * time.Second,
+				PowerStateTTL: 5 * time.Second,
+			},
+			expectedError: "cache ttl cannot be negative",
+		},
+		{
+			name: "negative powerstate_ttl",
+			cache: Cache{
+				TTL:           30 * time.Second,
+				PowerStateTTL: -1 * time.Second,
+			},
+			expectedError: "cache powerstate_ttl cannot be negative",
+		},
+		{
+			name: "ttl exceeds maximum",
+			cache: Cache{
+				TTL:           6 * time.Minute,
+				PowerStateTTL: 5 * time.Second,
+			},
+			expectedError: "cache ttl exceeds maximum allowed value of 5 minutes",
+		},
+		{
+			name: "powerstate_ttl exceeds maximum",
+			cache: Cache{
+				TTL:           30 * time.Second,
+				PowerStateTTL: 2 * time.Minute,
+			},
+			expectedError: "cache powerstate_ttl exceeds maximum allowed value of 1 minute",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{Cache: tt.cache}
+
+			err := cfg.ValidateCacheConfig()
+			if tt.expectedError == "" {
+				assert.NoError(t, err)
+			} else {
+				assert.Error(t, err)
+				assert.Contains(t, err.Error(), tt.expectedError)
+			}
+		})
+	}
 }

@@ -119,7 +119,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/features/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetFeatures(context.Background(), "valid-guid").
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid", gomock.Any()).
 					Return(dto.Features{}, dtov2.Features{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -143,7 +143,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/features/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetFeatures(context.Background(), "valid-guid").
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid", gomock.Any()).
 					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,

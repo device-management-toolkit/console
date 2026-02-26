@@ -3,10 +3,12 @@ package devices_test
 import (
 	"context"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
@@ -40,7 +42,7 @@ func devicesTest(t *testing.T) (*devices.UseCase, *mocks.MockDeviceManagementRep
 	wsmanMock.EXPECT().Worker().Return().AnyTimes()
 
 	log := logger.New("error")
-	u := devices.New(repo, wsmanMock, mocks.NewMockRedirection(mockCtl), log, mocks.MockCrypto{})
+	u := devices.New(repo, wsmanMock, mocks.NewMockRedirection(mockCtl), log, mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 	return u, repo, wsmanMock
 }

@@ -43,8 +43,9 @@ func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 	guid := c.Param("guid")
+	refresh := c.Query("refresh") == "true"
 
-	_, v2, err := r.d.GetFeatures(c.Request.Context(), guid)
+	_, v2, err := r.d.GetFeatures(c.Request.Context(), guid, refresh)
 	if err != nil {
 		r.l.Error(err, "http - v2 - getFeatures")
 		v1.ErrorResponse(c, err)
