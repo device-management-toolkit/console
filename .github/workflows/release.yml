@@ -8,6 +8,7 @@
 name: Release CI
 
 on:
+  workflow_dispatch:
   push:
     branches: [main, beta]
     tags: ['v*-redfish.preview.*']
@@ -84,6 +85,19 @@ jobs:
           # Verify tag commit
           CURRENT_COMMIT=$(git rev-parse HEAD)
           TAG_COMMIT=$(git rev-list -n 1 "$REDFISH_TAG")
+
+          # Validate tag commit belongs to configured Redfish source branch
+          TARGET_BRANCH="${{ vars.REDFISH_SOURCE_BRANCH }}"
+          if [ -z "$TARGET_BRANCH" ]; then
+            TARGET_BRANCH="redfish"
+          fi
+          git fetch origin "$TARGET_BRANCH"
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" "origin/$TARGET_BRANCH"; then
+            echo "❌ Error: Tag $REDFISH_TAG is not on branch $TARGET_BRANCH"
+            exit 1
+          fi
+          echo "✓ Verified tag commit is on $TARGET_BRANCH"
+
           if [ "$TAG_COMMIT" != "$CURRENT_COMMIT" ]; then
             echo "❌ Error: Tag $REDFISH_TAG does not point to checked out commit"
             exit 1
@@ -208,7 +222,7 @@ jobs:
     permissions:
       contents: write # for Git to git push
     runs-on: ubuntu-latest
-    needs: build
+    needs: [prepare, build]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
@@ -219,7 +233,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-  
+
       # Restore unified build cache
       - shell: bash
         run: |
@@ -232,7 +246,7 @@ jobs:
             dist/darwin
             dist/windows
           key: all-platforms-${{ env.sha_short }}
-      
+
       # Generate licenses.zip
       - name: Use Node.js 22.x
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
@@ -279,7 +293,7 @@ jobs:
 
       - name: Create licenses.zip
         run: zip -r licenses.zip licenses
-      
+
       - name: Docker Login
         if: needs.prepare.outputs.is_redfish == 'false'
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
