@@ -28,9 +28,9 @@ func initRedirectionTest(t *testing.T) (*devices.Redirector, *mocks.MockRedirect
 }
 
 type redTest struct {
-	name    string
-	redMock func(*mocks.MockRedirection)
-	res     any
+	name string
+	res  any
+	err  error
 }
 
 func TestSetupWsmanClient(t *testing.T) {
@@ -44,21 +44,8 @@ func TestSetupWsmanClient(t *testing.T) {
 	tests := []redTest{
 		{
 			name: "success",
-			redMock: func(redirect *mocks.MockRedirection) {
-				redirect.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(wsman.Messages{})
-			},
-			res: wsman.Messages{},
-		},
-		{
-			name: "fail",
-			redMock: func(redirect *mocks.MockRedirection) {
-				redirect.EXPECT().
-					SetupWsmanClient(gomock.Any(), true, true).
-					Return(wsman.Messages{})
-			},
-			res: wsman.Messages{},
+			res:  wsman.Messages{},
+			err:  nil,
 		},
 	}
 
@@ -67,17 +54,14 @@ func TestSetupWsmanClient(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			redirector, redirect, _ := initRedirectionTest(t)
+			redirector, _, _ := initRedirectionTest(t)
 
-			tc.redMock(redirect)
+			redirector.SafeRequirements = mocks.MockCrypto{}
 
-			redirector.SafeRequirements = security.Crypto{
-				EncryptionKey: "test",
-			}
-
-			res := redirector.SetupWsmanClient(*device, true, true)
+			res, err := redirector.SetupWsmanClient(*device, true, true)
 
 			require.IsType(t, tc.res, res)
+			require.Equal(t, tc.err, err)
 		})
 	}
 }

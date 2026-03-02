@@ -7,14 +7,14 @@
 ARG BUILD_TAGS=""
 
 # Step 1: Modules caching
-FROM golang:1.25.6-alpine@sha256:98e6cffc31ccc44c7c15d83df1d69891efee8115a5bb7ede2bf30a38af3e3c92 AS modules
+FROM golang:1.25.7-alpine@sha256:f6751d823c26342f9506c03797d2527668d095b0a15f1862cddb4d927a7a4ced AS modules
 COPY go.mod go.sum /modules/
 WORKDIR /modules
 RUN apk add --no-cache git
 RUN go mod download
 
 # Step 2: Builder
-FROM golang:1.25.6-alpine@sha256:98e6cffc31ccc44c7c15d83df1d69891efee8115a5bb7ede2bf30a38af3e3c92 AS builder
+FROM golang:1.25.7-alpine@sha256:f6751d823c26342f9506c03797d2527668d095b0a15f1862cddb4d927a7a4ced AS builder
 # Build tags control dependencies:
 # - Default (no tags): Full build with UI
 # - noui: Excludes web UI assets
@@ -37,10 +37,12 @@ RUN mkdir -p /.config/device-management-toolkit
 # Step 3: Final - Use scratch for all builds (all are fully static with pure Go)
 FROM scratch
 ENV TMPDIR=/tmp
-COPY --from=builder /app/tmp /tmp
-COPY --from=builder /app/config /config
+ENV XDG_CONFIG_HOME=/.config
+COPY --chown=65534:65534 --from=builder /app/tmp /tmp
+COPY --chown=65534:65534 --from=builder /app/config /config
 COPY --from=builder /app/internal/app/migrations /migrations
 COPY --from=builder /bin/app /app
 COPY --from=builder /etc/ssl/certs/ca-certificates.crt /etc/ssl/certs/
-COPY --from=builder /.config/device-management-toolkit /.config/device-management-toolkit
+COPY --chown=65534:65534 --from=builder /.config/device-management-toolkit /.config/device-management-toolkit
+USER 65534:65534
 CMD ["/app"]
