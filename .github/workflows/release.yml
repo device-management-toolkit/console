@@ -10,6 +10,7 @@ name: Semantic-Release CI
 on:
   push:
     branches: [main, beta]
+    tags: ['v*-redfish.preview.*']
 
 permissions:
   contents: read
@@ -18,21 +19,36 @@ jobs:
   prepare:
     runs-on: ubuntu-latest
     outputs:
-      version: ${{ steps.semantic-release.outputs.version }}
+      version: ${{ steps.version-output.outputs.version }}
+      is_redfish: ${{ steps.detect-release-type.outputs.is_redfish }}
     steps:
       - name: Checkout Console
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
+          fetch-depth: 0
 
       - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
           go-version: ">=1.23.0"
 
+      - name: Detect Release Type
+        id: detect-release-type
+        run: |
+          if [[ "$GITHUB_REF" == refs/tags/v*-redfish.preview.* ]]; then
+            echo "is_redfish=true" >> $GITHUB_OUTPUT
+            echo "Detected Redfish preview release"
+          else
+            echo "is_redfish=false" >> $GITHUB_OUTPUT
+            echo "Detected Semantic release"
+          fi
+
       - name: Install `@semantic-release/exec` plugin
+        if: steps.detect-release-type.outputs.is_redfish == 'false'
         run: npm install @semantic-release/exec @semantic-release/changelog
 
       - name: Semantic Release dry-run
+        if: steps.detect-release-type.outputs.is_redfish == 'false'
         id: semantic-release
         env:
           GITHUB_REF: ${{ github.head_ref || github.ref_name }}
@@ -44,12 +60,78 @@ jobs:
           version=$(cat .VERSION)
           echo "version=$version" >> $GITHUB_OUTPUT
 
+      - name: Determine Redfish Version
+        if: steps.detect-release-type.outputs.is_redfish == 'true'
+        id: redfish-version
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          # Extract version from the tag that triggered this workflow
+          REDFISH_TAG="${GITHUB_REF#refs/tags/}"
+          echo "Building release for tag: $REDFISH_TAG"
+
+          # Validate tag format - must be v*-redfish.preview.*
+          if ! echo "$REDFISH_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-redfish\.preview\.[0-9]+$'; then
+            echo "❌ Error: Invalid tag format: $REDFISH_TAG"
+            echo "Expected format: v<version>-redfish.preview.<iteration>"
+            echo "Example: v1.19.1-redfish.preview.1"
+            echo ""
+            echo "Note: Phase must be 'preview' (not alpha, beta, or other values)"
+            exit 1
+          fi
+          echo "✓ Tag format validated"
+
+          # Verify tag commit
+          CURRENT_COMMIT=$(git rev-parse HEAD)
+          TAG_COMMIT=$(git rev-list -n 1 "$REDFISH_TAG")
+
+          # Validate tag commit belongs to configured Redfish source branch
+          TARGET_BRANCH="${{ vars.REDFISH_SOURCE_BRANCH }}"
+          if [ -z "$TARGET_BRANCH" ]; then
+            TARGET_BRANCH="redfish"
+          fi
+          git fetch origin "$TARGET_BRANCH"
+          if ! git merge-base --is-ancestor "$TAG_COMMIT" "origin/$TARGET_BRANCH"; then
+            echo "❌ Error: Tag $REDFISH_TAG is not on branch $TARGET_BRANCH"
+            exit 1
+          fi
+          echo "✓ Verified tag commit is on $TARGET_BRANCH"
+
+          if [ "$TAG_COMMIT" != "$CURRENT_COMMIT" ]; then
+            echo "❌ Error: Tag $REDFISH_TAG does not point to checked out commit"
+            exit 1
+          fi
+          echo "✓ Verified tag commit matches current commit"
+
+          # Check if release already exists
+          RELEASE_CHECK=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
+            -H "Accept: application/vnd.github.v3+json" \
+            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$REDFISH_TAG")
+          if echo "$RELEASE_CHECK" | grep -q '"id"'; then
+            echo "❌ Error: A release already exists for tag $REDFISH_TAG"
+            exit 1
+          fi
+          echo "✓ No existing release found for this tag"
+
+          VERSION="${REDFISH_TAG#v}"
+          echo "version=$VERSION" >> $GITHUB_OUTPUT
+          echo "Redfish version: $VERSION"
+
+      - name: Set Version Output
+        id: version-output
+        run: |
+          if [ "${{ steps.detect-release-type.outputs.is_redfish }}" == "true" ]; then
+            echo "version=${{ steps.redfish-version.outputs.version }}" >> $GITHUB_OUTPUT
+          else
+            echo "version=${{ steps.semantic-release.outputs.version }}" >> $GITHUB_OUTPUT
+          fi
+
       - name: Version
-        run: echo "The next version is ${{ steps.semantic-release.outputs.version }}"
+        run: echo "The next version is ${{ steps.version-output.outputs.version }}"
 
       - name: Fail if version is empty
         run: |
-          if [ -z "${{ steps.semantic-release.outputs.version }}" ]; then
+          if [ -z "${{ steps.version-output.outputs.version }}" ]; then
             echo "Version output is empty. Failing the job."
             exit 1
           fi
@@ -139,7 +221,7 @@ jobs:
     permissions:
       contents: write # for Git to git push
     runs-on: ubuntu-latest
-    needs: build
+    needs: [prepare, build]
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
@@ -150,7 +232,7 @@ jobs:
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
           persist-credentials: false
-  
+
       # Restore unified build cache
       - shell: bash
         run: |
@@ -163,7 +245,7 @@ jobs:
             dist/darwin
             dist/windows
           key: all-platforms-${{ env.sha_short }}
-      
+
       # Generate licenses.zip
       - name: Use Node.js 22.x
         uses: actions/setup-node@1d0ff469b7ec7b3cb9d8673fde0c81c44821de2a # v4.2.0
@@ -210,8 +292,9 @@ jobs:
 
       - name: Create licenses.zip
         run: zip -r licenses.zip licenses
-      
+
       - name: Docker Login
+        if: needs.prepare.outputs.is_redfish == 'false'
         uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
         with:
           registry: vprodemo.azurecr.io
@@ -221,8 +304,8 @@ jobs:
 
       - name: Semantic Release
         id: semantic-release
+        if: needs.prepare.outputs.is_redfish == 'false'
         uses: cycjimmy/semantic-release-action@b1b432f13acb7768e0c8efdec416d363a57546f2 # v4.1.1
-        if: steps.cache.outputs.cache-hit != 'true' # do not run if cache hit
         with:
           semantic_version:
             19.0.5 # It is recommended to specify a version range
@@ -233,7 +316,39 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
 
+      - name: Create Redfish Release
+        if: needs.prepare.outputs.is_redfish == 'true'
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          REDFISH_TAG="${GITHUB_REF#refs/tags/}"
+          VERSION="${{ needs.prepare.outputs.version }}"
+
+          echo "Creating Redfish preview release for v$VERSION"
+
+          gh release create "$REDFISH_TAG" \
+            --title "Redfish Preview Release v$VERSION" \
+            --notes "Redfish preview release v$VERSION
+
+          This is a preview release for Redfish functionality testing.
+
+          **Binaries:**
+          - Linux x64 Console (Full)
+          - Linux ARM64 Console (Full)
+          - Windows x64 Console (Full)
+          - macOS ARM64 Console (Full)
+          - licenses.zip
+
+          **Note:** Docker images are not published for preview releases. Headless variants are only available in GA releases." \
+            --prerelease \
+            dist/linux/console_linux_x64 \
+            dist/linux/console_linux_arm64 \
+            dist/windows/console_windows_x64.exe \
+            dist/darwin/console_mac_arm64 \
+            licenses.zip
+
       - name: Check if OpenAPI files changed
+        if: needs.prepare.outputs.is_redfish == 'false'
         id: check-openapi-changes
         run: |
           git fetch origin main
@@ -244,11 +359,12 @@ jobs:
           fi
 
       - name: Generate OpenAPI specification
-        if: steps.semantic-release.outputs.new_release_published == 'true' && steps.check-openapi-changes.outputs.changed == 'true'
+        if: needs.prepare.outputs.is_redfish == 'false' && steps.semantic-release.outputs.new_release_published == 'true' && steps.check-openapi-changes.outputs.changed == 'true'
         run: |
           GIN_MODE=debug go run ./cmd/app/main.go
 
       - name: Verify OpenAPI spec was generated
+        if: needs.prepare.outputs.is_redfish == 'false'
         run: |
           if [ ! -f "doc/openapi.json" ]; then
             exit 1
@@ -256,7 +372,7 @@ jobs:
           head -20 doc/openapi.json
 
       - name: Push to SwaggerHub
-        if: vars.SWAGGERHUB_OWNER != '' && vars.SWAGGERHUB_API_NAME != ''
+        if: needs.prepare.outputs.is_redfish == 'false' && vars.SWAGGERHUB_OWNER != '' && vars.SWAGGERHUB_API_NAME != ''
         env:
           SWAGGERHUB_API_KEY: ${{ secrets.SWAGGERHUB_API_KEY }}
           SWAGGERHUB_OWNER: ${{ vars.SWAGGERHUB_OWNER }}
