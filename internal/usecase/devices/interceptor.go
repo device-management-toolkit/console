@@ -215,7 +215,13 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 	conn := deviceConnection.Conn
 
 	defer func() {
-		// Clean up on exit
+		// Notify the browser immediately so the UI updates without waiting for
+		// ListenToBrowser to unblock on its ReadMessage call.
+		_ = deviceConnection.Conn.WriteMessage(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseNormalClosure, "AMT session ended"),
+		)
+		_ = deviceConnection.Conn.Close()
 		deviceConnection.cancel()
 	}()
 
@@ -650,7 +656,7 @@ func writeLength(buf *bytes.Buffer, challenge *client.AuthChallenge, response st
 		return ErrLengthLimit // If total length is too large, throws an error and stops here
 	}
 
-	length := uint32(totalLength) //nolint:gosec // Ignore potential integer overflow here as overflow is validated earlier in code
+	length := uint32(totalLength) // overflow validated above
 
 	return binary.Write(buf, binary.LittleEndian, length)
 }
