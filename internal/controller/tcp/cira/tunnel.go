@@ -3,6 +3,7 @@ package cira
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
@@ -127,6 +128,7 @@ type connectionContext struct {
 	session       *apf.Session
 	authenticated bool
 	device        *wsman.ConnectionEntry
+	devices       devices.Feature
 	log           logger.Interface
 }
 
@@ -146,6 +148,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		conn:    conn,
 		tlsConn: tlsConn,
 		handler: NewAPFHandler(s.devices, s.log),
+		devices: s.devices,
 		session: &apf.Session{
 			Timer: time.NewTimer(apfSessionTimeout),
 		},
@@ -164,6 +167,10 @@ func (ctx *connectionContext) cleanup() {
 		mu.Lock()
 		delete(wsman.Connections, deviceID)
 		mu.Unlock()
+
+		if err := ctx.devices.UpdateConnectionStatus(context.Background(), deviceID, false); err != nil {
+			ctx.log.Error("Failed to update disconnection status for device %s: %v", deviceID, err)
+		}
 	}
 
 	// Stop and clean up the session timer
@@ -289,6 +296,10 @@ func (ctx *connectionContext) registerDevice() {
 	wsman.Connections[deviceID] = ctx.device
 
 	mu.Unlock()
+
+	if err := ctx.devices.UpdateConnectionStatus(context.Background(), deviceID, true); err != nil {
+		ctx.log.Error("Failed to update connection status for device %s: %v", deviceID, err)
+	}
 
 	ctx.log.Info("Device authenticated and registered: %s", deviceID)
 }

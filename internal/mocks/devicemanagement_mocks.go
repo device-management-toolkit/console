@@ -410,6 +410,20 @@ func (mr *MockDeviceManagementRepositoryMockRecorder) Update(ctx, d any) *gomock
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDeviceManagementRepository)(nil).Update), ctx, d)
 }
 
+// UpdateConnectionStatus mocks base method.
+func (m *MockDeviceManagementRepository) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateConnectionStatus", ctx, guid, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateConnectionStatus indicates an expected call of UpdateConnectionStatus.
+func (mr *MockDeviceManagementRepositoryMockRecorder) UpdateConnectionStatus(ctx, guid, status any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConnectionStatus", reflect.TypeOf((*MockDeviceManagementRepository)(nil).UpdateConnectionStatus), ctx, guid, status)
+}
+
 // MockDeviceManagementFeature is a mock of Feature interface.
 type MockDeviceManagementFeature struct {
 	ctrl     *gomock.Controller
@@ -1001,4 +1015,18 @@ func (m *MockDeviceManagementFeature) Update(ctx context.Context, d *dto.Device)
 func (mr *MockDeviceManagementFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Update), ctx, d)
+}
+
+// UpdateConnectionStatus mocks base method.
+func (m *MockDeviceManagementFeature) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateConnectionStatus", ctx, guid, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateConnectionStatus indicates an expected call of UpdateConnectionStatus.
+func (mr *MockDeviceManagementFeatureMockRecorder) UpdateConnectionStatus(ctx, guid, status any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConnectionStatus", reflect.TypeOf((*MockDeviceManagementFeature)(nil).UpdateConnectionStatus), ctx, guid, status)
 }

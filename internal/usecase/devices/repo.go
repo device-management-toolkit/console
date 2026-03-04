@@ -145,6 +145,15 @@ func (uc *UseCase) GetByTags(ctx context.Context, tags, method string, limit, of
 	return d1, nil
 }
 
+func (uc *UseCase) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	err := uc.repo.UpdateConnectionStatus(ctx, guid, status)
+	if err != nil {
+		return ErrDatabase.Wrap("UpdateConnectionStatus", "uc.repo.UpdateConnectionStatus", err)
+	}
+
+	return nil
+}
+
 func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 	isSuccessful, err := uc.repo.Delete(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {

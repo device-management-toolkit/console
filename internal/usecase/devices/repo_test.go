@@ -728,3 +728,64 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 		require.Equal(t, "aaf0c395-c2a2-992e-5655-48210b50d8c9", result.GUID)
 	})
 }
+
+func TestUpdateConnectionStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		guid   string
+		status bool
+		mock   func(*mocks.MockDeviceManagementRepository)
+		err    error
+	}{
+		{
+			name:   "successful connection status update - connected",
+			guid:   "device-guid-123",
+			status: true,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", true).
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name:   "successful connection status update - disconnected",
+			guid:   "device-guid-123",
+			status: false,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", false).
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name:   "database error",
+			guid:   "device-guid-123",
+			status: true,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", true).
+					Return(devices.ErrDatabase)
+			},
+			err: devices.ErrDatabase,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			tc.mock(repo)
+
+			err := useCase.UpdateConnectionStatus(context.Background(), tc.guid, tc.status)
+
+			require.IsType(t, tc.err, err)
+		})
+	}
+}
