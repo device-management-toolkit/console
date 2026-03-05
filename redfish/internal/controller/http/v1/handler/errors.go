@@ -13,15 +13,25 @@ import (
 
 const (
 	// HTTP header constants for Redfish responses
-	headerODataVersion = "OData-Version"
-	headerContentType  = "Content-Type"
-	headerLocation     = "Location"
-	headerRetryAfter   = "Retry-After"
+	headerODataVersion    = "OData-Version"
+	headerContentType     = "Content-Type"
+	headerLocation        = "Location"
+	headerRetryAfter      = "Retry-After"
+	headerAllow           = "Allow"
+	headerLink            = "Link"
+	headerWWWAuthenticate = "WWW-Authenticate"
 
 	// Header values
 	contentTypeJSON = "application/json; charset=utf-8"
 	contentTypeXML  = "application/xml"
 	odataVersion    = "4.0"
+
+	// SupportedODataVersion is the OData version supported by this Redfish service (exported for use in middleware)
+	SupportedODataVersion = odataVersion
+
+	// HTTP methods allowed for various endpoints
+	allowGetHead      = "GET, HEAD"
+	allowGetHeadPatch = "GET, HEAD, PATCH"
 
 	// Common error messages
 	msgInternalServerError = "An internal server error occurred."
@@ -72,6 +82,10 @@ var errorConfigMap = map[string]ErrorConfig{
 	"BadRequest": {
 		RegistryKey: "GeneralError",
 		StatusCode:  http.StatusBadRequest,
+	},
+	"PreconditionFailed": {
+		RegistryKey: "GeneralError",
+		StatusCode:  http.StatusPreconditionFailed,
 	},
 	"Forbidden": {
 		RegistryKey:   "InsufficientPrivilege",
@@ -192,6 +206,50 @@ func SetRedfishHeaders(c *gin.Context) {
 	c.Header(headerContentType, contentTypeJSON)
 	c.Header(headerODataVersion, odataVersion)
 	c.Header("Cache-Control", "no-cache")
+
+	// Add Link header with rel=describedby for schema references
+	uri := c.Request.URL.Path
+	if uri != "" && uri != "/redfish" {
+		// Link to the schema/metadata document for this resource
+		c.Header(headerLink, "</redfish/v1/$metadata>; rel=describedby")
+	}
+
+	allowedMethods := getAllowedMethodsForURI(uri)
+	if allowedMethods != "" {
+		c.Header(headerAllow, allowedMethods)
+	}
+}
+
+// getAllowedMethodsForURI returns the allowed HTTP methods for a given URI
+func getAllowedMethodsForURI(uri string) string {
+	// Most Redfish resources support GET
+	// Collection endpoints also support POST for creation
+	// Individual resources may support PATCH and DELETE
+	switch {
+	case uri == "/redfish/v1/" || uri == "/redfish/v1":
+		return allowGetHead
+	case uri == "/redfish/v1/$metadata":
+		return allowGetHead
+	case uri == "/redfish/v1/odata":
+		return allowGetHead
+	case uri == "/redfish/v1/SessionService":
+		return allowGetHeadPatch
+	case uri == "/redfish/v1/SessionService/Sessions":
+		return "GET, HEAD, POST"
+	case matchesPattern(uri, "/redfish/v1/SessionService/Sessions/"):
+		return "GET, HEAD, DELETE"
+	case uri == "/redfish/v1/Systems":
+		return allowGetHead
+	case matchesPattern(uri, "/redfish/v1/Systems/"):
+		return allowGetHeadPatch
+	default:
+		return allowGetHead
+	}
+}
+
+// matchesPattern checks if a URI matches a given pattern (simple prefix match for now)
+func matchesPattern(uri, pattern string) bool {
+	return len(uri) > len(pattern) && uri[:len(pattern)] == pattern
 }
 
 // createErrorResponse creates a Redfish error response using registry lookup.
@@ -252,6 +310,8 @@ func MethodNotAllowedError(c *gin.Context) {
 
 // UnauthorizedError returns a Redfish-compliant 401 error
 func UnauthorizedError(c *gin.Context) {
+	// Add WWW-Authenticate header per Redfish spec for 401 responses
+	c.Header(headerWWWAuthenticate, `Basic realm="Redfish Service"`)
 	sendRedfishError(c, "Unauthorized", "")
 }
 
@@ -260,8 +320,14 @@ func BadRequestError(c *gin.Context, customMessage string) {
 	sendRedfishError(c, "BadRequest", customMessage)
 }
 
+// PreconditionFailedError returns a Redfish-compliant 412 error
+func PreconditionFailedError(c *gin.Context, customMessage string) {
+	sendRedfishError(c, "PreconditionFailed", customMessage)
+}
+
 // ForbiddenError returns a Redfish-compliant 403 error for insufficient privileges
 func ForbiddenError(c *gin.Context) {
+	c.Header(headerWWWAuthenticate, `Basic realm="Redfish Service"`)
 	sendRedfishError(c, "Forbidden", "")
 }
 

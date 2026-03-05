@@ -254,7 +254,7 @@ func (r *RedfishServer) PostRedfishV1SessionServiceSessions(c *gin.Context) {
 	// Parse request body
 	var request struct {
 		UserName string `json:"UserName" binding:"required"`
-		Password string `json:"Password" binding:"required"`
+		Password string `json:"Password" binding:"required"` //nolint:gosec // False positive: This is a request field, not a hardcoded credential
 	}
 
 	if err := c.ShouldBindJSON(&request); err != nil {
