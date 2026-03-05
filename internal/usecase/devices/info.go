@@ -2,7 +2,6 @@ package devices
 
 import (
 	"context"
-	"reflect"
 	"strconv"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
@@ -160,23 +159,9 @@ func (uc *UseCase) parseCIMResponse(hwInfo interface{}) dto.CIMResponse {
 		result.Response = response
 	}
 
-	// Handle both []interface{} and typed slices (e.g., []physical.PhysicalMemory)
-	if responsesRaw, exists := info["responses"]; exists && responsesRaw != nil {
-		// Try []interface{} first
-		if responses, ok := responsesRaw.([]interface{}); ok {
-			result.Responses = responses
-		} else {
-			// Handle typed slices by converting to []interface{}
-			responseValue := reflect.ValueOf(responsesRaw)
-			if responseValue.Kind() == reflect.Slice {
-				responses := make([]interface{}, responseValue.Len())
-				for i := 0; i < responseValue.Len(); i++ {
-					responses[i] = responseValue.Index(i).Interface()
-				}
-
-				result.Responses = responses
-			}
-		}
+	responses, ok := info["responses"].([]interface{})
+	if ok {
+		result.Responses = responses
 	}
 
 	status, ok := info["status"].(int)
