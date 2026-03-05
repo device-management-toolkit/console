@@ -109,6 +109,8 @@ func (s *RedfishServer) handleGetSystemError(c *gin.Context, err error, systemID
 
 // GetRedfishV1Systems handles GET requests for the systems collection
 func (s *RedfishServer) GetRedfishV1Systems(c *gin.Context) {
+	SetRedfishHeaders(c)
+
 	ctx := c.Request.Context()
 
 	systemIDs, err := s.ComputerSystemUC.GetAll(ctx)

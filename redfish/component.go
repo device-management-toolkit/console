@@ -169,10 +169,21 @@ func RegisterRoutes(router *gin.Engine, _ logger.Interface) error {
 		return nil
 	}
 
-	// Build middleware chain with OData header
+	// Build middleware chain with OData header validation and response
 	middlewares := []redfishgenerated.MiddlewareFunc{
 		func(c *gin.Context) {
-			c.Header("OData-Version", "4.0")
+			// Validate OData-Version header if present in request
+			requestODataVersion := c.GetHeader("OData-Version")
+			if requestODataVersion != "" && requestODataVersion != v1.SupportedODataVersion {
+				c.Header("OData-Version", v1.SupportedODataVersion)
+				v1.PreconditionFailedError(c, "Unsupported OData-Version. Service supports OData-Version: "+v1.SupportedODataVersion)
+				c.Abort()
+
+				return
+			}
+
+			// Set OData-Version header in response
+			c.Header("OData-Version", v1.SupportedODataVersion)
 			c.Next()
 		},
 	}
@@ -187,6 +198,14 @@ func RegisterRoutes(router *gin.Engine, _ logger.Interface) error {
 		ErrorHandler: createErrorHandler(),
 		Middlewares:  middlewares,
 	})
+
+	// Register /redfish endpoint manually (required by Redfish protocol)
+	// This endpoint must be publicly accessible without authentication
+	router.GET("/redfish", server.GetRedfish)
+
+	// Per Redfish spec: POST to collection/Members is equivalent to POST to collection
+	// Add this route to support protocol validator requirements
+	router.POST("/redfish/v1/SessionService/Sessions/Members", server.PostRedfishV1SessionServiceSessions)
 
 	if componentConfig.AuthRequired {
 		server.Logger.Info("Redfish API routes registered with authentication")
