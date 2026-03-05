@@ -481,9 +481,12 @@ func (uc *UseCase) isWifiProfileExists(ctx context.Context, d *dto.Profile, acti
 }
 
 func (uc *UseCase) Update(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
-	err := uc.isWifiProfileExists(ctx, d, "update")
+	err = uc.isWifiProfileExists(ctx, d, "update")
 	if err != nil {
 		return nil, err
 	}
@@ -530,7 +533,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	if err := uc.isWifiProfileExists(ctx, d, "insert"); err != nil {
 		return nil, err
@@ -612,7 +618,7 @@ func (uc *UseCase) createdProfile(ctx context.Context, d *dto.Profile) (*dto.Pro
 }
 
 // convert dto.Profile to entity.Profile.
-func (uc *UseCase) dtoToEntity(d *dto.Profile) *entity.Profile {
+func (uc *UseCase) dtoToEntity(d *dto.Profile) (*entity.Profile, error) {
 	// convert []string to comma separated string
 	tags := strings.Join(d.Tags, ", ")
 
@@ -642,10 +648,19 @@ func (uc *UseCase) dtoToEntity(d *dto.Profile) *entity.Profile {
 		UEFIWiFiSyncEnabled:        d.UEFIWiFiSyncEnabled,
 	}
 
-	d1.AMTPassword, _ = uc.safeRequirements.Encrypt(d.AMTPassword)
-	d1.MEBXPassword, _ = uc.safeRequirements.Encrypt(d.MEBXPassword)
+	var err error
 
-	return d1
+	d1.AMTPassword, err = uc.safeRequirements.Encrypt(d.AMTPassword)
+	if err != nil {
+		return nil, ErrProfilesUseCase.Wrap("dtoToEntity", "failed to encrypt AMT password", err)
+	}
+
+	d1.MEBXPassword, err = uc.safeRequirements.Encrypt(d.MEBXPassword)
+	if err != nil {
+		return nil, ErrProfilesUseCase.Wrap("dtoToEntity", "failed to encrypt MEBX password", err)
+	}
+
+	return d1, nil
 }
 
 // convert entity.Profile to dto.Profile.

@@ -10,6 +10,7 @@ import (
 	gomock "go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
@@ -743,6 +744,205 @@ func TestSetBootOptions(t *testing.T) {
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
+		})
+	}
+}
+
+func TestSetBootOptions_CCMRestriction(t *testing.T) {
+	t.Parallel()
+
+	bootResponse := boot.BootSettingDataResponse{
+		BIOSLastStatus:    []uint16{2, 0},
+		EnforceSecureBoot: true,
+		ElementName:       "Intel(r) AMT Boot Configuration Settings",
+		InstanceID:        "Intel(r) AMT:BootSettingData 0",
+		OwningEntity:      "Intel(r) AMT",
+	}
+
+	device := &entity.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+	}
+
+	enforceSecureBootFalse := false
+	enforceSecureBootTrue := true
+
+	powerActionRes := power.PowerActionResponse{ReturnValue: 5}
+
+	tests := []struct {
+		name        string
+		bootSetting dto.BootSetting
+		manMock     func(*mocks.MockWSMAN, *mocks.MockManagement)
+		repoMock    func(*mocks.MockDeviceManagementRepository)
+		wantErr     error
+	}{
+		{
+			name: "CCM restriction - EnforceSecureBoot false in CCM returns error",
+			bootSetting: dto.BootSetting{
+				Action: 400,
+				UseSOL: true,
+				BootDetails: dto.BootDetails{
+					EnforceSecureBoot: &enforceSecureBootFalse,
+				},
+			},
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm, nil)
+				hmm.EXPECT().
+					GetSetupAndConfiguration().
+					Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{
+						{ProvisioningMode: setupandconfiguration.ClientControlMode},
+					}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			wantErr: devices.ValidationError{}.Wrap("SetBootOptions", "validate provisioning mode", "EnforceSecureBoot cannot be turned off in CCM"),
+		},
+		{
+			name: "ACM mode - EnforceSecureBoot false allowed",
+			bootSetting: dto.BootSetting{
+				Action: 400,
+				UseSOL: true,
+				BootDetails: dto.BootDetails{
+					EnforceSecureBoot: &enforceSecureBootFalse,
+				},
+			},
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm, nil)
+				hmm.EXPECT().
+					GetSetupAndConfiguration().
+					Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{
+						{ProvisioningMode: setupandconfiguration.AdminControlMode},
+					}, nil)
+				hmm.EXPECT().
+					GetBootData().
+					Return(bootResponse, nil)
+				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
+					SetBootConfigRole(1).
+					Return(powerActionRes, nil)
+				hmm.EXPECT().
+					ChangeBootOrder(string(cimBoot.PXE)).
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SendPowerAction(10).
+					Return(powerActionRes, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "CCM mode - EnforceSecureBoot true allowed",
+			bootSetting: dto.BootSetting{
+				Action: 400,
+				UseSOL: true,
+				BootDetails: dto.BootDetails{
+					EnforceSecureBoot: &enforceSecureBootTrue,
+				},
+			},
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm, nil)
+				hmm.EXPECT().
+					GetBootData().
+					Return(bootResponse, nil)
+				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
+					SetBootConfigRole(1).
+					Return(powerActionRes, nil)
+				hmm.EXPECT().
+					ChangeBootOrder(string(cimBoot.PXE)).
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SendPowerAction(10).
+					Return(powerActionRes, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			wantErr: nil,
+		},
+		{
+			name: "EnforceSecureBoot not provided - no CCM check",
+			bootSetting: dto.BootSetting{
+				Action: 400,
+				UseSOL: true,
+				BootDetails: dto.BootDetails{
+					EnforceSecureBoot: nil,
+				},
+			},
+			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), false, true).
+					Return(hmm, nil)
+				hmm.EXPECT().
+					GetBootData().
+					Return(bootResponse, nil)
+				hmm.EXPECT().
+					ChangeBootOrder("").
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SetBootData(gomock.Any()).
+					Return(nil, nil)
+				hmm.EXPECT().
+					SetBootConfigRole(1).
+					Return(powerActionRes, nil)
+				hmm.EXPECT().
+					ChangeBootOrder(string(cimBoot.PXE)).
+					Return(cimBoot.ChangeBootOrder_OUTPUT{}, nil)
+				hmm.EXPECT().
+					SendPowerAction(10).
+					Return(powerActionRes, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			wantErr: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initPowerTest(t)
+			tc.manMock(wsmanMock, management)
+			tc.repoMock(repo)
+
+			_, err := useCase.SetBootOptions(context.Background(), device.GUID, tc.bootSetting)
+
+			if tc.wantErr != nil {
+				require.Error(t, err)
+				require.ErrorIs(t, err, tc.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
 		})
 	}
 }

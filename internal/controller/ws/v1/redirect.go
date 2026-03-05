@@ -2,7 +2,10 @@ package v1
 
 import (
 	"compress/flate"
+	"errors"
+	"fmt"
 	"net/http"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
@@ -12,6 +15,8 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
+
+var ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
 
 type RedirectRoutes struct {
 	d devices.Feature
@@ -41,7 +46,11 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 		claims := &jwt.MapClaims{}
 
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(_ *jwt.Token) (interface{}, error) {
+		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+				return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
+			}
+
 			return []byte(config.ConsoleConfig.JWTKey), nil
 		})
 
@@ -59,7 +68,13 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		upgrader.Subprotocols = []string{tokenString}
 	}
 
+	// KVM_TIMING: Measure WebSocket upgrade duration
+	upgradeStart := time.Now()
 	conn, err := r.u.Upgrade(c.Writer, c.Request, nil)
+	upgradeDuration := time.Since(upgradeStart)
+	devices.RecordWebsocketUpgrade(upgradeDuration)
+	r.l.Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", upgradeDuration.Milliseconds())
+
 	if err != nil {
 		http.Error(c.Writer, "Could not open websocket connection", http.StatusInternalServerError)
 
@@ -77,7 +92,13 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	r.l.Info("Websocket connection opened")
 
+	// KVM_TIMING: Measure total connection time
+	totalStart := time.Now()
 	err = r.d.Redirect(c, conn, c.Query("host"), c.Query("mode"))
+	totalDuration := time.Since(totalStart)
+	devices.RecordTotalConnection(totalDuration, c.Query("mode"))
+	r.l.Debug("KVM_TIMING: Total connection time", "duration_ms", totalDuration.Milliseconds(), "mode", c.Query("mode"))
+
 	if err != nil {
 		r.l.Error(err, "http - devices - v1 - redirect")
 		errorResponse(c, http.StatusInternalServerError, "redirect failed")

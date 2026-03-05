@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
+	ginprometheus "github.com/zsais/go-gin-prometheus"
 
 	"github.com/device-management-toolkit/console/config"
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
@@ -27,6 +28,13 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
 		l.Fatal("Failed to initialize redfish: " + err.Error())
 	}
+
+	// Add Prometheus middleware for automatic HTTP metrics
+	// Don't automatically register /metrics endpoint - we have our own
+	p := ginprometheus.NewPrometheus("gin")
+	p.MetricsPath = ""
+	// Use middleware function directly without calling Use() which would register conflicting routes
+	handler.Use(p.HandlerFunc())
 
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)

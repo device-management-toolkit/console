@@ -55,10 +55,6 @@ func New(handler http.Handler, opts ...Option) *Server {
 		server:          httpServer,
 		notify:          make(chan error, 1),
 		shutdownTimeout: _defaultShutdownTimeout,
-		useTLS:          false,
-		certFile:        "",
-		keyFile:         "",
-		log:             appLogger.New("info"),
 	}
 
 	// Custom options
