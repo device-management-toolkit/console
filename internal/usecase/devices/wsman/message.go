@@ -93,6 +93,7 @@ type ConnectionEntry struct {
 
 	// APF channel management for CIRA connections (uses types from go-wsman-messages)
 	APFChannelStore *client.APFChannelStore
+	apfOnce         sync.Once
 }
 
 type GoWSMANMessages struct {
@@ -265,12 +266,24 @@ func removeConnection(guid string) {
 	delete(Connections, guid)
 }
 
+// GetConnectionEntry safely retrieves a connection entry from the global map.
+func GetConnectionEntry(guid string) *ConnectionEntry {
+	connectionsMu.Lock()
+	defer connectionsMu.Unlock()
+
+	return Connections[guid]
+}
+
+func (c *ConnectionEntry) ensureAPFChannelStore() {
+	c.apfOnce.Do(func() {
+		c.APFChannelStore = client.NewAPFChannelStore(c.Conny)
+	})
+}
+
 // RegisterAPFChannel creates and registers a new APF channel for this connection.
 // Implements client.CIRAChannelManager interface.
 func (c *ConnectionEntry) RegisterAPFChannel() client.CIRAChannel {
-	if c.APFChannelStore == nil {
-		c.APFChannelStore = client.NewAPFChannelStore(c.Conny)
-	}
+	c.ensureAPFChannelStore()
 
 	return c.APFChannelStore.RegisterAPFChannel()
 }
@@ -295,6 +308,14 @@ func (c *ConnectionEntry) UnregisterAPFChannel(senderChannel uint32) {
 	if c.APFChannelStore != nil {
 		c.APFChannelStore.UnregisterAPFChannel(senderChannel)
 	}
+}
+
+// WriteToConnection writes data to the underlying connection with serialized access.
+// Implements client.CIRAChannelManager interface.
+func (c *ConnectionEntry) WriteToConnection(data []byte) error {
+	c.ensureAPFChannelStore()
+
+	return c.APFChannelStore.WriteToConnection(data)
 }
 
 func (c *ConnectionEntry) GetAMTVersion() ([]software.SoftwareIdentity, error) {
