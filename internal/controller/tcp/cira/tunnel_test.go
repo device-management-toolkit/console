@@ -147,11 +147,7 @@ func setupConnectionsMap(t *testing.T, authenticated bool, deviceID string) {
 	t.Helper()
 
 	if authenticated && deviceID != "" {
-		mu.Lock()
-
-		wsman.Connections[deviceID] = &wsman.ConnectionEntry{}
-
-		mu.Unlock()
+		wsman.SetConnectionEntry(deviceID, &wsman.ConnectionEntry{})
 	}
 }
 
@@ -172,11 +168,7 @@ func verifyConnectionRemoved(t *testing.T, authenticated bool, deviceID string) 
 	t.Helper()
 
 	if authenticated && deviceID != "" {
-		mu.Lock()
-
-		_, exists := wsman.Connections[deviceID]
-
-		mu.Unlock()
+		exists := wsman.GetConnectionEntry(deviceID) != nil
 
 		assert.False(t, exists, "Connection should be removed from map")
 	}
