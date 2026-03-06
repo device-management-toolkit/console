@@ -291,6 +291,20 @@ func (c *ConnectionEntry) ensureAPFChannelStore() {
 	})
 }
 
+// GetConnectionEntry safely retrieves a connection entry from the global map.
+func GetConnectionEntry(guid string) *ConnectionEntry {
+	connectionsMu.Lock()
+	defer connectionsMu.Unlock()
+
+	return Connections[guid]
+}
+
+func (c *ConnectionEntry) ensureAPFChannelStore() {
+	c.apfOnce.Do(func() {
+		c.APFChannelStore = client.NewAPFChannelStore(c.Conny)
+	})
+}
+
 // RegisterAPFChannel creates and registers a new APF channel for this connection.
 // Implements client.CIRAChannelManager interface.
 func (c *ConnectionEntry) RegisterAPFChannel() client.CIRAChannel {
