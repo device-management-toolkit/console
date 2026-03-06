@@ -70,8 +70,8 @@ const (
 )
 
 var (
-	Connections         = make(map[string]*ConnectionEntry)
-	connectionsMu       sync.Mutex
+	connections         = make(map[string]*ConnectionEntry)
+	connectionsMu       sync.RWMutex
 	waitForAuthTickTime = 1 * time.Second
 	queueTickTime       = 500 * time.Millisecond
 	expireAfter         = 30 * time.Second                    // expire the stored connection after 30 seconds
@@ -109,9 +109,9 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
-	if entry, ok := Connections[device.GUID]; ok {
+	if entry := GetConnectionEntry(device.GUID); entry != nil {
 		entry.Timer.Stop()
-		removeConnection(device.GUID)
+		RemoveConnection(device.GUID)
 	}
 }
 
@@ -142,13 +142,13 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 		device.Password = decryptedPassword
 
 		if device.MPSUsername != "" {
-			if len(Connections) == 0 {
+			if !HasConnections() {
 				errChan <- ErrCIRADeviceNotConnected
 
 				return
 			}
 
-			connection := Connections[device.GUID]
+			connection := GetConnectionEntry(device.GUID)
 			if connection == nil {
 				errChan <- ErrCIRADeviceNotConnected
 
@@ -200,21 +200,21 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	}
 
 	timer := time.AfterFunc(expireAfter, func() {
-		removeConnection(device.GUID)
+		RemoveConnection(device.GUID)
 	})
 
-	if entry, ok := Connections[device.GUID]; ok {
+	if entry := GetConnectionEntry(device.GUID); entry != nil {
 		if !entry.IsCIRA && entry.WsmanMessages.Client.IsAuthenticated() {
 			entry.Timer.Stop() // Stop the previous timer
 			entry.Timer = time.AfterFunc(expireAfter, func() {
-				removeConnection(device.GUID)
+				RemoveConnection(device.GUID)
 			})
 
-			return Connections[device.GUID]
+			return entry
 		} else if entry.IsCIRA {
-			Connections[device.GUID].WsmanMessages = wsman.NewMessages(clientParams)
+			entry.WsmanMessages = wsman.NewMessages(clientParams)
 
-			return Connections[device.GUID]
+			return entry
 		}
 
 		ticker := time.NewTicker(waitForAuthTickTime)
@@ -227,51 +227,62 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 			select {
 			case <-ticker.C:
 				if entry.WsmanMessages.Client.IsAuthenticated() {
-					// Your logic when the function check is successful
-					return Connections[device.GUID]
+					return entry
 				}
 			case <-timeout:
-				connectionsMu.Lock()
-
-				Connections[device.GUID] = &ConnectionEntry{
+				newEntry := &ConnectionEntry{
 					WsmanMessages: wsman.NewMessages(clientParams),
 					Timer:         timer,
 				}
+				SetConnectionEntry(device.GUID, newEntry)
 
-				connectionsMu.Unlock()
-
-				return Connections[device.GUID]
+				return newEntry
 			}
 		}
 	}
 
 	wsmanMsgs := wsman.NewMessages(clientParams)
 
-	connectionsMu.Lock()
-
-	Connections[device.GUID] = &ConnectionEntry{
+	newEntry := &ConnectionEntry{
 		WsmanMessages: wsmanMsgs,
 		Timer:         timer,
 	}
-	Connections[device.GUID].WsmanMessages.Client.IsAuthenticated()
-	connectionsMu.Unlock()
+	newEntry.WsmanMessages.Client.IsAuthenticated()
+	SetConnectionEntry(device.GUID, newEntry)
 
-	return Connections[device.GUID]
+	return newEntry
 }
 
-func removeConnection(guid string) {
+// RemoveConnection safely deletes a connection entry from the global map.
+func RemoveConnection(guid string) {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
 
-	delete(Connections, guid)
+	delete(connections, guid)
 }
 
 // GetConnectionEntry safely retrieves a connection entry from the global map.
 func GetConnectionEntry(guid string) *ConnectionEntry {
+	connectionsMu.RLock()
+	defer connectionsMu.RUnlock()
+
+	return connections[guid]
+}
+
+// SetConnectionEntry safely stores a connection entry in the global map.
+func SetConnectionEntry(guid string, entry *ConnectionEntry) {
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
 
-	return Connections[guid]
+	connections[guid] = entry
+}
+
+// HasConnections safely checks whether any connections exist.
+func HasConnections() bool {
+	connectionsMu.RLock()
+	defer connectionsMu.RUnlock()
+
+	return len(connections) > 0
 }
 
 func (c *ConnectionEntry) ensureAPFChannelStore() {
