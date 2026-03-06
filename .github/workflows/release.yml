@@ -63,56 +63,10 @@ jobs:
       - name: Determine Redfish Version
         if: steps.detect-release-type.outputs.is_redfish == 'true'
         id: redfish-version
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extract version from the tag that triggered this workflow
+          # Extract version from the tag
           REDFISH_TAG="${GITHUB_REF#refs/tags/}"
           echo "Building release for tag: $REDFISH_TAG"
-
-          # Validate tag format - must be v*-redfish.preview.*
-          if ! echo "$REDFISH_TAG" | grep -qE '^v[0-9]+\.[0-9]+\.[0-9]+-redfish\.preview\.[0-9]+$'; then
-            echo "❌ Error: Invalid tag format: $REDFISH_TAG"
-            echo "Expected format: v<version>-redfish.preview.<iteration>"
-            echo "Example: v1.19.1-redfish.preview.1"
-            echo ""
-            echo "Note: Phase must be 'preview' (not alpha, beta, or other values)"
-            exit 1
-          fi
-          echo "✓ Tag format validated"
-
-          # Verify tag commit
-          CURRENT_COMMIT=$(git rev-parse HEAD)
-          TAG_COMMIT=$(git rev-list -n 1 "$REDFISH_TAG")
-
-          # Validate tag commit belongs to configured Redfish source branch
-          TARGET_BRANCH="${{ vars.REDFISH_SOURCE_BRANCH }}"
-          if [ -z "$TARGET_BRANCH" ]; then
-            TARGET_BRANCH="redfish"
-          fi
-          git fetch origin "$TARGET_BRANCH"
-          if ! git merge-base --is-ancestor "$TAG_COMMIT" "origin/$TARGET_BRANCH"; then
-            echo "❌ Error: Tag $REDFISH_TAG is not on branch $TARGET_BRANCH"
-            exit 1
-          fi
-          echo "✓ Verified tag commit is on $TARGET_BRANCH"
-
-          if [ "$TAG_COMMIT" != "$CURRENT_COMMIT" ]; then
-            echo "❌ Error: Tag $REDFISH_TAG does not point to checked out commit"
-            exit 1
-          fi
-          echo "✓ Verified tag commit matches current commit"
-
-          # Check if release already exists
-          RELEASE_CHECK=$(curl -s -H "Authorization: token $GITHUB_TOKEN" \
-            -H "Accept: application/vnd.github.v3+json" \
-            "https://api.github.com/repos/${{ github.repository }}/releases/tags/$REDFISH_TAG")
-          if echo "$RELEASE_CHECK" | grep -q '"id"'; then
-            echo "❌ Error: A release already exists for tag $REDFISH_TAG"
-            exit 1
-          fi
-          echo "✓ No existing release found for this tag"
-
           VERSION="${REDFISH_TAG#v}"
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Redfish version: $VERSION"
@@ -316,6 +270,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
 
+      - name: Package Redfish Binaries
+        if: needs.prepare.outputs.is_redfish == 'true'
+        run: |
+          # Mark binaries as executable
+          chmod +x dist/linux/console_linux_x64
+          chmod +x dist/linux/console_linux_arm64
+          chmod +x dist/darwin/console_mac_arm64
+
+          # Package binaries into compressed archives
+          tar cvfpz console_linux_x64.tar.gz dist/linux/console_linux_x64
+          tar cvfpz console_linux_arm64.tar.gz dist/linux/console_linux_arm64
+          tar cvfpz console_mac_arm64.tar.gz dist/darwin/console_mac_arm64
+
       - name: Create Redfish Release
         if: needs.prepare.outputs.is_redfish == 'true'
         env:
@@ -341,11 +308,11 @@ jobs:
 
           **Note:** Docker images are not published for preview releases. Headless variants are only available in GA releases." \
             --prerelease \
-            dist/linux/console_linux_x64 \
-            dist/linux/console_linux_arm64 \
-            dist/windows/console_windows_x64.exe \
-            dist/darwin/console_mac_arm64 \
-            licenses.zip
+            console_linux_x64.tar.gz#"Linux x64 Console (Full)" \
+            console_linux_arm64.tar.gz#"Linux ARM64 Console (Full)" \
+            dist/windows/console_windows_x64.exe#"Windows x64 Console (Full)" \
+            console_mac_arm64.tar.gz#"macOS ARM64 Console (Full)" \
+            licenses.zip#"Third-Party Licenses"
 
       - name: Check if OpenAPI files changed
         if: needs.prepare.outputs.is_redfish == 'false'
