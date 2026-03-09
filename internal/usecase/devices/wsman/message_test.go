@@ -8,7 +8,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
 )
 
-func TestInterfaceSlice(t *testing.T) {
+func TestConvertPhysicalMemorySlice(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -77,7 +77,7 @@ func TestInterfaceSlice(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			result := interfaceSlice(tc.input)
+			result := convertPhysicalMemorySlice(tc.input)
 			require.Equal(t, tc.expected, result)
 		})
 	}
