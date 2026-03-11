@@ -1,6 +1,17 @@
 // Package redfish provides entity definitions for Redfish computer systems.
 package redfish
 
+// ComputerSystemResetAction represents the #ComputerSystem.Reset action target and allowable values.
+type ComputerSystemResetAction struct {
+	Target                        string       `json:"target"`
+	ResetTypeRedfishAllowableValues []PowerState `json:"ResetType@Redfish.AllowableValues,omitempty"`
+}
+
+// ComputerSystemActions represents the Actions block of a ComputerSystem resource.
+type ComputerSystemActions struct {
+	ComputerSystemReset ComputerSystemResetAction `json:"#ComputerSystem.Reset"`
+}
+
 // ComputerSystem represents a Redfish Computer System entity.
 type ComputerSystem struct {
 	ID               string                          `json:"Id"`
@@ -16,6 +27,7 @@ type ComputerSystem struct {
 	Status           *Status                         `json:"Status,omitempty"`
 	MemorySummary    *ComputerSystemMemorySummary    `json:"MemorySummary,omitempty"`
 	ProcessorSummary *ComputerSystemProcessorSummary `json:"ProcessorSummary,omitempty"`
+	Actions          *ComputerSystemActions          `json:"Actions,omitempty"`
 	ODataID          string                          `json:"@odata.id"`
 	ODataType        string                          `json:"@odata.type"`
 }
