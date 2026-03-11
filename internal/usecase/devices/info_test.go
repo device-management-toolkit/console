@@ -11,12 +11,20 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -272,14 +280,21 @@ func TestGetHardwareInfo(t *testing.T) {
 					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
-					Return(gomock.Any(), nil)
+					Return(wsmanAPI.HWResults{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: dto.HardwareInfo{},
+			res: dto.HardwareInfo{
+				CIMChassis:        dto.CIMResponse{Response: chassis.PackageResponse{}},
+				CIMChip:           dto.CIMResponse{Responses: []interface{}{chip.PackageResponse{}}},
+				CIMCard:           dto.CIMResponse{Response: card.PackageResponse{}},
+				CIMBIOSElement:    dto.CIMResponse{Response: bios.BiosElement{}},
+				CIMProcessor:      dto.CIMResponse{Responses: []interface{}{processor.PackageResponse{}}},
+				CIMPhysicalMemory: dto.CIMResponse{Responses: []interface{}{}},
+			},
 			err: nil,
 		},
 		{
@@ -303,7 +318,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
-					Return(nil, ErrGeneral)
+					Return(wsmanAPI.HWResults{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -596,14 +611,17 @@ func TestGetDiskInfo(t *testing.T) {
 					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
-					Return(gomock.Any(), nil)
+					Return(wsmanAPI.DiskResults{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: dto.DiskInfo{},
+			res: dto.DiskInfo{
+				CIMMediaAccessDevice: dto.CIMResponse{Responses: []interface{}{[]mediaaccess.MediaAccessDevice(nil)}},
+				CIMPhysicalPackage:   dto.CIMResponse{Responses: []interface{}{[]physical.PhysicalPackage(nil)}},
+			},
 			err: nil,
 		},
 		{
@@ -627,7 +645,7 @@ func TestGetDiskInfo(t *testing.T) {
 					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
-					Return(nil, ErrGeneral)
+					Return(wsmanAPI.DiskResults{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
