@@ -505,27 +505,25 @@ func (c *ConnectionEntry) hardwarePulls() (PullHWResults, error) {
 	return results, nil
 }
 
-func (c *ConnectionEntry) GetHardwareInfo() (interface{}, error) {
+func (c *ConnectionEntry) GetHardwareInfo() (HWResults, error) {
 	getHWResults, err := c.hardwareGets()
 	if err != nil {
-		return nil, err
+		return HWResults{}, err
 	}
 
 	pullHWResults, err := c.hardwarePulls()
 	if err != nil {
-		return nil, err
+		return HWResults{}, err
 	}
 
-	hwResults := HWResults{
+	return HWResults{
 		ChassisResult:        getHWResults.ChassisResult,
 		ChipResult:           pullHWResults.ChipResult,
 		CardResult:           getHWResults.CardResult,
 		PhysicalMemoryResult: pullHWResults.PhysicalMemoryResult,
 		BiosResult:           getHWResults.BiosResult,
 		ProcessorResult:      getHWResults.ProcessorResult,
-	}
-
-	return createMapInterfaceForHWInfo(hwResults)
+	}, nil
 }
 
 type GetHWResults struct {
@@ -547,58 +545,12 @@ type HWResults struct {
 	ProcessorResult      processor.Response
 }
 
-func createMapInterfaceForHWInfo(hwResults HWResults) (interface{}, error) {
-	return map[string]interface{}{
-		"CIM_Chassis": map[string]interface{}{
-			"response":  hwResults.ChassisResult.Body.PackageResponse,
-			"responses": []interface{}{},
-		}, "CIM_Chip": map[string]interface{}{
-			"responses": []interface{}{hwResults.ChipResult.Body.PackageResponse},
-		}, "CIM_Card": map[string]interface{}{
-			"response":  hwResults.CardResult.Body.PackageResponse,
-			"responses": []interface{}{},
-		}, "CIM_BIOSElement": map[string]interface{}{
-			"response":  hwResults.BiosResult.Body.GetResponse,
-			"responses": []interface{}{},
-		}, "CIM_Processor": map[string]interface{}{
-			"responses": []interface{}{hwResults.ProcessorResult.Body.PackageResponse},
-		}, "CIM_PhysicalMemory": map[string]interface{}{
-			"responses": convertPhysicalMemorySlice(hwResults.PhysicalMemoryResult.Body.PullResponse.MemoryItems),
-		},
-	}, nil
-}
-
-// convertPhysicalMemorySlice converts []physical.PhysicalMemory to []interface{} for consistent handling.
-func convertPhysicalMemorySlice(items []physical.PhysicalMemory) []interface{} {
-	if items == nil {
-		return []interface{}{}
-	}
-
-	result := make([]interface{}, len(items))
-
-	for i := range items {
-		result[i] = items[i]
-	}
-
-	return result
-}
-
-func createMapInterfaceForDiskInfo(diskResults DiskResults) (interface{}, error) {
-	return map[string]interface{}{
-		"CIM_MediaAccessDevice": map[string]interface{}{
-			"responses": []interface{}{diskResults.MediaAccessPullResult.Body.PullResponse.MediaAccessDevices},
-		}, "CIM_PhysicalPackage": map[string]interface{}{
-			"responses": []interface{}{diskResults.PPPullResult.Body.PullResponse.PhysicalPackage},
-		},
-	}, nil
-}
-
 type DiskResults struct {
 	MediaAccessPullResult mediaaccess.Response
 	PPPullResult          physical.Response
 }
 
-func (c *ConnectionEntry) GetDiskInfo() (interface{}, error) {
+func (c *ConnectionEntry) GetDiskInfo() (DiskResults, error) {
 	results := DiskResults{}
 
 	var err error
@@ -623,12 +575,7 @@ func (c *ConnectionEntry) GetDiskInfo() (interface{}, error) {
 		return results, err
 	}
 
-	diskResults := DiskResults{
-		MediaAccessPullResult: results.MediaAccessPullResult,
-		PPPullResult:          results.PPPullResult,
-	}
-
-	return createMapInterfaceForDiskInfo(diskResults)
+	return results, nil
 }
 
 func (c *ConnectionEntry) GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error) {
