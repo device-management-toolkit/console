@@ -841,23 +841,31 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 		return nil, ErrSystemNotFound
 	}
 
-	// Get power state from devices use case
+	// Get power state from WSMAN. If the device is temporarily unreachable (e.g. mid
+	// power-state transition after a ForceOff), treat the state as Off rather than
+	// returning an error that would prevent redfishtool from reading the Actions URL.
+	redfishPowerState := redfishv1.PowerStateOff
+
 	powerState, err := r.usecase.GetPowerState(ctx, systemID)
 	if r.isDeviceNotFoundError(err) {
 		return nil, ErrSystemNotFound
 	}
 
 	if err != nil {
-		return nil, err
+		r.log.Warn("Failed to get power state, defaulting to Off", "systemID", systemID, "error", err)
+	} else {
+		redfishPowerState = r.mapCIMPowerStateToRedfish(powerState.PowerState)
 	}
 
-	// Map the integer power state to Redfish PowerState
-	redfishPowerState := r.mapCIMPowerStateToRedfish(powerState.PowerState)
-
-	// Extract CIM data using the global configuration with static transformers
+	// Extract CIM data using the global configuration with static transformers.
+	// If the device is unreachable for detailed CIM queries, return minimal system
+	// info so that clients can still discover and invoke the Actions (e.g. power on).
 	cimData, hwInfo, err := r.getCIMProperties(ctx, systemID, allCIMConfigs)
 	if err != nil {
-		return nil, err
+		r.log.Warn("Failed to get CIM properties, returning minimal system info", "systemID", systemID, "error", err)
+
+		cimData = make(map[string]interface{})
+		hwInfo = dto.HardwareInfo{}
 	}
 
 	// Build and return the complete ComputerSystem using CIM data and hardware info
@@ -871,15 +879,24 @@ func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID
 	// Get the current power state for logging and validation
 	currentSystem, err := r.GetByID(ctx, systemID)
 	if err != nil {
-		return err
-	}
+		if errors.Is(err, ErrSystemNotFound) {
+			return ErrSystemNotFound
+		}
 
-	// For certain reset types like PowerCycle and ForceRestart, we don't check current state
-	// because they are valid operations regardless of current power state
-	if resetType != redfishv1.ResetTypePowerCycle && resetType != redfishv1.ResetTypeForceRestart {
-		// Check if the requested state matches the current state
-		if currentSystem.PowerState == resetType {
-			return ErrPowerStateConflict
+		// If we cannot confirm the current state (e.g. device temporarily unreachable
+		// during a power-state transition), skip the conflict check and proceed with
+		// the requested action. This allows clients to power on a system that is off
+		// and whose detailed state cannot be read via WSMAN at this moment.
+		r.log.Warn("Could not confirm current power state; proceeding with reset action",
+			"systemID", systemID, "resetType", resetType, "error", err)
+	} else {
+		// For certain reset types like PowerCycle and ForceRestart, we don't check current state
+		// because they are valid operations regardless of current power state
+		if resetType != redfishv1.ResetTypePowerCycle && resetType != redfishv1.ResetTypeForceRestart {
+			// Check if the requested state matches the current state
+			if currentSystem.PowerState == resetType {
+				return ErrPowerStateConflict
+			}
 		}
 	}
 
