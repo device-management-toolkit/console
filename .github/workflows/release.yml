@@ -11,6 +11,12 @@ on:
   push:
     branches: [main, beta]
     tags: ['v*-redfish.preview.*']
+  workflow_dispatch:
+    inputs:
+      redfish_version:
+        description: 'Redfish version for testing (e.g., 1.19.3-redfish.preview.99)'
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -35,7 +41,10 @@ jobs:
       - name: Detect Release Type
         id: detect-release-type
         run: |
-          if [[ "$GITHUB_REF" == refs/tags/v*-redfish.preview.* ]]; then
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "is_redfish=true" >> $GITHUB_OUTPUT
+            echo "Detected manual Redfish test release"
+          elif [[ "$GITHUB_REF" == refs/tags/v*-redfish.preview.* ]]; then
             echo "is_redfish=true" >> $GITHUB_OUTPUT
             echo "Detected Redfish preview release"
           else
@@ -64,10 +73,16 @@ jobs:
         if: steps.detect-release-type.outputs.is_redfish == 'true'
         id: redfish-version
         run: |
-          # Extract version from the tag
-          REDFISH_TAG="${GITHUB_REF#refs/tags/}"
-          echo "Building release for tag: $REDFISH_TAG"
-          VERSION="${REDFISH_TAG#v}"
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # Use version from workflow input
+            VERSION="${{ inputs.redfish_version }}"
+            echo "Using manual input version: $VERSION"
+          else
+            # Extract version from the tag
+            REDFISH_TAG="${GITHUB_REF#refs/tags/}"
+            echo "Building release for tag: $REDFISH_TAG"
+            VERSION="${REDFISH_TAG#v}"
+          fi
           echo "version=$VERSION" >> $GITHUB_OUTPUT
           echo "Redfish version: $VERSION"
 
@@ -185,7 +200,14 @@ jobs:
       - name: Checkout Console
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          persist-credentials: false
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
+      
+      - name: Configure Git for tagging
+        if: needs.prepare.outputs.is_redfish == 'true' && github.event_name == 'workflow_dispatch'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
 
       # Restore unified build cache
       - shell: bash
@@ -288,12 +310,25 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          REDFISH_TAG="${GITHUB_REF#refs/tags/}"
           VERSION="${{ needs.prepare.outputs.version }}"
+          TAG="v$VERSION"
+          
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            # For manual dispatch: create temporary tag and draft release
+            echo "Creating temporary tag for testing: $TAG"
+            git tag "$TAG"
+            git push origin "$TAG"
+            
+            echo "Creating DRAFT Redfish release for testing"
+            DRAFT_FLAG="--draft"
+          else
+            # For tag push: use existing tag
+            TAG="${GITHUB_REF#refs/tags/}"
+            echo "Creating Redfish preview release for v$VERSION"
+            DRAFT_FLAG=""
+          fi
 
-          echo "Creating Redfish preview release for v$VERSION"
-
-          gh release create "$REDFISH_TAG" \
+          gh release create "$TAG" \
             --title "Redfish Preview Release v$VERSION" \
             --notes "Redfish preview release v$VERSION
 
@@ -308,11 +343,19 @@ jobs:
 
           **Note:** Docker images are not published for preview releases. Headless variants are only available in GA releases." \
             --prerelease \
+            $DRAFT_FLAG \
             console_linux_x64.tar.gz#"Linux x64 Console (Full)" \
             console_linux_arm64.tar.gz#"Linux ARM64 Console (Full)" \
             dist/windows/console_windows_x64.exe#"Windows x64 Console (Full)" \
             console_mac_arm64.tar.gz#"macOS ARM64 Console (Full)" \
             licenses.zip#"Third-Party Licenses"
+          
+          if [[ "${{ github.event_name }}" == "workflow_dispatch" ]]; then
+            echo "⚠️ DRAFT release created with temporary tag: $TAG"
+            echo "⚠️ Remember to delete both the draft release AND the tag after testing"
+            echo "   gh release delete $TAG --yes"
+            echo "   git push origin :refs/tags/$TAG"
+          fi
 
       - name: Check if OpenAPI files changed
         if: needs.prepare.outputs.is_redfish == 'false'
