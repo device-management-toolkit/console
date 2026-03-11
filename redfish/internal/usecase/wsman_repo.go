@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"sync"
 
 	amtBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
@@ -854,28 +855,64 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 		return nil, ErrSystemNotFound
 	}
 
-	// Get power state from WSMAN. If the device is temporarily unreachable (e.g. mid
-	// power-state transition after a ForceOff), treat the state as Off rather than
-	// returning an error that would prevent redfishtool from reading the Actions URL.
-	redfishPowerState := redfishv1.PowerStateOff
+	// Fetch power state and CIM properties concurrently to reduce latency when
+	// the device is unreachable (e.g. off or mid power-state transition).
+	type powerResult struct {
+		state redfishv1.PowerState
+		err   error
+		notFound bool
+	}
+	type cimResult struct {
+		data     map[string]interface{}
+		hwInfo   dto.HardwareInfo
+		err      error
+	}
 
-	powerState, err := r.usecase.GetPowerState(ctx, systemID)
-	if r.isDeviceNotFoundError(err) {
+	powerCh := make(chan powerResult, 1)
+	cimCh := make(chan cimResult, 1)
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		ps, psErr := r.usecase.GetPowerState(ctx, systemID)
+		powerCh <- powerResult{
+			state:    r.mapCIMPowerStateToRedfish(func() int {
+				if psErr == nil { return ps.PowerState }
+				return 0
+			}()),
+			err:     psErr,
+			notFound: r.isDeviceNotFoundError(psErr),
+		}
+	}()
+
+	wg.Add(1)
+	go func() {
+		defer wg.Done()
+		data, hw, cimErr := r.getCIMProperties(ctx, systemID, allCIMConfigs)
+		cimCh <- cimResult{data: data, hwInfo: hw, err: cimErr}
+	}()
+
+	wg.Wait()
+
+	psRes := <-powerCh
+	if psRes.notFound {
 		return nil, ErrSystemNotFound
 	}
 
-	if err != nil {
-		r.log.Warn("Failed to get power state, defaulting to Off", "systemID", systemID, "error", err)
+	redfishPowerState := redfishv1.PowerStateOff
+	if psRes.err != nil {
+		r.log.Warn("Failed to get power state, defaulting to Off", "systemID", systemID, "error", psRes.err)
 	} else {
-		redfishPowerState = r.mapCIMPowerStateToRedfish(powerState.PowerState)
+		redfishPowerState = psRes.state
 	}
 
-	// Extract CIM data using the global configuration with static transformers.
-	// If the device is unreachable for detailed CIM queries, return minimal system
-	// info so that clients can still discover and invoke the Actions (e.g. power on).
-	cimData, hwInfo, err := r.getCIMProperties(ctx, systemID, allCIMConfigs)
-	if err != nil {
-		r.log.Warn("Failed to get CIM properties, returning minimal system info", "systemID", systemID, "error", err)
+	cimRes := <-cimCh
+	cimData := cimRes.data
+	hwInfo := cimRes.hwInfo
+	if cimRes.err != nil {
+		r.log.Warn("Failed to get CIM properties, returning minimal system info", "systemID", systemID, "error", cimRes.err)
 
 		cimData = make(map[string]interface{})
 		hwInfo = dto.HardwareInfo{}

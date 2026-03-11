@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"sync"
 
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
@@ -144,12 +145,25 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		}
 	}
 
-	// Fetch boot settings
-	boot, err := uc.Repo.GetBootSettings(ctx, systemID)
-	if err != nil {
-		// Log error but don't fail the entire request - boot settings may not be available
-		boot = nil
-	}
+	// Fetch boot settings concurrently with the already-completed GetByID result above.
+	// Both calls hit WSMAN independently so running them in parallel cuts latency in half
+	// when the device is unreachable.
+	var boot *generated.ComputerSystemBoot
+
+	var bootWg sync.WaitGroup
+
+	bootWg.Add(1)
+	go func() {
+		defer bootWg.Done()
+
+		b, bootErr := uc.Repo.GetBootSettings(ctx, systemID)
+		if bootErr == nil {
+			boot = b
+		}
+	}()
+
+	bootWg.Wait()
+
 	// Create Actions for this system using the generated Actions type
 	actions := uc.createActionsStruct(systemID)
 
