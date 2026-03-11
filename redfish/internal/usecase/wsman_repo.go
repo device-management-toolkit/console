@@ -544,6 +544,19 @@ func (r *WsmanComputerSystemRepo) buildComputerSystemFromCIMData(systemID string
 		ODataType:    "#ComputerSystem.v1_26_0.ComputerSystem",
 	}
 
+	// Always include Actions so clients (e.g. redfishtool) can discover the reset target.
+	system.Actions = &redfishv1.ComputerSystemActions{
+		ComputerSystemReset: redfishv1.ComputerSystemResetAction{
+			Target: "/redfish/v1/Systems/" + systemID + "/Actions/ComputerSystem.Reset",
+			ResetTypeRedfishAllowableValues: []redfishv1.PowerState{
+				redfishv1.ResetTypeOn,
+				redfishv1.ResetTypeForceOff,
+				redfishv1.ResetTypeForceRestart,
+				redfishv1.ResetTypePowerCycle,
+			},
+		},
+	}
+
 	// Set optional properties only if we have actual CIM data
 	if description != "" {
 		system.Description = description
