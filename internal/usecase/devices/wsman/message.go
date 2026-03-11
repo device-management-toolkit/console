@@ -563,9 +563,24 @@ func createMapInterfaceForHWInfo(hwResults HWResults) (interface{}, error) {
 		}, "CIM_Processor": map[string]interface{}{
 			"responses": []interface{}{hwResults.ProcessorResult.Body.PackageResponse},
 		}, "CIM_PhysicalMemory": map[string]interface{}{
-			"responses": hwResults.PhysicalMemoryResult.Body.PullResponse.MemoryItems,
+			"responses": convertPhysicalMemorySlice(hwResults.PhysicalMemoryResult.Body.PullResponse.MemoryItems),
 		},
 	}, nil
+}
+
+// convertPhysicalMemorySlice converts []physical.PhysicalMemory to []interface{} for consistent handling.
+func convertPhysicalMemorySlice(items []physical.PhysicalMemory) []interface{} {
+	if items == nil {
+		return []interface{}{}
+	}
+
+	result := make([]interface{}, len(items))
+
+	for i := range items {
+		result[i] = items[i]
+	}
+
+	return result
 }
 
 func createMapInterfaceForDiskInfo(diskResults DiskResults) (interface{}, error) {
