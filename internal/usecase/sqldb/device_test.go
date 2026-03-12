@@ -47,7 +47,10 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			mebxpassword TEXT,
 			usetls BOOLEAN NOT NULL DEFAULT FALSE,
 			allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-			certhash TEXT NOT NULL DEFAULT ''
+			certhash TEXT NOT NULL DEFAULT '',
+			lastconnected TEXT,
+			lastdisconnected TEXT,
+			lastseen TEXT
 		);
 	`)
 	require.NoError(t, err)
@@ -1091,6 +1094,199 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
 			}
 
 			assert.IsType(t, tc.expected, devices)
+		})
+	}
+}
+
+func TestDeviceRepo_UpdateConnectionStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		setup  func(dbConn *sql.DB)
+		guid   string
+		status bool
+		err    error
+		verify func(t *testing.T, dbConn *sql.DB)
+	}{
+		{
+			name: "Set connected status to true",
+			setup: func(dbConn *sql.DB) {
+				_, err := dbConn.ExecContext(context.Background(),
+					`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname1", "tag1", "mps1", false, "mpsuser1", "tenant1", "friendly1", "dns1", "info1", "user1", "pass1", true, false)
+				require.NoError(t, err)
+			},
+			guid:   "guid1",
+			status: true,
+			err:    nil,
+			verify: func(t *testing.T, dbConn *sql.DB) {
+				t.Helper()
+
+				var (
+					connStatus    bool
+					lastConnected sql.NullString
+				)
+
+				err := dbConn.QueryRowContext(context.Background(),
+					"SELECT connectionstatus, lastconnected FROM devices WHERE guid = ?", "guid1").
+					Scan(&connStatus, &lastConnected)
+				require.NoError(t, err)
+				assert.True(t, connStatus)
+				assert.True(t, lastConnected.Valid, "lastconnected should be set")
+			},
+		},
+		{
+			name: "Set connected status to false",
+			setup: func(dbConn *sql.DB) {
+				_, err := dbConn.ExecContext(context.Background(),
+					`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid2", "hostname2", "tag2", "mps2", true, "mpsuser2", "tenant1", "friendly2", "dns2", "info2", "user2", "pass2", true, false)
+				require.NoError(t, err)
+			},
+			guid:   "guid2",
+			status: false,
+			err:    nil,
+			verify: func(t *testing.T, dbConn *sql.DB) {
+				t.Helper()
+
+				var (
+					connStatus       bool
+					lastDisconnected sql.NullString
+				)
+
+				err := dbConn.QueryRowContext(context.Background(),
+					"SELECT connectionstatus, lastdisconnected FROM devices WHERE guid = ?", "guid2").
+					Scan(&connStatus, &lastDisconnected)
+				require.NoError(t, err)
+				assert.False(t, connStatus)
+				assert.True(t, lastDisconnected.Valid, "lastdisconnected should be set")
+			},
+		},
+		{
+			name:   "Update non-existent device - no error",
+			setup:  func(_ *sql.DB) {},
+			guid:   "nonexistent",
+			status: true,
+			err:    nil,
+			verify: func(_ *testing.T, _ *sql.DB) {},
+		},
+		{
+			name:   QueryExecutionErrorTestName,
+			setup:  func(_ *sql.DB) {},
+			guid:   "guid1",
+			status: true,
+			err:    &sqldb.DatabaseError{},
+			verify: func(_ *testing.T, _ *sql.DB) {},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDeviceTable(t)
+			defer dbConn.Close()
+
+			tc.setup(dbConn)
+
+			sqlConfig := CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
+
+			mockLog := mocks.NewMockLogger(nil)
+			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
+
+			err := repo.UpdateConnectionStatus(context.Background(), tc.guid, tc.status)
+
+			if tc.err == nil {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+
+				var dbErr sqldb.DatabaseError
+				assert.True(t, errors.As(err, &dbErr))
+			}
+
+			tc.verify(t, dbConn)
+		})
+	}
+}
+
+func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		setup  func(dbConn *sql.DB)
+		guid   string
+		err    error
+		verify func(t *testing.T, dbConn *sql.DB)
+	}{
+		{
+			name: "Successfully updates lastseen",
+			setup: func(dbConn *sql.DB) {
+				_, err := dbConn.ExecContext(context.Background(),
+					`INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname1", "tag1", "mps1", false, "mpsuser1", "tenant1", "friendly1", "dns1", "info1", "user1", "pass1", true, false)
+				require.NoError(t, err)
+			},
+			guid: "guid1",
+			err:  nil,
+			verify: func(t *testing.T, dbConn *sql.DB) {
+				t.Helper()
+
+				var lastSeen sql.NullString
+
+				err := dbConn.QueryRowContext(context.Background(),
+					"SELECT lastseen FROM devices WHERE guid = ?", "guid1").
+					Scan(&lastSeen)
+				require.NoError(t, err)
+				assert.True(t, lastSeen.Valid, "lastseen should be set")
+			},
+		},
+		{
+			name:   "Update non-existent device - no error",
+			setup:  func(_ *sql.DB) {},
+			guid:   "nonexistent",
+			err:    nil,
+			verify: func(_ *testing.T, _ *sql.DB) {},
+		},
+		{
+			name:   QueryExecutionErrorTestName,
+			setup:  func(_ *sql.DB) {},
+			guid:   "guid1",
+			err:    &sqldb.DatabaseError{},
+			verify: func(_ *testing.T, _ *sql.DB) {},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDeviceTable(t)
+			defer dbConn.Close()
+
+			tc.setup(dbConn)
+
+			sqlConfig := CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
+
+			mockLog := mocks.NewMockLogger(nil)
+			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
+
+			err := repo.UpdateLastSeen(context.Background(), tc.guid)
+
+			if tc.err == nil {
+				require.NoError(t, err)
+			} else {
+				require.Error(t, err)
+
+				var dbErr sqldb.DatabaseError
+				assert.True(t, errors.As(err, &dbErr))
+			}
+
+			tc.verify(t, dbConn)
 		})
 	}
 }

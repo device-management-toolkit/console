@@ -252,6 +252,8 @@ func generateAndStoreRootCert(store security.Storager, certName string, addThumb
 		} else {
 			log.Println("Root certificate stored in Vault")
 		}
+	} else {
+		log.Printf("Vault unavailable, root certificate saved locally only")
 	}
 
 	return cert, key, nil
@@ -358,6 +360,8 @@ func generateAndStoreWebServerCert(store security.Storager, rootCert CertAndKeyT
 		} else {
 			log.Println("Web server certificate stored in Vault")
 		}
+	} else {
+		log.Printf("Vault unavailable, web server certificate saved locally only")
 	}
 
 	return cert, key, nil

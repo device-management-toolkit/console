@@ -3,6 +3,7 @@ package cira
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
@@ -122,6 +123,7 @@ type connectionContext struct {
 	session       *apf.Session
 	authenticated bool
 	device        *wsman.ConnectionEntry
+	devices       devices.Feature
 	log           logger.Interface
 }
 
@@ -141,6 +143,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		conn:    conn,
 		tlsConn: tlsConn,
 		handler: NewAPFHandler(s.devices, s.log),
+		devices: s.devices,
 		session: &apf.Session{
 			Timer: time.NewTimer(apfSessionTimeout),
 		},
@@ -156,6 +159,10 @@ func (s *Server) handleConnection(conn net.Conn) {
 func (ctx *connectionContext) cleanup() {
 	deviceID := ctx.handler.DeviceID()
 	if ctx.authenticated && deviceID != "" {
+		if err := ctx.devices.UpdateConnectionStatus(context.Background(), deviceID, false); err != nil {
+			ctx.log.Error("Failed to update disconnection status for device %s: %v", deviceID, err)
+		}
+
 		wsman.RemoveConnection(deviceID)
 	}
 
@@ -211,10 +218,26 @@ func (ctx *connectionContext) processNextMessage() (shouldReturn bool) {
 	}
 
 	if err := ctx.sendKeepAliveIfNeeded(messageType); err != nil {
+		ctx.log.Error("Keep-alive failed for device %s: %v", ctx.handler.DeviceID(), err)
+
 		return true
 	}
 
+	ctx.updateLastSeenIfKeepAlive(messageType)
+
 	return false
+}
+
+func (ctx *connectionContext) updateLastSeenIfKeepAlive(messageType byte) {
+	if !ctx.authenticated || messageType != apf.APF_KEEPALIVE_REQUEST {
+		return
+	}
+
+	deviceID := ctx.handler.DeviceID()
+
+	if err := ctx.devices.UpdateLastSeen(context.Background(), deviceID); err != nil {
+		ctx.log.Error("Failed to update last seen for device %s: %v", deviceID, err)
+	}
 }
 
 func (ctx *connectionContext) readData() ([]byte, error) {
@@ -278,6 +301,10 @@ func (ctx *connectionContext) registerDevice() {
 	}
 
 	wsman.SetConnectionEntry(deviceID, ctx.device)
+
+	if err := ctx.devices.UpdateConnectionStatus(context.Background(), deviceID, true); err != nil {
+		ctx.log.Error("Failed to update connection status for device %s: %v", deviceID, err)
+	}
 
 	ctx.log.Info("Device authenticated and registered: %s", deviceID)
 }

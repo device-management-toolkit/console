@@ -7,12 +7,16 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/mock"
+	"github.com/stretchr/testify/require"
 )
+
+const testServerName = "test-server"
 
 // MockObjectStorager implements ObjectStorager for testing.
 type MockObjectStorager struct {
@@ -199,4 +203,207 @@ func TestSaveCertificateToStore_Error(t *testing.T) {
 	assert.Error(t, err)
 
 	mockStore.AssertExpectations(t)
+}
+
+// TestLoadOrGenerateRootCert_FromVault_NoLocalFiles verifies that when local
+// certificate files are deleted, the root certificate is loaded directly from
+// Vault without attempting file I/O or generating new certificates.
+func TestLoadOrGenerateRootCert_FromVault_NoLocalFiles(t *testing.T) {
+	t.Parallel()
+
+	cert, key := generateTestCertAndKey(t)
+	certPEM, keyPEM := certAndKeyToPEM(cert, key)
+
+	mockStore := new(MockObjectStorager)
+	mockStore.On("GetObject", "certs/root").Return(map[string]string{
+		"cert": certPEM,
+		"key":  keyPEM,
+	}, nil)
+
+	// Ensure local files do not exist
+	os.Remove(RootCertPath)
+	os.Remove(RootKeyPath)
+
+	loadedCert, loadedKey, err := LoadOrGenerateRootCertificateWithVault(mockStore, true, "test", "US", "test-org", false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, loadedCert)
+	assert.NotNil(t, loadedKey)
+	assert.Equal(t, cert.Subject.CommonName, loadedCert.Subject.CommonName)
+
+	// SetObject should NOT be called — cert was already in Vault
+	mockStore.AssertExpectations(t)
+	mockStore.AssertNotCalled(t, "SetObject", mock.Anything, mock.Anything)
+}
+
+// TestLoadOrGenerateRootCert_FromLocalFiles_SyncsToVault verifies that when
+// Vault has no certificate but local files exist, the cert is loaded from
+// files and then synced to Vault.
+func TestLoadOrGenerateRootCert_FromLocalFiles_SyncsToVault(t *testing.T) {
+	t.Parallel()
+
+	// Generate test cert and write to local files
+	cert, key := generateTestCertAndKey(t)
+	certPEM, keyPEM := certAndKeyToPEM(cert, key)
+
+	// Create config directory if needed
+	require.NoError(t, os.MkdirAll("config", 0o755))
+
+	err := os.WriteFile(RootCertPath, []byte(certPEM), 0o600)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(RootKeyPath, []byte(keyPEM), 0o600)
+	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.Remove(RootCertPath)
+		os.Remove(RootKeyPath)
+	})
+
+	mockStore := new(MockObjectStorager)
+	// Vault returns not found
+	mockStore.On("GetObject", "certs/root").Return(nil, assert.AnError)
+	// Expect sync to Vault after loading from files
+	mockStore.On("SetObject", "certs/root", mock.AnythingOfType("map[string]string")).Return(nil)
+
+	loadedCert, loadedKey, loadErr := LoadOrGenerateRootCertificateWithVault(mockStore, true, "test", "US", "test-org", false)
+
+	assert.NoError(t, loadErr)
+	assert.NotNil(t, loadedCert)
+	assert.NotNil(t, loadedKey)
+
+	// Verify cert was synced to Vault
+	mockStore.AssertExpectations(t)
+	mockStore.AssertCalled(t, "SetObject", "certs/root", mock.AnythingOfType("map[string]string"))
+}
+
+// TestLoadOrGenerateWebServerCert_FromVault_NoLocalFiles verifies that web
+// server certificates load from Vault when local files are deleted.
+func TestLoadOrGenerateWebServerCert_FromVault_NoLocalFiles(t *testing.T) {
+	t.Parallel()
+
+	// Generate root cert for signing
+	rootCert, rootKey := generateTestCertAndKey(t)
+	// Generate web server cert
+	webCert, webKey := generateTestCertAndKey(t)
+	webCertPEM, webKeyPEM := certAndKeyToPEM(webCert, webKey)
+
+	commonName := testServerName
+	certPath := "config/" + commonName + "_cert.pem"
+	keyPath := "config/" + commonName + "_key.pem"
+
+	// Ensure local files do not exist
+	os.Remove(certPath)
+	os.Remove(keyPath)
+
+	mockStore := new(MockObjectStorager)
+	mockStore.On("GetObject", "certs/webserver-"+commonName).Return(map[string]string{
+		"cert": webCertPEM,
+		"key":  webKeyPEM,
+	}, nil)
+
+	rootCertAndKey := CertAndKeyType{Cert: rootCert, Key: rootKey}
+
+	loadedCert, loadedKey, err := LoadOrGenerateWebServerCertificateWithVault(mockStore, rootCertAndKey, false, commonName, "US", "test-org", false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, loadedCert)
+	assert.NotNil(t, loadedKey)
+
+	// SetObject should NOT be called — cert was already in Vault
+	mockStore.AssertExpectations(t)
+	mockStore.AssertNotCalled(t, "SetObject", mock.Anything, mock.Anything)
+}
+
+// TestLoadOrGenerateWebServerCert_FromLocalFiles_SyncsToVault verifies that
+// web server certificates load from local files and sync to Vault when Vault
+// has no copy.
+func TestLoadOrGenerateWebServerCert_FromLocalFiles_SyncsToVault(t *testing.T) {
+	t.Parallel()
+
+	rootCert, rootKey := generateTestCertAndKey(t)
+	webCert, webKey := generateTestCertAndKey(t)
+	webCertPEM, webKeyPEM := certAndKeyToPEM(webCert, webKey)
+
+	commonName := testServerName
+	certPath := "config/" + commonName + "_cert.pem"
+	keyPath := "config/" + commonName + "_key.pem"
+
+	require.NoError(t, os.MkdirAll("config", 0o755))
+
+	err := os.WriteFile(certPath, []byte(webCertPEM), 0o600)
+	assert.NoError(t, err)
+
+	err = os.WriteFile(keyPath, []byte(webKeyPEM), 0o600)
+	assert.NoError(t, err)
+
+	t.Cleanup(func() {
+		os.Remove(certPath)
+		os.Remove(keyPath)
+	})
+
+	mockStore := new(MockObjectStorager)
+	mockStore.On("GetObject", "certs/webserver-"+commonName).Return(nil, assert.AnError)
+	mockStore.On("SetObject", "certs/webserver-"+commonName, mock.AnythingOfType("map[string]string")).Return(nil)
+
+	rootCertAndKey := CertAndKeyType{Cert: rootCert, Key: rootKey}
+
+	loadedCert, loadedKey, loadErr := LoadOrGenerateWebServerCertificateWithVault(mockStore, rootCertAndKey, false, commonName, "US", "test-org", false)
+
+	assert.NoError(t, loadErr)
+	assert.NotNil(t, loadedCert)
+	assert.NotNil(t, loadedKey)
+
+	mockStore.AssertExpectations(t)
+	mockStore.AssertCalled(t, "SetObject", "certs/webserver-"+commonName, mock.AnythingOfType("map[string]string"))
+}
+
+// TestLoadOrGenerateRootCert_NilStore_GeneratesLocally verifies that when
+// store is nil, the root certificate is generated and saved locally only.
+func TestLoadOrGenerateRootCert_NilStore_GeneratesLocally(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, os.MkdirAll("config", 0o755))
+
+	t.Cleanup(func() {
+		os.Remove(RootCertPath)
+		os.Remove(RootKeyPath)
+	})
+
+	// Remove any existing local files so generation is triggered
+	os.Remove(RootCertPath)
+	os.Remove(RootKeyPath)
+
+	cert, key, err := LoadOrGenerateRootCertificateWithVault(nil, true, "test-nil-store", "US", "test-org", false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, cert)
+	assert.NotNil(t, key)
+}
+
+// TestLoadOrGenerateWebServerCert_NilStore_GeneratesLocally verifies that when
+// store is nil, the web server certificate is generated and saved locally only.
+func TestLoadOrGenerateWebServerCert_NilStore_GeneratesLocally(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, os.MkdirAll("config", 0o755))
+
+	rootCert, rootKey := generateTestCertAndKey(t)
+
+	commonName := "test-nil-store-ws"
+	certPath := "config/" + commonName + "_cert.pem"
+	keyPath := "config/" + commonName + "_key.pem"
+
+	t.Cleanup(func() {
+		os.Remove(certPath)
+		os.Remove(keyPath)
+	})
+
+	rootCertAndKey := CertAndKeyType{Cert: rootCert, Key: rootKey}
+
+	cert, key, err := LoadOrGenerateWebServerCertificateWithVault(nil, rootCertAndKey, false, commonName, "US", "test-org", false)
+
+	assert.NoError(t, err)
+	assert.NotNil(t, cert)
+	assert.NotNil(t, key)
 }
