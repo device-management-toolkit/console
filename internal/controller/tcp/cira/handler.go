@@ -130,6 +130,7 @@ func (h *APFHandler) OnGlobalRequest(request apf.GlobalRequest) bool {
 }
 
 // ShouldSendKeepAlive returns whether keep-alive should be sent based on global request count.
+// Returns true only once, when the threshold is exactly reached, to avoid sending duplicate requests.
 func (h *APFHandler) ShouldSendKeepAlive() bool {
-	return h.globalRequestCount >= globalRequestThreshold
+	return h.globalRequestCount == globalRequestThreshold
 }

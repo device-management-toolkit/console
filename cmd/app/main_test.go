@@ -88,6 +88,36 @@ func TestHandleOpenAPIGeneration_Success(t *testing.T) {
 	mockGen.AssertExpectations(t)
 }
 
+func TestSetupCIRACertificates_Disabled(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.DisableCIRA = true
+
+	err := setupCIRACertificates(cfg, nil)
+	assert.NoError(t, err)
+}
+
+func TestHandleSecretsConfig_NoAddress(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	client, err := handleSecretsConfig(cfg)
+	assert.Nil(t, client)
+	assert.ErrorIs(t, err, ErrSecretStoreAddressNotConfigured)
+}
+
+func TestHandleSecretsConfig_NoToken(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.Address = "http://vault:8200"
+
+	client, err := handleSecretsConfig(cfg)
+	assert.Nil(t, client)
+	assert.ErrorIs(t, err, ErrSecretStoreTokenNotConfigured)
+}
+
 //nolint:paralleltest // modifies package-level NewGeneratorFunc
 func TestHandleOpenAPIGeneration_GenerateFails(t *testing.T) {
 	mockGen := new(MockGenerator)

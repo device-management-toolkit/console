@@ -124,5 +124,9 @@ func amtErrorHandle(c *gin.Context, err devices.AMTError) {
 
 func notUniqueErrorHandle(c *gin.Context, err sqldb.NotUniqueError) {
 	msg := err.Console.FriendlyMessage()
-	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+	if msg == "" {
+		msg = "resource already exists"
+	}
+
+	c.AbortWithStatusJSON(http.StatusConflict, response{Error: msg, Message: msg})
 }

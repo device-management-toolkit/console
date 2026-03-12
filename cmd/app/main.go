@@ -54,7 +54,9 @@ func main() {
 
 	// Initialize certificate store (Vault) for MPS and domain certificates
 	secretsClient, secretsErr := handleSecretsConfig(cfg)
-	if secretsErr == nil {
+	if secretsErr != nil {
+		log.Printf("Vault not configured: %v. Certificates will be stored locally only.", secretsErr)
+	} else {
 		app.CertStore = secretsClient
 	}
 

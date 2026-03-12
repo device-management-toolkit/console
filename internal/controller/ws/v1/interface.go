@@ -30,6 +30,8 @@ type Feature interface {
 	GetCount(context.Context, string) (int, error)
 	Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 	GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error)
+	UpdateConnectionStatus(ctx context.Context, guid string, status bool) error
+	UpdateLastSeen(ctx context.Context, guid string) error
 	GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 	GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
 	Delete(ctx context.Context, guid, tenantID string) error
@@ -66,4 +68,6 @@ type Feature interface {
 	// KVM Screen Settings
 	GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
 	SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
+	// Link Preference (AMT_EthernetPortSettings)
+	SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error)
 }
