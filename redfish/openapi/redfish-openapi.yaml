@@ -4,6 +4,21 @@ info:
   version: 1.0.0
   description: Merged Redfish API specification
 paths:
+  /redfish:
+    get:
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  v1:
+                    type: string
+                    example: /redfish/v1/
+          description: Redfish protocol version discovery endpoint
+      security:
+      - {}
   /redfish/v1/:
     get:
       responses:
@@ -145,7 +160,33 @@ paths:
                 $ref: '#/components/schemas/RedfishError'
           description: Error condition
       security:
-      - BasicAuth: []
+      - {}
+  /redfish/v1/SessionService/Sessions/Members:
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/Session_Session'
+        required: true
+      responses:
+        '201':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Session_Session'
+          description: A resource of type Session has been created (OData Members
+            endpoint)
+        '204':
+          description: Success, but no response data
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - {}
   /redfish/v1/SessionService/Sessions/{SessionId}:
     delete:
       responses:
@@ -216,6 +257,31 @@ paths:
                 $ref: '#/components/schemas/ComputerSystem_ComputerSystem'
           description: The response contains a representation of the ComputerSystem
             resource
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
+    patch:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_ComputerSystem'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputerSystem_ComputerSystem'
+          description: The response contains a representation of the ComputerSystem
+            resource
+        '204':
+          description: Success, but no response data
         default:
           content:
             application/json:
@@ -601,6 +667,302 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_AutomaticRetryConfig:
+      enum:
+      - Disabled
+      - RetryAttempts
+      - RetryAlways
+      type: string
+      x-enumDescriptions:
+        Disabled: Disable automatic retrying of booting.
+        RetryAlways: Always automatically retry booting.
+        RetryAttempts: Automatic retrying of booting is based on a specified retry
+          count.
+      x-enumLongDescriptions:
+        Disabled: This value shall indicate that automatic retrying of booting is
+          disabled.
+        RetryAlways: This value shall indicate that the system will always automatically
+          retry booting.
+        RetryAttempts: This value shall indicate that the number of retries of booting
+          is based on the `AutomaticRetryAttempts` property, and the `RemainingAutomaticRetryAttempts`
+          property indicates the number of remaining attempts.
+    ComputerSystem_Boot:
+      additionalProperties: false
+      description: The boot information for this resource.
+      properties:
+        AliasBootOrder:
+          description: Ordered array of boot source aliases representing the persistent
+            boot order associated with this computer system.
+          items:
+            oneOf:
+            - $ref: '#/components/schemas/ComputerSystem_BootSource'
+            - enum:
+              - null
+          readOnly: false
+          type: array
+          x-longDescription: This property shall contain an ordered array of boot
+            source aliases of the `BootSource` type that represents the persistent
+            boot order of this computer system.  This array shall not contain duplicate
+            values.  Virtual devices for an alias should take precedence over a physical
+            device.  Systems may attempt to boot from multiple devices that share
+            an alias.
+          x-versionAdded: v1_6_0
+        AutomaticRetryAttempts:
+          description: The number of attempts the system will automatically retry
+            booting.
+          format: int64
+          minimum: 0
+          nullable: true
+          readOnly: false
+          type: integer
+          x-longDescription: This property shall contain the number of attempts the
+            system will automatically retry booting in the event the system enters
+            an error state on boot.
+          x-versionAdded: v1_11_0
+        AutomaticRetryConfig:
+          description: The configuration of how the system retries booting automatically.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_AutomaticRetryConfig'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall contain the configuration of how
+            the system retries booting automatically.
+          x-versionAdded: v1_11_0
+        BootNext:
+          description: The `BootOptionReference` of the Boot Option to perform a one-time
+            boot from when `BootSourceOverrideTarget` is `UefiBootNext`.
+          nullable: true
+          readOnly: false
+          type: string
+          x-longDescription: This property shall contain the `BootOptionReference`
+            of the UEFI boot option for one time boot, as defined by the UEFI Specification.  The
+            valid values for this property are specified in the values of the BootOrder
+            array.  `BootSourceOverrideEnabled` set to `Continuous` is not supported
+            for `BootSourceOverrideTarget` set to `UefiBootNext` because this setting
+            is defined in UEFI as a one-time boot setting.
+          x-versionAdded: v1_5_0
+        BootOptions:
+          $ref: '#/components/schemas/odata-v4_idRef'
+          description: The link to the collection of the UEFI boot options associated
+            with this computer system.
+          readOnly: true
+          x-longDescription: This property shall contain a link to a resource collection
+            of type `BootOptionCollection`.
+          x-versionAdded: v1_5_0
+        BootOrder:
+          description: An array of `BootOptionReference` strings that represent the
+            persistent boot order for with this computer system.  Changes to the boot
+            order typically require a system reset before they take effect.  It is
+            likely that a client finds the `@Redfish.Settings` term in this resource,
+            and if it is found, the client makes requests to change boot order settings
+            by modifying the resource identified by the `@Redfish.Settings` term.
+          items:
+            nullable: true
+            type: string
+          readOnly: false
+          type: array
+          x-longDescription: This property shall contain an array of `BootOptionReference`
+            strings that represent the persistent boot order for this computer system.  For
+            UEFI systems, this is the UEFI Specification-defined UEFI BootOrder.
+          x-versionAdded: v1_5_0
+        BootOrderPropertySelection:
+          description: The name of the boot order property that the system uses for
+            the persistent boot order.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_BootOrderTypes'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall indicate which boot order property
+            the system uses for the persistent boot order.
+          x-versionAdded: v1_6_0
+        BootSourceOverrideEnabled:
+          description: The state of the boot source override feature.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_BootSourceOverrideEnabled'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall contain `Once` for a one-time boot
+            override, and `Continuous` for a remain-active-until-cancelled override.  If
+            set to `Once`, the value is reset to `Disabled` after the `BootSourceOverrideTarget`
+            actions have completed successfully.  Changes to this property do not
+            alter the BIOS persistent boot order configuration.
+        BootSourceOverrideMode:
+          description: The BIOS boot mode to use when the system boots from the `BootSourceOverrideTarget`
+            boot source.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_BootSourceOverrideMode'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall contain the BIOS boot mode to use
+            when the system boots from the `BootSourceOverrideTarget` boot source.
+          x-versionAdded: v1_1_0
+        BootSourceOverrideTarget:
+          description: The current boot source to use at the next boot instead of
+            the normal boot device, if `BootSourceOverrideEnabled` does not contain
+            `Disabled`.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_BootSource'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall contain the source to boot the system
+            from, overriding the normal boot order.  The `@Redfish.AllowableValues`
+            annotation specifies the valid values for this property.  `UefiTarget`
+            indicates to boot from the UEFI device path found in `UefiTargetBootSourceOverride`.  `UefiBootNext`
+            indicates to boot from the UEFI `BootOptionReference` found in `BootNext`.  Virtual
+            devices for a target should take precedence over a physical device.  Systems
+            may attempt to boot from multiple devices that share a target identifier.  Changes
+            to this property do not alter the BIOS persistent boot order configuration.
+        Certificates:
+          $ref: '#/components/schemas/odata-v4_idRef'
+          description: The link to a collection of certificates used for booting through
+            HTTPS by this computer system.
+          readOnly: true
+          x-longDescription: This property shall contain a link to a resource collection
+            of type `CertificateCollection`.
+          x-versionAdded: v1_7_0
+        HttpBootUri:
+          description: The URI to boot from when `BootSourceOverrideTarget` is set
+            to `UefiHttp`.
+          format: uri-reference
+          nullable: true
+          readOnly: false
+          type: string
+          x-longDescription: This property shall contain the URI to perform an HTTP
+            or HTTPS boot when `BootSourceOverrideTarget` is set to `UefiHttp`.  If
+            this property is not configured or supported, the URI shall be provided
+            by a DHCP server as specified by the UEFI Specification.
+          x-versionAdded: v1_9_0
+        RemainingAutomaticRetryAttempts:
+          description: The number of remaining automatic retry boots.
+          format: int64
+          minimum: 0
+          nullable: true
+          readOnly: true
+          type: integer
+          x-longDescription: This property shall contain the number of attempts remaining
+            the system will retry booting in the event the system enters an error
+            state on boot.  If `0`, the system has no remaining automatic boot retry
+            attempts and shall not automatically retry booting if the system enters
+            an error state.  This property shall be reset to the value of `AutomaticRetryAttempts`
+            upon a successful boot attempt.
+          x-versionAdded: v1_11_0
+        StopBootOnFault:
+          description: If the boot should stop on a fault.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_StopBootOnFault'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall contain the setting if the boot should
+            stop on a fault.
+          x-versionAdded: v1_15_0
+        TrustedModuleRequiredToBoot:
+          description: The Trusted Module boot requirement.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_TrustedModuleRequiredToBoot'
+          - enum:
+            - null
+          readOnly: false
+          x-longDescription: This property shall contain the Trusted Module boot requirement.
+          x-versionAdded: v1_14_0
+        UefiTargetBootSourceOverride:
+          description: The UEFI device path of the device from which to boot when
+            `BootSourceOverrideTarget` is `UefiTarget`.
+          nullable: true
+          readOnly: false
+          type: string
+          x-longDescription: This property shall contain the UEFI device path of the
+            override boot target.  Changes to this property do not alter the BIOS
+            persistent boot order configuration.
+      type: object
+      x-longDescription: This type shall contain properties that describe boot information
+        for a system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_BootOrderTypes:
+      description: The enumerations of `BootOrderTypes` specify the choice of boot
+        order property to use when controller the persistent boot order for this computer
+        system.
+      enum:
+      - BootOrder
+      - AliasBootOrder
+      type: string
+      x-enumDescriptions:
+        AliasBootOrder: The system uses the `AliasBootOrder` property to specify the
+          persistent boot order.
+        BootOrder: The system uses the `BootOrder` property to specify the persistent
+          boot order.
+    ComputerSystem_BootSource:
+      enum:
+      - None
+      - Pxe
+      - Floppy
+      - Cd
+      - Usb
+      - Hdd
+      - BiosSetup
+      - Utilities
+      - Diags
+      - UefiShell
+      - UefiTarget
+      - SDCard
+      - UefiHttp
+      - RemoteDrive
+      - UefiBootNext
+      - Recovery
+      type: string
+      x-enumDescriptions:
+        BiosSetup: Boot to the BIOS setup utility.
+        Cd: Boot from the CD or DVD.
+        Diags: Boot to the manufacturer's diagnostics program.
+        Floppy: Boot from the floppy disk drive.
+        Hdd: Boot from a hard drive.
+        None: Boot from the normal boot device.
+        Pxe: Boot from the Pre-boot eXecution Environment (PXE).
+        Recovery: Boot to a system-designated recovery process or image.
+        RemoteDrive: Boot from a remote drive, such as an iSCSI target.
+        SDCard: Boot from an SD card.
+        UefiBootNext: Boot to the UEFI device that the `BootNext` property specifies.
+        UefiHttp: Boot from a UEFI HTTP network location.
+        UefiShell: Boot to the UEFI Shell.
+        UefiTarget: Boot to the UEFI device specified in the `UefiTargetBootSourceOverride`
+          property.
+        Usb: Boot from a system BIOS-specified USB device.
+        Utilities: Boot to the manufacturer's utilities program or programs.
+      x-enumVersionAdded:
+        Recovery: v1_19_0
+        RemoteDrive: v1_2_0
+        SDCard: v1_1_0
+        UefiBootNext: v1_5_0
+        UefiHttp: v1_1_0
+    ComputerSystem_BootSourceOverrideEnabled:
+      enum:
+      - Disabled
+      - Once
+      - Continuous
+      type: string
+      x-enumDescriptions:
+        Continuous: The system boots to the target specified in the `BootSourceOverrideTarget`
+          property until this property is `Disabled`.
+        Disabled: The system boots normally.
+        Once: On its next boot cycle, the system boots one time to the boot source
+          override target.  Then, the `BootSourceOverrideEnabled` value is reset to
+          `Disabled`.
+    ComputerSystem_BootSourceOverrideMode:
+      enum:
+      - Legacy
+      - UEFI
+      type: string
+      x-enumDescriptions:
+        Legacy: The system boots in non-UEFI boot mode to the boot source override
+          target.
+        UEFI: The system boots in UEFI boot mode to the boot source override target.
     ComputerSystem_ComputerSystem:
       additionalProperties: false
       description: The `ComputerSystem` schema represents a computer or system instance
@@ -628,6 +990,11 @@ components:
             currently installed and running BIOS for x86 systems.  For other systems,
             the property may contain a version string that represents the primary
             system firmware.
+        Boot:
+          $ref: '#/components/schemas/ComputerSystem_Boot'
+          description: The boot settings for this system.
+          x-longDescription: This property shall contain the boot settings for this
+            system.
         Description:
           oneOf:
           - $ref: '#/components/schemas/Resource_Description'
@@ -682,8 +1049,10 @@ components:
         ProcessorSummary:
           $ref: '#/components/schemas/ComputerSystem_ProcessorSummary'
           description: The central processors of the system in general detail.
-          x-longDescription: This property shall describe the processors for this
-            resource.
+          x-longDescription: This property shall describe the central processors for
+            this resource.  Processors described by this property shall be limited
+            to the processors that execute system code, and shall not include processors
+            used for offload functionality.
         SerialNumber:
           description: The serial number for this system.
           nullable: true
@@ -897,6 +1266,21 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_StopBootOnFault:
+      enum:
+      - Never
+      - AnyFault
+      type: string
+      x-enumDescriptions:
+        AnyFault: The system should stop the boot on any fault.
+        Never: The system performs any normal recovery actions during boot if a fault
+          occurs.
+      x-enumLongDescriptions:
+        AnyFault: This value shall indicate the system will stop the boot if a fault
+          occurs.  This includes, but is not limited to, faults that affect performance,
+          fault tolerance, or capacity.
+        Never: This value shall indicate the system will continue to attempt to boot
+          if a fault occurs.
     ComputerSystem_SystemType:
       enum:
       - Physical
@@ -945,6 +1329,18 @@ components:
         DPU: v1_16_0
       x-enumVersionDeprecated:
         OS: v1_21_0
+    ComputerSystem_TrustedModuleRequiredToBoot:
+      enum:
+      - Disabled
+      - Required
+      type: string
+      x-enumDescriptions:
+        Disabled: No Trusted Module requirement to boot.
+        Required: A functional Trusted Module is required to boot.
+      x-enumLongDescriptions:
+        Disabled: This value shall indicate a Trusted Module is not required to boot.
+        Required: This value shall indicate a functioning Trusted Module is required
+          to boot.
     Message_Message:
       additionalProperties: false
       description: The message that the Redfish service returns.

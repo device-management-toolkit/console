@@ -1029,6 +1029,9 @@ type PutRedfishV1SessionServiceJSONRequestBody = SessionServiceSessionService
 // PostRedfishV1SessionServiceSessionsJSONRequestBody defines body for PostRedfishV1SessionServiceSessions for application/json ContentType.
 type PostRedfishV1SessionServiceSessionsJSONRequestBody = SessionSession
 
+// PostRedfishV1SessionServiceSessionsMembersJSONRequestBody defines body for PostRedfishV1SessionServiceSessionsMembers for application/json ContentType.
+type PostRedfishV1SessionServiceSessionsMembersJSONRequestBody = SessionSession
+
 // PatchRedfishV1SystemsComputerSystemIdJSONRequestBody defines body for PatchRedfishV1SystemsComputerSystemId for application/json ContentType.
 type PatchRedfishV1SystemsComputerSystemIdJSONRequestBody = ComputerSystemComputerSystem
 
