@@ -2,6 +2,7 @@
 package redfish
 
 import (
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -179,7 +180,7 @@ func TestCreateAuthMiddleware_SessionCreationPublic(t *testing.T) {
 	router.POST("/redfish/v1/SessionService/Sessions", middlewares, testServer.PostRedfishV1SessionServiceSessions)
 
 	// Create session without authentication - should succeed
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", http.NoBody)
 	req.Header.Set("Content-Type", "application/json")
 
 	// The middleware should allow this through
@@ -202,7 +203,7 @@ func TestCreateAuthMiddleware_ProtectedEndpoint(t *testing.T) {
 	router.GET("/redfish/v1/Systems", middlewares, testServer.GetRedfishV1Systems)
 
 	// Access protected endpoint without authentication
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -221,7 +222,7 @@ func TestCreateAuthMiddleware_PublicEndpoint(t *testing.T) {
 	router.GET("/redfish/v1/", middlewares, testServer.GetRedfishV1)
 
 	// Access service root without authentication
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -279,7 +280,7 @@ func TestCreateErrorHandler(t *testing.T) {
 				errorHandler(c, tt.err, tt.statusCode)
 			})
 
-			req := httptest.NewRequest(http.MethodGet, "/test", http.NoBody)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -365,7 +366,7 @@ func TestXAuthToken_ValidToken(t *testing.T) {
 	require.NotEmpty(t, token)
 
 	// Access protected endpoint with valid X-Auth-Token
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w := httptest.NewRecorder()
@@ -386,7 +387,7 @@ func TestXAuthToken_InvalidToken(t *testing.T) {
 	router.GET("/redfish/v1/Systems", middlewares, testServer.GetRedfishV1Systems)
 
 	// Access protected endpoint with invalid X-Auth-Token
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	req.Header.Set("X-Auth-Token", "invalid-token-12345")
 
 	w := httptest.NewRecorder()
@@ -407,7 +408,7 @@ func TestXAuthToken_EmptyToken(t *testing.T) {
 	router.GET("/redfish/v1/Systems", middlewares, testServer.GetRedfishV1Systems)
 
 	// Access protected endpoint with empty X-Auth-Token (should fall back to Basic Auth)
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	req.Header.Set("X-Auth-Token", "")
 
 	w := httptest.NewRecorder()
@@ -435,7 +436,7 @@ func TestXAuthToken_TakesPrecedenceOverBasicAuth(t *testing.T) {
 
 	// Access with both X-Auth-Token and Basic Auth (wrong credentials)
 	// X-Auth-Token should take precedence and succeed
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 	req.SetBasicAuth("wronguser", "wrongpassword")
 
@@ -458,7 +459,7 @@ func TestXAuthToken_InvalidTokenWithValidBasicAuth(t *testing.T) {
 
 	// Access with invalid X-Auth-Token and valid Basic Auth
 	// Per Redfish spec, X-Auth-Token takes precedence, so this should fail
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	req.Header.Set("X-Auth-Token", "invalid-token")
 	req.SetBasicAuth("admin", "testpassword")
 
@@ -489,7 +490,7 @@ func TestXAuthToken_ExpiredToken(t *testing.T) {
 	require.NoError(t, err)
 
 	// Try to use the token after session deletion
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w := httptest.NewRecorder()
@@ -515,7 +516,7 @@ func TestXAuthToken_SessionServiceWithToken(t *testing.T) {
 	require.NotNil(t, session)
 
 	// Access SessionService with valid token
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService", http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w := httptest.NewRecorder()
@@ -540,7 +541,7 @@ func TestXAuthToken_SessionCollectionWithToken(t *testing.T) {
 	require.NotNil(t, session)
 
 	// Access session collection with valid token
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService/Sessions", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService/Sessions", http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w := httptest.NewRecorder()
@@ -567,7 +568,7 @@ func TestXAuthToken_IndividualSessionWithToken(t *testing.T) {
 	require.NotNil(t, session)
 
 	// Access individual session with valid token
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService/Sessions/"+session.ID, http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService/Sessions/"+session.ID, http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w := httptest.NewRecorder()
@@ -594,7 +595,7 @@ func TestXAuthToken_DeleteSessionWithToken(t *testing.T) {
 	require.NotNil(t, session)
 
 	// Delete session with valid token
-	req := httptest.NewRequest(http.MethodDelete, "/redfish/v1/SessionService/Sessions/"+session.ID, http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/redfish/v1/SessionService/Sessions/"+session.ID, http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w := httptest.NewRecorder()
@@ -614,7 +615,7 @@ func TestXAuthToken_NoTokenNoBasicAuth(t *testing.T) {
 	router.GET("/redfish/v1/Systems", middlewares, testServer.GetRedfishV1Systems)
 
 	// Access protected endpoint without any authentication
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
@@ -648,7 +649,7 @@ func TestXAuthToken_MalformedJWT(t *testing.T) {
 			continue // Empty token falls back to Basic Auth
 		}
 
-		req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems", http.NoBody)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/Systems", http.NoBody)
 		req.Header.Set("X-Auth-Token", malformedToken)
 
 		w := httptest.NewRecorder()
@@ -684,7 +685,7 @@ func TestXAuthToken_MultipleEndpoints(t *testing.T) {
 	}
 
 	for _, endpoint := range endpoints {
-		req := httptest.NewRequest(http.MethodGet, endpoint, http.NoBody)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, endpoint, http.NoBody)
 		req.Header.Set("X-Auth-Token", token)
 
 		w := httptest.NewRecorder()

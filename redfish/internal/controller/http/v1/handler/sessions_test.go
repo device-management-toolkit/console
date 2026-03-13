@@ -3,6 +3,7 @@ package v1
 
 import (
 	"bytes"
+	"context"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
@@ -70,7 +71,7 @@ func TestSessionLifecycle(t *testing.T) {
 	}
 	body, _ := json.Marshal(createReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -101,7 +102,7 @@ func TestSessionLifecycle(t *testing.T) {
 	t.Logf("Token: %s", token[:50]+"...")
 
 	// Step 2: Get session details
-	req = httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService/Sessions/"+sessionID, http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService/Sessions/"+sessionID, http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w = httptest.NewRecorder()
@@ -118,7 +119,7 @@ func TestSessionLifecycle(t *testing.T) {
 	assert.Equal(t, "admin", getResp["UserName"])
 
 	// Step 3: Delete session
-	req = httptest.NewRequest(http.MethodDelete, "/redfish/v1/SessionService/Sessions/"+sessionID, http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodDelete, "/redfish/v1/SessionService/Sessions/"+sessionID, http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w = httptest.NewRecorder()
@@ -127,7 +128,7 @@ func TestSessionLifecycle(t *testing.T) {
 	assert.Equal(t, http.StatusNoContent, w.Code, "Delete session should return 204")
 
 	// Step 4: Verify session no longer accessible
-	req = httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService/Sessions/"+sessionID, http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService/Sessions/"+sessionID, http.NoBody)
 
 	req.Header.Set("X-Auth-Token", token)
 
@@ -150,7 +151,7 @@ func TestCreateSessionInvalidCredentials(t *testing.T) {
 	}
 	body, _ := json.Marshal(createReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 
 	req.Header.Set("Content-Type", "application/json")
 
@@ -176,7 +177,7 @@ func TestSessionAuthMiddleware(t *testing.T) {
 	}
 	body, _ := json.Marshal(createReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -191,7 +192,7 @@ func TestSessionAuthMiddleware(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"user": username})
 	})
 
-	req = httptest.NewRequest(http.MethodGet, "/test/protected", http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test/protected", http.NoBody)
 	req.Header.Set("X-Auth-Token", token)
 
 	w = httptest.NewRecorder()
@@ -206,7 +207,7 @@ func TestSessionAuthMiddleware(t *testing.T) {
 	assert.Equal(t, "admin", resp["user"])
 
 	// Test middleware without token
-	req = httptest.NewRequest(http.MethodGet, "/test/protected", http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test/protected", http.NoBody)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -220,7 +221,7 @@ func TestSessionServiceEndpoint(t *testing.T) {
 	router, server := setupTestEnvironment()
 	router.GET("/redfish/v1/SessionService", server.GetRedfishV1SessionService)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -258,7 +259,7 @@ func TestListSessions(t *testing.T) {
 	}
 	body, _ := json.Marshal(createReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -267,7 +268,7 @@ func TestListSessions(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code)
 
 	// List sessions - should have 1 session
-	req = httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService/Sessions", http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService/Sessions", http.NoBody)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -285,7 +286,7 @@ func TestListSessions(t *testing.T) {
 
 	// Create another session for the same user - Per Redfish spec, multiple sessions are allowed
 	body, _ = json.Marshal(createReq)
-	req = httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w = httptest.NewRecorder()
@@ -294,7 +295,7 @@ func TestListSessions(t *testing.T) {
 	assert.Equal(t, http.StatusCreated, w.Code, "Multiple sessions per user should be allowed per Redfish spec")
 
 	// List sessions again - should now have 2 sessions
-	req = httptest.NewRequest(http.MethodGet, "/redfish/v1/SessionService/Sessions", http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/SessionService/Sessions", http.NoBody)
 	w = httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -323,7 +324,7 @@ func TestTokenCompatibility(t *testing.T) {
 	}
 	body, _ := json.Marshal(createReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -336,7 +337,7 @@ func TestTokenCompatibility(t *testing.T) {
 		c.JSON(http.StatusOK, gin.H{"success": true})
 	})
 
-	req = httptest.NewRequest(http.MethodGet, "/test/protected", http.NoBody)
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/test/protected", http.NoBody)
 	req.Header.Set("Authorization", "Bearer "+token)
 
 	w = httptest.NewRecorder()
@@ -359,7 +360,7 @@ func TestJWTIntegration(t *testing.T) {
 	}
 	body, _ := json.Marshal(createReq)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/redfish/v1/SessionService/Sessions", bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()

@@ -486,6 +486,7 @@ func TestDomainRepo_Update(t *testing.T) {
 					"test-domain", "test-suffix", "cert-data", "PEM", "cert-key", "2024-12-31", "tenant1")
 				require.NoError(t, err)
 			},
+			//nolint:gosec // Test fixture with dummy credentials
 			domain: &entity.Domain{
 				ProfileName:                   "test-domain",
 				DomainSuffix:                  "updated-suffix",

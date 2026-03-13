@@ -62,7 +62,7 @@ func createResetRequest(resetType generated.ResourceResetType) []byte {
 
 // executeResetRequest executes a reset request and returns the response recorder
 func executeResetRequest(router *gin.Engine, endpoint string, body []byte) *httptest.ResponseRecorder {
-	req := httptest.NewRequest(http.MethodPost, endpoint, bytes.NewBuffer(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, endpoint, bytes.NewBuffer(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()

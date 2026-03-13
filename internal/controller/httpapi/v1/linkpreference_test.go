@@ -2,6 +2,7 @@ package v1
 
 import (
 	"bytes"
+	"context"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -39,7 +40,7 @@ func TestSetLinkPreferenceHandler(t *testing.T) {
 
 	body := `{"linkPreference":1,"timeout":60}`
 
-	req := httptest.NewRequest(http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w := httptest.NewRecorder()
@@ -60,7 +61,7 @@ func TestSetLinkPreferenceHandler(t *testing.T) {
 		SetLinkPreference(gomock.Any(), "my-guid", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
 		Return(dto.LinkPreferenceResponse{ReturnValue: 5}, nil)
 
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w = httptest.NewRecorder()
@@ -81,7 +82,7 @@ func TestSetLinkPreferenceHandler(t *testing.T) {
 		SetLinkPreference(gomock.Any(), "my-guid", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
 		Return(dto.LinkPreferenceResponse{ReturnValue: -1}, wsman.ErrNoWiFiPort)
 
-	req = httptest.NewRequest(http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
+	req = httptest.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
 	req.Header.Set("Content-Type", "application/json")
 
 	w = httptest.NewRecorder()
