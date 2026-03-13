@@ -230,39 +230,23 @@ func determinePowerCapabilities(amtversion int, capabilities boot.BootCapabiliti
 	return response
 }
 
-func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	if item == nil || item.GUID == "" {
-		return power.PowerActionResponse{}, ErrNotFound
-	}
-
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	// Validate EnforceSecureBoot restriction in CCM
+func (uc *UseCase) validateSecureBootSetting(device wsman.Management, bootSetting dto.BootSetting) error {
 	if bootSetting.BootDetails.EnforceSecureBoot != nil && !*bootSetting.BootDetails.EnforceSecureBoot {
 		setupConfig, err := device.GetSetupAndConfiguration()
 		if err != nil {
-			return power.PowerActionResponse{}, err
+			return err
 		}
 
 		if len(setupConfig) > 0 && setupConfig[0].ProvisioningMode == setupandconfiguration.ClientControlMode {
-			return power.PowerActionResponse{}, ValidationError{}.Wrap("SetBootOptions", "validate provisioning mode", "EnforceSecureBoot cannot be turned off in CCM")
+			return ValidationError{}.Wrap("SetBootOptions", "validate provisioning mode", "EnforceSecureBoot cannot be turned off in CCM")
 		}
 	}
 
-	bootData, err := device.GetBootData()
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
+	return nil
+}
 
-	newData := boot.BootSettingDataRequest{
+func (uc *UseCase) buildBootSettingData(bootData boot.BootSettingDataResponse, bootSetting dto.BootSetting) boot.BootSettingDataRequest {
+	return boot.BootSettingDataRequest{
 		BIOSLastStatus:         bootData.BIOSLastStatus,
 		BIOSPause:              false,
 		BIOSSetup:              bootSetting.Action < 104,
@@ -287,39 +271,63 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		UserPasswordBypass:     false,
 		SecureErase:            false,
 	}
+}
 
+func (uc *UseCase) configureBootOrder(device wsman.Management, bootSetting dto.BootSetting, newData boot.BootSettingDataRequest, bootSource string) error {
+	if err := determineBootDevice(bootSetting, &newData); err != nil {
+		return err
+	}
+
+	if _, err := device.ChangeBootOrder(""); err != nil {
+		return err
+	}
+
+	if _, err := device.SetBootData(newData); err != nil {
+		return err
+	}
+
+	if _, err := device.SetBootConfigRole(1); err != nil {
+		return err
+	}
+
+	if _, err := device.ChangeBootOrder(bootSource); err != nil {
+		return err
+	}
+
+	return nil
+}
+
+func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	if item == nil || item.GUID == "" {
+		return power.PowerActionResponse{}, ErrNotFound
+	}
+
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	if err := uc.validateSecureBootSetting(device, bootSetting); err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	bootData, err := device.GetBootData()
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	newData := uc.buildBootSettingData(bootData, bootSetting)
 	bootSource := uc.getBootSource(guid, &bootSetting)
 
-	// boot on ider
-	// boot on floppy
-	err = determineBootDevice(bootSetting, &newData)
-	if err != nil {
+	if err := uc.configureBootOrder(device, bootSetting, newData, bootSource); err != nil {
 		return power.PowerActionResponse{}, err
 	}
 
-	_, err = device.ChangeBootOrder("")
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	_, err = device.SetBootData(newData)
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	// set boot config role
-	_, err = device.SetBootConfigRole(1)
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	_, err = device.ChangeBootOrder(bootSource)
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	// reset
-	// power on
 	determineBootAction(&bootSetting)
 
 	powerActionResult, err := device.SendPowerAction(bootSetting.Action)

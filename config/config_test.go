@@ -70,6 +70,7 @@ func TestNewConfig_FileAndEnvVars(t *testing.T) { //nolint:paralleltest // canno
 	clearEnv() // Clear environment variables before setting new ones
 
 	// Create a temporary config file
+	//nolint:gosec // Test fixture with dummy credentials
 	configYAML := `
 app:
   name: fileApp

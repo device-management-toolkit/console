@@ -296,6 +296,7 @@ func TestDevicesRoutes(t *testing.T) {
 			var err error
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch {
+				//nolint:gosec // Test fixture marshaling request body with test credentials
 				reqBody, _ := json.Marshal(tc.requestBody)
 				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
 			} else {

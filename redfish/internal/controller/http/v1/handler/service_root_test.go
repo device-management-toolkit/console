@@ -478,7 +478,7 @@ func TestGetRedfishV1ServiceRootConcurrentRequests(t *testing.T) {
 
 	for i := 0; i < numRequests; i++ {
 		go func() {
-			req := httptest.NewRequest(http.MethodGet, "/redfish/v1", http.NoBody)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -501,7 +501,7 @@ func TestGetRedfishV1Odata(t *testing.T) {
 	server := &RedfishServer{Config: &dmtconfig.Config{App: dmtconfig.App{}}}
 	router.GET("/redfish/v1/odata", server.GetRedfishV1Odata)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/odata", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/odata", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -520,7 +520,7 @@ func TestGetRedfishV1OdataResponseStructure(t *testing.T) {
 	server := &RedfishServer{Config: &dmtconfig.Config{App: dmtconfig.App{}}}
 	router.GET("/redfish/v1/odata", server.GetRedfishV1Odata)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/odata", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/odata", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -529,8 +529,8 @@ func TestGetRedfishV1OdataResponseStructure(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	// Verify context
-	assert.Equal(t, "/redfish/v1/$metadata#ServiceRoot.ServiceRoot", response["@odata.context"])
+	// Verify context - OData service document context is just the metadata URL per OData 4.0 spec
+	assert.Equal(t, "/redfish/v1/$metadata", response["@odata.context"])
 
 	// Verify value array exists
 	valueArray, ok := response["value"].([]interface{})
@@ -557,7 +557,7 @@ func TestGetRedfishV1OdataRequiredServices(t *testing.T) {
 	server := &RedfishServer{Config: &dmtconfig.Config{App: dmtconfig.App{}}}
 	router.GET("/redfish/v1/odata", server.GetRedfishV1Odata)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/odata", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/odata", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -602,7 +602,7 @@ func TestGetRedfishV1OdataNoAuthentication(t *testing.T) {
 	server := &RedfishServer{Config: &dmtconfig.Config{App: dmtconfig.App{}}}
 	router.GET("/redfish/v1/odata", server.GetRedfishV1Odata)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/odata", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/odata", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -878,7 +878,7 @@ func BenchmarkGetRedfishV1Odata(b *testing.B) {
 	b.ResetTimer()
 
 	for i := 0; i < b.N; i++ {
-		req := httptest.NewRequest(http.MethodGet, "/redfish/v1/odata", http.NoBody)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1/odata", http.NoBody)
 		w := httptest.NewRecorder()
 		router.ServeHTTP(w, req)
 	}
@@ -1159,7 +1159,7 @@ func TestGetRedfishV1ServiceRootHTTPMethods(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			req := httptest.NewRequest(tc.method, "/redfish/v1", http.NoBody)
+			req := httptest.NewRequestWithContext(context.Background(), tc.method, "/redfish/v1", http.NoBody)
 			w := httptest.NewRecorder()
 			router.ServeHTTP(w, req)
 
@@ -1177,7 +1177,7 @@ func TestGetRedfishV1ServiceRootHeaders(t *testing.T) {
 	server := &RedfishServer{Config: &dmtconfig.Config{App: dmtconfig.App{}}}
 	router.GET("/redfish/v1", server.GetRedfishV1)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 
@@ -1198,7 +1198,7 @@ func TestGetRedfishV1ServiceRootAllFields(t *testing.T) {
 	server := &RedfishServer{Config: &dmtconfig.Config{App: dmtconfig.App{}}}
 	router.GET("/redfish/v1", server.GetRedfishV1)
 
-	req := httptest.NewRequest(http.MethodGet, "/redfish/v1", http.NoBody)
+	req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/redfish/v1", http.NoBody)
 	w := httptest.NewRecorder()
 	router.ServeHTTP(w, req)
 

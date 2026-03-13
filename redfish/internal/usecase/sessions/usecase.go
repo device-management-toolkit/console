@@ -35,24 +35,11 @@ func NewUseCase(repo Repository, cfg *config.Config) *UseCase {
 
 // CreateSession creates a new session with JWT token.
 // This integrates with DMT Console's existing JWT authentication.
-// If a session already exists for this user, it returns an error to prevent multiple concurrent sessions.
+// Per Redfish spec, multiple concurrent sessions per user are allowed.
 func (uc *UseCase) CreateSession(username, password, clientIP, userAgent string) (*entity.Session, string, error) {
 	// Validate credentials using DMT Console's admin credentials
 	if username != uc.config.AdminUsername || password != uc.config.AdminPassword {
 		return nil, "", ErrInvalidCredentials
-	}
-
-	// Check if an active session already exists for this user
-	existingSessions, err := uc.repo.List()
-	if err != nil {
-		return nil, "", fmt.Errorf("failed to check existing sessions: %w", err)
-	}
-
-	for _, session := range existingSessions {
-		if session.Username == username && session.IsActive {
-			// Return error - cannot create duplicate session
-			return nil, "", ErrSessionAlreadyExists
-		}
 	}
 
 	// Generate unique session ID

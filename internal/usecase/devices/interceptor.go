@@ -137,6 +137,7 @@ func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, 
 
 	device.Password = decryptedPassword
 
+	//nolint:gosec // Cancel function is stored in deviceConnection and called in cleanup paths
 	ctx, cancel := context.WithCancel(c)
 	now := time.Now()
 	deviceConnection := &DeviceConnection{
@@ -211,11 +212,40 @@ func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection
 	}()
 }
 
-func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
-	conn := deviceConnection.Conn
+func (uc *UseCase) receiveDeviceData(deviceConnection *DeviceConnection) ([]byte, error) {
+	recvStart := time.Now()
+	data, err := uc.redirection.RedirectListen(deviceConnection.ctx, deviceConnection)
+	recvDuration := time.Since(recvStart)
+	kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(recvDuration.Seconds())
 
+	if recvDuration.Milliseconds() > SlowReceiveThreshold {
+		uc.log.Debug("KVM_TIMING: Device receive blocked", "duration_ms", recvDuration.Milliseconds(), "mode", deviceConnection.Mode)
+	}
+
+	return data, err
+}
+
+func (uc *UseCase) sendDataToBrowser(deviceConnection *DeviceConnection, data []byte) error {
+	start := time.Now()
+
+	kvmDevicePayloadBytes.WithLabelValues(deviceConnection.Mode).Observe(float64(len(data)))
+	kvmDeviceToBrowserBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(data)))
+	kvmDeviceToBrowserMessages.WithLabelValues(deviceConnection.Mode).Inc()
+
+	err := deviceConnection.Conn.WriteMessage(websocket.BinaryMessage, data)
+
+	writeDuration := time.Since(start)
+	kvmDeviceToBrowserWriteSeconds.WithLabelValues(deviceConnection.Mode).Observe(writeDuration.Seconds())
+
+	if writeDuration.Milliseconds() > SlowWriteThreshold {
+		uc.log.Debug("KVM_TIMING: Device to browser write slow", "duration_ms", writeDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(data))
+	}
+
+	return err
+}
+
+func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 	defer func() {
-		// Clean up on exit
 		deviceConnection.cancel()
 	}()
 
@@ -226,21 +256,9 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 		default:
 		}
 
-		// Update last activity time
-		deviceConnection.mu.Lock()
-		deviceConnection.lastActivity = time.Now()
-		deviceConnection.mu.Unlock()
+		uc.updateConnectionActivity(deviceConnection)
 
-		// Measure time blocked waiting for device data
-		recvStart := time.Now()
-		data, err := uc.redirection.RedirectListen(deviceConnection.ctx, deviceConnection)
-		recvDuration := time.Since(recvStart)
-		kvmDeviceReceiveBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(recvDuration.Seconds())
-
-		if recvDuration.Milliseconds() > SlowReceiveThreshold {
-			uc.log.Debug("KVM_TIMING: Device receive blocked", "duration_ms", recvDuration.Milliseconds(), "mode", deviceConnection.Mode)
-		}
-
+		data, err := uc.receiveDeviceData(deviceConnection)
 		if err != nil {
 			break
 		}
@@ -249,7 +267,6 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 			continue
 		}
 
-		// Update last data received timestamp
 		deviceConnection.mu.Lock()
 		deviceConnection.lastDataRecv = time.Now()
 		deviceConnection.mu.Unlock()
@@ -259,25 +276,9 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 			toSend, deviceConnection.Direct = processDeviceData(toSend, &deviceConnection.Challenge)
 		}
 
-		// metrics: device -> browser
-		start := time.Now()
-
-		kvmDevicePayloadBytes.WithLabelValues(deviceConnection.Mode).Observe(float64(len(toSend)))
-		kvmDeviceToBrowserBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(toSend)))
-		kvmDeviceToBrowserMessages.WithLabelValues(deviceConnection.Mode).Inc()
-
-		err = conn.WriteMessage(websocket.BinaryMessage, toSend)
-
-		writeDuration := time.Since(start)
-		kvmDeviceToBrowserWriteSeconds.WithLabelValues(deviceConnection.Mode).Observe(writeDuration.Seconds())
-
-		if writeDuration.Milliseconds() > SlowWriteThreshold {
-			uc.log.Debug("KVM_TIMING: Device to browser write slow", "duration_ms", writeDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(toSend))
-		}
-
-		if err != nil {
+		if err := uc.sendDataToBrowser(deviceConnection, toSend); err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				_ = fmt.Errorf("interceptor - listenToDevice - websocket closed unexpectedly (writing to browser): %w", err)
+				_ = fmt.Errorf("interceptor - listenToDevice - websocket closed unexpectedly: %w", err)
 			}
 
 			return
@@ -285,9 +286,40 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 	}
 }
 
+func (uc *UseCase) receiveBrowserData(deviceConnection *DeviceConnection) ([]byte, error) {
+	readStart := time.Now()
+	_, msg, err := deviceConnection.Conn.ReadMessage()
+	readDuration := time.Since(readStart)
+	kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(readDuration.Seconds())
+
+	if readDuration.Milliseconds() > SlowReceiveThreshold {
+		uc.log.Debug("KVM_TIMING: Browser read blocked", "duration_ms", readDuration.Milliseconds(), "mode", deviceConnection.Mode)
+	}
+
+	return msg, err
+}
+
+func (uc *UseCase) sendDataToDevice(deviceConnection *DeviceConnection, data []byte) error {
+	start := time.Now()
+
+	kvmBrowserPayloadBytes.WithLabelValues(deviceConnection.Mode).Observe(float64(len(data)))
+	kvmBrowserToDeviceBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(data)))
+	kvmBrowserToDeviceMessages.WithLabelValues(deviceConnection.Mode).Inc()
+
+	err := uc.redirection.RedirectSend(deviceConnection.ctx, deviceConnection, data)
+
+	sendDuration := time.Since(start)
+	kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(sendDuration.Seconds())
+
+	if sendDuration.Milliseconds() > SlowWriteThreshold {
+		uc.log.Debug("KVM_TIMING: Browser to device send slow", "duration_ms", sendDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(data))
+	}
+
+	return err
+}
+
 func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 	defer func() {
-		// Clean up on exit
 		deviceConnection.cancel()
 	}()
 
@@ -298,23 +330,12 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 		default:
 		}
 
-		// Update last activity time
-		deviceConnection.mu.Lock()
-		deviceConnection.lastActivity = time.Now()
-		deviceConnection.mu.Unlock()
+		uc.updateConnectionActivity(deviceConnection)
 
-		readStart := time.Now()
-		_, msg, err := deviceConnection.Conn.ReadMessage()
-		readDuration := time.Since(readStart)
-		kvmBrowserReadBlockSeconds.WithLabelValues(deviceConnection.Mode).Observe(readDuration.Seconds())
-
-		if readDuration.Milliseconds() > SlowReceiveThreshold {
-			uc.log.Debug("KVM_TIMING: Browser read blocked", "duration_ms", readDuration.Milliseconds(), "mode", deviceConnection.Mode)
-		}
-
+		msg, err := uc.receiveBrowserData(deviceConnection)
 		if err != nil {
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
-				_ = fmt.Errorf("interceptor - listenToBrowser - websocket closed unexpectedly (reading from browser): %w", err)
+				_ = fmt.Errorf("interceptor - listenToBrowser - websocket closed unexpectedly: %w", err)
 			}
 
 			return
@@ -329,22 +350,7 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 			continue
 		}
 
-		// metrics: browser -> device
-		start := time.Now()
-
-		kvmBrowserPayloadBytes.WithLabelValues(deviceConnection.Mode).Observe(float64(len(toSend)))
-		kvmBrowserToDeviceBytes.WithLabelValues(deviceConnection.Mode).Add(float64(len(toSend)))
-		kvmBrowserToDeviceMessages.WithLabelValues(deviceConnection.Mode).Inc()
-		// Send the message to the TCP Connection on the device
-		err = uc.redirection.RedirectSend(deviceConnection.ctx, deviceConnection, toSend)
-		sendDuration := time.Since(start)
-		kvmBrowserToDeviceSendSeconds.WithLabelValues(deviceConnection.Mode).Observe(sendDuration.Seconds())
-
-		if sendDuration.Milliseconds() > SlowWriteThreshold {
-			uc.log.Debug("KVM_TIMING: Browser to device send slow", "duration_ms", sendDuration.Milliseconds(), "mode", deviceConnection.Mode, "bytes", len(toSend))
-		}
-
-		if err != nil {
+		if err := uc.sendDataToDevice(deviceConnection, toSend); err != nil {
 			_ = fmt.Errorf("interceptor - listenToBrowser - error sending message to device: %w", err)
 
 			return
@@ -650,7 +656,7 @@ func writeLength(buf *bytes.Buffer, challenge *client.AuthChallenge, response st
 		return ErrLengthLimit // If total length is too large, throws an error and stops here
 	}
 
-	length := uint32(totalLength) //nolint:gosec // Ignore potential integer overflow here as overflow is validated earlier in code
+	length := uint32(totalLength)
 
 	return binary.Write(buf, binary.LittleEndian, length)
 }

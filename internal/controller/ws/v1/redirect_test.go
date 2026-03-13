@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -90,7 +91,7 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 			r := gin.Default()
 			RegisterRoutes(r, mockLogger, mockFeature, mockUpgrader)
 
-			req := httptest.NewRequest(http.MethodGet, "/relay/webrelay.ashx?host=someHost&mode=someMode", http.NoBody)
+			req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/relay/webrelay.ashx?host=someHost&mode=someMode", http.NoBody)
 			w := httptest.NewRecorder()
 
 			r.ServeHTTP(w, req)

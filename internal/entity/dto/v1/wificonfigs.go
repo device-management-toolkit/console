@@ -23,6 +23,7 @@ type WirelessConfig struct {
 
 var ValidateAuthandIEEE validator.Func = func(fl validator.FieldLevel) bool {
 	authMethod, _ := fl.Parent().FieldByName("AuthenticationMethod").Interface().(int)
+
 	profName, _ := fl.Parent().FieldByName("IEEE8021xProfileName").Interface().(*string)
 	if authMethod == 5 || authMethod == 7 {
 		if profName == nil || *profName == "" {

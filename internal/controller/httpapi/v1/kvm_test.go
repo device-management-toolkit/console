@@ -36,7 +36,7 @@ func TestKVMDisplaysEndpoints(t *testing.T) {
 
 		deviceManagement.EXPECT().GetKVMScreenSettings(context.Background(), "guid1").Return(dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{{DisplayIndex: 0, IsActive: true}}}, nil)
 
-		req := httptest.NewRequest(http.MethodGet, "/api/v1/amt/kvm/displays/guid1", http.NoBody)
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/amt/kvm/displays/guid1", http.NoBody)
 		rr := httptest.NewRecorder()
 		engine.ServeHTTP(rr, req)
 		require.Equal(t, http.StatusOK, rr.Code)
@@ -60,7 +60,7 @@ func TestKVMDisplaysEndpoints(t *testing.T) {
 		deviceManagement.EXPECT().SetKVMScreenSettings(context.Background(), "guid2", gomock.Any()).Return(dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{{DisplayIndex: 0, IsActive: true}}}, nil)
 
 		b, _ := json.Marshal(payload)
-		req := httptest.NewRequest(http.MethodPut, "/api/v1/amt/kvm/displays/guid2", bytes.NewReader(b))
+		req := httptest.NewRequestWithContext(context.Background(), http.MethodPut, "/api/v1/amt/kvm/displays/guid2", bytes.NewReader(b))
 		rr := httptest.NewRecorder()
 		engine.ServeHTTP(rr, req)
 		require.Equal(t, http.StatusOK, rr.Code)
