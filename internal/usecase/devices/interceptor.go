@@ -215,7 +215,20 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 	conn := deviceConnection.Conn
 
 	defer func() {
-		// Clean up on exit
+		// Notify the browser immediately so the UI updates without waiting for
+		// ListenToBrowser to unblock on its ReadMessage call.
+		// Use the locally captured conn (not deviceConnection.Conn) to ensure we
+		// close the same connection used for writes, even if Conn is updated elsewhere.
+		uc.log.Debug("KVM session closed by AMT", "guid", deviceConnection.Device.GUID)
+
+		if conn != nil {
+			_ = conn.WriteMessage(
+				websocket.CloseMessage,
+				websocket.FormatCloseMessage(websocket.CloseNormalClosure, "AMT session ended"),
+			)
+			_ = conn.Close()
+		}
+
 		deviceConnection.cancel()
 	}()
 
@@ -650,7 +663,7 @@ func writeLength(buf *bytes.Buffer, challenge *client.AuthChallenge, response st
 		return ErrLengthLimit // If total length is too large, throws an error and stops here
 	}
 
-	length := uint32(totalLength) //nolint:gosec // Ignore potential integer overflow here as overflow is validated earlier in code
+	length := uint32(totalLength) // overflow validated above via explicit bounds check
 
 	return binary.Write(buf, binary.LittleEndian, length)
 }
