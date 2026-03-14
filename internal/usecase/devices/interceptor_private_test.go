@@ -903,6 +903,11 @@ func TestListenToDeviceClosesWebSocketOnAMTDisconnect(t *testing.T) {
 		healthTicker: time.NewTicker(HeartbeatInterval),
 	}
 
+	t.Cleanup(func() {
+		cancel()
+		deviceConnection.healthTicker.Stop()
+	})
+
 	uc := &UseCase{
 		redirection:      &spyRedirection{listenErr: errors.New("connection reset by peer")},
 		redirConnections: make(map[string]*DeviceConnection),
