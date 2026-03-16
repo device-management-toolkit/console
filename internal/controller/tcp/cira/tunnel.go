@@ -9,7 +9,6 @@ import (
 	"errors"
 	"fmt"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
@@ -31,12 +30,8 @@ const (
 	apfSessionTimeout    = 3 * time.Second
 )
 
-var (
-	mu sync.Mutex
-
-	// ErrChannelOpenFailed is returned when an APF channel open request fails.
-	ErrChannelOpenFailed = errors.New("channel open failed")
-)
+// ErrChannelOpenFailed is returned when an APF channel open request fails.
+var ErrChannelOpenFailed = errors.New("channel open failed")
 
 type Server struct {
 	certificates tls.Certificate
@@ -161,9 +156,18 @@ func (s *Server) handleConnection(conn net.Conn) {
 func (ctx *connectionContext) cleanup() {
 	deviceID := ctx.handler.DeviceID()
 	if ctx.authenticated && deviceID != "" {
-		mu.Lock()
-		delete(wsman.Connections, deviceID)
-		mu.Unlock()
+		wsman.RemoveConnection(deviceID)
+	}
+
+	// Stop and clean up the session timer
+	if ctx.session != nil && ctx.session.Timer != nil {
+		if !ctx.session.Timer.Stop() {
+			// Drain the channel if the timer fired
+			select {
+			case <-ctx.session.Timer.C:
+			default:
+			}
+		}
 	}
 
 	// Stop and clean up the session timer
@@ -284,11 +288,7 @@ func (ctx *connectionContext) registerDevice() {
 		WsmanMessages: wsman2.NewMessages(client.Parameters{}),
 	}
 
-	mu.Lock()
-
-	wsman.Connections[deviceID] = ctx.device
-
-	mu.Unlock()
+	wsman.SetConnectionEntry(deviceID, ctx.device)
 
 	ctx.log.Info("Device authenticated and registered: %s", deviceID)
 }

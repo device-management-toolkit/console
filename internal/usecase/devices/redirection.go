@@ -8,6 +8,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 type Redirector struct {
@@ -15,6 +16,16 @@ type Redirector struct {
 }
 
 func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, error) {
+	// CIRA device: route redirection through the APF tunnel
+	if isRedirection && device.MPSUsername != "" {
+		connection := wsmanAPI.GetConnectionEntry(device.GUID)
+		if connection == nil {
+			return wsman.Messages{}, wsmanAPI.ErrCIRADeviceNotConnected
+		}
+
+		return wsman.NewCIRARedirectionMessages(connection), nil
+	}
+
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
