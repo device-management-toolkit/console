@@ -6,6 +6,11 @@
     {
       "name": "beta",
       "prerelease": "beta"
+    },
+    {
+      "name": "redfish",
+      "channel": "redfish",
+      "prerelease": "redfish.preview"
     }
   ],
   "plugins": [
@@ -69,7 +74,7 @@
       "@semantic-release/exec",
       {
         "prepareCmd": "./build.sh ${nextRelease.version} ",
-        "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless",
+        "publishCmd": "if [ \"${branch.name}\" = \"redfish\" ]; then echo \"Skipping Docker publish for redfish preview release\"; else docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless; fi",
         "verifyReleaseCmd": "echo v${nextRelease.version} > .VERSION"
       }
     ]
