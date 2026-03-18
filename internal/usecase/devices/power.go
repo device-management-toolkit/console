@@ -230,39 +230,25 @@ func determinePowerCapabilities(amtversion int, capabilities boot.BootCapabiliti
 	return response
 }
 
-func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+func validateSecureBootRestriction(device wsman.Management, bootSetting dto.BootSetting) error {
+	if bootSetting.BootDetails.EnforceSecureBoot == nil || *bootSetting.BootDetails.EnforceSecureBoot {
+		return nil
+	}
+
+	setupConfig, err := device.GetSetupAndConfiguration()
 	if err != nil {
-		return power.PowerActionResponse{}, err
+		return err
 	}
 
-	if item == nil || item.GUID == "" {
-		return power.PowerActionResponse{}, ErrNotFound
+	if len(setupConfig) > 0 && setupConfig[0].ProvisioningMode == setupandconfiguration.ClientControlMode {
+		return ValidationError{}.Wrap("SetBootOptions", "validate provisioning mode", "EnforceSecureBoot cannot be turned off in CCM")
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
+	return nil
+}
 
-	// Validate EnforceSecureBoot restriction in CCM
-	if bootSetting.BootDetails.EnforceSecureBoot != nil && !*bootSetting.BootDetails.EnforceSecureBoot {
-		setupConfig, err := device.GetSetupAndConfiguration()
-		if err != nil {
-			return power.PowerActionResponse{}, err
-		}
-
-		if len(setupConfig) > 0 && setupConfig[0].ProvisioningMode == setupandconfiguration.ClientControlMode {
-			return power.PowerActionResponse{}, ValidationError{}.Wrap("SetBootOptions", "validate provisioning mode", "EnforceSecureBoot cannot be turned off in CCM")
-		}
-	}
-
-	bootData, err := device.GetBootData()
-	if err != nil {
-		return power.PowerActionResponse{}, err
-	}
-
-	newData := boot.BootSettingDataRequest{
+func buildBootSettingData(bootData boot.BootSettingDataResponse, bootSetting dto.BootSetting) boot.BootSettingDataRequest {
+	return boot.BootSettingDataRequest{
 		BIOSLastStatus:         bootData.BIOSLastStatus,
 		BIOSPause:              false,
 		BIOSSetup:              bootSetting.Action < 104,
@@ -287,11 +273,35 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		UserPasswordBypass:     false,
 		SecureErase:            false,
 	}
+}
 
+func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	if item == nil || item.GUID == "" {
+		return power.PowerActionResponse{}, ErrNotFound
+	}
+
+	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	if err := validateSecureBootRestriction(device, bootSetting); err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	bootData, err := device.GetBootData()
+	if err != nil {
+		return power.PowerActionResponse{}, err
+	}
+
+	newData := buildBootSettingData(bootData, bootSetting)
 	bootSource := uc.getBootSource(guid, &bootSetting)
 
-	// boot on ider
-	// boot on floppy
 	err = determineBootDevice(bootSetting, &newData)
 	if err != nil {
 		return power.PowerActionResponse{}, err
@@ -307,7 +317,6 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		return power.PowerActionResponse{}, err
 	}
 
-	// set boot config role
 	_, err = device.SetBootConfigRole(1)
 	if err != nil {
 		return power.PowerActionResponse{}, err
@@ -318,8 +327,6 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		return power.PowerActionResponse{}, err
 	}
 
-	// reset
-	// power on
 	determineBootAction(&bootSetting)
 
 	powerActionResult, err := device.SendPowerAction(bootSetting.Action)

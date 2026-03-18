@@ -2,15 +2,22 @@ package devices
 
 import (
 	"bytes"
+	"context"
 	"errors"
 	"io"
 	"math"
 	"strings"
 	"testing"
+	"time"
 
+	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/require"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+
+	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func TestProcessBrowserData(t *testing.T) {
@@ -833,4 +840,90 @@ func TestRandomValueHexErrorCase(t *testing.T) {
 	result, err := RandomValueHex(0)
 	require.NoError(t, err)
 	require.Empty(t, result)
+}
+
+// spyRedirection is a minimal Redirection stub whose RedirectListen returns
+// an error to simulate AMT dropping the TCP connection.
+type spyRedirection struct {
+	listenErr error
+}
+
+func (s *spyRedirection) SetupWsmanClient(_ entity.Device, _, _ bool) (wsman.Messages, error) {
+	return wsman.Messages{}, nil
+}
+
+func (s *spyRedirection) RedirectConnect(_ context.Context, _ *DeviceConnection) error { return nil }
+func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error   { return nil }
+func (s *spyRedirection) RedirectSend(_ context.Context, _ *DeviceConnection, _ []byte) error {
+	return nil
+}
+
+func (s *spyRedirection) RedirectListen(_ context.Context, _ *DeviceConnection) ([]byte, error) {
+	return nil, s.listenErr
+}
+
+// spyWebSocketConn is a minimal spy that records WriteMessage and Close calls
+// without importing the mocks package (which would create an import cycle for
+// the internal test package).
+type spyWebSocketConn struct {
+	writeMessageCalled bool
+	writeMessageType   int
+	closeCalled        bool
+}
+
+func (s *spyWebSocketConn) WriteMessage(messageType int, _ []byte) error {
+	s.writeMessageCalled = true
+	s.writeMessageType = messageType
+
+	return nil
+}
+
+func (s *spyWebSocketConn) ReadMessage() (messageType int, p []byte, err error) {
+	return 0, nil, errors.New("spy: not reading")
+}
+
+func (s *spyWebSocketConn) Close() error {
+	s.closeCalled = true
+
+	return nil
+}
+
+func TestListenToDeviceClosesWebSocketOnAMTDisconnect(t *testing.T) {
+	t.Parallel()
+
+	spy := &spyWebSocketConn{}
+	ctx, cancel := context.WithCancel(context.Background())
+
+	deviceConnection := &DeviceConnection{
+		Conn:         spy,
+		Mode:         "kvm",
+		Device:       entityDevice(),
+		ctx:          ctx,
+		cancel:       cancel,
+		healthTicker: time.NewTicker(HeartbeatInterval),
+	}
+
+	t.Cleanup(func() {
+		cancel()
+		deviceConnection.healthTicker.Stop()
+	})
+
+	uc := &UseCase{
+		redirection:      &spyRedirection{listenErr: errors.New("connection reset by peer")},
+		redirConnections: make(map[string]*DeviceConnection),
+		log:              logger.New("silent"),
+	}
+
+	uc.ListenToDevice(deviceConnection)
+
+	require.True(t, spy.writeMessageCalled, "expected WriteMessage(CloseMessage) to be called on browser WebSocket")
+	require.Equal(t, websocket.CloseMessage, spy.writeMessageType)
+	require.True(t, spy.closeCalled, "expected Close() to be called on browser WebSocket")
+}
+
+func entityDevice() entity.Device {
+	return entity.Device{
+		GUID:     "test-guid",
+		Username: "admin",
+	}
 }
