@@ -91,7 +91,7 @@ func TestTLS_SelfSigned_GeneratesAndServes(t *testing.T) { //nolint:paralleltest
 
 	// build url from listener
 	addr := l.Addr().String()
-	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}} //nolint:gosec // test connects to self-signed server generated at runtime
+	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 
 	// try for a short while to allow server goroutine to start
 	deadline := time.Now().Add(2 * time.Second)
