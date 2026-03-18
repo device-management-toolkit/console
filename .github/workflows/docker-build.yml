@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ main, redfish ]
+    branches: [ main ]
   pull_request:
-      branches: [ main, redfish ]
+      branches: [ main ]
   workflow_dispatch:
 permissions:
   contents: read
@@ -22,7 +22,7 @@ jobs:
     - name: Build the Docker image
       run: docker build --file Dockerfile --tag  vprodemo.azurecr.io/console:latest --tag vprodemo.azurecr.io/console:${{ github.sha }} .
     - name: Docker Login
-      if: ${{ github.ref == 'refs/heads/main' }}
+      if: ${{ github.ref == 'refs/heads/main' }}      
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
       with:
         registry: vprodemo.azurecr.io
@@ -30,8 +30,8 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
         logout: true
     - name: Push the Docker image to the registry
-      if: ${{ github.ref == 'refs/heads/main' }}
+      if: ${{ github.ref == 'refs/heads/main' }}      
       run: docker push vprodemo.azurecr.io/console:latest
     - name: Push the Docker image to the registry
-      if: ${{ github.ref == 'refs/heads/main' }}
+      if: ${{ github.ref == 'refs/heads/main' }}      
       run: docker push vprodemo.azurecr.io/console:${{ github.sha }}
