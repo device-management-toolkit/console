@@ -698,3 +698,31 @@ func (mr *MockFeatureMockRecorder) Update(ctx, d interface{}) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d)
 }
+
+// UpdateConnectionStatus mocks base method.
+func (m *MockFeature) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateConnectionStatus", ctx, guid, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateConnectionStatus indicates an expected call of UpdateConnectionStatus.
+func (mr *MockFeatureMockRecorder) UpdateConnectionStatus(ctx, guid, status any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConnectionStatus", reflect.TypeOf((*MockFeature)(nil).UpdateConnectionStatus), ctx, guid, status)
+}
+
+// UpdateLastSeen mocks base method.
+func (m *MockFeature) UpdateLastSeen(ctx context.Context, guid string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateLastSeen", ctx, guid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateLastSeen indicates an expected call of UpdateLastSeen.
+func (mr *MockFeatureMockRecorder) UpdateLastSeen(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateLastSeen", reflect.TypeOf((*MockFeature)(nil).UpdateLastSeen), ctx, guid)
+}
