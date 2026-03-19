@@ -16,6 +16,21 @@ var ConsoleConfig *Config
 
 const defaultHost = "localhost"
 
+// Cache TTL validation limits.
+const (
+	MaxCacheTTL      = 5 * time.Minute // Maximum cache TTL (5 minutes)
+	MaxPowerStateTTL = 1 * time.Minute // Maximum power state TTL (1 minute)
+	MinCacheTTL      = 0               // Minimum (0 = disabled)
+)
+
+// Cache validation errors.
+var (
+	ErrCacheTTLNegative             = errors.New("cache ttl cannot be negative")
+	ErrCacheTTLExceedsMax           = errors.New("cache ttl exceeds maximum allowed value of 5 minutes")
+	ErrCachePowerStateTTLNegative   = errors.New("cache powerstate_ttl cannot be negative")
+	ErrCachePowerStateTTLExceedsMax = errors.New("cache powerstate_ttl exceeds maximum allowed value of 1 minute")
+)
+
 type (
 	// Config -.
 	Config struct {
@@ -27,6 +42,7 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
+		Cache   `yaml:"cache"`
 	}
 
 	// App -.
@@ -110,7 +126,35 @@ type (
 	UI struct {
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
 	}
+
+	// Cache -.
+	Cache struct {
+		TTL           time.Duration `yaml:"ttl" env:"CACHE_TTL"`                       // Cache TTL for features/KVM (set to 0 to disable caching, max 5 minutes)
+		PowerStateTTL time.Duration `yaml:"powerstate_ttl" env:"CACHE_POWERSTATE_TTL"` // Power state TTL (typically shorter since it changes more frequently, max 1 minute)
+	}
 )
+
+// ValidateCacheConfig validates cache configuration values for security.
+// Returns error if values are negative or exceed maximum limits.
+func (c *Config) ValidateCacheConfig() error {
+	if c.TTL < MinCacheTTL {
+		return ErrCacheTTLNegative
+	}
+
+	if c.TTL > MaxCacheTTL {
+		return ErrCacheTTLExceedsMax
+	}
+
+	if c.PowerStateTTL < MinCacheTTL {
+		return ErrCachePowerStateTTLNegative
+	}
+
+	if c.PowerStateTTL > MaxPowerStateTTL {
+		return ErrCachePowerStateTTLExceedsMax
+	}
+
+	return nil
+}
 
 // getPreferredIPAddress detects the most likely candidate IP address for this machine.
 // It prefers non-loopback IPv4 addresses and excludes link-local addresses.
@@ -197,6 +241,10 @@ func defaultConfig() *Config {
 		UI: UI{
 			ExternalURL: "",
 		},
+		Cache: Cache{
+			TTL:           30 * time.Second,
+			PowerStateTTL: 5 * time.Second,
+		},
 	}
 }
 
@@ -276,6 +324,11 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
+		return nil, err
+	}
+
+	// Validate cache configuration
+	if err := ConsoleConfig.ValidateCacheConfig(); err != nil {
 		return nil, err
 	}
 

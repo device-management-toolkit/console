@@ -4,6 +4,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/usecase/amtexplorer"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -51,9 +52,12 @@ func NewUseCases(database *db.SQL, log logger.Interface, certStore security.Stor
 	domains1 := domains.New(domainRepo, log, safeRequirements, certStore)
 	wificonfig := wificonfigs.New(wifiConfigRepo, ieee, log, safeRequirements)
 
+	// Initialize cache from configuration (supports in-memory or Redis)
+	cacheInstance := cache.NewFromConfig(config.ConsoleConfig)
+
 	return &Usecases{
 		Domains:            domains1,
-		Devices:            devices.New(deviceRepo, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements),
+		Devices:            devices.New(deviceRepo, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements, cacheInstance),
 		AMTExplorer:        amtexplorer.New(deviceRepo, wsman2, log, safeRequirements),
 		Profiles:           profiles.New(profileRepo, wifiConfigRepo, pwc, ieee, log, domains1, ciraRepo, safeRequirements),
 		IEEE8021xProfiles:  ieee,
