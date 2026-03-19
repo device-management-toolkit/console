@@ -308,8 +308,14 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 		}
 	}
 
+	var tags []string
+	if data.Tags != "" {
+		tags = strings.Split(data.Tags, ",")
+	}
+
 	return config.Configuration{
 		Name: profileName,
+		Tags: tags,
 		Configuration: config.RemoteManagement{
 			GeneralSettings: config.GeneralSettings{
 				SharedFQDN:              false,
