@@ -319,6 +319,14 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
 
+      - name: Package binaries into tarballs
+        if: github.ref_type == 'tag' && contains(github.ref_name, '-redfish.preview.')
+        run: |
+          chmod +x dist/linux/console_linux_x64 dist/linux/console_linux_arm64 dist/darwin/console_mac_arm64
+          tar czf console_linux_x64.tar.gz dist/linux/console_linux_x64
+          tar czf console_linux_arm64.tar.gz dist/linux/console_linux_arm64
+          tar czf console_mac_arm64.tar.gz dist/darwin/console_mac_arm64
+
       - name: Create Redfish Release
         if: github.ref_type == 'tag' && contains(github.ref_name, '-redfish.preview.')
         env:
@@ -338,26 +346,18 @@ jobs:
             jq -r '
               .plugins[]
               | select(type=="array" and .[0]=="@semantic-release/github")
-              | .[1].assets[].path
+              | .[1].assets[]
+              | select(.path | test("headless") | not)
+              | "\(.path)#\(.label)"
             ' .releaserc.json
           )
 
-          RELEASE_ASSETS=()
-          for asset in "${CONFIG_ASSETS[@]}"; do
-            if [ -f "$asset" ]; then
-              RELEASE_ASSETS+=("$asset")
-            fi
-          done
-
           FILTERED_ASSETS=()
-          for asset in "${RELEASE_ASSETS[@]}"; do
-            case "$asset" in
-              *headless*)
-                ;;
-              *)
-                FILTERED_ASSETS+=("$asset")
-                ;;
-            esac
+          for entry in "${CONFIG_ASSETS[@]}"; do
+            path="${entry%%#*}"
+            if [ -f "$path" ]; then
+              FILTERED_ASSETS+=("$entry")
+            fi
           done
 
           if [ ${#FILTERED_ASSETS[@]} -eq 0 ]; then
@@ -370,16 +370,7 @@ jobs:
 
           gh release create "$REDFISH_TAG" \
             --title "Redfish Preview Release v$VERSION" \
-            --notes "Redfish preview release v$VERSION
-
-          This is a preview release for Redfish functionality testing.
-
-          **Binaries:**
-          - Linux x64 Console (Full)
-          - Linux ARM64 Console (Full)
-          - Windows x64 Console (Full)
-          - macOS ARM64 Console (Full)
-          - licenses.zip
+            --notes "This is a preview release for Redfish functionality testing.
 
           **Note:** Docker images are not published for preview releases. Headless variants are only available in GA releases." \
             --prerelease \
