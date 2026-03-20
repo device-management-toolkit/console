@@ -529,8 +529,8 @@ func TestGetRedfishV1OdataResponseStructure(t *testing.T) {
 	err := json.Unmarshal(w.Body.Bytes(), &response)
 	require.NoError(t, err)
 
-	// Verify context
-	assert.Equal(t, "/redfish/v1/$metadata#ServiceRoot.ServiceRoot", response["@odata.context"])
+	// Verify context - OData service document context is just the metadata URL per OData 4.0 spec
+	assert.Equal(t, "/redfish/v1/$metadata", response["@odata.context"])
 
 	// Verify value array exists
 	valueArray, ok := response["value"].([]interface{})

@@ -274,6 +274,15 @@ func GetDefaultServices() []ODataService {
 	}
 }
 
+// GetRedfish handles GET /redfish
+// Returns protocol version information. Must be publicly accessible without authentication.
+func (s *RedfishServer) GetRedfish(c *gin.Context) {
+	// No Redfish headers for this endpoint - it's a simple JSON response
+	c.JSON(http.StatusOK, gin.H{
+		"v1": "/redfish/v1/",
+	})
+}
+
 // Path: GET /redfish/v1
 // Spec: Redfish ServiceRoot.v1_19_0
 // This is the entry point for the Redfish API, providing links to all available resources.
@@ -350,7 +359,7 @@ func (s *RedfishServer) GetRedfishV1Odata(c *gin.Context) {
 	}
 
 	response := map[string]interface{}{
-		"@odata.context": odataContextServiceRoot,
+		"@odata.context": "/redfish/v1/$metadata",
 		"value":          services,
 	}
 	c.JSON(http.StatusOK, response)
