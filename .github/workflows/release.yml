@@ -66,7 +66,7 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          # Extract version from the tag that triggered this workflow
+          # Extract version from the tag
           REDFISH_TAG="${GITHUB_REF#refs/tags/}"
           echo "Building release for tag: $REDFISH_TAG"
 
@@ -231,7 +231,8 @@ jobs:
       - name: Checkout Console
         uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.2.2
         with:
-          persist-credentials: false
+          fetch-depth: 0
+          token: ${{ secrets.GITHUB_TOKEN }}
 
       # Restore unified build cache
       - shell: bash
@@ -316,6 +317,19 @@ jobs:
         env:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
 
+      - name: Package Redfish Binaries
+        if: needs.prepare.outputs.is_redfish == 'true'
+        run: |
+          # Mark binaries as executable
+          chmod +x dist/linux/console_linux_x64
+          chmod +x dist/linux/console_linux_arm64
+          chmod +x dist/darwin/console_mac_arm64
+
+          # Package binaries into compressed archives
+          tar cvfpz console_linux_x64.tar.gz dist/linux/console_linux_x64
+          tar cvfpz console_linux_arm64.tar.gz dist/linux/console_linux_arm64
+          tar cvfpz console_mac_arm64.tar.gz dist/darwin/console_mac_arm64
+
       - name: Create Redfish Release
         if: needs.prepare.outputs.is_redfish == 'true'
         env:
@@ -341,11 +355,11 @@ jobs:
 
           **Note:** Docker images are not published for preview releases. Headless variants are only available in GA releases." \
             --prerelease \
-            dist/linux/console_linux_x64 \
-            dist/linux/console_linux_arm64 \
-            dist/windows/console_windows_x64.exe \
-            dist/darwin/console_mac_arm64 \
-            licenses.zip
+            console_linux_x64.tar.gz#"Linux x64 Console (Full)" \
+            console_linux_arm64.tar.gz#"Linux ARM64 Console (Full)" \
+            dist/windows/console_windows_x64.exe#"Windows x64 Console (Full)" \
+            console_mac_arm64.tar.gz#"macOS ARM64 Console (Full)" \
+            licenses.zip#"Third-Party Licenses"
 
       - name: Check if OpenAPI files changed
         if: needs.prepare.outputs.is_redfish == 'false'
