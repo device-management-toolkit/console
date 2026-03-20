@@ -16,6 +16,8 @@ import (
 	"path/filepath"
 	"testing"
 	"time"
+
+	appLogger "github.com/device-management-toolkit/console/pkg/logger"
 )
 
 // helper to create a basic cert/key pair on disk.
@@ -83,7 +85,7 @@ func TestTLS_SelfSigned_GeneratesAndServes(t *testing.T) { //nolint:paralleltest
 
 	l := newTestListener(t)
 
-	s := New(handler, Listener(l), TLS(true, "", ""))
+	s := New(handler, Listener(l), TLS(true, "", ""), Logger(appLogger.New("info")))
 
 	defer func() { _ = s.Shutdown() }() // ensure server is shutdown; ignore error for cleanup
 

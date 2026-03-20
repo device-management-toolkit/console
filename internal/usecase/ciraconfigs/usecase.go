@@ -89,7 +89,10 @@ func (uc *UseCase) Delete(ctx context.Context, configName, tenantID string) erro
 }
 
 func (uc *UseCase) Update(ctx context.Context, d *dto.CIRAConfig) (*dto.CIRAConfig, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	updated, err := uc.repo.Update(ctx, d1)
 	if err != nil {
@@ -111,9 +114,12 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.CIRAConfig) (*dto.CIRAConf
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.CIRAConfig) (*dto.CIRAConfig, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
-	_, err := uc.repo.Insert(ctx, d1)
+	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
@@ -129,7 +135,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.CIRAConfig) (*dto.CIRAConf
 }
 
 // convert dto.CIRAConfig to entity.CIRAConfig.
-func (uc *UseCase) dtoToEntity(d *dto.CIRAConfig) *entity.CIRAConfig {
+func (uc *UseCase) dtoToEntity(d *dto.CIRAConfig) (*entity.CIRAConfig, error) {
 	d1 := &entity.CIRAConfig{
 		ConfigName:             d.ConfigName,
 		MPSAddress:             d.MPSAddress,
@@ -145,10 +151,15 @@ func (uc *UseCase) dtoToEntity(d *dto.CIRAConfig) *entity.CIRAConfig {
 		GenerateRandomPassword: d.GenerateRandomPassword,
 		Version:                d.Version,
 	}
-	// Encrypt password before storing
-	d1.Password, _ = uc.safeRequirements.Encrypt(d.Password)
 
-	return d1
+	var err error
+	// Encrypt password before storing
+	d1.Password, err = uc.safeRequirements.Encrypt(d.Password)
+	if err != nil {
+		return nil, ErrCIRAConfigsUseCase.Wrap("dtoToEntity", "failed to encrypt password", err)
+	}
+
+	return d1, nil
 }
 
 // convert entity.CIRAConfig to dto.CIRAConfig.

@@ -302,6 +302,14 @@ func (r *RedfishServer) PostRedfishV1SessionServiceSessions(c *gin.Context) {
 	c.JSON(http.StatusCreated, response)
 }
 
+// PostRedfishV1SessionServiceSessionsMembers handles POST /redfish/v1/SessionService/Sessions/Members
+// Per Redfish spec: POST to collection/Members is equivalent to POST to collection
+// This endpoint is an alias to PostRedfishV1SessionServiceSessions for protocol validator compatibility
+func (r *RedfishServer) PostRedfishV1SessionServiceSessionsMembers(c *gin.Context) {
+	// Delegate to the standard Sessions POST handler
+	r.PostRedfishV1SessionServiceSessions(c)
+}
+
 // GetRedfishV1SessionServiceSessionsSessionId handles GET /redfish/v1/SessionService/Sessions/{SessionId}.
 //
 //nolint:revive // Method name must match OpenAPI-generated interface

@@ -65,21 +65,26 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 					Upgrade(gomock.Any(), gomock.Any(), nil).
 					Return(nil, tc.upgraderError)
 				mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
+				mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 			} else {
 				mockUpgrader.EXPECT().
 					Upgrade(gomock.Any(), gomock.Any(), nil).
 					Return(&websocket.Conn{}, nil)
 
 				mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
+				mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 				mockLogger.EXPECT().Info("Websocket connection opened")
-
-				if tc.redirectError != nil {
-					mockLogger.EXPECT().Error(tc.redirectError, "http - devices - v1 - redirect")
-				}
 
 				mockFeature.EXPECT().
 					Redirect(gomock.Any(), gomock.Any(), "someHost", "someMode").
 					Return(tc.redirectError)
+
+				// Total connection time is always logged after Redirect completes
+				mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "someMode")
+
+				if tc.redirectError != nil {
+					mockLogger.EXPECT().Error(tc.redirectError, "http - devices - v1 - redirect")
+				}
 			}
 
 			r := gin.Default()

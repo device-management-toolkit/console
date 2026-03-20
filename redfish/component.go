@@ -118,11 +118,11 @@ func isPublicEndpoint(path, method string) bool {
 	// Public endpoints as defined in OpenAPI spec (security: [{}])
 	// - ServiceRoot, Metadata, OData (read-only discovery endpoints)
 	// - SessionService Sessions POST (login endpoint - must be unauthenticated)
-	if path == "/redfish/v1/" || path == "/redfish/v1/$metadata" || path == "/redfish/v1/odata" {
+	if path == "/redfish" || path == "/redfish/v1/" || path == "/redfish/v1/$metadata" || path == "/redfish/v1/odata" {
 		return true
 	}
 
-	return path == "/redfish/v1/SessionService/Sessions" && method == "POST"
+	return (path == "/redfish/v1/SessionService/Sessions" || path == "/redfish/v1/SessionService/Sessions/Members") && method == "POST"
 }
 
 // createAuthMiddleware creates the authentication middleware for protected endpoints.
@@ -169,10 +169,21 @@ func RegisterRoutes(router *gin.Engine, _ logger.Interface) error {
 		return nil
 	}
 
-	// Build middleware chain with OData header
+	// Build middleware chain with OData header validation and response
 	middlewares := []redfishgenerated.MiddlewareFunc{
 		func(c *gin.Context) {
-			c.Header("OData-Version", "4.0")
+			// Validate OData-Version header if present in request
+			requestODataVersion := c.GetHeader("OData-Version")
+			if requestODataVersion != "" && requestODataVersion != v1.SupportedODataVersion {
+				c.Header("OData-Version", v1.SupportedODataVersion)
+				v1.PreconditionFailedError(c, "Unsupported OData-Version. Service supports OData-Version: "+v1.SupportedODataVersion)
+				c.Abort()
+
+				return
+			}
+
+			// Set OData-Version header in response
+			c.Header("OData-Version", v1.SupportedODataVersion)
 			c.Next()
 		},
 	}

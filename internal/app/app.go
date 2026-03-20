@@ -32,8 +32,7 @@ var CertStore security.Storager
 var Version = "DEVELOPMENT"
 
 // Run creates objects via constructors.
-func Run(cfg *config.Config) {
-	log := logger.New(cfg.Level)
+func Run(cfg *config.Config, log logger.Interface) {
 	cfg.Version = Version
 	log.Info("app - Run - version: " + cfg.Version)
 	// route standard and Gin logs through our JSON logger
