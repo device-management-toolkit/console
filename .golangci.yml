@@ -113,6 +113,8 @@ linters:
       - linters:
           - err113
           - funlen
+          - gosec
+          - noctx
         path: (.+)_test.go
     paths:
       - docs

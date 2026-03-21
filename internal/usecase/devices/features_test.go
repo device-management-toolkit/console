@@ -316,7 +316,7 @@ func TestGetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				RemoteErase:           false,
+				RemoteEraseEnabled:    false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -1216,7 +1216,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		RemoteErase:           false,
+		RemoteEraseEnabled:    false,
 	}
 
 	featureSetDisabledOCRResult := dto.Features{
@@ -1229,7 +1229,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		RemoteErase:           false,
+		RemoteEraseEnabled:    false,
 	}
 
 	featureSetV2DisabledOCR := dtov2.Features{
@@ -1243,7 +1243,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		RemoteErase:           false,
+		RemoteEraseEnabled:    false,
 	}
 
 	failGetByIDResult := dto.Features{}
@@ -1332,6 +1332,9 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{}, nil)
+				man2.EXPECT().
 					BootServiceStateChange(32769). // OCR enabled
 					Return(cimBoot.BootService{}, nil)
 				man2.EXPECT().
@@ -1385,7 +1388,7 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				RemoteErase:           false,
+				RemoteEraseEnabled:    false,
 			},
 			resV2: featureSetV2,
 			err:   nil,
@@ -1442,6 +1445,9 @@ func TestSetFeatures(t *testing.T) {
 						OptInState:    0,
 					}).
 					Return(nil)
+				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32768).
 					Return(cimBoot.BootService{}, nil)
@@ -1597,6 +1603,9 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{}, nil)
+				man2.EXPECT().
 					BootServiceStateChange(32769).
 					Return(cimBoot.BootService{}, nil)
 				man2.EXPECT().
@@ -1650,7 +1659,7 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				RemoteErase:           false,
+				RemoteEraseEnabled:    false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -1814,6 +1823,9 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{}, nil)
+				man2.EXPECT().
 					BootServiceStateChange(32769).
 					Return(cimBoot.BootService{}, ErrGeneral)
 			},
@@ -1891,6 +1903,9 @@ func TestSetFeatures(t *testing.T) {
 						OptInState:    0,
 					}).
 					Return(nil)
+				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32769).
 					Return(cimBoot.BootService{}, nil)

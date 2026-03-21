@@ -270,6 +270,49 @@ func (mr *MockFeatureMockRecorder) GetAuditLog(ctx, startIndex, guid any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootCapabilities mocks base method.
+func (m *MockFeature) GetBootCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootCapabilities", ctx, guid)
+	ret0, _ := ret[0].(dto.BootCapabilities)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootCapabilities indicates an expected call of GetBootCapabilities.
+func (mr *MockFeatureMockRecorder) GetBootCapabilities(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootCapabilities", reflect.TypeOf((*MockFeature)(nil).GetBootCapabilities), ctx, guid)
+}
+
+// SetRPEEnabled mocks base method.
+func (m *MockFeature) SetRPEEnabled(ctx context.Context, guid string, enabled bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRPEEnabled", ctx, guid, enabled)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRPEEnabled indicates an expected call of SetRPEEnabled.
+func (mr *MockFeatureMockRecorder) SetRPEEnabled(ctx, guid, enabled any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRPEEnabled", reflect.TypeOf((*MockFeature)(nil).SetRPEEnabled), ctx, guid, enabled)
+}
+
+// SendRemoteErase mocks base method.
+func (m *MockFeature) SendRemoteErase(ctx context.Context, guid string, eraseMask int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendRemoteErase", ctx, guid, eraseMask)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendRemoteErase indicates an expected call of SendRemoteErase.
+func (mr *MockFeatureMockRecorder) SendRemoteErase(ctx, guid, eraseMask any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendRemoteErase", reflect.TypeOf((*MockFeature)(nil).SendRemoteErase), ctx, guid, eraseMask)
+}
+
 // GetBootSourceSetting mocks base method.
 func (m *MockFeature) GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error) {
 	m.ctrl.T.Helper()
@@ -690,4 +733,32 @@ func (m *MockFeature) Update(ctx context.Context, d *dto.Device) (*dto.Device, e
 func (mr *MockFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d)
+}
+
+// UpdateConnectionStatus mocks base method.
+func (m *MockFeature) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateConnectionStatus", ctx, guid, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateConnectionStatus indicates an expected call of UpdateConnectionStatus.
+func (mr *MockFeatureMockRecorder) UpdateConnectionStatus(ctx, guid, status any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConnectionStatus", reflect.TypeOf((*MockFeature)(nil).UpdateConnectionStatus), ctx, guid, status)
+}
+
+// UpdateLastSeen mocks base method.
+func (m *MockFeature) UpdateLastSeen(ctx context.Context, guid string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateLastSeen", ctx, guid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateLastSeen indicates an expected call of UpdateLastSeen.
+func (mr *MockFeatureMockRecorder) UpdateLastSeen(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateLastSeen", reflect.TypeOf((*MockFeature)(nil).UpdateLastSeen), ctx, guid)
 }

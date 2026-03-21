@@ -23,14 +23,17 @@ type Features struct {
 	HTTPSBootSupported    bool   `json:"httpsBootSupported" example:"true"`
 	WinREBootSupported    bool   `json:"winREBootSupported" example:"true"`
 	LocalPBABootSupported bool   `json:"localPBABootSupported" example:"true"`
-	RemoteErase           bool   `json:"remoteErase" example:"true"`
+	RemoteEraseEnabled    bool   `json:"remoteEraseEnabled" example:"true"`
+	RemoteEraseSupported  bool   `json:"remoteEraseSupported" example:"true"`
+	PlatformEraseCaps     int    `json:"platformEraseCaps,omitempty" example:"15"`
+	EnablePlatformErase   bool   `json:"enablePlatformErase" example:"true"`
 }
 
 type FeaturesRequest struct {
-	UserConsent string `json:"userConsent" example:"kvm"`
-	EnableSOL   bool   `json:"enableSOL" example:"true"`
-	EnableIDER  bool   `json:"enableIDER" example:"true"`
-	EnableKVM   bool   `json:"enableKVM" example:"true"`
-	OCR         bool   `json:"ocr" example:"true"`
-	RemoteErase bool   `json:"remoteErase" example:"true"`
+	UserConsent         string `json:"userConsent" example:"kvm"`
+	EnableSOL           bool   `json:"enableSOL" example:"true"`
+	EnableIDER          bool   `json:"enableIDER" example:"true"`
+	EnableKVM           bool   `json:"enableKVM" example:"true"`
+	OCR                 bool   `json:"ocr" example:"true"`
+	EnablePlatformErase bool   `json:"enablePlatformErase" example:"true"`
 }

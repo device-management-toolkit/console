@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"strings"
+	"time"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -362,6 +363,55 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 	}
 
 	return rowsAffected > 0, nil
+}
+
+// UpdateConnectionStatus updates only the connection status and timestamps for a device.
+func (r *DeviceRepo) UpdateConnectionStatus(_ context.Context, guid string, status bool) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+
+	builder := r.Builder.
+		Update("devices").
+		Set("connectionstatus", status).
+		Where("guid = ?", guid)
+
+	if status {
+		builder = builder.Set("lastconnected", now)
+	} else {
+		builder = builder.Set("lastdisconnected", now)
+	}
+
+	sqlQuery, args, err := builder.ToSql()
+	if err != nil {
+		return ErrDeviceDatabase.Wrap("UpdateConnectionStatus", "r.Builder", err)
+	}
+
+	_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
+	if err != nil {
+		return ErrDeviceDatabase.Wrap("UpdateConnectionStatus", "r.Pool.Exec", err)
+	}
+
+	return nil
+}
+
+// UpdateLastSeen updates the lastseen timestamp for a device.
+func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
+	now := time.Now().Format("2006-01-02 15:04:05")
+
+	sqlQuery, args, err := r.Builder.
+		Update("devices").
+		Set("lastseen", now).
+		Where("guid = ?", guid).
+		ToSql()
+	if err != nil {
+		return ErrDeviceDatabase.Wrap("UpdateLastSeen", "r.Builder", err)
+	}
+
+	_, err = r.Pool.ExecContext(context.Background(), sqlQuery, args...)
+	if err != nil {
+		return ErrDeviceDatabase.Wrap("UpdateLastSeen", "r.Pool.Exec", err)
+	}
+
+	return nil
 }
 
 // Insert -.

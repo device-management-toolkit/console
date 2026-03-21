@@ -681,6 +681,93 @@ func (c *ConnectionEntry) GetPowerCapabilities() (boot.BootCapabilitiesResponse,
 	return response.Body.BootCapabilitiesGetResponse, nil
 }
 
+func (c *ConnectionEntry) GetBootCapabilities() (boot.BootCapabilitiesResponse, error) {
+	response, err := c.WsmanMessages.AMT.BootCapabilities.Get()
+	if err != nil {
+		return boot.BootCapabilitiesResponse{}, err
+	}
+
+	return response.Body.BootCapabilitiesGetResponse, nil
+}
+
+func (c *ConnectionEntry) SetRPEEnabled(enabled bool) error {
+	bootData, err := c.WsmanMessages.AMT.BootSettingData.Get()
+	if err != nil {
+		return err
+	}
+
+	current := bootData.Body.BootSettingDataGetResponse
+
+	_, err = c.WsmanMessages.AMT.BootSettingData.Put(boot.BootSettingDataRequest{
+		BIOSLastStatus:         current.BIOSLastStatus,
+		BIOSPause:              current.BIOSPause,
+		BIOSSetup:              current.BIOSSetup,
+		BootMediaIndex:         current.BootMediaIndex,
+		BootguardStatus:        current.BootguardStatus,
+		ConfigurationDataReset: current.ConfigurationDataReset,
+		ElementName:            current.ElementName,
+		EnforceSecureBoot:      current.EnforceSecureBoot,
+		FirmwareVerbosity:      current.FirmwareVerbosity,
+		ForcedProgressEvents:   current.ForcedProgressEvents,
+		IDERBootDevice:         current.IDERBootDevice,
+		InstanceID:             current.InstanceID,
+		LockKeyboard:           current.LockKeyboard,
+		LockPowerButton:        current.LockPowerButton,
+		LockResetButton:        current.LockResetButton,
+		LockSleepButton:        current.LockSleepButton,
+		OptionsCleared:         current.OptionsCleared,
+		OwningEntity:           current.OwningEntity,
+		PlatformErase:          enabled,
+		ReflashBIOS:            current.ReflashBIOS,
+		SecureErase:            current.SecureErase,
+		UseIDER:                current.UseIDER,
+		UseSOL:                 current.UseSOL,
+		UseSafeMode:            current.UseSafeMode,
+		UserPasswordBypass:     current.UserPasswordBypass,
+	})
+
+	return err
+}
+
+func (c *ConnectionEntry) SendRemoteErase(eraseMask int) error {
+	bootData, err := c.WsmanMessages.AMT.BootSettingData.Get()
+	if err != nil {
+		return err
+	}
+
+	current := bootData.Body.BootSettingDataGetResponse
+
+	_, err = c.WsmanMessages.AMT.BootSettingData.Put(boot.BootSettingDataRequest{
+		BIOSLastStatus:         current.BIOSLastStatus,
+		BIOSPause:              current.BIOSPause,
+		BIOSSetup:              current.BIOSSetup,
+		BootMediaIndex:         current.BootMediaIndex,
+		BootguardStatus:        current.BootguardStatus,
+		ConfigurationDataReset: current.ConfigurationDataReset,
+		ElementName:            current.ElementName,
+		EnforceSecureBoot:      current.EnforceSecureBoot,
+		FirmwareVerbosity:      current.FirmwareVerbosity,
+		ForcedProgressEvents:   current.ForcedProgressEvents,
+		IDERBootDevice:         current.IDERBootDevice,
+		InstanceID:             current.InstanceID,
+		LockKeyboard:           current.LockKeyboard,
+		LockPowerButton:        current.LockPowerButton,
+		LockResetButton:        current.LockResetButton,
+		LockSleepButton:        current.LockSleepButton,
+		OptionsCleared:         current.OptionsCleared,
+		OwningEntity:           current.OwningEntity,
+		PlatformErase:          eraseMask != 0,
+		ReflashBIOS:            current.ReflashBIOS,
+		SecureErase:            current.SecureErase,
+		UseIDER:                current.UseIDER,
+		UseSOL:                 current.UseSOL,
+		UseSafeMode:            current.UseSafeMode,
+		UserPasswordBypass:     current.UserPasswordBypass,
+	})
+
+	return err
+}
+
 func (c *ConnectionEntry) GetGeneralSettings() (interface{}, error) {
 	response, err := c.WsmanMessages.AMT.GeneralSettings.Get()
 	if err != nil {
