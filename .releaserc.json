@@ -6,6 +6,16 @@
     {
       "name": "beta",
       "prerelease": "beta"
+    },
+    {
+      "name": "redfish",
+      "channel": "redfish",
+      "prerelease": "redfish.preview"
+    },
+    {
+      "name": "redfish-wf-main",
+      "channel": "redfish-wf-main",
+      "prerelease": "redfish.wf.preview"
     }
   ],
   "plugins": [
