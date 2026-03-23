@@ -42,6 +42,10 @@ build-noui: ### build app without UI
 	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
 .PHONY: build-noui
 
+build-tray: ### build app with system tray support (requires CGO, native build only)
+	CGO_ENABLED=1 go build -tags=tray -o ./bin/console-tray ./cmd/app
+.PHONY: build-tray
+
 build-all-platforms: ### cross-compile for all platforms (Linux, Windows, macOS)
 	@echo "Building for all platforms using cross-compilation (CGO_ENABLED=0)..."
 	@mkdir -p dist/linux dist/windows dist/darwin
@@ -107,3 +111,57 @@ migrate-up: ### migration up
 bin-deps:
 	GOBIN=$(LOCAL_BIN) go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	GOBIN=$(LOCAL_BIN) go install go.uber.org/mock/mockgen@latest
+
+# Installers (requires NSIS for Windows, macOS for PKG)
+VERSION ?= 3.0.0-dev
+
+# Build Windows binaries (full and headless)
+build-windows-binaries: ### build Windows binaries (full and headless)
+	@echo "Building Windows binaries..."
+	@mkdir -p dist/windows
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
+	@echo "Windows binaries built successfully!"
+.PHONY: build-windows-binaries
+
+build-windows-installer: build-windows-binaries ### build Windows NSIS installers (full + headless)
+	@echo "Building Windows installers with NSIS..."
+	@command -v makensis >/dev/null 2>&1 || { echo "NSIS is not installed. Install with: brew install nsis (macOS) or apt-get install nsis (Linux)"; exit 1; }
+	$(eval VI_VERSION := $(shell echo '$(VERSION)' | sed 's/-.*//' ).0)
+	makensis -DVERSION=$(VERSION) -DVI_VERSION=$(VI_VERSION) -DARCH=x64 -DEDITION=ui -DBINARY="../dist/windows/console_windows_x64.exe" installer/console.nsi
+	@mv installer/console_$(VERSION)_windows_x64_setup.exe dist/windows/
+	makensis -DVERSION=$(VERSION) -DVI_VERSION=$(VI_VERSION) -DARCH=x64 -DEDITION=headless -DBINARY="../dist/windows/console_windows_x64_headless.exe" installer/console.nsi
+	@mv installer/console_$(VERSION)_windows_x64_headless_setup.exe dist/windows/
+	@echo "Windows installers created in dist/windows/"
+.PHONY: build-windows-installer
+
+# Build macOS binaries (full and headless)
+build-macos-binaries: ### build macOS binaries (full and headless)
+	@echo "Building macOS binaries..."
+	@mkdir -p dist/darwin
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
+	@echo "macOS binaries built successfully!"
+.PHONY: build-macos-binaries
+
+build-macos-installer: build-macos-binaries ### build macOS PKG installer (macOS only)
+	@echo "Building macOS PKG installer..."
+	@if [ "$$(uname)" != "Darwin" ]; then echo "Error: macOS PKG can only be built on macOS"; exit 1; fi
+	chmod +x installer/macos/build-pkg.sh
+	./installer/macos/build-pkg.sh $(VERSION) arm64
+	@echo "macOS installer created: dist/darwin/console_$(VERSION)_macos_arm64.pkg"
+.PHONY: build-macos-installer
+
+build-linux-installer: ### build Linux installer archives (full + headless)
+	@echo "Building Linux installer archives..."
+	@mkdir -p dist/linux
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+	chmod +x installer/linux/build-packages.sh
+	./installer/linux/build-packages.sh $(VERSION) amd64
+	@echo "Linux installer archives created in dist/linux/"
+.PHONY: build-linux-installer
+
+build-all-with-installers: build-all-platforms build-windows-installer build-macos-installer build-linux-installer ### build all platforms plus all installers
+	@echo "All platforms and installers built successfully!"
+.PHONY: build-all-with-installers

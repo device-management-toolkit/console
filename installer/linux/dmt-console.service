@@ -1,0 +1,28 @@
+# Device Management Toolkit Console - Systemd Service Unit
+# Copyright (c) Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+
+[Unit]
+Description=Device Management Toolkit Console
+Wants=network-online.target
+After=network-online.target
+
+[Service]
+Type=simple
+User=dmt
+Group=dmt
+ExecStart=/usr/local/device-management-toolkit/console
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+# Security hardening
+NoNewPrivileges=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/var/lib/device-management-toolkit
+ReadOnlyPaths=/usr/local/device-management-toolkit
+
+[Install]
+WantedBy=multi-user.target
