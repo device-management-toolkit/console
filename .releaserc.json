@@ -8,9 +8,8 @@
       "prerelease": "beta"
     },
     {
-      "name": "redfish",
-      "channel": "redfish",
-      "prerelease": "redfish-preview"
+      "name": "redfish-wf-semantic",
+      "prerelease": "redfish-test-preview"
     }
   ],
   "plugins": [
@@ -20,6 +19,7 @@
         "releaseRules": [
           {
             "type": "chore",
+            "scope": "sync",
             "release": "patch"
           }
         ]
