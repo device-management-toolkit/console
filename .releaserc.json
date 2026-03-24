@@ -6,6 +6,10 @@
     {
       "name": "beta",
       "prerelease": "beta"
+    },
+    {
+      "name": "redfish",
+      "prerelease": "redfish-preview"
     }
   ],
   "plugins": [
@@ -15,6 +19,7 @@
         "releaseRules": [
           {
             "type": "chore",
+            "scope": "sync",
             "release": "patch"
           }
         ]
