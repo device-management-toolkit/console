@@ -4,12 +4,14 @@ import (
 	"context"
 	"encoding/xml"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
@@ -33,7 +35,7 @@ func initConsentTest(t *testing.T) (*devices.UseCase, *mocks.MockWSMAN, *mocks.M
 
 	log := logger.New("error")
 
-	u := devices.New(repo, wsmanMock, mocks.NewMockRedirection(mockCtl), log, mocks.MockCrypto{})
+	u := devices.New(repo, wsmanMock, mocks.NewMockRedirection(mockCtl), log, mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 	return u, wsmanMock, management, repo
 }

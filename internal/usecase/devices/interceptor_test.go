@@ -5,6 +5,7 @@ import (
 	"errors"
 	"sync"
 	"testing"
+	"time"
 
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 
+	"github.com/device-management-toolkit/console/internal/cache"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -91,7 +93,7 @@ func TestRedirect(t *testing.T) {
 
 			tc.setup(mockRedirection, mockRepo, mockWSMAN, &wg)
 
-			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 			wg.Wait()
 
@@ -126,7 +128,7 @@ func TestRedirectSuccessfulFlow(t *testing.T) {
 		defer wg.Done()
 	}).Times(1)
 
-	uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+	uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 	wg.Wait()
 
@@ -167,7 +169,7 @@ func TestRedirectDeviceNotFound(t *testing.T) {
 		defer wg.Done()
 	}).Times(1)
 
-	uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+	uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 	wg.Wait()
 
@@ -199,7 +201,7 @@ func TestRedirectConnectionReuse(t *testing.T) {
 		defer wg.Done()
 	}).Times(1)
 
-	uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+	uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 	wg.Wait()
 
@@ -330,7 +332,7 @@ func TestRedirectWithErrorScenarios(t *testing.T) {
 
 			tc.setupMocks(mockRedirection, mockRepo, mockWSMAN, &wg)
 
-			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 			wg.Wait()
 
@@ -411,7 +413,7 @@ func TestRedirectConnectionFlowCoverage(t *testing.T) {
 
 			tc.setupMocks(mockRedirection, mockRepo, mockWSMAN, &wg)
 
-			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 			wg.Wait()
 
@@ -483,7 +485,7 @@ func TestRedirectAdditionalCoverage(t *testing.T) {
 
 			tc.setupMocks(mockRedirection, mockRepo, mockWSMAN, &wg)
 
-			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{})
+			uc := devices.New(mockRepo, mockWSMAN, mockRedirection, logger.New("test"), mocks.MockCrypto{}, cache.New(30*time.Second, 5*time.Second))
 
 			wg.Wait()
 

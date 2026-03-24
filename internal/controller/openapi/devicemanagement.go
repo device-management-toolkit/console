@@ -32,6 +32,14 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 		fuego.OptionPath("guid", "Device GUID"),
 	)
 
+	// kvm initialization
+	fuego.Get(f.server, "/api/v1/admin/kvm/init/{guid}", f.getKVMInitData,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get KVM initialization data"),
+		fuego.OptionDescription("Retrieve all data needed to initialize a KVM session (display settings, power state, redirection status, and features) in a single call"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
+
 	// Certificates
 	fuego.Get(f.server, "/api/v1/admin/amt/certificates/{guid}", f.getCertificates,
 		fuego.OptionTags("Device Management"),
@@ -297,6 +305,47 @@ func (f *FuegoAdapter) setKVMDisplays(c fuego.ContextWithBody[dto.KVMScreenSetti
 	}
 
 	return dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{display}}, nil
+}
+
+func (f *FuegoAdapter) getKVMInitData(_ fuego.ContextNoBody) (dto.KVMInitResponse, error) {
+	return dto.KVMInitResponse{
+		DisplaySettings: dto.KVMScreenSettings{
+			Displays: []dto.KVMScreenDisplay{
+				{
+					DisplayIndex: 0,
+					IsActive:     true,
+					ResolutionX:  1920,
+					ResolutionY:  1080,
+					UpperLeftX:   0,
+					UpperLeftY:   0,
+					Role:         "primary",
+					IsDefault:    true,
+				},
+			},
+		},
+		PowerState: dto.PowerState{
+			PowerState:         2,
+			OSPowerSavingState: 0,
+		},
+		RedirectionStatus: dto.KVMRedirectionStatus{
+			IsSOLConnected:  false,
+			IsIDERConnected: false,
+		},
+		Features: dto.GetFeaturesResponse{
+			Redirection:           true,
+			KVM:                   true,
+			SOL:                   true,
+			IDER:                  true,
+			OptInState:            0,
+			UserConsent:           "none",
+			KVMAvailable:          true,
+			OCR:                   false,
+			HTTPSBootSupported:    false,
+			WinREBootSupported:    false,
+			LocalPBABootSupported: false,
+			RemoteErase:           false,
+		},
+	}, nil
 }
 
 func (f *FuegoAdapter) getCertificates(_ fuego.ContextNoBody) (dto.SecuritySettings, error) {
