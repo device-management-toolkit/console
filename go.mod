@@ -125,5 +125,5 @@ require (
 require (
 	github.com/BurntSushi/toml v1.4.0 // indirect
 	github.com/google/uuid v1.6.0
-	github.com/hashicorp/vault/api v1.22.0
+	github.com/hashicorp/vault/api v1.23.0
 )
