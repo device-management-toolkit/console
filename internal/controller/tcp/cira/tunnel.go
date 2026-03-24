@@ -3,13 +3,13 @@ package cira
 
 import (
 	"bytes"
+	"context"
 	"crypto/tls"
 	"encoding/binary"
 	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
-	"sync"
 	"time"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
@@ -31,12 +31,8 @@ const (
 	apfSessionTimeout    = 3 * time.Second
 )
 
-var (
-	mu sync.Mutex
-
-	// ErrChannelOpenFailed is returned when an APF channel open request fails.
-	ErrChannelOpenFailed = errors.New("channel open failed")
-)
+// ErrChannelOpenFailed is returned when an APF channel open request fails.
+var ErrChannelOpenFailed = errors.New("channel open failed")
 
 type Server struct {
 	certificates tls.Certificate
@@ -127,6 +123,7 @@ type connectionContext struct {
 	session       *apf.Session
 	authenticated bool
 	device        *wsman.ConnectionEntry
+	devices       devices.Feature
 	log           logger.Interface
 }
 
@@ -146,6 +143,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 		conn:    conn,
 		tlsConn: tlsConn,
 		handler: NewAPFHandler(s.devices, s.log),
+		devices: s.devices,
 		session: &apf.Session{
 			Timer: time.NewTimer(apfSessionTimeout),
 		},
@@ -161,9 +159,22 @@ func (s *Server) handleConnection(conn net.Conn) {
 func (ctx *connectionContext) cleanup() {
 	deviceID := ctx.handler.DeviceID()
 	if ctx.authenticated && deviceID != "" {
-		mu.Lock()
-		delete(wsman.Connections, deviceID)
-		mu.Unlock()
+		if err := ctx.devices.UpdateConnectionStatus(context.Background(), deviceID, false); err != nil {
+			ctx.log.Error("Failed to update disconnection status for device %s: %v", deviceID, err)
+		}
+
+		wsman.RemoveConnection(deviceID)
+	}
+
+	// Stop and clean up the session timer
+	if ctx.session != nil && ctx.session.Timer != nil {
+		if !ctx.session.Timer.Stop() {
+			// Drain the channel if the timer fired
+			select {
+			case <-ctx.session.Timer.C:
+			default:
+			}
+		}
 	}
 
 	// Stop and clean up the session timer
@@ -218,10 +229,26 @@ func (ctx *connectionContext) processNextMessage() (shouldReturn bool) {
 	}
 
 	if err := ctx.sendKeepAliveIfNeeded(messageType); err != nil {
+		ctx.log.Error("Keep-alive failed for device %s: %v", ctx.handler.DeviceID(), err)
+
 		return true
 	}
 
+	ctx.updateLastSeenIfKeepAlive(messageType)
+
 	return false
+}
+
+func (ctx *connectionContext) updateLastSeenIfKeepAlive(messageType byte) {
+	if !ctx.authenticated || messageType != apf.APF_KEEPALIVE_REQUEST {
+		return
+	}
+
+	deviceID := ctx.handler.DeviceID()
+
+	if err := ctx.devices.UpdateLastSeen(context.Background(), deviceID); err != nil {
+		ctx.log.Error("Failed to update last seen for device %s: %v", deviceID, err)
+	}
 }
 
 func (ctx *connectionContext) readData() ([]byte, error) {
@@ -284,11 +311,11 @@ func (ctx *connectionContext) registerDevice() {
 		WsmanMessages: wsman2.NewMessages(client.Parameters{}),
 	}
 
-	mu.Lock()
+	wsman.SetConnectionEntry(deviceID, ctx.device)
 
-	wsman.Connections[deviceID] = ctx.device
-
-	mu.Unlock()
+	if err := ctx.devices.UpdateConnectionStatus(context.Background(), deviceID, true); err != nil {
+		ctx.log.Error("Failed to update connection status for device %s: %v", deviceID, err)
+	}
 
 	ctx.log.Info("Device authenticated and registered: %s", deviceID)
 }

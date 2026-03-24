@@ -24,11 +24,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
 
-	// Initialize redfish directly
-	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
-		l.Fatal("Failed to initialize redfish: " + err.Error())
-	}
-
 	// Add Prometheus middleware for automatic HTTP metrics
 	// Don't automatically register /metrics endpoint - we have our own
 	p := ginprometheus.NewPrometheus("gin")
