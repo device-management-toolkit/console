@@ -10,7 +10,7 @@
     {
       "name": "redfish",
       "channel": "redfish",
-      "prerelease": "redfish.wf.preview"
+      "prerelease": "redfish-preview"
     }
   ],
   "plugins": [
