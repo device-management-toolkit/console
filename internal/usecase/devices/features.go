@@ -96,6 +96,11 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+	settingsResults.RemoteEraseEnabled = settingsResultsV2.RemoteEraseEnabled
+	settingsResults.RemoteEraseSupported = settingsResultsV2.RemoteEraseSupported
+	settingsResults.PlatformEraseCaps = settingsResultsV2.PlatformEraseCaps
+
+	uc.log.Debug("GetFeatures: RemoteErase (PlatformErase) support", "guid", guid, "RemoteErase", settingsResultsV2.RemoteEraseEnabled)
 
 	return settingsResults, settingsResultsV2, nil
 }
@@ -178,6 +183,9 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
 	settingsResultsV2.WinREBootSupported = isWinREBootSupported
 	settingsResultsV2.LocalPBABootSupported = isLocalPBABootSupported
+	settingsResultsV2.RemoteEraseEnabled = ocrData.bootData.PlatformErase
+	settingsResultsV2.RemoteEraseSupported = ocrData.capabilities.PlatformErase != 0
+	settingsResultsV2.PlatformEraseCaps = ocrData.capabilities.PlatformErase
 
 	return nil
 }
@@ -235,31 +243,59 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	settingsResults.UserConsent = features.UserConsent
 	settingsResultsV2.UserConsent = features.UserConsent
 
-	// Configure OCR settings
-	requestedState := 0
-	if features.OCR {
-		requestedState = enabledStateEnabled
-	} else {
-		requestedState = enabledStateDisabled
-	}
-
-	_, err = device.BootServiceStateChange(requestedState)
-	if err == nil {
-		// Get OCR settings
-		err = getOneClickRecoverySettings(&settingsResultsV2, device)
-		if err != nil {
-			return dto.Features{}, dtov2.Features{}, err
-		}
-
-		settingsResults.OCR = settingsResultsV2.OCR
-		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
-		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
-		settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
-
+	if err := setRPE(features.EnablePlatformErase, &settingsResultsV2, device); err != nil {
 		return settingsResults, settingsResultsV2, err
 	}
 
+	settingsResults.RemoteEraseEnabled = settingsResultsV2.RemoteEraseEnabled
+
+	if err := setOCRFeatures(features.OCR, &settingsResultsV2, device); err != nil {
+		return settingsResults, settingsResultsV2, err
+	}
+
+	settingsResults.OCR = settingsResultsV2.OCR
+	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
+	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
+	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+	settingsResults.RemoteEraseEnabled = settingsResultsV2.RemoteEraseEnabled
+	settingsResults.RemoteEraseSupported = settingsResultsV2.RemoteEraseSupported
+	settingsResults.PlatformEraseCaps = settingsResultsV2.PlatformEraseCaps
+
 	return settingsResults, settingsResultsV2, nil
+}
+
+func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
+	bootCapabilities, err := device.GetBootCapabilities()
+	if err != nil {
+		return err
+	}
+
+	if bootCapabilities.PlatformErase != 0 {
+		if err := device.SetRPEEnabled(enableRemoteErase); err != nil {
+			return err
+		}
+	}
+
+	settingsResultsV2.RemoteEraseEnabled = enableRemoteErase && bootCapabilities.PlatformErase != 0
+	settingsResultsV2.RemoteEraseSupported = bootCapabilities.PlatformErase != 0
+	settingsResultsV2.PlatformEraseCaps = bootCapabilities.PlatformErase
+
+	return nil
+}
+
+func setOCRFeatures(enableOCR bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
+	requestedState := enabledStateDisabled
+	if enableOCR {
+		requestedState = enabledStateEnabled
+	}
+
+	_, err := device.BootServiceStateChange(requestedState)
+	if err != nil {
+		// BootServiceStateChange failing is non-fatal (device may not support OCR)
+		return nil
+	}
+
+	return getOneClickRecoverySettings(settingsResultsV2, device)
 }
 
 func handleAMTKVMError(err error, results *dtov2.Features) bool {
