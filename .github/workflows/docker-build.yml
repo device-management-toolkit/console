@@ -2,9 +2,9 @@ name: Docker Image CI
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, redfish ]
   pull_request:
-      branches: [ main ]
+      branches: [ main, redfish ]
   workflow_dispatch:
 permissions:
   contents: read
@@ -14,15 +14,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+      uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
       with:
         egress-policy: audit
 
-    - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.0.0
+    - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
     - name: Build the Docker image
       run: docker build --file Dockerfile --tag  vprodemo.azurecr.io/console:latest --tag vprodemo.azurecr.io/console:${{ github.sha }} .
     - name: Docker Login
-      if: ${{ github.ref == 'refs/heads/main' }}      
+      if: ${{ github.ref == 'refs/heads/main' }}
       uses: docker/login-action@9780b0c442fbb1117ed29e0efdff1e18412f7567 # v3.3.0
       with:
         registry: vprodemo.azurecr.io
@@ -30,8 +30,8 @@ jobs:
         password: ${{ secrets.DOCKER_PASSWORD }}
         logout: true
     - name: Push the Docker image to the registry
-      if: ${{ github.ref == 'refs/heads/main' }}      
+      if: ${{ github.ref == 'refs/heads/main' }}
       run: docker push vprodemo.azurecr.io/console:latest
     - name: Push the Docker image to the registry
-      if: ${{ github.ref == 'refs/heads/main' }}      
+      if: ${{ github.ref == 'refs/heads/main' }}
       run: docker push vprodemo.azurecr.io/console:${{ github.sha }}
