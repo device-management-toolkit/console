@@ -2,10 +2,10 @@ name: Trivy Container Scan
 
 on:
   push:
-    branches: [main]
+    branches: [main, redfish]
   pull_request:
     # The branches below must be a subset of the branches above
-    branches: [main]
+    branches: [main, redfish]
 permissions:
   contents: read
 jobs:
@@ -15,16 +15,16 @@ jobs:
       security-events: write
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@0080882f6c36860b6ba35c610c98ce87d4e2f26f # v2.10.2
+        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@11bd71901bbe5b1630ceea73d27597364c9af683 # v4.0.0
+      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
       - name: Build the Docker image
 
         run: docker build . --file Dockerfile --tag app:${{ github.sha }}
       - name: Run Trivy vulnerability scanner
-        uses: aquasecurity/trivy-action@18f2510ee396bbf400402947b394f2dd8c87dbb0 # master
+        uses: aquasecurity/trivy-action@57a97c7e7821a5776cebc9bb87c984fa69cba8f1 # 0.35.0
         with:
           image-ref: "app:${{ github.sha }}"
           format: "sarif"
@@ -34,7 +34,7 @@ jobs:
           vuln-type: "os,library"
           severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
       - name: Upload Trivy scan results to GitHub Security tab
-        uses: github/codeql-action/upload-sarif@df409f7d9260372bd5f19e5b04e83cb3c43714ae # v3.27.9
+        uses: github/codeql-action/upload-sarif@b1bff81932f5cdfc8695c7752dcee935dcd061c8 # v4.33.0
         if: always()
         with:
           sarif_file: "trivy-results.sarif"
