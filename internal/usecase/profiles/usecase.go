@@ -326,7 +326,7 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				Wired: config.Wired{
 					DHCPEnabled:    data.DHCPEnabled,
 					IPSyncEnabled:  data.IPSyncEnabled,
-					SharedStaticIP: !data.DHCPEnabled,
+					SharedStaticIP: false,
 				},
 				Wireless: config.Wireless{
 					WiFiSyncEnabled:     data.LocalWiFiSyncEnabled,
