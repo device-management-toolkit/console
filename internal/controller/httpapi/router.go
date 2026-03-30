@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 
@@ -12,6 +14,7 @@ import (
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -57,6 +60,13 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		protected = handler.Group("/api")
 	} else {
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
+	}
+
+	// Register custom validators once
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		if err := v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore); err != nil {
+			l.Error("failed to register custom validation: " + err.Error())
+		}
 	}
 
 	// Routers
