@@ -9,7 +9,7 @@ require (
 	github.com/coreos/go-oidc/v3 v3.17.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.38.0
 	github.com/gin-contrib/cors v1.7.7
-	github.com/gin-contrib/pprof v1.5.3
+	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-fuego/fuego v0.19.0
 	github.com/go-xmlfmt/xmlfmt v1.1.3
