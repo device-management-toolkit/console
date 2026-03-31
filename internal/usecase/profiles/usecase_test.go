@@ -942,6 +942,78 @@ func TestBuildConfigurationObject(t *testing.T) {
 				},
 			},
 		},
+		{
+			name: "static IP mode sets SharedStaticIP to true",
+			profile: &entity.Profile{
+				ProfileName:   "test-profile-static",
+				Tags:          "static",
+				DHCPEnabled:   false,
+				IPSyncEnabled: true,
+				Activation:    "acmactivate",
+				AMTPassword:   "testAMTPassword",
+				MEBXPassword:  "testMEBXPassword",
+				TLSMode:       0,
+				KVMEnabled:    true,
+				SOLEnabled:    false,
+				IDEREnabled:   false,
+				UserConsent:   "All",
+			},
+			domain: &entity.Domain{
+				ProvisioningCert:         "testCert",
+				ProvisioningCertPassword: "testCertPwd",
+			},
+			wifi: []config.WirelessProfile{},
+			expected: config.Configuration{
+				Name: "test-profile-static",
+				Tags: []string{"static"},
+				Configuration: config.RemoteManagement{
+					GeneralSettings: config.GeneralSettings{
+						SharedFQDN:              false,
+						NetworkInterfaceEnabled: 0,
+						PingResponseEnabled:     false,
+					},
+					Network: config.Network{
+						Wired: config.Wired{
+							DHCPEnabled:    false,
+							IPSyncEnabled:  true,
+							SharedStaticIP: true,
+						},
+						Wireless: config.Wireless{
+							Profiles: []config.WirelessProfile{},
+						},
+					},
+					Redirection: config.Redirection{
+						Enabled: true,
+						Services: config.Services{
+							KVM:  true,
+							SOL:  false,
+							IDER: false,
+						},
+						UserConsent: "All",
+					},
+					TLS: config.TLS{
+						MutualAuthentication: false,
+						Enabled:              false,
+						AllowNonTLS:          false,
+					},
+					EnterpriseAssistant: config.EnterpriseAssistant{
+						URL:      "http://test.com:8080",
+						Username: "username",
+						Password: "password",
+					},
+					AMTSpecific: config.AMTSpecific{
+						ControlMode:         "acmactivate",
+						AdminPassword:       "testAMTPassword",
+						MEBXPassword:        "testMEBXPassword",
+						ProvisioningCert:    "testCert",
+						ProvisioningCertPwd: "testCertPwd",
+						CIRA: config.CIRA{
+							EnvironmentDetection: []string{},
+						},
+					},
+				},
+			},
+		},
 	}
 
 	for _, tc := range tests {
