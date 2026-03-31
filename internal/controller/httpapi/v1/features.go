@@ -34,20 +34,19 @@ func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 	}
 
 	v1Features := dto.GetFeaturesResponse{
-		Redirection:           features.Redirection,
-		KVM:                   features.EnableKVM,
-		SOL:                   features.EnableSOL,
-		IDER:                  features.EnableIDER,
-		OptInState:            features.OptInState,
-		UserConsent:           features.UserConsent,
-		KVMAvailable:          features.KVMAvailable,
-		OCR:                   features.OCR,
-		HTTPSBootSupported:    features.HTTPSBootSupported,
-		WinREBootSupported:    features.WinREBootSupported,
-		LocalPBABootSupported: features.LocalPBABootSupported,
-		RemoteEraseEnabled:    features.RemoteEraseEnabled,
-		RemoteEraseSupported:  features.RemoteEraseSupported,
-		PlatformEraseCaps:     features.PlatformEraseCaps,
+		Redirection:            features.Redirection,
+		KVM:                    features.EnableKVM,
+		SOL:                    features.EnableSOL,
+		IDER:                   features.EnableIDER,
+		OptInState:             features.OptInState,
+		UserConsent:            features.UserConsent,
+		KVMAvailable:           features.KVMAvailable,
+		OCR:                    features.OCR,
+		HTTPSBootSupported:     features.HTTPSBootSupported,
+		WinREBootSupported:     features.WinREBootSupported,
+		LocalPBABootSupported:  features.LocalPBABootSupported,
+		PlatformEraseEnabled:   features.PlatformEraseEnabled,
+		PlatformEraseSupported: features.PlatformEraseSupported,
 	}
 
 	c.JSON(http.StatusOK, v1Features)

@@ -316,7 +316,7 @@ func TestGetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				RemoteEraseEnabled:    false,
+				PlatformEraseEnabled:  false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -1216,7 +1216,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		RemoteEraseEnabled:    false,
+		PlatformEraseEnabled:  false,
 	}
 
 	featureSetDisabledOCRResult := dto.Features{
@@ -1229,7 +1229,7 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		RemoteEraseEnabled:    false,
+		PlatformEraseEnabled:  false,
 	}
 
 	featureSetV2DisabledOCR := dtov2.Features{
@@ -1243,16 +1243,16 @@ func TestSetFeatures(t *testing.T) {
 		HTTPSBootSupported:    true,
 		WinREBootSupported:    false,
 		LocalPBABootSupported: false,
-		RemoteEraseEnabled:    false,
+		PlatformEraseEnabled:  false,
 	}
 
 	featureSetWithRPE := dto.Features{
-		UserConsent:         "kvm",
-		EnableSOL:           true,
-		EnableIDER:          true,
-		EnableKVM:           true,
-		OCR:                 true,
-		EnablePlatformErase: true,
+		UserConsent:          "kvm",
+		EnableSOL:            true,
+		EnableIDER:           true,
+		EnableKVM:            true,
+		OCR:                  true,
+		PlatformEraseEnabled: true,
 	}
 
 	failGetByIDResult := dto.Features{}
@@ -1397,7 +1397,7 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				RemoteEraseEnabled:    false,
+				PlatformEraseEnabled:  false,
 			},
 			resV2: featureSetV2,
 			err:   nil,
@@ -1668,7 +1668,7 @@ func TestSetFeatures(t *testing.T) {
 				HTTPSBootSupported:    true,
 				WinREBootSupported:    false,
 				LocalPBABootSupported: false,
-				RemoteEraseEnabled:    false,
+				PlatformEraseEnabled:  false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:           "kvm",
@@ -2198,27 +2198,27 @@ func TestSetFeatures(t *testing.T) {
 					Return(device, nil)
 			},
 			res: dto.Features{
-				UserConsent:          "kvm",
-				EnableSOL:            true,
-				EnableIDER:           true,
-				EnableKVM:            true,
-				Redirection:          true,
-				OCR:                  false,
-				RemoteEraseEnabled:   true,
-				RemoteEraseSupported: true,
-				PlatformEraseCaps:    3,
+				UserConsent:            "kvm",
+				EnableSOL:              true,
+				EnableIDER:             true,
+				EnableKVM:              true,
+				Redirection:            true,
+				OCR:                    false,
+				PlatformEraseEnabled:   true,
+				PlatformEraseSupported: true,
+				PlatformEraseCaps:      3,
 			},
 			resV2: dtov2.Features{
-				UserConsent:          "kvm",
-				EnableSOL:            true,
-				EnableIDER:           true,
-				EnableKVM:            true,
-				Redirection:          true,
-				KVMAvailable:         true,
-				OCR:                  false,
-				RemoteEraseEnabled:   true,
-				RemoteEraseSupported: true,
-				PlatformEraseCaps:    3,
+				UserConsent:            "kvm",
+				EnableSOL:              true,
+				EnableIDER:             true,
+				EnableKVM:              true,
+				Redirection:            true,
+				KVMAvailable:           true,
+				OCR:                    false,
+				PlatformEraseEnabled:   true,
+				PlatformEraseSupported: true,
+				PlatformEraseCaps:      3,
 			},
 			err: nil,
 		},
