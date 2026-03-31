@@ -96,10 +96,10 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
-	settingsResults.RemoteErase = settingsResultsV2.RemoteErase
-	settingsResults.RemoteEraseSupported = settingsResultsV2.RemoteErase
+	settingsResults.RemoteErase = settingsResultsV2.PlatformEraseEnabled
+	settingsResults.RemoteEraseSupported = settingsResultsV2.PlatformEraseSupported
 
-	uc.log.Debug("GetFeatures: RemoteErase (PlatformErase) support", "guid", guid, "RemoteErase", settingsResultsV2.RemoteErase)
+	uc.log.Debug("GetFeatures: RemoteErase (PlatformErase) support", "guid", guid, "RemoteErase", settingsResultsV2.PlatformEraseSupported)
 
 	return settingsResults, settingsResultsV2, nil
 }
@@ -182,7 +182,7 @@ func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman
 	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
 	settingsResultsV2.WinREBootSupported = isWinREBootSupported
 	settingsResultsV2.LocalPBABootSupported = isLocalPBABootSupported
-	settingsResultsV2.RemoteErase = ocrData.capabilities.PlatformErase != 0
+	settingsResultsV2.PlatformEraseSupported = ocrData.capabilities.PlatformErase != 0
 
 	return nil
 }
@@ -244,7 +244,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 		return settingsResults, settingsResultsV2, err
 	}
 
-	settingsResults.RemoteErase = settingsResultsV2.RemoteErase
+	settingsResults.RemoteErase = settingsResultsV2.PlatformEraseEnabled
 
 	if err = setOCRFeatures(features.OCR, &settingsResultsV2, device); err != nil {
 		return settingsResults, settingsResultsV2, err
@@ -254,12 +254,13 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
-	settingsResults.RemoteErase = settingsResultsV2.RemoteErase
+	settingsResults.RemoteErase = settingsResultsV2.PlatformEraseEnabled
+	settingsResults.RemoteEraseSupported = settingsResultsV2.PlatformEraseSupported
 
 	return settingsResults, settingsResultsV2, nil
 }
 
-func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device wsmanAPI.Management) error {
+func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
 	bootCapabilities, err := device.GetBootCapabilities()
 	if err != nil {
 		return err
@@ -271,12 +272,13 @@ func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device ws
 		}
 	}
 
-	settingsResultsV2.RemoteErase = bootCapabilities.PlatformErase != 0
+	settingsResultsV2.PlatformEraseEnabled = enableRemoteErase
+	settingsResultsV2.PlatformEraseSupported = bootCapabilities.PlatformErase != 0
 
 	return nil
 }
 
-func setOCRFeatures(enableOCR bool, settingsResultsV2 *dtov2.Features, device wsmanAPI.Management) error {
+func setOCRFeatures(enableOCR bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
 	requestedState := enabledStateDisabled
 	if enableOCR {
 		requestedState = enabledStateEnabled
