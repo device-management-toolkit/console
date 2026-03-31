@@ -24,6 +24,7 @@ type Features struct {
 	WinREBootSupported    bool   `json:"winREBootSupported" example:"true"`
 	LocalPBABootSupported bool   `json:"localPBABootSupported" example:"true"`
 	RemoteErase           bool   `json:"remoteErase" example:"true"`
+	RemoteEraseSupported  bool   `json:"remoteEraseSupported" example:"true"`
 }
 
 type FeaturesRequest struct {

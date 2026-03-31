@@ -46,6 +46,7 @@ type Management interface {
 	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
 	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
+	GetBootCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
 	CancelUserConsentRequest() (optin.Response, error)
 	GetUserConsentCode() (optin.Response, error)
@@ -72,4 +73,6 @@ type Management interface {
 	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
 	DeleteCertificate(instanceID string) error
 	SetLinkPreference(linkPreference, timeout uint32) (int, error)
+	SetRPEEnabled(enabled bool) error
+	SendRemoteErase(eraseMask int) error
 }

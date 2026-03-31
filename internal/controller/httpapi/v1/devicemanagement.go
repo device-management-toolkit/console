@@ -30,6 +30,9 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("alarmOccurrences/:guid", r.createAlarmOccurrences)
 		h.DELETE("alarmOccurrences/:guid", r.deleteAlarmOccurrences)
 
+		h.GET("boot/capabilities/:guid", r.getBootCapabilities)
+		h.POST("boot/rpe/:guid", r.setRPEEnabled)
+		h.POST("remoteErase/:guid", r.sendRemoteErase)
 		h.GET("hardwareInfo/:guid", r.getHardwareInfo)
 		h.GET("diskInfo/:guid", r.getDiskInfo)
 		h.GET("power/state/:guid", r.getPowerState)
