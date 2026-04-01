@@ -266,6 +266,56 @@ Console automatically generates OpenAPI documentation when running in debug mode
   - Windows: `docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
   - Unix: `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
 
+## Fuzz Testing
+
+Console includes Go fuzz tests across multiple packages and targets. For full coverage details, seed corpus strategy, and CI guidance, see [FUZZ_TEST.md](FUZZ_TEST.md).
+
+### Prerequisite
+
+The Makefile includes `.env`, so ensure it exists before running make commands:
+
+```sh
+cp .env.example .env
+```
+
+### List all fuzz targets
+
+```sh
+make fuzz-list
+```
+
+Output format:
+
+```text
+./internal/usecase/devices FuzzParseInterval
+./internal/entity/dto/v1 FuzzDeviceJSONProcessing
+...
+```
+
+### Run a single fuzz target (recommended local workflow)
+
+Go fuzzing runs one fuzz target at a time. Use `fuzz-one` for focused debugging and development:
+
+```sh
+make fuzz-one PKG=./internal/usecase/devices TARGET=FuzzParseInterval FUZZTIME=30s
+```
+
+### Run a quick all-target smoke pass
+
+Runs each fuzz target once (`-fuzztime=1x`):
+
+```sh
+make fuzz-smoke
+```
+
+### Run all fuzz targets with time budget per target
+
+```sh
+make fuzz-all FUZZTIME=2m
+```
+
+This executes all discovered fuzz targets sequentially and is suitable for scheduled CI jobs.
+
 
 ## Additional Resources
 
