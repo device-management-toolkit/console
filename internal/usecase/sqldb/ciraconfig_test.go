@@ -358,8 +358,8 @@ func TestCIRARepo_Update(t *testing.T) {
 		{
 			name: "Successful update",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-					"config1", "tenant1", "old_address", 443, "old_user", "old_pass", "old_name", "ipv4", "digest", "old_cert", "old_proxy")
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO ciraconfigs (cira_config_name, tenant_id, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, generate_random_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"config1", "tenant1", "old_address", 443, "old_user", "old_pass", "old_name", "ipv4", "digest", "old_cert", "old_proxy", false)
 				require.NoError(t, err)
 			},
 			config: &entity.CIRAConfig{

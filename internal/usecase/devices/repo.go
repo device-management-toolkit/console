@@ -7,6 +7,7 @@ import (
 
 	"github.com/google/uuid"
 
+	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -65,7 +66,7 @@ func (uc *UseCase) GetByColumn(ctx context.Context, columnName, queryValue, tena
 }
 
 func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
-	data, err := uc.repo.GetByID(ctx, guid, tenantID)
+	data, err := uc.repo.GetByID(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
 	}
@@ -75,14 +76,39 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 	}
 
 	d2 := uc.entityToDTO(data)
+
 	if includeSecrets {
-		d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
-		if err != nil {
-			return nil, ErrDeviceUseCase.Wrap("GetByID", "uc.safeRequirements.Decrypt", err)
+		if err := uc.decryptSecrets(d2, data); err != nil {
+			return nil, err
 		}
 	}
 
 	return d2, nil
+}
+
+func (uc *UseCase) decryptSecrets(d2 *dto.Device, data *entity.Device) error {
+	var err error
+
+	d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
+	if err != nil {
+		return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt Password", err)
+	}
+
+	if data.MPSPassword != nil {
+		d2.MPSPassword, err = uc.safeRequirements.Decrypt(*data.MPSPassword)
+		if err != nil {
+			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MPSPassword", err)
+		}
+	}
+
+	if data.MEBXPassword != nil {
+		d2.MEBXPassword, err = uc.safeRequirements.Decrypt(*data.MEBXPassword)
+		if err != nil {
+			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MEBXPassword", err)
+		}
+	}
+
+	return nil
 }
 
 func (uc *UseCase) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
@@ -121,8 +147,26 @@ func (uc *UseCase) GetByTags(ctx context.Context, tags, method string, limit, of
 	return d1, nil
 }
 
+func (uc *UseCase) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	err := uc.repo.UpdateConnectionStatus(ctx, strings.ToLower(guid), status)
+	if err != nil {
+		return ErrDatabase.Wrap("UpdateConnectionStatus", "uc.repo.UpdateConnectionStatus", err)
+	}
+
+	return nil
+}
+
+func (uc *UseCase) UpdateLastSeen(ctx context.Context, guid string) error {
+	err := uc.repo.UpdateLastSeen(ctx, strings.ToLower(guid))
+	if err != nil {
+		return ErrDatabase.Wrap("UpdateLastSeen", "uc.repo.UpdateLastSeen", err)
+	}
+
+	return nil
+}
+
 func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
-	isSuccessful, err := uc.repo.Delete(ctx, guid, tenantID)
+	isSuccessful, err := uc.repo.Delete(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
 		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
 	}
@@ -135,7 +179,10 @@ func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 }
 
 func (uc *UseCase) Update(ctx context.Context, d *dto.Device) (*dto.Device, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	updated, err := uc.repo.Update(ctx, d1)
 	if err != nil {
@@ -160,13 +207,16 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device) (*dto.Device, erro
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	if d1.GUID == "" {
 		d1.GUID = uuid.New().String()
 	}
 
-	_, err := uc.repo.Insert(ctx, d1)
+	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}

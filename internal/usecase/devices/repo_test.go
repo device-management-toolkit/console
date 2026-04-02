@@ -14,6 +14,10 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+func ptr(s string) *string {
+	return &s
+}
+
 type testUsecase struct {
 	name     string
 	guid     string
@@ -288,10 +292,12 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-		Password: "encrypted",
-		Tags:     "hello,test",
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  nil,
+		MEBXPassword: nil,
+		Tags:         "hello,test",
 	}
 
 	deviceDTO := &dto.Device{
@@ -363,9 +369,11 @@ func TestInsert(t *testing.T) {
 			name: "successful insertion",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:     "device-guid-123",
-					Password: "encrypted",
-					TenantID: "tenant-id-456",
+					GUID:         "device-guid-123",
+					Password:     "encrypted",
+					MPSPassword:  nil,
+					MEBXPassword: nil,
+					TenantID:     "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -382,9 +390,11 @@ func TestInsert(t *testing.T) {
 			name: "insertion fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:     "device-guid-123",
-					Password: "encrypted",
-					TenantID: "tenant-id-456",
+					GUID:         "device-guid-123",
+					Password:     "encrypted",
+					MPSPassword:  nil,
+					MEBXPassword: nil,
+					TenantID:     "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -422,6 +432,428 @@ func TestInsert(t *testing.T) {
 				require.Equal(t, deviceDTO.TenantID, insertedDevice.TenantID)
 				require.NotEmpty(t, deviceDTO.GUID)
 			}
+		})
+	}
+}
+
+func TestUpdateWithPasswords(t *testing.T) {
+	t.Parallel()
+
+	// Entity with encrypted passwords (what gets stored in DB)
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+		Tags:         "hello,test",
+	}
+
+	// DTO with plaintext passwords (what comes from API)
+	deviceDTOWithPasswords := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         []string{"hello", "test"},
+		MPSPassword:  "mpspass",
+		MEBXPassword: "mebxpass",
+	}
+
+	// Expected DTO result (passwords not returned without includeSecrets)
+	expectedDTO := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         []string{"hello", "test"},
+		MPSPassword:  "encrypted",
+		MEBXPassword: "encrypted",
+	}
+
+	t.Run("successful update with passwords", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+
+		repo.EXPECT().
+			Update(context.Background(), deviceWithPasswords).
+			Return(true, nil)
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil)
+		management.EXPECT().
+			DestroyWsmanClient(*expectedDTO)
+
+		result, err := useCase.Update(context.Background(), deviceDTOWithPasswords)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTO, result)
+	})
+}
+
+func TestInsertWithPasswords(t *testing.T) {
+	t.Parallel()
+
+	t.Run("successful insertion with passwords", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		// Entity with encrypted passwords
+		deviceWithPasswords := &entity.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Password:     "encrypted",
+			MPSPassword:  ptr("encrypted"),
+			MEBXPassword: ptr("encrypted"),
+		}
+
+		repo.EXPECT().
+			Insert(context.Background(), deviceWithPasswords).
+			Return("unique-device-id", nil)
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil)
+
+		// DTO with plaintext passwords
+		deviceDTO := &dto.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Tags:         []string{""},
+			MPSPassword:  "mpspass",
+			MEBXPassword: "mebxpass",
+		}
+
+		insertedDevice, err := useCase.Insert(context.Background(), deviceDTO)
+
+		require.NoError(t, err)
+		require.Equal(t, deviceDTO.TenantID, insertedDevice.TenantID)
+		require.Equal(t, "encrypted", insertedDevice.MPSPassword)
+		require.Equal(t, "encrypted", insertedDevice.MEBXPassword)
+	})
+}
+
+func TestGetByIDWithSecrets(t *testing.T) {
+	t.Parallel()
+
+	// Entity with encrypted passwords from DB
+	deviceWithPasswords := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+	}
+
+	// Expected DTO with decrypted passwords
+	expectedDTO := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         nil,
+		Password:     "decrypted",
+		MPSPassword:  "decrypted",
+		MEBXPassword: "decrypted",
+	}
+
+	t.Run("successful retrieval with secrets", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil)
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTO, got)
+	})
+
+	t.Run("retrieval with secrets - nil passwords", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		// Entity with nil passwords
+		deviceNilPasswords := &entity.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Password:     "encrypted",
+			MPSPassword:  nil,
+			MEBXPassword: nil,
+		}
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceNilPasswords, nil)
+
+		// Expected DTO - passwords should be empty strings when nil
+		expectedDTONilPasswords := &dto.Device{
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Tags:         nil,
+			Password:     "decrypted",
+			MPSPassword:  "",
+			MEBXPassword: "",
+		}
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTONilPasswords, got)
+	})
+}
+
+func TestGetByID_UUIDNormalization(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		TenantID: "tenant-id-456",
+	}
+
+	tests := []struct {
+		name       string
+		inputGUID  string
+		expectGUID string
+	}{
+		{
+			name:       "uppercase UUID is normalized to lowercase",
+			inputGUID:  "AAF0C395-C2A2-992E-5655-48210B50D8C9",
+			expectGUID: "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		},
+		{
+			name:       "lowercase UUID stays lowercase",
+			inputGUID:  "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			expectGUID: "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			// Expect the normalized (lowercase) GUID to be passed to the repository
+			repo.EXPECT().
+				GetByID(context.Background(), tc.expectGUID, "tenant-id-456").
+				Return(device, nil)
+
+			got, err := useCase.GetByID(context.Background(), tc.inputGUID, "tenant-id-456", false)
+
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			require.Equal(t, tc.expectGUID, got.GUID)
+		})
+	}
+}
+
+// TestDelete_UUIDNormalization tests that UUID is normalized for delete operations.
+func TestDelete_UUIDNormalization(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		inputGUID  string
+		expectGUID string
+	}{
+		{
+			name:       "uppercase UUID is normalized to lowercase",
+			inputGUID:  "AAF0C395-C2A2-992E-5655-48210B50D8C9",
+			expectGUID: "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			// Expect the normalized (lowercase) GUID to be passed to the repository
+			repo.EXPECT().
+				Delete(context.Background(), tc.expectGUID, "tenant-id-456").
+				Return(true, nil)
+
+			err := useCase.Delete(context.Background(), tc.inputGUID, "tenant-id-456")
+
+			require.NoError(t, err)
+		})
+	}
+}
+
+// TestUpdate_UUIDNormalization tests that UUID is normalized for update operations.
+func TestUpdate_UUIDNormalization(t *testing.T) {
+	t.Parallel()
+
+	t.Run("uppercase UUID is normalized to lowercase", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+
+		// Input DTO with uppercase GUID
+		inputDTO := &dto.Device{
+			GUID:     "AAF0C395-C2A2-992E-5655-48210B50D8C9",
+			TenantID: "tenant-id-456",
+			Tags:     []string{},
+		}
+
+		// Expected entity with lowercase GUID (after normalization)
+		expectedEntity := &entity.Device{
+			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID: "tenant-id-456",
+			Password: "encrypted",
+		}
+
+		// Expected DTO result
+		expectedDTO := &dto.Device{
+			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID: "tenant-id-456",
+			Tags:     nil,
+		}
+
+		repo.EXPECT().
+			Update(context.Background(), expectedEntity).
+			Return(true, nil)
+		repo.EXPECT().
+			GetByID(context.Background(), "aaf0c395-c2a2-992e-5655-48210b50d8c9", "tenant-id-456").
+			Return(expectedEntity, nil)
+		management.EXPECT().
+			DestroyWsmanClient(*expectedDTO)
+
+		result, err := useCase.Update(context.Background(), inputDTO)
+
+		require.NoError(t, err)
+		require.Equal(t, "aaf0c395-c2a2-992e-5655-48210b50d8c9", result.GUID)
+	})
+}
+
+func TestUpdateConnectionStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		guid   string
+		status bool
+		mock   func(*mocks.MockDeviceManagementRepository)
+		err    error
+	}{
+		{
+			name:   "successful connection status update - connected",
+			guid:   "device-guid-123",
+			status: true,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", true).
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name:   "successful connection status update - disconnected",
+			guid:   "device-guid-123",
+			status: false,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", false).
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name:   "mixed-case GUID is normalized to lowercase",
+			guid:   "DEVICE-GUID-123",
+			status: true,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", true).
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name:   "database error",
+			guid:   "device-guid-123",
+			status: true,
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateConnectionStatus(context.Background(), "device-guid-123", true).
+					Return(devices.ErrDatabase)
+			},
+			err: devices.ErrDatabase,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			tc.mock(repo)
+
+			err := useCase.UpdateConnectionStatus(context.Background(), tc.guid, tc.status)
+
+			require.IsType(t, tc.err, err)
+		})
+	}
+}
+
+func TestUpdateLastSeen(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		guid string
+		mock func(*mocks.MockDeviceManagementRepository)
+		err  error
+	}{
+		{
+			name: "successful update",
+			guid: "device-guid-123",
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateLastSeen(context.Background(), "device-guid-123").
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name: "mixed-case GUID is normalized to lowercase",
+			guid: "DEVICE-GUID-123",
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateLastSeen(context.Background(), "device-guid-123").
+					Return(nil)
+			},
+			err: nil,
+		},
+		{
+			name: "database error",
+			guid: "device-guid-123",
+			mock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					UpdateLastSeen(context.Background(), "device-guid-123").
+					Return(devices.ErrDatabase)
+			},
+			err: devices.ErrDatabase,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			tc.mock(repo)
+
+			err := useCase.UpdateLastSeen(context.Background(), tc.guid)
+
+			require.IsType(t, tc.err, err)
 		})
 	}
 }

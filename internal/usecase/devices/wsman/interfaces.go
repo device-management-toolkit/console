@@ -23,8 +23,6 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/screensetting"
-
-	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 type Management interface {
@@ -42,16 +40,16 @@ type Management interface {
 	GetAlarmOccurrences() ([]ipsAlarmClock.AlarmClockOccurrence, error)
 	CreateAlarmOccurrences(name string, startTime time.Time, interval int, deleteOnCompletion bool) (alarmclock.AddAlarmOutput, error)
 	DeleteAlarmOccurrences(instanceID string) error
-	GetHardwareInfo() (interface{}, error)
+	GetHardwareInfo() (HWResults, error)
 	GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error)
 	GetOSPowerSavingState() (ipspower.OSPowerSavingState, error)
 	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
 	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
-	CancelUserConsentRequest() (dto.UserConsentMessage, error)
-	GetUserConsentCode() (optin.StartOptIn_OUTPUT, error)
-	SendConsentCode(code int) (dto.UserConsentMessage, error)
+	CancelUserConsentRequest() (optin.Response, error)
+	GetUserConsentCode() (optin.Response, error)
+	SendConsentCode(code int) (optin.Response, error)
 	SendPowerAction(action int) (power.PowerActionResponse, error)
 	GetBootData() (boot.BootSettingDataResponse, error)
 	SetBootData(data boot.BootSettingDataRequest) (interface{}, error)
@@ -65,11 +63,13 @@ type Management interface {
 	GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	GetCredentialRelationships() (credential.Items, error)
 	GetConcreteDependencies() ([]concrete.ConcreteDependency, error)
-	GetDiskInfo() (interface{}, error)
+	GetDiskInfo() (DiskResults, error)
 	GetDeviceCertificate() (*gotls.Certificate, error)
 	GetCIMBootSourceSetting() (cimBoot.Response, error)
 	BootServiceStateChange(requestedState int) (cimBoot.BootService, error)
 	GetIPSScreenSettingData() (screensetting.Response, error)
 	GetIPSKVMRedirectionSettingData() (kvmredirection.Response, error)
 	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
+	DeleteCertificate(instanceID string) error
+	SetLinkPreference(linkPreference, timeout uint32) (int, error)
 }

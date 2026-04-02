@@ -2,6 +2,10 @@ package dto
 
 import "github.com/go-playground/validator/v10"
 
+type IEEE8021xConfigCountResponse struct {
+	Count int               `json:"totalCount"`
+	Data  []IEEE8021xConfig `json:"data"`
+}
 type IEEE8021xConfig struct {
 	ProfileName            string `json:"profileName" binding:"required,max=32,alphanum" example:"My Profile"`
 	AuthenticationProtocol int    `json:"authenticationProtocol" binding:"authProtocolValidator" example:"1"`

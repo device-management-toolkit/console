@@ -47,17 +47,31 @@ func TestCancelUserConsent(t *testing.T) {
 		TenantID: "tenant-id-456",
 	}
 
+	wsmanCancelResponse := optin.Response{
+		Body: optin.Body{
+			CancelOptInResponse: optin.CancelOptIn_OUTPUT{
+				XMLName:     xml.Name{Local: "CancelOptIn_OUTPUT"},
+				ReturnValue: 0,
+			},
+		},
+	}
+
+	expectedCancelResponse := dto.UserConsentMessage{
+		Header: dto.UserConsentHeader{},
+		Body:   dto.UserConsentBody{ReturnValue: 0},
+	}
+
 	tests := []test{
 		{
 			name:   "success",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					CancelUserConsentRequest().
-					Return(dto.UserConsentMessage{}, nil)
+					Return(wsmanCancelResponse, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -65,7 +79,7 @@ func TestCancelUserConsent(t *testing.T) {
 					Return(device, nil)
 			},
 
-			res: dto.UserConsentMessage{},
+			res: expectedCancelResponse,
 
 			err: nil,
 		},
@@ -88,11 +102,11 @@ func TestCancelUserConsent(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					CancelUserConsentRequest().
-					Return(dto.UserConsentMessage{}, ErrGeneral)
+					Return(optin.Response{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -133,17 +147,28 @@ func TestGetUserConsentCode(t *testing.T) {
 		TenantID: "tenant-id-456",
 	}
 
-	code := optin.StartOptIn_OUTPUT{
-		XMLName: xml.Name{
-			Local: "StartOptIn_OUTPUT",
+	wsmanResponse := optin.Response{
+		Body: optin.Body{
+			StartOptInResponse: optin.StartOptIn_OUTPUT{
+				XMLName: xml.Name{
+					Local: "StartOptIn_OUTPUT",
+				},
+				ReturnValue: 0,
+			},
 		},
-		ReturnValue: 10,
 	}
 
-	response := dto.GetUserConsentMessage{
-		Body: dto.UserConsentMessage{
-			Name:        code.XMLName,
-			ReturnValue: code.ReturnValue,
+	expectedResponse := dto.UserConsentMessage{
+		Header: dto.UserConsentHeader{
+			Action:      "",
+			MessageID:   "",
+			Method:      "",
+			RelatesTo:   "",
+			ResourceURI: "",
+			To:          "",
+		},
+		Body: dto.UserConsentBody{
+			ReturnValue: 0,
 		},
 	}
 
@@ -153,18 +178,18 @@ func TestGetUserConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetUserConsentCode().
-					Return(code, nil)
+					Return(wsmanResponse, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: response,
+			res: expectedResponse,
 			err: nil,
 		},
 
@@ -177,7 +202,7 @@ func TestGetUserConsentCode(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: dto.GetUserConsentMessage{},
+			res: dto.UserConsentMessage{},
 			err: devices.ErrGeneral,
 		},
 
@@ -186,11 +211,11 @@ func TestGetUserConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetUserConsentCode().
-					Return(code, ErrGeneral)
+					Return(optin.Response{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -198,7 +223,7 @@ func TestGetUserConsentCode(t *testing.T) {
 					Return(device, nil)
 			},
 
-			res: dto.GetUserConsentMessage{},
+			res: dto.UserConsentMessage{},
 
 			err: ErrGeneral,
 		},
@@ -237,17 +262,31 @@ func TestSendConsentCode(t *testing.T) {
 		ConsentCode: "123456",
 	}
 
+	wsmanSendResponse := optin.Response{
+		Body: optin.Body{
+			SendOptInCodeResponse: optin.SendOptInCode_OUTPUT{
+				XMLName:     xml.Name{Local: "SendOptInCode_OUTPUT"},
+				ReturnValue: 0,
+			},
+		},
+	}
+
+	expectedSendResponse := dto.UserConsentMessage{
+		Header: dto.UserConsentHeader{},
+		Body:   dto.UserConsentBody{ReturnValue: 0},
+	}
+
 	tests := []test{
 		{
 			name:   "success",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					SendConsentCode(123456).
-					Return(dto.UserConsentMessage{}, nil)
+					Return(wsmanSendResponse, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -255,7 +294,7 @@ func TestSendConsentCode(t *testing.T) {
 					Return(device, nil)
 			},
 
-			res: dto.UserConsentMessage{},
+			res: expectedSendResponse,
 
 			err: nil,
 		},
@@ -276,11 +315,11 @@ func TestSendConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					SendConsentCode(123456).
-					Return(dto.UserConsentMessage{}, ErrGeneral)
+					Return(optin.Response{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().

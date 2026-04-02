@@ -24,14 +24,35 @@ compose-down: ### Down docker compose
 	docker compose down --remove-orphans
 .PHONY: compose-down
 
-swag-v1: ### swag init
-	swag init -g internal/controller/http/v1/router.go
-.PHONY: swag-v1
-
 run: ### run app
 	go mod tidy && go mod download && \
-	DISABLE_SWAGGER_HTTP_HANDLER='' GIN_MODE=debug CGO_ENABLED=0 go run ./cmd/app
+	GIN_MODE=debug CGO_ENABLED=0 go run ./cmd/app
 .PHONY: run
+
+run-noui: ### run app without UI
+	go mod tidy && go mod download && \
+	GIN_MODE=debug CGO_ENABLED=0 go run -tags=noui ./cmd/app
+.PHONY: run-noui
+
+build: ### build app
+	CGO_ENABLED=0 go build -o ./bin/console ./cmd/app
+.PHONY: build
+
+build-noui: ### build app without UI
+	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
+.PHONY: build-noui
+
+build-all-platforms: ### cross-compile for all platforms (Linux, Windows, macOS)
+	@echo "Building for all platforms using cross-compilation (CGO_ENABLED=0)..."
+	@mkdir -p dist/linux dist/windows dist/darwin
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
+	@echo "All platform binaries built successfully!"
+.PHONY: build-all-platforms
 
 docker-rm-volume: ### remove docker volume
 	docker volume rm go-clean-template_pg-data

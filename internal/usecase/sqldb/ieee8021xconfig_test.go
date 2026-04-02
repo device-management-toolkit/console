@@ -67,6 +67,7 @@ func TestIEEE8021xRepo_CheckProfileExists(t *testing.T) {
 				require.NoError(t, err)
 
 				var count int
+
 				err = dbConn.QueryRowContext(context.Background(), `SELECT COUNT(*) FROM ieee8021xconfigs WHERE profile_name = ? AND tenant_id = ?`, "profile1", "tenant1").Scan(&count)
 				require.NoError(t, err)
 				require.Equal(t, 1, count)

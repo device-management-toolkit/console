@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"net"
 	"os"
 	"path/filepath"
 	"time"
@@ -13,15 +14,19 @@ import (
 
 var ConsoleConfig *Config
 
+const defaultHost = "localhost"
+
 type (
 	// Config -.
 	Config struct {
-		App  `yaml:"app"`
-		HTTP `yaml:"http"`
-		Log  `yaml:"logger"`
-		DB   `yaml:"postgres"`
-		EA   `yaml:"ea"`
-		Auth `yaml:"auth"`
+		App     `yaml:"app"`
+		HTTP    `yaml:"http"`
+		Log     `yaml:"logger"`
+		Secrets `yaml:"secrets"`
+		DB      `yaml:"postgres"`
+		EA      `yaml:"ea"`
+		Auth    `yaml:"auth"`
+		UI      `yaml:"ui"`
 	}
 
 	// App -.
@@ -29,8 +34,10 @@ type (
 		Name                 string `env-required:"true" yaml:"name" env:"APP_NAME"`
 		Repo                 string `env-required:"true" yaml:"repo" env:"APP_REPO"`
 		Version              string `env-required:"true"`
+		CommonName           string `env-required:"true" yaml:"common_name" env:"APP_COMMON_NAME"`
 		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
+		DisableCIRA          bool   `yaml:"disable_cira" env:"APP_DISABLE_CIRA"`
 	}
 
 	// HTTP -.
@@ -40,11 +47,26 @@ type (
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
 		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
+		TLS            TLS      `yaml:"tls"`
+	}
+
+	// TLS -.
+	TLS struct {
+		Enabled  bool   `yaml:"enabled" env:"HTTP_TLS_ENABLED"`
+		CertFile string `yaml:"certFile" env:"HTTP_TLS_CERT_FILE"`
+		KeyFile  string `yaml:"keyFile" env:"HTTP_TLS_KEY_FILE"`
 	}
 
 	// Log -.
 	Log struct {
 		Level string `env-required:"true" yaml:"log_level"   env:"LOG_LEVEL"`
+	}
+
+	// Secrets -.
+	Secrets struct {
+		Address string `yaml:"address" env:"SECRETS_ADDR"`
+		Token   string `yaml:"token" env:"SECRETS_TOKEN"`
+		Path    string `yaml:"path" env:"SECRETS_PATH"`
 	}
 
 	// DB -.
@@ -83,18 +105,46 @@ type (
 		RequireHTTPS                      bool   `yaml:"requireHttps"`
 		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation"`
 	}
+
+	// UI -.
+	UI struct {
+		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
+	}
 )
 
-// NewConfig returns app config.
-func NewConfig() (*Config, error) {
-	// set defaults
-	ConsoleConfig = &Config{
+// getPreferredIPAddress detects the most likely candidate IP address for this machine.
+// It prefers non-loopback IPv4 addresses and excludes link-local addresses.
+func getPreferredIPAddress() string {
+	addrs, err := net.InterfaceAddrs()
+	if err != nil {
+		return defaultHost
+	}
+
+	for _, addr := range addrs {
+		if ipNet, ok := addr.(*net.IPNet); ok && !ipNet.IP.IsLoopback() {
+			if ipNet.IP.To4() != nil {
+				// Exclude link-local addresses (169.254.x.x)
+				if !ipNet.IP.IsLinkLocalUnicast() {
+					return ipNet.IP.String()
+				}
+			}
+		}
+	}
+
+	return defaultHost
+}
+
+// defaultConfig constructs the in-memory default configuration.
+func defaultConfig() *Config {
+	return &Config{
 		App: App{
 			Name:                 "console",
 			Repo:                 "device-management-toolkit/console",
 			Version:              "DEVELOPMENT",
+			CommonName:           getPreferredIPAddress(),
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,
+			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
 			Host:           "localhost",
@@ -102,9 +152,19 @@ func NewConfig() (*Config, error) {
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},
 			WSCompression:  true,
+			TLS: TLS{
+				Enabled:  true,
+				CertFile: "",
+				KeyFile:  "",
+			},
 		},
 		Log: Log{
 			Level: "info",
+		},
+		Secrets: Secrets{
+			Address: "http://localhost:8200",
+			Token:   "",
+			Path:    "secret/data/console",
 		},
 		DB: DB{
 			PoolMax: 2,
@@ -134,7 +194,66 @@ func NewConfig() (*Config, error) {
 				StrictDiscoveryDocumentValidation: true,
 			},
 		},
+		UI: UI{
+			ExternalURL: "",
+		},
 	}
+}
+
+// resolveConfigPath determines the effective config file path based on a flag value or default location.
+func resolveConfigPath(configPathFlag string) (string, error) {
+	if configPathFlag != "" {
+		return configPathFlag, nil
+	}
+
+	ex, err := os.Executable()
+	if err != nil {
+		return "", err
+	}
+
+	exPath := filepath.Dir(ex)
+
+	return filepath.Join(exPath, "config", "config.yml"), nil
+}
+
+// readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
+func readOrInitConfig(configPath string, cfg *Config) error {
+	err := cleanenv.ReadConfig(configPath, cfg)
+	if err == nil {
+		return nil
+	}
+
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) {
+		// Write config file out to disk
+		configDir := filepath.Dir(configPath)
+		if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+			return mkErr
+		}
+
+		file, cErr := os.Create(configPath)
+		if cErr != nil {
+			return cErr
+		}
+		defer file.Close()
+
+		encoder := yaml.NewEncoder(file)
+		defer encoder.Close()
+
+		if encErr := encoder.Encode(cfg); encErr != nil {
+			return encErr
+		}
+
+		return nil
+	}
+
+	return err
+}
+
+// NewConfig returns app config.
+func NewConfig() (*Config, error) {
+	// set defaults
+	ConsoleConfig = defaultConfig()
 
 	// Define a command line flag for the config path
 	var configPathFlag string
@@ -142,50 +261,21 @@ func NewConfig() (*Config, error) {
 		flag.StringVar(&configPathFlag, "config", "", "path to config file")
 	}
 
-	flag.Parse()
+	if !flag.Parsed() {
+		flag.Parse()
+	}
 
 	// Determine the config path
-	var configPath string
-	if configPathFlag != "" {
-		configPath = configPathFlag
-	} else {
-		ex, err := os.Executable()
-		if err != nil {
-			panic(err)
-		}
-
-		exPath := filepath.Dir(ex)
-
-		configPath = filepath.Join(exPath, "config", "config.yml")
-	}
-
-	err := cleanenv.ReadConfig(configPath, ConsoleConfig)
-
-	var pathErr *os.PathError
-
-	if errors.As(err, &pathErr) {
-		// Write config file out to disk
-		configDir := filepath.Dir(configPath)
-		if err := os.MkdirAll(configDir, os.ModePerm); err != nil {
-			return nil, err
-		}
-
-		file, err := os.Create(configPath)
-		if err != nil {
-			return nil, err
-		}
-		defer file.Close()
-
-		encoder := yaml.NewEncoder(file)
-		defer encoder.Close()
-
-		if err := encoder.Encode(ConsoleConfig); err != nil {
-			return nil, err
-		}
-	}
-
-	err = cleanenv.ReadEnv(ConsoleConfig)
+	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
+		return nil, err
+	}
+
+	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
 		return nil, err
 	}
 

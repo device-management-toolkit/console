@@ -1,6 +1,7 @@
 package devices_test
 
 import (
+	"net"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -12,6 +13,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 func initRedirectionTest(t *testing.T) (*devices.Redirector, *mocks.MockRedirection, *mocks.MockDeviceManagementRepository) {
@@ -28,9 +30,9 @@ func initRedirectionTest(t *testing.T) (*devices.Redirector, *mocks.MockRedirect
 }
 
 type redTest struct {
-	name    string
-	redMock func(*mocks.MockRedirection)
-	res     any
+	name string
+	res  any
+	err  error
 }
 
 func TestSetupWsmanClient(t *testing.T) {
@@ -44,21 +46,8 @@ func TestSetupWsmanClient(t *testing.T) {
 	tests := []redTest{
 		{
 			name: "success",
-			redMock: func(redirect *mocks.MockRedirection) {
-				redirect.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(wsman.Messages{})
-			},
-			res: wsman.Messages{},
-		},
-		{
-			name: "fail",
-			redMock: func(redirect *mocks.MockRedirection) {
-				redirect.EXPECT().
-					SetupWsmanClient(gomock.Any(), true, true).
-					Return(wsman.Messages{})
-			},
-			res: wsman.Messages{},
+			res:  wsman.Messages{},
+			err:  nil,
 		},
 	}
 
@@ -67,19 +56,97 @@ func TestSetupWsmanClient(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			redirector, redirect, _ := initRedirectionTest(t)
+			redirector, _, _ := initRedirectionTest(t)
 
-			tc.redMock(redirect)
+			redirector.SafeRequirements = mocks.MockCrypto{}
 
-			redirector.SafeRequirements = security.Crypto{
-				EncryptionKey: "test",
-			}
-
-			res := redirector.SetupWsmanClient(*device, true, true)
+			res, err := redirector.SetupWsmanClient(*device, true, true)
 
 			require.IsType(t, tc.res, res)
+			require.Equal(t, tc.err, err)
 		})
 	}
+}
+
+func TestSetupWsmanClient_CIRARedirection(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns error when CIRA device not connected", func(t *testing.T) {
+		t.Parallel()
+
+		device := entity.Device{
+			GUID:        "cira-device-not-connected",
+			MPSUsername: "admin",
+		}
+
+		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
+
+		_, err := redirector.SetupWsmanClient(device, true, false)
+		require.ErrorIs(t, err, wsmanAPI.ErrCIRADeviceNotConnected)
+	})
+
+	t.Run("returns messages when CIRA device is connected", func(t *testing.T) {
+		t.Parallel()
+
+		guid := "cira-device-connected"
+
+		// Set up a connection entry so the lookup succeeds
+		server, client := net.Pipe()
+		defer server.Close()
+		defer client.Close()
+
+		wsmanAPI.SetConnectionEntry(guid, &wsmanAPI.ConnectionEntry{
+			IsCIRA: true,
+			Conny:  client,
+		})
+		t.Cleanup(func() { wsmanAPI.RemoveConnection(guid) })
+
+		device := entity.Device{
+			GUID:        guid,
+			MPSUsername: "admin",
+		}
+
+		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
+
+		msgs, err := redirector.SetupWsmanClient(device, true, false)
+		require.NoError(t, err)
+		require.NotNil(t, msgs.Client)
+	})
+
+	t.Run("non-CIRA device skips CIRA path", func(t *testing.T) {
+		t.Parallel()
+
+		device := entity.Device{
+			GUID:     "normal-device",
+			Hostname: "192.168.1.1",
+			Username: "admin",
+			Password: "encrypted",
+		}
+
+		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
+
+		msgs, err := redirector.SetupWsmanClient(device, true, false)
+		require.NoError(t, err)
+		require.NotNil(t, msgs)
+	})
+
+	t.Run("CIRA device with isRedirection false skips CIRA path", func(t *testing.T) {
+		t.Parallel()
+
+		device := entity.Device{
+			GUID:        "cira-device-no-redirect",
+			MPSUsername: "admin",
+			Hostname:    "192.168.1.1",
+			Username:    "admin",
+			Password:    "encrypted",
+		}
+
+		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
+
+		msgs, err := redirector.SetupWsmanClient(device, false, false)
+		require.NoError(t, err)
+		require.NotNil(t, msgs)
+	})
 }
 
 func TestNewRedirector(t *testing.T) {

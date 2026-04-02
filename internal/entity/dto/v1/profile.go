@@ -17,11 +17,11 @@ type Profile struct {
 	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false,omitempty,len=0|min=8,max=32,containsany=$@$!%*#?&-_~^" example:"my_password"`
 	GenerateRandomMEBxPassword bool                 `json:"generateRandomMEBxPassword" example:"true"`
 	CIRAConfigObject           *CIRAConfig          `json:"ciraConfigObject,omitempty"`
-	Tags                       []string             `json:"tags,omitempty" example:"tag1,tag2"`
+	Tags                       []string             `json:"tags,omitempty"`
 	DHCPEnabled                bool                 `json:"dhcpEnabled" example:"true"`
 	IPSyncEnabled              bool                 `json:"ipSyncEnabled" example:"true"`
 	LocalWiFiSyncEnabled       bool                 `json:"localWifiSyncEnabled" example:"true"`
-	WiFiConfigs                []ProfileWiFiConfigs `json:"wifiConfigs,omitempty" binding:"excluded_if=DHCPEnabled false,dive"`
+	WiFiConfigs                []ProfileWiFiConfigs `json:"wifiConfigs,omitempty" binding:"wifidhcp,dive"`
 	TenantID                   string               `json:"tenantId" example:"abc123"`
 	TLSMode                    int                  `json:"tlsMode,omitempty" binding:"omitempty,min=1,max=4,ciraortls" example:"1"`
 	TLSCerts                   *TLSCerts            `json:"tlsCerts,omitempty"`
@@ -58,10 +58,34 @@ var ValidateAMTPassOrGenRan validator.Func = func(fl validator.FieldLevel) bool 
 
 var ValidateUserConsent validator.Func = func(fl validator.FieldLevel) bool {
 	userConsent := strings.ToLower(fl.Field().String())
+
 	activation := fl.Parent().FieldByName("Activation").String()
 	if activation == "ccmactivate" && userConsent != "All" {
 		return false
 	}
 
 	return userConsent == "none" || userConsent == "kvm" || userConsent == "all"
+}
+
+var ValidateWiFiDHCP validator.Func = func(fl validator.FieldLevel) bool {
+	dhcpEnabled := fl.Parent().FieldByName("DHCPEnabled").Bool()
+	wifiConfigs := fl.Field()
+
+	// If WiFiConfigs has items and DHCP is disabled, fail validation
+	if wifiConfigs.Len() > 0 && !dhcpEnabled {
+		return false
+	}
+
+	return true
+}
+
+type ProfileCountResponse struct {
+	Count int       `json:"totalCount"`
+	Data  []Profile `json:"data"`
+}
+
+type ProfileExportResponse struct {
+	Content  string `json:"content"`
+	Filename string `json:"filename"`
+	Key      string `json:"key"`
 }

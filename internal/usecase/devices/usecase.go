@@ -66,7 +66,7 @@ func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, s
 }
 
 // convert dto.Device to entity.Device.
-func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
+func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 	// convert []string to comma separated string
 	if d.Tags == nil {
 		d.Tags = []string{}
@@ -78,7 +78,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 		ConnectionStatus: d.ConnectionStatus,
 		MPSInstance:      d.MPSInstance,
 		Hostname:         d.Hostname,
-		GUID:             d.GUID,
+		GUID:             strings.ToLower(d.GUID), // Normalize GUID to lowercase for case-insensitive matching
 		MPSUsername:      d.MPSUsername,
 		Tags:             tags,
 		TenantID:         d.TenantID,
@@ -98,7 +98,29 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
 	if err != nil {
-		uc.log.Error("Error encrypting password")
+		return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "failed to encrypt password", err)
+	}
+
+	if d.MPSPassword == "" {
+		d1.MPSPassword = nil
+	} else {
+		encrypted, err := uc.safeRequirements.Encrypt(d.MPSPassword)
+		if err != nil {
+			return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "failed to encrypt MPS password", err)
+		}
+
+		d1.MPSPassword = &encrypted
+	}
+
+	if d.MEBXPassword == "" {
+		d1.MEBXPassword = nil
+	} else {
+		encrypted, err := uc.safeRequirements.Encrypt(d.MEBXPassword)
+		if err != nil {
+			return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "failed to encrypt MEBX password", err)
+		}
+
+		d1.MEBXPassword = &encrypted
 	}
 
 	if d.CertHash == "" {
@@ -107,7 +129,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) *entity.Device {
 		d1.CertHash = &d.CertHash
 	}
 
-	return d1
+	return d1, nil
 }
 
 // convert entity.Device to dto.Device.
@@ -140,6 +162,14 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 
 	if d.CertHash != nil {
 		d1.CertHash = *d.CertHash
+	}
+
+	if d.MPSPassword != nil {
+		d1.MPSPassword = *d.MPSPassword
+	}
+
+	if d.MEBXPassword != nil {
+		d1.MEBXPassword = *d.MEBXPassword
 	}
 
 	return d1

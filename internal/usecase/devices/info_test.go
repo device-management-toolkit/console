@@ -11,12 +11,20 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -86,8 +94,8 @@ func TestGetVersion(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
 					Return(softwares, nil)
@@ -173,8 +181,8 @@ func TestGetVersion(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
 					Return(softwares, ErrGeneral)
@@ -194,8 +202,8 @@ func TestGetVersion(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
 					Return(softwares, nil)
@@ -268,18 +276,75 @@ func TestGetHardwareInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
-					Return(gomock.Any(), nil)
+					Return(wsmanAPI.HWResults{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: gomock.Any(),
+			res: dto.HardwareInfo{
+				CIMChassis:        dto.CIMResponse{Response: chassis.PackageResponse{}},
+				CIMChip:           dto.CIMResponse{Responses: []any{chip.PackageResponse{}}},
+				CIMCard:           dto.CIMResponse{Response: card.PackageResponse{}},
+				CIMBIOSElement:    dto.CIMResponse{Response: bios.BiosElement{}},
+				CIMProcessor:      dto.CIMResponse{Responses: []any{processor.PackageResponse{}}},
+				CIMPhysicalMemory: dto.CIMResponse{Responses: []any{}},
+			},
+			err: nil,
+		},
+		{
+			name:   "success with populated data",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetHardwareInfo().
+					Return(wsmanAPI.HWResults{
+						PhysicalMemoryResult: physical.Response{
+							Body: physical.Body{
+								PullResponse: physical.PullResponse{
+									MemoryItems: []physical.PhysicalMemory{
+										{
+											ElementName:  "Memory 0",
+											Manufacturer: "Samsung",
+											Capacity:     8388608,
+											Speed:        3200,
+											SerialNumber: "ABC123",
+											BankLabel:    "BANK0",
+										},
+									},
+								},
+							},
+						},
+					}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.HardwareInfo{
+				CIMChassis:     dto.CIMResponse{Response: chassis.PackageResponse{}},
+				CIMChip:        dto.CIMResponse{Responses: []any{chip.PackageResponse{}}},
+				CIMCard:        dto.CIMResponse{Response: card.PackageResponse{}},
+				CIMBIOSElement: dto.CIMResponse{Response: bios.BiosElement{}},
+				CIMProcessor:   dto.CIMResponse{Responses: []any{processor.PackageResponse{}}},
+				CIMPhysicalMemory: dto.CIMResponse{Responses: []any{physical.PhysicalMemory{
+					ElementName:  "Memory 0",
+					Manufacturer: "Samsung",
+					Capacity:     8388608,
+					Speed:        3200,
+					SerialNumber: "ABC123",
+					BankLabel:    "BANK0",
+				}}},
+			},
 			err: nil,
 		},
 		{
@@ -291,7 +356,7 @@ func TestGetHardwareInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.HardwareInfo{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -299,18 +364,18 @@ func TestGetHardwareInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
-					Return(nil, ErrGeneral)
+					Return(wsmanAPI.HWResults{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.HardwareInfo{},
 			err: ErrGeneral,
 		},
 	}
@@ -348,8 +413,8 @@ func TestGetAuditLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAuditLog(1).
 					Return(auditlog.Response{}, nil)
@@ -382,8 +447,8 @@ func TestGetAuditLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetAuditLog(1).
 					Return(auditlog.Response{}, ErrGeneral)
@@ -431,8 +496,8 @@ func TestGetEventLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetEventLog(1, 10).
 					Return(messagelog.GetRecordsResponse{NoMoreRecords: true}, nil)
@@ -462,8 +527,8 @@ func TestGetEventLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetEventLog(1, 10).
 					Return(messagelog.GetRecordsResponse{}, ErrGeneral)
@@ -511,8 +576,8 @@ func TestGetGeneralSettings(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetGeneralSettings().
 					Return(gomock.Any(), nil)
@@ -522,7 +587,7 @@ func TestGetGeneralSettings(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: map[string]interface{}{"Body": gomock.Any()},
+			res: dto.GeneralSettings{Body: gomock.Any()},
 			err: nil,
 		},
 		{
@@ -534,7 +599,7 @@ func TestGetGeneralSettings(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.GeneralSettings{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -542,8 +607,8 @@ func TestGetGeneralSettings(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetGeneralSettings().
 					Return(nil, ErrGeneral)
@@ -553,7 +618,7 @@ func TestGetGeneralSettings(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.GeneralSettings{},
 			err: ErrGeneral,
 		},
 	}
@@ -592,18 +657,88 @@ func TestGetDiskInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
-					Return(gomock.Any(), nil)
+					Return(wsmanAPI.DiskResults{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: gomock.Any(),
+			res: dto.DiskInfo{
+				CIMMediaAccessDevice: dto.CIMResponse{Responses: []any{[]mediaaccess.MediaAccessDevice(nil)}},
+				CIMPhysicalPackage:   dto.CIMResponse{Responses: []any{[]physical.PhysicalPackage(nil)}},
+			},
+			err: nil,
+		},
+		{
+			name:   "success with populated data",
+			action: 0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetDiskInfo().
+					Return(wsmanAPI.DiskResults{
+						MediaAccessPullResult: mediaaccess.Response{
+							Body: mediaaccess.Body{
+								PullResponse: mediaaccess.PullResponse{
+									MediaAccessDevices: []mediaaccess.MediaAccessDevice{
+										{
+											CreationClassName: "CIM_MediaAccessDevice",
+											DeviceID:          "DISK0",
+											ElementName:       "SSD Drive",
+											MaxMediaSize:      512000,
+										},
+									},
+								},
+							},
+						},
+						PPPullResult: physical.Response{
+							Body: physical.Body{
+								PullResponse: physical.PullResponse{
+									PhysicalPackage: []physical.PhysicalPackage{
+										{
+											ElementName:       "Physical Package 0",
+											CreationClassName: "CIM_PhysicalPackage",
+											Manufacturer:      "Samsung",
+											SerialNumber:      "XYZ789",
+											Model:             "970 EVO",
+										},
+									},
+								},
+							},
+						},
+					}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.DiskInfo{
+				CIMMediaAccessDevice: dto.CIMResponse{Responses: []any{[]mediaaccess.MediaAccessDevice{
+					{
+						CreationClassName: "CIM_MediaAccessDevice",
+						DeviceID:          "DISK0",
+						ElementName:       "SSD Drive",
+						MaxMediaSize:      512000,
+					},
+				}}},
+				CIMPhysicalPackage: dto.CIMResponse{Responses: []any{[]physical.PhysicalPackage{
+					{
+						ElementName:       "Physical Package 0",
+						CreationClassName: "CIM_PhysicalPackage",
+						Manufacturer:      "Samsung",
+						SerialNumber:      "XYZ789",
+						Model:             "970 EVO",
+					},
+				}}},
+			},
 			err: nil,
 		},
 		{
@@ -615,7 +750,7 @@ func TestGetDiskInfo(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(nil, ErrGeneral)
 			},
-			res: nil,
+			res: dto.DiskInfo{},
 			err: devices.ErrGeneral,
 		},
 		{
@@ -623,18 +758,18 @@ func TestGetDiskInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
-					Return(man2)
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
-					Return(nil, ErrGeneral)
+					Return(wsmanAPI.DiskResults{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res: nil,
+			res: dto.DiskInfo{},
 			err: ErrGeneral,
 		},
 	}

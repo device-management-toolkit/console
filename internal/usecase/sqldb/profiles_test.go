@@ -52,6 +52,7 @@ CREATE TABLE IF NOT EXISTS ciraconfigs(
   mps_root_certificate TEXT,
   proxydetails TEXT,
   tenant_id TEXT NOT NULL,
+  generate_random_password BOOLEAN,
   PRIMARY KEY (cira_config_name, tenant_id)
 );
 

@@ -39,7 +39,7 @@ func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
 	}
 }
 
-func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) AMTExplorer {
+func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) (AMTExplorer, error) {
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
@@ -54,7 +54,12 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 		clientParams.PinnedCert = *device.CertHash
 	}
 
-	clientParams.Password, _ = g.safeRequirements.Decrypt(device.Password)
+	decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	clientParams.Password = decryptedPassword
 
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()
@@ -75,7 +80,7 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 		}
 	}
 
-	return connections[device.GUID]
+	return connections[device.GUID], nil
 }
 
 func removeConnection(guid string) {

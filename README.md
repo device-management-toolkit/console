@@ -94,12 +94,24 @@ cp .env.example .env
 Edit `.env` as needed. For local dev, set:
 
 ```sh
-DISABLE_SWAGGER_HTTP_HANDLER=true
 GIN_MODE=debug
 # DB_URL=postgres://postgresadmin:admin123@localhost:5432/rpsdb  # uncomment for Postgres
 ```
 
-### 2. Running the Backend
+### 2. Configure Backend for Development
+
+For local development with a separate UI, configure `config/config.yml` to point to your frontend:
+
+```yaml
+ui:
+  externalUrl: "http://localhost:4200"
+```
+
+This tells the backend to redirect UI requests to the separately running frontend application.
+
+### 3. Running the Backend
+
+> **Important**: For development, use the `console-noui` binary or build with the `noui` tag. This allows the backend to work with a separately running frontend without embedding UI files.
 
 #### Option A: SQLite (default, easiest)
 
@@ -107,15 +119,18 @@ GIN_MODE=debug
 # Install dependencies
 go mod tidy && go mod download
 
-# Run Console
-go run ./cmd/app/main.go
+# Run Console with noui tag
+go run -tags=noui ./cmd/app/main.go
+
+# OR use the pre-built noui binary
+./bin/console-noui -config ./config/config.yml
 ```
 
 **First run**: When prompted with `Warning: Key Not Found, Generate new key? Y/N`, type `Y` and press Enter.
 
 > **Custom Config**: You can specify a custom configuration file:
 > ```sh
-> go run ./cmd/app/main.go --config "/absolute/path/to/config.yml"
+> go run -tags=noui ./cmd/app/main.go --config "/absolute/path/to/config.yml"
 > ```
 
 > **Database Location**: SQLite database is automatically created at:
@@ -128,13 +143,80 @@ go run ./cmd/app/main.go
 # Start Postgres via Docker
 make compose-up
 
-# Run Console with database migrations
-make run
+# Run Console with database migrations (noui)
+make run-noui
 ```
 
 This will use the `DB_URL` you configured in `.env`.
 
-### 4. Running the Frontend
+### 4. Build Options
+
+Console supports multiple build configurations optimized for different use cases:
+
+#### Default Build
+- Full build with embedded web UI
+- Ideal for development and single-instance deployments
+
+#### `noui` Build (Headless/API-only)
+- Excludes embedded web UI from binary
+- **Reduces binary size** by ~30MB
+- All API endpoints remain fully functional
+- Health checks, metrics, and API docs still available
+- Optional: Configure `ui.externalUrl` in `config.yml` to redirect UI requests to separately hosted frontend
+- Ideal for microservice architectures or when using a separate UI deployment
+
+**Configuration for headless builds:**
+
+Edit `config.yml`:
+```yaml
+ui:
+  # Redirect UI requests to external frontend (optional)
+  # If empty: UI requests return 404
+  # If set: UI requests redirect to this URL
+  externalUrl: "https://your-ui-domain.com"
+```
+
+Or use environment variable:
+```sh
+UI_EXTERNAL_URL=https://your-ui-domain.com ./console-noui
+```
+
+**Build commands:**
+```sh
+# Default build (with UI) for current platform
+make build
+
+# Headless build (no UI) for current platform
+make build-noui
+
+# Cross-compile for all platforms (Linux, Windows, macOS)
+# Produces binaries in dist/ directory for distribution
+make build-all-platforms
+```
+
+**Manual build examples:**
+```sh
+# Build for current platform
+go build -o console ./cmd/app
+go build -tags=noui -o console-noui ./cmd/app
+
+# Cross-compilation examples (CGO_ENABLED=0 produces static binaries)
+# Linux
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o console-linux ./cmd/app
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -o console-linux-headless ./cmd/app
+
+# Windows
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -o console.exe ./cmd/app
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -o console-headless.exe ./cmd/app
+
+# macOS
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -o console-macos ./cmd/app
+CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -o console-macos-headless ./cmd/app
+```
+
+> **Note**: With `CGO_ENABLED=0`, Go produces statically-linked binaries that are cross-platform compatible. You can build binaries for any target platform from any development machine.
+
+### 5. Running the Frontend
 
 ```sh
 # Clone Sample Web UI
@@ -161,6 +243,19 @@ Before contributing code changes, familiarize yourself with:
 - [Console Architecture Overview](https://github.com/device-management-toolkit/console/wiki/Architecture-Overview)
 - [Console Data Storage Documentation](https://github.com/device-management-toolkit/console/wiki/Console-Data-Storage)
 
+### OpenAPI Documentation
+
+Console automatically generates OpenAPI documentation when running in debug mode:
+
+1. **Enable Debug Mode**: Set `GIN_MODE=debug` in your `.env` file
+2. **Run Console**: Start the application with `go run ./cmd/app/main.go`
+3. **Access OpenAPI Spec**: The OpenAPI specification is automatically generated and available at:
+   - JSON format: `http://localhost:8181/openapi.json`
+   - The spec is also written to `doc/openapi.json` in your project directory.
+4. **To add API Documentation**: Check wiki `https://github.com/device-management-toolkit/console/wiki/API-Documentation-to-Console`
+
+> **Note**: OpenAPI generation only occurs in debug mode. Production builds will not expose these endpoints. 
+
 ## Dev tips for passing CI Checks
 
 - Install gofumpt `go install mvdan.cc/gofumpt@latest` (replaces gofmt)
@@ -168,8 +263,8 @@ Before contributing code changes, familiarize yourself with:
 - Ensure code is formatted correctly with `gofumpt -l -w -extra ./`
 - Ensure all unit tests pass with `go test ./...`
 - Ensure code has been linted with:
-  - Windows: `docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run -v`
-  - Unix: `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run -v`
+  - Windows: `docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
+  - Unix: `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
 
 
 ## Additional Resources

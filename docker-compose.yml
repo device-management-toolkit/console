@@ -1,11 +1,22 @@
 services:
+  vault:
+    image: hashicorp/vault
+    networks:
+      - dmtnetwork1
+    ports:
+      - '8200:8200'
+    environment:
+      VAULT_DEV_ROOT_TOKEN_ID: myroot
+      VAULT_DEV_LISTEN_ADDRESS: 0.0.0.0:8200
+    cap_add:
+      - IPC_LOCK
   postgres:
     container_name: postgres
     image: postgres
     networks:
-      - openamtnetwork1
+      - dmtnetwork1
     volumes:
-      - pg-data:/var/lib/postgresql/data
+      - pg-data:/var/lib/postgresql
     environment:
       POSTGRES_USER: "postgresadmin"
       POSTGRES_PASSWORD: "admin123"
@@ -17,12 +28,13 @@ services:
     container_name: app
     image: app
     networks:
-      - openamtnetwork1
+      - dmtnetwork1
     env_file:
       - .env
     environment:
       APP_ENCRYPTION_KEY: "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL" # This is a test encryption key for the app
       HTTP_HOST: ""
+      HTTP_TLS_ENABLED: "false"
       GIN_MODE: "debug"
       DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
       AUTH_DISABLED: true
@@ -41,5 +53,5 @@ services:
 volumes:
   pg-data:
 networks:
-  openamtnetwork1:
+  dmtnetwork1:
     driver: "bridge"

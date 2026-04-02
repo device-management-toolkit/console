@@ -9,6 +9,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v2 dtov2.Version, err error) {
@@ -21,9 +22,9 @@ func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v
 		return v1, v2, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(c, *item, false, true)
-	if device == nil {
-		return v1, v2, ErrCancelled
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
+	if err != nil {
+		return v1, v2, err
 	}
 
 	softwareIdentity, err := device.GetAMTVersion()
@@ -62,44 +63,73 @@ func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v
 	return v1, v2, nil
 }
 
-func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (dto.HardwareInfo, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.HardwareInfo{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.HardwareInfo{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(c, *item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
+	if err != nil {
+		return dto.HardwareInfo{}, err
+	}
 
 	hwInfo, err := device.GetHardwareInfo()
 	if err != nil {
-		return nil, err
+		return dto.HardwareInfo{}, err
 	}
 
-	return hwInfo, nil
+	return uc.hardwareInfoToDTO(hwInfo), nil
 }
 
-func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
+	memoryItems := make([]any, len(hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems))
+	for i := range hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems {
+		memoryItems[i] = hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems[i]
+	}
+
+	return dto.HardwareInfo{
+		CIMChassis:        dto.CIMResponse{Response: hw.ChassisResult.Body.PackageResponse},
+		CIMChip:           dto.CIMResponse{Responses: []any{hw.ChipResult.Body.PackageResponse}},
+		CIMCard:           dto.CIMResponse{Response: hw.CardResult.Body.PackageResponse},
+		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.GetResponse},
+		CIMProcessor:      dto.CIMResponse{Responses: []any{hw.ProcessorResult.Body.PackageResponse}},
+		CIMPhysicalMemory: dto.CIMResponse{Responses: memoryItems},
+	}
+}
+
+func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.DiskInfo{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.DiskInfo{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(c, *item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
+	if err != nil {
+		return dto.DiskInfo{}, err
+	}
 
 	diskInfo, err := device.GetDiskInfo()
 	if err != nil {
-		return nil, err
+		return dto.DiskInfo{}, err
 	}
 
-	return diskInfo, nil
+	return uc.diskInfoToDTO(diskInfo), nil
+}
+
+func (uc *UseCase) diskInfoToDTO(diskInfo wsmanAPI.DiskResults) dto.DiskInfo {
+	return dto.DiskInfo{
+		CIMMediaAccessDevice: dto.CIMResponse{Responses: []any{diskInfo.MediaAccessPullResult.Body.PullResponse.MediaAccessDevices}},
+		CIMPhysicalPackage:   dto.CIMResponse{Responses: []any{diskInfo.PPPullResult.Body.PullResponse.PhysicalPackage}},
+	}
 }
 
 func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (dto.AuditLog, error) {
@@ -112,7 +142,10 @@ func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (
 		return dto.AuditLog{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(c, *item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
+	if err != nil {
+		return dto.AuditLog{}, err
+	}
 
 	response, err := device.GetAuditLog(startIndex)
 	if err != nil {
@@ -136,7 +169,10 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 		return dto.EventLogs{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(c, *item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
+	if err != nil {
+		return dto.EventLogs{}, err
+	}
 
 	eventLogs, err := device.GetEventLog(startIndex, maxReadRecords)
 	if err != nil {
@@ -177,28 +213,28 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 	}, nil
 }
 
-func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (interface{}, error) {
+func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (dto.GeneralSettings, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
-		return nil, err
+		return dto.GeneralSettings{}, err
 	}
 
 	if item == nil || item.GUID == "" {
-		return nil, ErrNotFound
+		return dto.GeneralSettings{}, ErrNotFound
 	}
 
-	device := uc.device.SetupWsmanClient(c, *item, false, true)
-	if device == nil {
-		return nil, ErrCancelled
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
+	if err != nil {
+		return dto.GeneralSettings{}, err
 	}
 
 	generalSettings, err := device.GetGeneralSettings()
 	if err != nil {
-		return nil, err
+		return dto.GeneralSettings{}, err
 	}
 
-	response := map[string]interface{}{
-		"Body": generalSettings,
+	response := dto.GeneralSettings{
+		Body: generalSettings,
 	}
 
 	return response, nil

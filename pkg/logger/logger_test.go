@@ -110,6 +110,7 @@ func TestFatal(t *testing.T) {
 	}
 
 	cmd := exec.CommandContext(context.Background(), os.Args[0], "-test.run=TestFatal") // #nosec
+
 	cmd.Env = append(os.Environ(), "BE_CRASHER=1")
 
 	err := cmd.Run()

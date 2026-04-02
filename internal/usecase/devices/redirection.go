@@ -8,13 +8,24 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 type Redirector struct {
 	SafeRequirements security.Cryptor
 }
 
-func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) wsman.Messages {
+func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, error) {
+	// CIRA device: route redirection through the APF tunnel
+	if isRedirection && device.MPSUsername != "" {
+		connection := wsmanAPI.GetConnectionEntry(device.GUID)
+		if connection == nil {
+			return wsman.Messages{}, wsmanAPI.ErrCIRADeviceNotConnected
+		}
+
+		return wsman.NewCIRARedirectionMessages(connection), nil
+	}
+
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
@@ -29,9 +40,14 @@ func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAM
 		clientParams.PinnedCert = *device.CertHash
 	}
 
-	clientParams.Password, _ = g.SafeRequirements.Decrypt(device.Password)
+	decryptedPassword, err := g.SafeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return wsman.Messages{}, err
+	}
 
-	return wsman.NewMessages(clientParams)
+	clientParams.Password = decryptedPassword
+
+	return wsman.NewMessages(clientParams), nil
 }
 
 func NewRedirector(safeRequirements security.Cryptor) *Redirector {

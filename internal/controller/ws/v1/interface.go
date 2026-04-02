@@ -30,6 +30,8 @@ type Feature interface {
 	GetCount(context.Context, string) (int, error)
 	Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 	GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error)
+	UpdateConnectionStatus(ctx context.Context, guid string, status bool) error
+	UpdateLastSeen(ctx context.Context, guid string) error
 	GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 	GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
 	Delete(ctx context.Context, guid, tenantID string) error
@@ -43,12 +45,12 @@ type Feature interface {
 	GetAlarmOccurrences(ctx context.Context, guid string) ([]dto.AlarmClockOccurrence, error)
 	CreateAlarmOccurrences(ctx context.Context, guid string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error)
 	DeleteAlarmOccurrences(ctx context.Context, guid, instanceID string) error
-	GetHardwareInfo(ctx context.Context, guid string) (interface{}, error)
+	GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error)
 	GetPowerState(ctx context.Context, guid string) (dto.PowerState, error)
 	GetPowerCapabilities(ctx context.Context, guid string) (dto.PowerCapabilities, error)
-	GetGeneralSettings(ctx context.Context, guid string) (interface{}, error)
+	GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error)
 	CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error)
-	GetUserConsentCode(ctx context.Context, guid string) (dto.GetUserConsentMessage, error)
+	GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error)
 	SendConsentCode(ctx context.Context, code dto.UserConsentCode, guid string) (dto.UserConsentMessage, error)
 	SendPowerAction(ctx context.Context, guid string, action int) (power.PowerActionResponse, error)
 	SetBootOptions(ctx context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error)
@@ -58,9 +60,10 @@ type Feature interface {
 	GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
 	GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)
 	GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
-	GetDiskInfo(c context.Context, guid string) (interface{}, error)
+	GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)
 	GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
 	AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
+	DeleteCertificate(c context.Context, guid, instanceID string) error
 	GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error)
 	// KVM Screen Settings
 	GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)

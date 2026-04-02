@@ -39,7 +39,7 @@ func profilesTest(t *testing.T) (*profiles.UseCase, *mocks.MockProfilesRepositor
 	wificonfigs := mocks.NewMockWiFiConfigsRepository(mockCtl)
 	profilewificonfigs := mocks.NewMockProfileWiFiConfigsFeature(mockCtl)
 	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
-	domains := mocks.NewMockDomainsRepository(mockCtl)
+	domains := mocks.NewMockDomainsFeature(mockCtl)
 	cira := mocks.NewMockCIRAConfigsRepository(mockCtl)
 	security := mocks.MockCrypto{}
 	log := logger.New("error")
@@ -647,7 +647,7 @@ func TestGetDomainInformation(t *testing.T) {
 		name       string
 		activation string
 		domainName string
-		mock       func(domainsMock *mocks.MockDomainsRepository)
+		mock       func(domainsMock *mocks.MockDomainsFeature)
 		expected   *entity.Domain
 		err        error
 	}{
@@ -655,9 +655,9 @@ func TestGetDomainInformation(t *testing.T) {
 			name:       "successful retrieval for acmactivate",
 			activation: "acmactivate",
 			domainName: "vpro",
-			mock: func(domainsMock *mocks.MockDomainsRepository) {
+			mock: func(domainsMock *mocks.MockDomainsFeature) {
 				domainsMock.EXPECT().
-					GetByName(ctx, "vpro", tenantID).
+					GetByNameWithCert(ctx, "vpro", tenantID).
 					Return(&entity.Domain{
 						ProvisioningCertPassword: "encryptedCert",
 					}, nil)
@@ -671,9 +671,9 @@ func TestGetDomainInformation(t *testing.T) {
 			name:       "no domains found",
 			activation: "acmactivate",
 			domainName: "domainName",
-			mock: func(domainsMock *mocks.MockDomainsRepository) {
+			mock: func(domainsMock *mocks.MockDomainsFeature) {
 				domainsMock.EXPECT().
-					GetByName(ctx, "domainName", tenantID).
+					GetByNameWithCert(ctx, "domainName", tenantID).
 					Return((*entity.Domain)(nil), nil)
 			},
 			expected: nil,
@@ -683,9 +683,9 @@ func TestGetDomainInformation(t *testing.T) {
 			name:       "on error",
 			activation: "acmactivate",
 			domainName: "badRequest",
-			mock: func(domainsMock *mocks.MockDomainsRepository) {
+			mock: func(domainsMock *mocks.MockDomainsFeature) {
 				domainsMock.EXPECT().
-					GetByName(ctx, "badRequest", tenantID).
+					GetByNameWithCert(ctx, "badRequest", tenantID).
 					Return(nil, profiles.ErrNotFound)
 			},
 			expected: nil,
@@ -697,7 +697,7 @@ func TestGetDomainInformation(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			domainsMock := mocks.NewMockDomainsRepository(gomock.NewController(t))
+			domainsMock := mocks.NewMockDomainsFeature(gomock.NewController(t))
 			cryptoMock := &mocks.MockCrypto{}
 
 			tc.mock(domainsMock)
@@ -864,6 +864,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 			name: "successful configuration build",
 			profile: &entity.Profile{
 				ProfileName:   "test-profile",
+				Tags:          "tag1,tag2,tag3",
 				DHCPEnabled:   true,
 				IPSyncEnabled: true,
 				Activation:    "acmactivate",
@@ -887,6 +888,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 			},
 			expected: config.Configuration{
 				Name: "test-profile",
+				Tags: []string{"tag1", "tag2", "tag3"},
 				Configuration: config.RemoteManagement{
 					GeneralSettings: config.GeneralSettings{
 						SharedFQDN:              false,
@@ -921,6 +923,78 @@ func TestBuildConfigurationObject(t *testing.T) {
 						MutualAuthentication: false,
 						Enabled:              true,
 						AllowNonTLS:          true,
+					},
+					EnterpriseAssistant: config.EnterpriseAssistant{
+						URL:      "http://test.com:8080",
+						Username: "username",
+						Password: "password",
+					},
+					AMTSpecific: config.AMTSpecific{
+						ControlMode:         "acmactivate",
+						AdminPassword:       "testAMTPassword",
+						MEBXPassword:        "testMEBXPassword",
+						ProvisioningCert:    "testCert",
+						ProvisioningCertPwd: "testCertPwd",
+						CIRA: config.CIRA{
+							EnvironmentDetection: []string{},
+						},
+					},
+				},
+			},
+		},
+		{
+			name: "static IP mode sets SharedStaticIP to true",
+			profile: &entity.Profile{
+				ProfileName:   "test-profile-static",
+				Tags:          "static",
+				DHCPEnabled:   false,
+				IPSyncEnabled: true,
+				Activation:    "acmactivate",
+				AMTPassword:   "testAMTPassword",
+				MEBXPassword:  "testMEBXPassword",
+				TLSMode:       0,
+				KVMEnabled:    true,
+				SOLEnabled:    false,
+				IDEREnabled:   false,
+				UserConsent:   "All",
+			},
+			domain: &entity.Domain{
+				ProvisioningCert:         "testCert",
+				ProvisioningCertPassword: "testCertPwd",
+			},
+			wifi: []config.WirelessProfile{},
+			expected: config.Configuration{
+				Name: "test-profile-static",
+				Tags: []string{"static"},
+				Configuration: config.RemoteManagement{
+					GeneralSettings: config.GeneralSettings{
+						SharedFQDN:              false,
+						NetworkInterfaceEnabled: 0,
+						PingResponseEnabled:     false,
+					},
+					Network: config.Network{
+						Wired: config.Wired{
+							DHCPEnabled:    false,
+							IPSyncEnabled:  true,
+							SharedStaticIP: true,
+						},
+						Wireless: config.Wireless{
+							Profiles: []config.WirelessProfile{},
+						},
+					},
+					Redirection: config.Redirection{
+						Enabled: true,
+						Services: config.Services{
+							KVM:  true,
+							SOL:  false,
+							IDER: false,
+						},
+						UserConsent: "All",
+					},
+					TLS: config.TLS{
+						MutualAuthentication: false,
+						Enabled:              false,
+						AllowNonTLS:          false,
 					},
 					EnterpriseAssistant: config.EnterpriseAssistant{
 						URL:      "http://test.com:8080",

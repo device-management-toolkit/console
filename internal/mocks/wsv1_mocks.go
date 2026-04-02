@@ -196,6 +196,20 @@ func (mr *MockFeatureMockRecorder) DeleteAlarmOccurrences(ctx, guid, instanceID 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteAlarmOccurrences", reflect.TypeOf((*MockFeature)(nil).DeleteAlarmOccurrences), ctx, guid, instanceID)
 }
 
+// DeleteCertificate mocks base method.
+func (m *MockFeature) DeleteCertificate(c context.Context, guid, instanceID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteCertificate", c, guid, instanceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteCertificate indicates an expected call of DeleteCertificate.
+func (mr *MockFeatureMockRecorder) DeleteCertificate(c, guid, instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificate", reflect.TypeOf((*MockFeature)(nil).DeleteCertificate), c, guid, instanceID)
+}
+
 // Get mocks base method.
 func (m *MockFeature) Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -224,6 +238,21 @@ func (m *MockFeature) GetAlarmOccurrences(ctx context.Context, guid string) ([]d
 func (mr *MockFeatureMockRecorder) GetAlarmOccurrences(ctx, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAlarmOccurrences", reflect.TypeOf((*MockFeature)(nil).GetAlarmOccurrences), ctx, guid)
+}
+
+// SetLinkPreference mocks base method.
+func (m *MockFeature) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetLinkPreference", c, guid, req)
+	ret0, _ := ret[0].(dto.LinkPreferenceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetLinkPreference indicates an expected call of SetLinkPreference.
+func (mr *MockFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockFeature)(nil).SetLinkPreference), c, guid, req)
 }
 
 // GetAuditLog mocks base method.
@@ -347,10 +376,10 @@ func (mr *MockFeatureMockRecorder) GetDeviceCertificate(c, guid any) *gomock.Cal
 }
 
 // GetDiskInfo mocks base method.
-func (m *MockFeature) GetDiskInfo(c context.Context, guid string) (any, error) {
+func (m *MockFeature) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetDiskInfo", c, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.DiskInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -408,10 +437,10 @@ func (mr *MockFeatureMockRecorder) GetFeatures(ctx, guid any) *gomock.Call {
 }
 
 // GetGeneralSettings mocks base method.
-func (m *MockFeature) GetGeneralSettings(ctx context.Context, guid string) (any, error) {
+func (m *MockFeature) GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetGeneralSettings", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.GeneralSettings)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -423,10 +452,10 @@ func (mr *MockFeatureMockRecorder) GetGeneralSettings(ctx, guid any) *gomock.Cal
 }
 
 // GetHardwareInfo mocks base method.
-func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (any, error) {
+func (m *MockFeature) GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetHardwareInfo", ctx, guid)
-	ret0, _ := ret[0].(any)
+	ret0, _ := ret[0].(dto.HardwareInfo)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -513,10 +542,10 @@ func (mr *MockFeatureMockRecorder) GetTLSSettingData(c, guid any) *gomock.Call {
 }
 
 // GetUserConsentCode mocks base method.
-func (m *MockFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.GetUserConsentMessage, error) {
+func (m *MockFeature) GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "GetUserConsentCode", ctx, guid)
-	ret0, _ := ret[0].(dto.GetUserConsentMessage)
+	ret0, _ := ret[0].(dto.UserConsentMessage)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
@@ -661,4 +690,32 @@ func (m *MockFeature) Update(ctx context.Context, d *dto.Device) (*dto.Device, e
 func (mr *MockFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d)
+}
+
+// UpdateConnectionStatus mocks base method.
+func (m *MockFeature) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateConnectionStatus", ctx, guid, status)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateConnectionStatus indicates an expected call of UpdateConnectionStatus.
+func (mr *MockFeatureMockRecorder) UpdateConnectionStatus(ctx, guid, status any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateConnectionStatus", reflect.TypeOf((*MockFeature)(nil).UpdateConnectionStatus), ctx, guid, status)
+}
+
+// UpdateLastSeen mocks base method.
+func (m *MockFeature) UpdateLastSeen(ctx context.Context, guid string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateLastSeen", ctx, guid)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateLastSeen indicates an expected call of UpdateLastSeen.
+func (mr *MockFeatureMockRecorder) UpdateLastSeen(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateLastSeen", reflect.TypeOf((*MockFeature)(nil).UpdateLastSeen), ctx, guid)
 }

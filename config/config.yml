@@ -9,12 +9,20 @@ http:
   port: "8181"
   # set to true for WAN settings where bandwidth is a concern, false for LAN/low latency/high bandwidth
   ws_compression: false
+  tls:
+    enabled: true
+    # If certFile/keyFile are both empty and enabled is true, a self-signed certificate will be generated at runtime.
+    certFile: ""
+    keyFile: ""
   allowed_origins:
     - "*"
   allowed_headers:
     - "*"
 logger:
   log_level: info
+secrets: 
+  address: http://localhost:8200
+  token: ""
 postgres:
   pool_max: 2
   url: ""
@@ -39,4 +47,11 @@ auth:
     responseType: "code"
     requireHttps: false
     strictDiscoveryDocumentValidation: true
+ui:
+  # externalUrl: Only used when building with the 'noui' tag (headless builds)
+  # - If set: Redirects UI requests to this external URL (e.g., separately hosted UI)
+  # - If empty: UI requests return 404 (API-only mode)
+  # - Ignored: When building without 'noui' tag (embedded UI is served normally)
+  # Example: https://ui.example.com
+  externalUrl: ""
 

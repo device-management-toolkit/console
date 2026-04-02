@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"fmt"
 	"time"
 
 	"software.sslmate.com/src/go-pkcs12"
@@ -17,19 +18,28 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// ObjectStorager extends security.Storager with object storage capabilities.
+type ObjectStorager interface {
+	security.Storager
+	GetObject(key string) (map[string]string, error)
+	SetObject(key string, data map[string]string) error
+}
+
 // UseCase -.
 type UseCase struct {
 	repo             Repository
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	certStore        security.Storager
 }
 
 // New -.
-func New(r Repository, log logger.Interface, safeRequirements security.Cryptor) *UseCase {
+func New(r Repository, log logger.Interface, safeRequirements security.Cryptor, certStore security.Storager) *UseCase {
 	return &UseCase{
 		repo:             r,
 		log:              log,
 		safeRequirements: safeRequirements,
+		certStore:        certStore,
 	}
 }
 
@@ -39,7 +49,14 @@ var (
 	ErrNotFound       = sqldb.NotFoundError{Console: ErrDomainsUseCase}
 	ErrCertPassword   = CertPasswordError{Console: ErrDomainsUseCase}
 	ErrCertExpiration = CertExpirationError{Console: ErrDomainsUseCase}
+	ErrCertStore      = CertStoreError{Console: ErrDomainsUseCase}
 )
+
+// domainCertKey generates the key path for storing domain certificates in Vault.
+// Format: certs/domains/{tenantID}/{profileName}.
+func domainCertKey(tenantID, profileName string) string {
+	return fmt.Sprintf("certs/domains/%s/%s", tenantID, profileName)
+}
 
 // History - getting translate history from store.
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
@@ -98,6 +115,38 @@ func (uc *UseCase) GetByName(ctx context.Context, domainName, tenantID string) (
 	return d2, nil
 }
 
+// GetByNameWithCert retrieves a domain and its certificate from Vault.
+// This should be used when the certificate data is needed (e.g., for provisioning).
+func (uc *UseCase) GetByNameWithCert(ctx context.Context, domainName, tenantID string) (*entity.Domain, error) {
+	data, err := uc.repo.GetByName(ctx, domainName, tenantID)
+	if err != nil {
+		return nil, ErrDatabase.Wrap("GetByNameWithCert", "uc.repo.GetByName", err)
+	}
+
+	if data == nil {
+		return nil, ErrNotFound
+	}
+
+	// If cert store is available and cert is not in DB, fetch from Vault
+	if uc.certStore != nil && data.ProvisioningCert == "" {
+		certKey := domainCertKey(tenantID, domainName)
+
+		// Use object storage if available
+		if objStore, ok := uc.certStore.(ObjectStorager); ok {
+			certData, err := objStore.GetObject(certKey)
+			if err != nil {
+				uc.log.Warn("Failed to retrieve domain certificate from Vault: %v", err)
+				// Continue without cert - it may be a legacy domain stored in DB
+			} else {
+				data.ProvisioningCert = certData["cert"]
+				data.ProvisioningCertPassword = certData["password"]
+			}
+		}
+	}
+
+	return data, nil
+}
+
 func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) error {
 	isSuccessful, err := uc.repo.Delete(ctx, domainName, tenantID)
 	if err != nil {
@@ -108,11 +157,25 @@ func (uc *UseCase) Delete(ctx context.Context, domainName, tenantID string) erro
 		return ErrNotFound
 	}
 
+	// Delete certificate from Vault if available
+	if uc.certStore != nil {
+		certKey := domainCertKey(tenantID, domainName)
+		if err := uc.certStore.DeleteKeyValue(certKey); err != nil {
+			// Log but don't fail - the DB record is already deleted
+			uc.log.Warn("Failed to delete domain certificate from Vault: %v", err)
+		} else {
+			uc.log.Info("Domain certificate deleted from Vault: %s", certKey)
+		}
+	}
+
 	return nil
 }
 
 func (uc *UseCase) Update(ctx context.Context, d *dto.Domain) (*dto.Domain, error) {
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	updated, err := uc.repo.Update(ctx, d1)
 	if err != nil {
@@ -139,12 +202,43 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 		return nil, err
 	}
 
-	d1 := uc.dtoToEntity(d)
+	d1, err := uc.dtoToEntity(d)
+	if err != nil {
+		return nil, err
+	}
 
 	d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
 
+	// Store certificate in Vault (if available) - cert goes to Vault, not DB
+	if uc.certStore != nil {
+		certKey := domainCertKey(d.TenantID, d.ProfileName)
+
+		// Use object storage if available
+		if objStore, ok := uc.certStore.(ObjectStorager); ok {
+			err = objStore.SetObject(certKey, map[string]string{
+				"cert":     d.ProvisioningCert,
+				"password": d.ProvisioningCertPassword,
+			})
+			if err != nil {
+				return nil, ErrCertStore.Wrap("Insert", "objStore.SetObject", err)
+			}
+
+			// Clear cert data from entity - don't store in DB when using Vault
+			d1.ProvisioningCert = ""
+			d1.ProvisioningCertPassword = ""
+
+			uc.log.Info("Domain certificate stored in Vault: %s", certKey)
+		}
+	}
+
 	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {
+		// If DB insert fails and we stored in Vault, try to clean up
+		if uc.certStore != nil {
+			certKey := domainCertKey(d.TenantID, d.ProfileName)
+			_ = uc.certStore.DeleteKeyValue(certKey)
+		}
+
 		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
 	}
 
@@ -180,7 +274,7 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 }
 
 // convert dto.Domain to entity.Domain.
-func (uc *UseCase) dtoToEntity(d *dto.Domain) *entity.Domain {
+func (uc *UseCase) dtoToEntity(d *dto.Domain) (*entity.Domain, error) {
 	d1 := &entity.Domain{
 		ProfileName:                   d.ProfileName,
 		DomainSuffix:                  d.DomainSuffix,
@@ -191,9 +285,14 @@ func (uc *UseCase) dtoToEntity(d *dto.Domain) *entity.Domain {
 		Version:                       d.Version,
 	}
 
-	d1.ProvisioningCertPassword, _ = uc.safeRequirements.Encrypt(d.ProvisioningCertPassword)
+	var err error
 
-	return d1
+	d1.ProvisioningCertPassword, err = uc.safeRequirements.Encrypt(d.ProvisioningCertPassword)
+	if err != nil {
+		return nil, ErrDomainsUseCase.Wrap("dtoToEntity", "failed to encrypt provisioning cert password", err)
+	}
+
+	return d1, nil
 }
 
 // convert entity.Domain to dto.Domain.

@@ -82,7 +82,8 @@ func (r *CIRARepo) Get(_ context.Context, top, skip int, tenantID string) ([]ent
 			"auth_method",
 			"mps_root_certificate",
 			"proxydetails",
-			"tenant_id").
+			"tenant_id",
+			"generate_random_password").
 		From("ciraconfigs").
 		Where("tenant_id = ?", tenantID).
 		OrderBy("cira_config_name").
@@ -109,10 +110,14 @@ func (r *CIRARepo) Get(_ context.Context, top, skip int, tenantID string) ([]ent
 	for rows.Next() {
 		p := entity.CIRAConfig{}
 
-		err = rows.Scan(&p.ConfigName, &p.MPSAddress, &p.MPSPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MPSRootCertificate, &p.ProxyDetails, &p.TenantID)
+		var generateRandomPassword sql.NullBool
+
+		err = rows.Scan(&p.ConfigName, &p.MPSAddress, &p.MPSPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MPSRootCertificate, &p.ProxyDetails, &p.TenantID, &generateRandomPassword)
 		if err != nil {
 			return nil, ErrCIRARepoDatabase.Wrap("Get", "rows.Scan", err)
 		}
+
+		p.GenerateRandomPassword = generateRandomPassword.Bool
 
 		configs = append(configs, p)
 	}
@@ -133,7 +138,8 @@ func (r *CIRARepo) GetByName(_ context.Context, configName, tenantID string) (*e
 			"auth_method",
 			"mps_root_certificate",
 			"proxydetails",
-			"tenant_id").
+			"tenant_id",
+			"generate_random_password").
 		From("ciraconfigs").
 		Where("cira_config_name = ? and tenant_id = ?", configName, tenantID).
 		ToSql()
@@ -157,10 +163,14 @@ func (r *CIRARepo) GetByName(_ context.Context, configName, tenantID string) (*e
 	for rows.Next() {
 		p := &entity.CIRAConfig{}
 
-		err = rows.Scan(&p.ConfigName, &p.MPSAddress, &p.MPSPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MPSRootCertificate, &p.ProxyDetails, &p.TenantID)
+		var generateRandomPassword sql.NullBool
+
+		err = rows.Scan(&p.ConfigName, &p.MPSAddress, &p.MPSPort, &p.Username, &p.Password, &p.CommonName, &p.ServerAddressFormat, &p.AuthMethod, &p.MPSRootCertificate, &p.ProxyDetails, &p.TenantID, &generateRandomPassword)
 		if err != nil {
 			return p, ErrCIRARepoDatabase.Wrap("GetByName", "rows.Scan", err)
 		}
+
+		p.GenerateRandomPassword = generateRandomPassword.Bool
 
 		configs = append(configs, p)
 	}
@@ -208,6 +218,7 @@ func (r *CIRARepo) Update(_ context.Context, p *entity.CIRAConfig) (bool, error)
 		Set("auth_method", p.AuthMethod).
 		Set("mps_root_certificate", p.MPSRootCertificate).
 		Set("proxydetails", p.ProxyDetails).
+		Set("generate_random_password", p.GenerateRandomPassword).
 		Where("cira_config_name = ? AND tenant_id = ?", p.ConfigName, p.TenantID).
 		ToSql()
 	if err != nil {
@@ -231,8 +242,8 @@ func (r *CIRARepo) Update(_ context.Context, p *entity.CIRAConfig) (bool, error)
 func (r *CIRARepo) Insert(_ context.Context, p *entity.CIRAConfig) (string, error) {
 	insertBuilder := r.Builder.
 		Insert("ciraconfigs").
-		Columns("cira_config_name", "mps_server_address", "mps_port", "user_name", "password", "common_name", "server_address_format", "auth_method", "mps_root_certificate", "proxydetails", "tenant_id").
-		Values(p.ConfigName, p.MPSAddress, p.MPSPort, p.Username, p.Password, p.CommonName, p.ServerAddressFormat, p.AuthMethod, p.MPSRootCertificate, p.ProxyDetails, p.TenantID)
+		Columns("cira_config_name", "mps_server_address", "mps_port", "user_name", "password", "common_name", "server_address_format", "auth_method", "mps_root_certificate", "proxydetails", "tenant_id", "generate_random_password").
+		Values(p.ConfigName, p.MPSAddress, p.MPSPort, p.Username, p.Password, p.CommonName, p.ServerAddressFormat, p.AuthMethod, p.MPSRootCertificate, p.ProxyDetails, p.TenantID, p.GenerateRandomPassword)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
