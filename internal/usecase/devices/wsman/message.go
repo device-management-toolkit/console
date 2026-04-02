@@ -1,6 +1,7 @@
 package wsman
 
 import (
+	"context"
 	gotls "crypto/tls"
 	"errors"
 	"net"
@@ -127,7 +128,7 @@ func (g GoWSMANMessages) Worker() {
 	}
 }
 
-func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
+func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
 	resultChan := make(chan *ConnectionEntry)
 	errChan := make(chan error, 1)
 	// Queue the request
@@ -179,6 +180,8 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 		return nil, err
 	case result := <-resultChan:
 		return result, nil
+	case <-ctx.Done():
+		return nil, ctx.Err()
 	}
 }
 

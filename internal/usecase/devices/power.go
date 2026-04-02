@@ -53,7 +53,7 @@ func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (
 		return power.PowerActionResponse{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -131,7 +131,7 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 		return dto.PowerState{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.PowerState{}, err
 	}
@@ -165,7 +165,7 @@ func (uc *UseCase) GetPowerCapabilities(c context.Context, guid string) (dto.Pow
 		return dto.PowerCapabilities{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.PowerCapabilities{}, err
 	}
@@ -285,7 +285,7 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 		return power.PowerActionResponse{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -598,7 +598,7 @@ func (uc *UseCase) GetBootSourceSetting(c context.Context, guid string) ([]dto.B
 		return nil, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return nil, err
 	}
