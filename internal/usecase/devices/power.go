@@ -141,6 +141,10 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 		return dto.PowerState{}, err
 	}
 
+	if len(state) == 0 {
+		return dto.PowerState{}, ErrDeviceUseCase.Wrap("GetPowerState", "device.GetPowerState returned empty state", nil)
+	}
+
 	stateOS, err := device.GetOSPowerSavingState()
 	if err != nil {
 		return dto.PowerState{
