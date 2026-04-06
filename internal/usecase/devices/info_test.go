@@ -14,7 +14,6 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/bios"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/card"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chassis"
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/chip"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/mediaaccess"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/physical"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/processor"
@@ -289,7 +288,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			},
 			res: dto.HardwareInfo{
 				CIMChassis:        dto.CIMResponse{Response: chassis.PackageResponse{}},
-				CIMChip:           dto.CIMResponse{Responses: []any{chip.PackageResponse{}}},
+				CIMChip:           dto.CIMResponse{Responses: []any{}},
 				CIMCard:           dto.CIMResponse{Response: card.PackageResponse{}},
 				CIMBIOSElement:    dto.CIMResponse{Response: bios.BiosElement{}},
 				CIMProcessor:      dto.CIMResponse{Responses: []any{processor.PackageResponse{}}},
@@ -332,7 +331,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			},
 			res: dto.HardwareInfo{
 				CIMChassis:     dto.CIMResponse{Response: chassis.PackageResponse{}},
-				CIMChip:        dto.CIMResponse{Responses: []any{chip.PackageResponse{}}},
+				CIMChip:        dto.CIMResponse{Responses: []any{}},
 				CIMCard:        dto.CIMResponse{Response: card.PackageResponse{}},
 				CIMBIOSElement: dto.CIMResponse{Response: bios.BiosElement{}},
 				CIMProcessor:   dto.CIMResponse{Responses: []any{processor.PackageResponse{}}},
