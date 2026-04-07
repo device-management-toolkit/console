@@ -87,6 +87,11 @@ func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (dto.Hardware
 }
 
 func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
+	chipItems := make([]any, len(hw.ChipResult.Body.PullResponse.ChipItems))
+	for i := range hw.ChipResult.Body.PullResponse.ChipItems {
+		chipItems[i] = hw.ChipResult.Body.PullResponse.ChipItems[i]
+	}
+
 	memoryItems := make([]any, len(hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems))
 	for i := range hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems {
 		memoryItems[i] = hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems[i]
@@ -94,7 +99,7 @@ func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
 
 	return dto.HardwareInfo{
 		CIMChassis:        dto.CIMResponse{Response: hw.ChassisResult.Body.PackageResponse},
-		CIMChip:           dto.CIMResponse{Responses: []any{hw.ChipResult.Body.PackageResponse}},
+		CIMChip:           dto.CIMResponse{Responses: chipItems},
 		CIMCard:           dto.CIMResponse{Response: hw.CardResult.Body.PackageResponse},
 		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.GetResponse},
 		CIMProcessor:      dto.CIMResponse{Responses: []any{hw.ProcessorResult.Body.PackageResponse}},
