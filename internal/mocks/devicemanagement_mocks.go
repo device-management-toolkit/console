@@ -18,6 +18,7 @@ import (
 	v2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
 	wsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	config "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	wsman0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	wifi "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
@@ -478,6 +479,20 @@ func (mr *MockDeviceManagementFeatureMockRecorder) AddCertificate(c, guid, certI
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddCertificate", reflect.TypeOf((*MockDeviceManagementFeature)(nil).AddCertificate), c, guid, certInfo)
 }
 
+// AddWirelessProfile mocks base method.
+func (m *MockDeviceManagementFeature) AddWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddWirelessProfile", c, guid, profile)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// AddWirelessProfile indicates an expected call of AddWirelessProfile.
+func (mr *MockDeviceManagementFeatureMockRecorder) AddWirelessProfile(c, guid, profile any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddWirelessProfile", reflect.TypeOf((*MockDeviceManagementFeature)(nil).AddWirelessProfile), c, guid, profile)
+}
+
 // CancelUserConsent mocks base method.
 func (m *MockDeviceManagementFeature) CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()
@@ -548,6 +563,20 @@ func (m *MockDeviceManagementFeature) DeleteCertificate(c context.Context, guid,
 func (mr *MockDeviceManagementFeatureMockRecorder) DeleteCertificate(c, guid, instanceID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificate", reflect.TypeOf((*MockDeviceManagementFeature)(nil).DeleteCertificate), c, guid, instanceID)
+}
+
+// DeleteWirelessProfile mocks base method.
+func (m *MockDeviceManagementFeature) DeleteWirelessProfile(c context.Context, guid, profileName string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteWirelessProfile", c, guid, profileName)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteWirelessProfile indicates an expected call of DeleteWirelessProfile.
+func (mr *MockDeviceManagementFeatureMockRecorder) DeleteWirelessProfile(c, guid, profileName any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWirelessProfile", reflect.TypeOf((*MockDeviceManagementFeature)(nil).DeleteWirelessProfile), c, guid, profileName)
 }
 
 // Get mocks base method.
@@ -897,6 +926,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetVersion(ctx, guid any) *go
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersion", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetVersion), ctx, guid)
 }
 
+// GetWirelessProfiles mocks base method.
+func (m *MockDeviceManagementFeature) GetWirelessProfiles(c context.Context, guid string) ([]config.WirelessProfile, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWirelessProfiles", c, guid)
+	ret0, _ := ret[0].([]config.WirelessProfile)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWirelessProfiles indicates an expected call of GetWirelessProfiles.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetWirelessProfiles(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWirelessProfiles", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetWirelessProfiles), c, guid)
+}
+
 // GetWirelessState mocks base method.
 func (m *MockDeviceManagementFeature) GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error) {
 	m.ctrl.T.Helper()
@@ -1088,4 +1132,18 @@ func (m *MockDeviceManagementFeature) UpdateLastSeen(ctx context.Context, guid s
 func (mr *MockDeviceManagementFeatureMockRecorder) UpdateLastSeen(ctx, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateLastSeen", reflect.TypeOf((*MockDeviceManagementFeature)(nil).UpdateLastSeen), ctx, guid)
+}
+
+// UpdateWirelessProfile mocks base method.
+func (m *MockDeviceManagementFeature) UpdateWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateWirelessProfile", c, guid, profile)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// UpdateWirelessProfile indicates an expected call of UpdateWirelessProfile.
+func (mr *MockDeviceManagementFeatureMockRecorder) UpdateWirelessProfile(c, guid, profile any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateWirelessProfile", reflect.TypeOf((*MockDeviceManagementFeature)(nil).UpdateWirelessProfile), c, guid, profile)
 }

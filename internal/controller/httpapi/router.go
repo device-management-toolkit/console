@@ -62,16 +62,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
 	}
 
-	// Register custom validators once
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		if err := v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore); err != nil {
-			l.Error("failed to register custom validation: " + err.Error())
-		}
-
-		if err := v.RegisterValidation("wifistate", dto.ValidateWirelessState); err != nil {
-			l.Error("failed to register custom validation: " + err.Error())
-		}
-	}
+	registerCustomValidators(l)
 
 	// Routers
 	h2 := protected.Group("/v1")
@@ -94,4 +85,21 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v2.NewAmtRoutes(h3, t.Devices, l)
 	}
+}
+
+func registerCustomValidators(l logger.Interface) {
+	v, ok := binding.Validator.Engine().(*validator.Validate)
+	if !ok {
+		return
+	}
+
+	registerValidation := func(tag string, validationFunc validator.Func) {
+		if err := v.RegisterValidation(tag, validationFunc); err != nil {
+			l.Error("failed to register custom validation: " + err.Error())
+		}
+	}
+
+	registerValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore)
+	registerValidation("wifistate", dto.ValidateWirelessState)
+	registerValidation("wirelessprofile", dto.ValidateWirelessProfile)
 }

@@ -11,10 +11,13 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/wifiportconfiguration"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	cimIEEE8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/ieee8021x"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
@@ -60,9 +63,15 @@ type Management interface {
 	GetAuditLog(startIndex int) (auditlog.Response, error)
 	GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error)
 	GetNetworkSettings() (NetworkResults, error)
+	GetWiFiSettings() ([]wifi.WiFiEndpointSettingsResponse, error)
+	GetCIMIEEE8021xSettings() (cimIEEE8021x.Response, error)
+	DeleteWiFiSetting(instanceID string) error
+	AddWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, wifiEndpoint, clientCredential, caCredential string) (wifiportconfiguration.Response, error)
+	UpdateWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, clientCredential, caCredential string) (wifiportconfiguration.Response, error)
 	EnumerateWiFiPort() (wifi.Response, error)
 	PullWiFiPort(enumerationContext string) (wifi.Response, error)
 	WiFiRequestStateChange(requestedState wifi.RequestedState) error
+	AddPrivateKey(privateKey string) (string, error)
 	GetCertificates() (Certificates, error)
 	GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	GetCredentialRelationships() (credential.Items, error)
