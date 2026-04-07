@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"net/http"
+
 	"github.com/go-fuego/fuego"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -16,17 +18,18 @@ func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
 		fuego.OptionQueryBool("$count", "Include total count"),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/ciraconfigs/{name}", f.getCIRAConfigByName,
+	fuego.Get(f.server, "/api/v1/admin/ciraconfigs/{ciraConfigName}", f.getCIRAConfigByName,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Get CIRA Configuration by Name"),
 		fuego.OptionDescription("Retrieve a specific CIRA configuration by profile name"),
-		fuego.OptionPath("name", "Profile name"),
+		fuego.OptionPath("ciraConfigName", "Profile name"),
 	)
 
 	fuego.Post(f.server, "/api/v1/admin/ciraconfigs", f.createCIRAConfig,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Create CIRA Configuration"),
 		fuego.OptionDescription("Create a new CIRA configuration"),
+		fuego.OptionDefaultStatusCode(http.StatusCreated),
 	)
 
 	fuego.Patch(f.server, "/api/v1/admin/ciraconfigs", f.updateCIRAConfig,
@@ -35,11 +38,12 @@ func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
 		fuego.OptionDescription("Update an existing CIRA configuration"),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/ciraconfigs/{name}", f.deleteCIRAConfig,
+	fuego.Delete(f.server, "/api/v1/admin/ciraconfigs/{ciraConfigName}", f.deleteCIRAConfig,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Delete CIRA Configuration"),
 		fuego.OptionDescription("Delete a CIRA configuration by profile name"),
-		fuego.OptionPath("name", "Profile name"),
+		fuego.OptionPath("ciraConfigName", "Profile name"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 	)
 }
 
@@ -68,7 +72,7 @@ func (f *FuegoAdapter) getCIRAConfigs(_ fuego.ContextNoBody) (dto.CIRAConfigCoun
 }
 
 func (f *FuegoAdapter) getCIRAConfigByName(c fuego.ContextNoBody) (dto.CIRAConfig, error) {
-	profileName := c.PathParam("name")
+	profileName := c.PathParam("ciraConfigName")
 
 	return dto.CIRAConfig{
 		ConfigName:             profileName,

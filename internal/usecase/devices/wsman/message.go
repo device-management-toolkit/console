@@ -931,6 +931,14 @@ func (c *ConnectionEntry) GetWiFiPortConfigurationService() (wifiportconfigurati
 	return response.Body.WiFiPortConfigurationService, nil
 }
 
+func (c *ConnectionEntry) EnumerateWiFiPort() (response wifi.Response, err error) {
+	return c.WsmanMessages.CIM.WiFiPort.Enumerate()
+}
+
+func (c *ConnectionEntry) PullWiFiPort(enumerationContext string) (response wifi.Response, err error) {
+	return c.WsmanMessages.CIM.WiFiPort.Pull(enumerationContext)
+}
+
 func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 	// if local sync not enable, enable it
 	// if response.Body.WiFiPortConfigurationService.LocalProfileSynchronizationEnabled == wifiportconfiguration.LocalSyncDisabled {
@@ -956,10 +964,8 @@ func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfig
 	return response.Body.WiFiPortConfigurationService, nil
 }
 
-func (c *ConnectionEntry) WiFiRequestStateChange() (err error) {
-	// always turn wifi on via state change request
-	// Enumeration 32769 - WiFi is enabled in S0 + Sx/AC
-	_, err = c.WsmanMessages.CIM.WiFiPort.RequestStateChange(int(wifi.EnabledStateWifiEnabledS0SxAC))
+func (c *ConnectionEntry) WiFiRequestStateChange(requestedState wifi.RequestedState) (err error) {
+	_, err = c.WsmanMessages.CIM.WiFiPort.RequestStateChange(int(requestedState))
 	if err != nil {
 		return err // utils.WSMANMessageError
 	}

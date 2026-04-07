@@ -33,6 +33,9 @@ func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdap
 
 // Registers API routes with Fuego for automatic OpenAPI generation.
 func (f *FuegoAdapter) RegisterRoutes() {
+	// Domains
+	f.RegisterDomainRoutes()
+
 	// Profiles
 	f.RegisterProfileRoutes()
 
@@ -48,8 +51,14 @@ func (f *FuegoAdapter) RegisterRoutes() {
 	// Devices
 	f.RegisterDeviceRoutes()
 
+	// CIRA certificate
+	f.RegisterCIRACertRoutes()
+
 	// Device Management
 	f.RegisterDeviceManagementRoutes()
+
+	// Device Management v2
+	f.RegisterV2AMTRoutes()
 }
 
 // Generates OpenAPI specification as JSON.
