@@ -78,6 +78,43 @@ test: ### run test
 	go test -v -cover -race ./...
 .PHONY: test
 
+FUZZ_ROOT ?= internal
+FUZZTIME ?= 30s
+
+fuzz-list: ### list all fuzz targets as '<package> <target>'
+	@set -eu; \
+	find $(FUZZ_ROOT) -name '*fuzz_test.go' -exec dirname {} \; | sort -u | while read -r dir; do \
+		pkg="./$$dir"; \
+		go test "$$pkg" -list '^Fuzz' 2>/dev/null | grep '^Fuzz' | while read -r target; do \
+			echo "$$pkg $$target"; \
+		done; \
+	done
+.PHONY: fuzz-list
+
+fuzz-one: ### run one fuzz target, e.g. make fuzz-one PKG=./internal/usecase/devices TARGET=FuzzParseInterval FUZZTIME=30s
+	@if [ -z "$(PKG)" ] || [ -z "$(TARGET)" ]; then \
+		echo "usage: make fuzz-one PKG=./path TARGET=FuzzTarget [FUZZTIME=30s]"; \
+		exit 1; \
+	fi
+	go test "$(PKG)" -run=^$$ -fuzz="^$(TARGET)$$" -fuzztime="$(FUZZTIME)"
+.PHONY: fuzz-one
+
+fuzz-smoke: ### run all fuzz targets once (quick CI smoke)
+	$(MAKE) fuzz-all FUZZTIME=1x
+.PHONY: fuzz-smoke
+
+fuzz-all: ### run all fuzz targets sequentially with FUZZTIME per target
+	@set -eu; \
+	find $(FUZZ_ROOT) -name '*fuzz_test.go' -exec dirname {} \; | sort -u | while read -r dir; do \
+		pkg="./$$dir"; \
+		targets=$$(go test "$$pkg" -list '^Fuzz' 2>/dev/null | grep '^Fuzz' || true); \
+		for target in $$targets; do \
+			echo "==> $$pkg $$target (FUZZTIME=$(FUZZTIME))"; \
+			go test "$$pkg" -run=^$$ -fuzz="^$${target}$$" -fuzztime="$(FUZZTIME)"; \
+		done; \
+	done
+.PHONY: fuzz-all
+
 integration-test: ### run integration-test
 	go clean -testcache && go test -v ./integration-test/...
 .PHONY: integration-test
