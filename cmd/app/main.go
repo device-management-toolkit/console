@@ -43,6 +43,9 @@ var (
 )
 
 func main() {
+	// Detect Windows service mode early, before any interactive prompts
+	serviceMode = isServiceMode()
+
 	cfg, err := initializeConfigFunc()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)
@@ -65,6 +68,15 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
+	// Run as a Windows service if started by the SCM (no-op on non-Windows)
+	if serviceMode {
+		if err := runAsService(cfg, l); err != nil {
+			log.Fatalf("Windows service error: %s", err)
+		}
+
+		return
+	}
+
 	handleDebugMode(cfg, l)
 	runAppFunc(cfg, l)
 }
@@ -269,6 +281,13 @@ func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager
 }
 
 func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) string {
+	// When running as a Windows service there is no stdin — auto-generate the key
+	if serviceMode {
+		log.Println("No encryption key found — generating new key (service mode)")
+
+		return toolkitCrypto.GenerateKey()
+	}
+
 	log.Print("\033[31mWarning: Key Not Found, Generate new key? -- This will prevent access to existing data? Y/N: \033[0m")
 
 	var response string
