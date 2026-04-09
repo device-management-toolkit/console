@@ -244,12 +244,12 @@ SectionEnd
 
 Section "Start Menu Shortcuts" SecStartMenu
   CreateDirectory "$SMPROGRAMS\Device Management Toolkit"
-  CreateShortcut "$SMPROGRAMS\Device Management Toolkit\Console.lnk" "$INSTDIR\console.exe"
+  CreateShortcut "$SMPROGRAMS\Device Management Toolkit\Console.lnk" "$INSTDIR\console.exe" "--tray"
   CreateShortcut "$SMPROGRAMS\Device Management Toolkit\Uninstall Console.lnk" "$INSTDIR\Uninstall.exe"
 SectionEnd
 
 Section "Desktop Shortcut" SecDesktop
-  CreateShortcut "$DESKTOP\DMT Console.lnk" "$INSTDIR\console.exe"
+  CreateShortcut "$DESKTOP\DMT Console.lnk" "$INSTDIR\console.exe" "--tray"
 SectionEnd
 
 Section /o "Add to PATH" SecPath
@@ -268,13 +268,12 @@ Section /o "Add to PATH" SecPath
   ${EndIf}
 SectionEnd
 
-Section /o "Install as Windows Service" SecService
-  ; Install as a Windows service using sc.exe
-  nsExec::ExecToLog 'sc.exe create "DMTConsole" binPath= "$INSTDIR\console.exe" start= auto DisplayName= "Device Management Toolkit Console"'
-  nsExec::ExecToLog 'sc.exe description "DMTConsole" "Device Management Toolkit Console Service"'
+Section /o "Run at Startup (System Tray)" SecStartup
+  ; Add to HKLM Run key so it launches with --tray on login
+  WriteRegStr HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "DMTConsole" '"$INSTDIR\console.exe" --tray'
 
-  ; Write service registry key
-  WriteRegStr HKLM "Software\DeviceManagementToolkit\Console" "ServiceInstalled" "1"
+  ; Record that we added startup entry
+  WriteRegStr HKLM "Software\DeviceManagementToolkit\Console" "StartupInstalled" "1"
 SectionEnd
 
 ;--------------------------------
@@ -351,34 +350,17 @@ FunctionEnd
   !insertmacro MUI_DESCRIPTION_TEXT ${SecStartMenu} "Create Start Menu shortcuts for easy access."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecDesktop} "Create a Desktop shortcut."
   !insertmacro MUI_DESCRIPTION_TEXT ${SecPath} "Add the installation directory to the system PATH environment variable."
-  !insertmacro MUI_DESCRIPTION_TEXT ${SecService} "Install Console as a Windows Service for automatic startup."
+  !insertmacro MUI_DESCRIPTION_TEXT ${SecStartup} "Run Console with system tray icon at Windows startup."
 !insertmacro MUI_FUNCTION_DESCRIPTION_END
 
 ;--------------------------------
 ; Uninstaller Section
 
 Section "Uninstall"
-  ; Stop and remove service if installed
-  ReadRegStr $0 HKLM "Software\DeviceManagementToolkit\Console" "ServiceInstalled"
+  ; Remove startup entry if installed
+  ReadRegStr $0 HKLM "Software\DeviceManagementToolkit\Console" "StartupInstalled"
   ${If} $0 == "1"
-    nsExec::ExecToLog 'sc.exe stop "DMTConsole"'
-    ; Wait for the service to fully stop before deleting
-    StrCpy $1 0
-    ${Do}
-      nsExec::ExecToStack 'sc.exe query "DMTConsole"'
-      Pop $2 ; exit code
-      Pop $3 ; output
-      ${UnStrStr} $4 $3 "STOPPED"
-      ${If} $4 != ""
-        ${ExitDo}
-      ${EndIf}
-      IntOp $1 $1 + 1
-      ${If} $1 >= 30
-        ${ExitDo}
-      ${EndIf}
-      Sleep 1000
-    ${Loop}
-    nsExec::ExecToLog 'sc.exe delete "DMTConsole"'
+    DeleteRegValue HKLM "Software\Microsoft\Windows\CurrentVersion\Run" "DMTConsole"
   ${EndIf}
 
   ; Remove from PATH if we added it
