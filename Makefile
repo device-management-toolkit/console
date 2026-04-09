@@ -144,3 +144,16 @@ migrate-up: ### migration up
 bin-deps:
 	GOBIN=$(LOCAL_BIN) go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	GOBIN=$(LOCAL_BIN) go install go.uber.org/mock/mockgen@latest
+
+# Linux Installer
+VERSION ?= 3.0.0-dev
+
+build-linux-installer: ### build Linux installer archives (full + headless)
+	@echo "Building Linux installer archives..."
+	@mkdir -p dist/linux
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+	chmod +x installer/linux/build-packages.sh
+	./installer/linux/build-packages.sh $(VERSION) amd64
+	@echo "Linux installer archives created in dist/linux/"
+.PHONY: build-linux-installer
