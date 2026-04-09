@@ -93,7 +93,7 @@ func TestGetVersion(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
@@ -180,7 +180,7 @@ func TestGetVersion(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
@@ -201,7 +201,7 @@ func TestGetVersion(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTVersion().
@@ -275,7 +275,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
@@ -301,7 +301,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
@@ -363,7 +363,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetHardwareInfo().
@@ -412,7 +412,7 @@ func TestGetAuditLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAuditLog(1).
@@ -446,7 +446,7 @@ func TestGetAuditLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAuditLog(1).
@@ -495,7 +495,7 @@ func TestGetEventLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetEventLog(1, 10).
@@ -526,7 +526,7 @@ func TestGetEventLog(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetEventLog(1, 10).
@@ -575,7 +575,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetGeneralSettings().
@@ -606,7 +606,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetGeneralSettings().
@@ -656,7 +656,7 @@ func TestGetDiskInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
@@ -678,7 +678,7 @@ func TestGetDiskInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
@@ -757,7 +757,7 @@ func TestGetDiskInfo(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetDiskInfo().
