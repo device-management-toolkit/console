@@ -14,6 +14,9 @@ import (
 
 var ConsoleConfig *Config
 
+// TrayMode indicates whether to run with system tray UI.
+var TrayMode bool
+
 const defaultHost = "localhost"
 
 type (
@@ -211,6 +214,14 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return "", err
 	}
 
+	// Resolve symlinks to find actual executable location.
+	// On macOS, os.Executable() may return the symlink path (e.g. /usr/local/bin/dmt-console)
+	// rather than the target (e.g. /usr/local/device-management-toolkit/console).
+	ex, err = filepath.EvalSymlinks(ex)
+	if err != nil {
+		return "", err
+	}
+
 	exPath := filepath.Dir(ex)
 
 	return filepath.Join(exPath, "config", "config.yml"), nil
@@ -259,6 +270,10 @@ func NewConfig() (*Config, error) {
 	var configPathFlag string
 	if flag.Lookup("config") == nil {
 		flag.StringVar(&configPathFlag, "config", "", "path to config file")
+	}
+
+	if flag.Lookup("tray") == nil {
+		flag.BoolVar(&TrayMode, "tray", false, "run with system tray icon")
 	}
 
 	if !flag.Parsed() {

@@ -144,3 +144,26 @@ migrate-up: ### migration up
 bin-deps:
 	GOBIN=$(LOCAL_BIN) go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	GOBIN=$(LOCAL_BIN) go install go.uber.org/mock/mockgen@latest
+
+# macOS Installer
+VERSION ?= 3.0.0-dev
+
+build-tray: ### build app with system tray support (requires CGO, native build only)
+	CGO_ENABLED=1 go build -tags=tray -o ./bin/console-tray ./cmd/app
+.PHONY: build-tray
+
+build-macos-binaries: ### build macOS binaries (full and headless)
+	@echo "Building macOS binaries..."
+	@mkdir -p dist/darwin
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
+	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
+	@echo "macOS binaries built successfully!"
+.PHONY: build-macos-binaries
+
+build-macos-installer: build-macos-binaries ### build macOS PKG installer (macOS only)
+	@echo "Building macOS PKG installer..."
+	@if [ "$$(uname)" != "Darwin" ]; then echo "Error: macOS PKG can only be built on macOS"; exit 1; fi
+	chmod +x installer/macos/build-pkg.sh
+	./installer/macos/build-pkg.sh $(VERSION) arm64
+	@echo "macOS installer created: dist/darwin/console_$(VERSION)_macos_arm64.pkg"
+.PHONY: build-macos-installer

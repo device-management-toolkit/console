@@ -40,31 +40,23 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 	modifiedMainJS := injectConfigToMainJS(l, cfg)
 	handler.StaticFile("/main.js", modifiedMainJS)
 
-	handler.StaticFileFS("/polyfills.js", "./polyfills.js", http.FS(staticFiles))
-	handler.StaticFileFS("/media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", "./media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", http.FS(staticFiles))
-	handler.StaticFileFS("/runtime.js", "./runtime.js", http.FS(staticFiles))
-	handler.StaticFileFS("/styles.css", "./styles.css", http.FS(staticFiles))
-	handler.StaticFileFS("/vendor.js", "./vendor.js", http.FS(staticFiles))
-	handler.StaticFileFS("/favicon.ico", "./favicon.ico", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/logo.png", "./assets/logo.png", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/loader.js", "./assets/monaco/min/vs/loader.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.js", "./assets/monaco/min/vs/editor/editor.main.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.css", "./assets/monaco/min/vs/editor/editor.main.css", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.nls.js", "./assets/monaco/min/vs/editor/editor.main.nls.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/base/worker/workerMain.js", "./assets/monaco/min/vs/base/worker/workerMain.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/base/common/worker/simpleWorker.nls.js", "./assets/monaco/min/vs/base/common/worker/simpleWorker.nls.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", "./assets/monaco/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/basic-languages/xml/xml.js", "./assets/monaco/min/vs/basic-languages/xml/xml.js", http.FS(staticFiles))
-
-	langs := []string{"en", "fr", "de", "ar", "es", "fi", "he", "it", "ja", "nl", "ru", "sv"}
-	for _, lang := range langs {
-		relativePath := "/assets/i18n/" + lang + ".json"
-		filePath := "." + relativePath
-		handler.StaticFileFS(relativePath, filePath, http.FS(staticFiles))
-	}
-
-	// Setup default NoRoute handler for SPA
+	// Serve all other static files dynamically via NoRoute handler
+	// This handles chunk files, assets, and any other embedded files
 	handler.NoRoute(func(c *gin.Context) {
+		path := strings.TrimPrefix(c.Request.URL.Path, "/")
+		if path == "" {
+			path = "."
+		}
+
+		// Try to serve the actual file if it exists
+		if file, err := staticFiles.Open(path); err == nil {
+			file.Close()
+			c.FileFromFS(path, http.FS(staticFiles))
+
+			return
+		}
+
+		// Fallback to index.html for SPA routing
 		c.FileFromFS("./", http.FS(staticFiles))
 	})
 }
