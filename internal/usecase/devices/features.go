@@ -50,7 +50,7 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 		return settingsResults, settingsResultsV2, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.Features{}, dtov2.Features{}, err
 	}
@@ -192,7 +192,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 		return settingsResults, settingsResultsV2, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return settingsResults, settingsResultsV2, err
 	}

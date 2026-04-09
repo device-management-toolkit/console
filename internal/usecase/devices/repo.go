@@ -15,8 +15,9 @@ import (
 
 var (
 	ErrDeviceUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
-	ErrDatabase      = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
-	ErrNotFound      = sqldb.NotFoundError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
+	ErrDatabase      = sqldb.DatabaseError{Console: ErrDeviceUseCase}
+	ErrNotFound      = sqldb.NotFoundError{Console: ErrDeviceUseCase}
+	ErrCancelled     = dto.CanceledError{Console: ErrDeviceUseCase}
 )
 
 // History - getting translate history from store.

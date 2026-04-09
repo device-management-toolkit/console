@@ -1,6 +1,7 @@
 package wsman
 
 import (
+	"context"
 	gotls "crypto/tls"
 	"errors"
 	"net"
@@ -61,6 +62,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -83,6 +85,8 @@ var (
 	ErrCIRADeviceNotConnected = errors.New("CIRA device not connected/not found")
 	// ErrNoWiFiPort is returned when no WiFi interface is found on the device.
 	ErrNoWiFiPort = errors.New("no WiFi interface found (InstanceID == Intel(r) AMT Ethernet Port Settings 1)")
+
+	ErrCancelled = dto.CanceledError{Console: consoleerrors.CreateConsoleError("WsmanMessages")}
 )
 
 type ConnectionEntry struct {
@@ -127,7 +131,7 @@ func (g GoWSMANMessages) Worker() {
 	}
 }
 
-func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
+func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
 	resultChan := make(chan *ConnectionEntry)
 	errChan := make(chan error, 1)
 	// Queue the request
@@ -179,6 +183,8 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 		return nil, err
 	case result := <-resultChan:
 		return result, nil
+	case <-ctx.Done():
+		return nil, ErrCancelled.Wrap("SetupWsmanClient", "ctx.Done", ctx.Err())
 	}
 }
 
