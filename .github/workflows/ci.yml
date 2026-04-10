@@ -149,10 +149,15 @@ jobs:
           export GOPATH="$HOME/go/"
           export PATH=$PATH:$GOPATH/bin
           go install github.com/jstemmer/go-junit-report/v2@latest
-          go test -covermode=atomic -coverprofile=coverage.out -race -v ./... > test_output.txt 2>&1 || true
+          set +e
+          go test -covermode=atomic -coverprofile=coverage.out -race -v ./... > test_output.txt 2>&1
+          test_exit=$?
           cat test_output.txt
-          cat test_output.txt | go-junit-report -set-exit-code > junit-${{matrix.os}}-${{matrix.go-version}}-${{github.run_attempt}}.xml
-          if grep -q "FAIL" test_output.txt; then exit 1; fi
+          go-junit-report -set-exit-code < test_output.txt > junit-${{matrix.os}}-${{matrix.go-version}}-${{github.run_attempt}}.xml
+          report_exit=$?
+          if [ $test_exit -ne 0 ] || [ $report_exit -ne 0 ]; then
+            exit 1
+          fi
       - name: Upload Coverage Results
         uses: codecov/codecov-action@7f8b4b4bde536c465e797be725718b88c5d95e0e # v5.1.1
         with:
