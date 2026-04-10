@@ -4,6 +4,7 @@ package v1
 import (
 	"embed"
 	"encoding/xml"
+	"errors"
 	"fmt"
 	"net/http"
 	"os"
@@ -48,6 +49,8 @@ var (
 	metadataMutex  sync.Mutex
 	cachedUUID     string
 	uuidMutex      sync.Mutex
+
+	errConfigPathNotDirectory = errors.New("config path exists but is not a directory")
 )
 
 // loadMetadata loads embedded metadata.xml with XML validation.
@@ -114,7 +117,18 @@ func getUUIDStoragePath(appName string) (string, error) {
 	const dirPermissions = 0o755
 
 	if err := os.MkdirAll(dir, dirPermissions); err != nil {
-		return "", fmt.Errorf("failed to create config directory: %w", err)
+		if !os.IsExist(err) {
+			return "", fmt.Errorf("failed to create config directory: %w", err)
+		}
+	}
+
+	info, err := os.Stat(dir)
+	if err != nil {
+		return "", fmt.Errorf("failed to stat config directory: %w", err)
+	}
+
+	if !info.IsDir() {
+		return "", fmt.Errorf("%w: %s", errConfigPathNotDirectory, dir)
 	}
 
 	return filepath.Join(dir, uuidFileName), nil
