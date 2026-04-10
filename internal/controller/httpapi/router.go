@@ -5,6 +5,8 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/prometheus/client_golang/prometheus/promhttp"
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 
@@ -12,6 +14,7 @@ import (
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -24,17 +27,17 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
 
-	// Initialize redfish directly
-	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
-		l.Fatal("Failed to initialize redfish: " + err.Error())
-	}
-
 	// Add Prometheus middleware for automatic HTTP metrics
 	// Don't automatically register /metrics endpoint - we have our own
 	p := ginprometheus.NewPrometheus("gin")
 	p.MetricsPath = ""
 	// Use middleware function directly without calling Use() which would register conflicting routes
 	handler.Use(p.HandlerFunc())
+
+	// Initialize redfish directly
+	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
+		l.Fatal("Failed to initialize redfish: " + err.Error())
+	}
 
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
@@ -64,6 +67,13 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		protected = handler.Group("/api")
 	} else {
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
+	}
+
+	// Register custom validators once
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		if err := v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore); err != nil {
+			l.Error("failed to register custom validation: " + err.Error())
+		}
 	}
 
 	// Routers

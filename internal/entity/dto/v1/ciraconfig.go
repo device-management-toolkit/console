@@ -12,7 +12,7 @@ type CIRAConfigCountResponse struct {
 }
 
 type CIRAConfig struct {
-	ConfigName             string `json:"configName" example:"My CIRA Config"`
+	ConfigName             string `json:"configName" binding:"required,alphanumhyphenunderscore" example:"ciraconfig"`
 	MPSAddress             string `json:"mpsServerAddress" binding:"required,url|ipv4|ipv6" example:"https://example.com"`
 	MPSPort                int    `json:"mpsPort" binding:"required,gt=1024,lt=49151" example:"4433"`
 	Username               string `json:"username" binding:"required,alphanum" example:"my_username"`

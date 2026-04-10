@@ -308,8 +308,14 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 		}
 	}
 
+	var tags []string
+	if data.Tags != "" {
+		tags = strings.Split(data.Tags, ",")
+	}
+
 	return config.Configuration{
 		Name: profileName,
+		Tags: tags,
 		Configuration: config.RemoteManagement{
 			GeneralSettings: config.GeneralSettings{
 				SharedFQDN:              false,
@@ -320,7 +326,7 @@ func (uc *UseCase) BuildConfigurationObject(profileName string, data *entity.Pro
 				Wired: config.Wired{
 					DHCPEnabled:    data.DHCPEnabled,
 					IPSyncEnabled:  data.IPSyncEnabled,
-					SharedStaticIP: false,
+					SharedStaticIP: !data.DHCPEnabled,
 				},
 				Wireless: config.Wireless{
 					WiFiSyncEnabled:     data.LocalWiFiSyncEnabled,
