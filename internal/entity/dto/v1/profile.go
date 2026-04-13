@@ -58,6 +58,7 @@ var ValidateAMTPassOrGenRan validator.Func = func(fl validator.FieldLevel) bool 
 
 var ValidateUserConsent validator.Func = func(fl validator.FieldLevel) bool {
 	userConsent := strings.ToLower(fl.Field().String())
+
 	activation := fl.Parent().FieldByName("Activation").String()
 	if activation == "ccmactivate" && userConsent != "All" {
 		return false

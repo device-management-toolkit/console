@@ -40,7 +40,7 @@ type Management interface {
 	GetAlarmOccurrences() ([]ipsAlarmClock.AlarmClockOccurrence, error)
 	CreateAlarmOccurrences(name string, startTime time.Time, interval int, deleteOnCompletion bool) (alarmclock.AddAlarmOutput, error)
 	DeleteAlarmOccurrences(instanceID string) error
-	GetHardwareInfo() (interface{}, error)
+	GetHardwareInfo() (HWResults, error)
 	GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error)
 	GetOSPowerSavingState() (ipspower.OSPowerSavingState, error)
 	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
@@ -63,7 +63,7 @@ type Management interface {
 	GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	GetCredentialRelationships() (credential.Items, error)
 	GetConcreteDependencies() ([]concrete.ConcreteDependency, error)
-	GetDiskInfo() (interface{}, error)
+	GetDiskInfo() (DiskResults, error)
 	GetDeviceCertificate() (*gotls.Certificate, error)
 	GetCIMBootSourceSetting() (cimBoot.Response, error)
 	BootServiceStateChange(requestedState int) (cimBoot.BootService, error)

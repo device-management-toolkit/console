@@ -821,11 +821,13 @@ func TestGetUUIDStoragePath(t *testing.T) {
 	t.Run("returns valid path", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := getUUIDStoragePath("test-app")
+		appName := "test-app-valid-path-" + uuid.New().String()
+
+		path, err := getUUIDStoragePath(appName)
 
 		require.NoError(t, err)
 		assert.NotEmpty(t, path)
-		assert.Contains(t, path, "test-app")
+		assert.Contains(t, path, appName)
 		assert.Contains(t, path, uuidFileName)
 
 		// Cleanup if directory was created
@@ -855,7 +857,9 @@ func TestGetUUIDStoragePath(t *testing.T) {
 	t.Run("path is OS-specific", func(t *testing.T) {
 		t.Parallel()
 
-		path, err := getUUIDStoragePath("test-app")
+		appName := "test-app-os-specific-" + uuid.New().String()
+
+		path, err := getUUIDStoragePath(appName)
 
 		require.NoError(t, err)
 		// Should use OS-specific path separator

@@ -9,6 +9,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
 func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v2 dtov2.Version, err error) {
@@ -82,29 +83,28 @@ func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (dto.Hardware
 		return dto.HardwareInfo{}, err
 	}
 
-	result := uc.hardwareInfoToDTO(hwInfo)
-
-	return result, nil
+	return uc.hardwareInfoToDTO(hwInfo), nil
 }
 
-func (uc *UseCase) hardwareInfoToDTO(hw interface{}) dto.HardwareInfo {
-	result := dto.HardwareInfo{}
-
-	hwInfo, ok := hw.(map[string]interface{})
-	if !ok {
-		return result
+func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
+	chipItems := make([]any, len(hw.ChipResult.Body.PullResponse.ChipItems))
+	for i := range hw.ChipResult.Body.PullResponse.ChipItems {
+		chipItems[i] = hw.ChipResult.Body.PullResponse.ChipItems[i]
 	}
 
-	result.CIMComputerSystemPackage = uc.parseCIMResponse(hwInfo["CIM_ComputerSystemPackage"])
-	result.CIMSystemPackaging = uc.parseCIMResponse(hwInfo["CIM_SystemPackaging"])
-	result.CIMChassis = uc.parseCIMResponse(hwInfo["CIM_Chassis"])
-	result.CIMChip = uc.parseCIMResponse(hwInfo["CIM_Chip"])
-	result.CIMCard = uc.parseCIMResponse(hwInfo["CIM_Card"])
-	result.CIMBIOSElement = uc.parseCIMResponse(hwInfo["CIM_BIOSElement"])
-	result.CIMProcessor = uc.parseCIMResponse(hwInfo["CIM_Processor"])
-	result.CIMPhysicalMemory = uc.parseCIMResponse(hwInfo["CIM_PhysicalMemory"])
+	memoryItems := make([]any, len(hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems))
+	for i := range hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems {
+		memoryItems[i] = hw.PhysicalMemoryResult.Body.PullResponse.MemoryItems[i]
+	}
 
-	return result
+	return dto.HardwareInfo{
+		CIMChassis:        dto.CIMResponse{Response: hw.ChassisResult.Body.PackageResponse},
+		CIMChip:           dto.CIMResponse{Responses: chipItems},
+		CIMCard:           dto.CIMResponse{Response: hw.CardResult.Body.PackageResponse},
+		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.GetResponse},
+		CIMProcessor:      dto.CIMResponse{Responses: []any{hw.ProcessorResult.Body.PackageResponse}},
+		CIMPhysicalMemory: dto.CIMResponse{Responses: memoryItems},
+	}
 }
 
 func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
@@ -127,49 +127,14 @@ func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, er
 		return dto.DiskInfo{}, err
 	}
 
-	result := uc.discInfoToDTO(diskInfo)
-
-	return result, nil
+	return uc.diskInfoToDTO(diskInfo), nil
 }
 
-func (uc *UseCase) discInfoToDTO(discInfo interface{}) dto.DiskInfo {
-	result := dto.DiskInfo{}
-
-	info, ok := discInfo.(map[string]interface{})
-	if !ok {
-		return result
+func (uc *UseCase) diskInfoToDTO(diskInfo wsmanAPI.DiskResults) dto.DiskInfo {
+	return dto.DiskInfo{
+		CIMMediaAccessDevice: dto.CIMResponse{Responses: []any{diskInfo.MediaAccessPullResult.Body.PullResponse.MediaAccessDevices}},
+		CIMPhysicalPackage:   dto.CIMResponse{Responses: []any{diskInfo.PPPullResult.Body.PullResponse.PhysicalPackage}},
 	}
-
-	result.CIMMediaAccessDevice = uc.parseCIMResponse(info["CIM_MediaAccessDevice"])
-	result.CIMPhysicalPackage = uc.parseCIMResponse(info["CIM_PhysicalPackage"])
-
-	return result
-}
-
-func (uc *UseCase) parseCIMResponse(hwInfo interface{}) dto.CIMResponse {
-	result := dto.CIMResponse{}
-
-	info, ok := hwInfo.(map[string]interface{})
-	if !ok {
-		return result
-	}
-
-	response, ok := info["response"]
-	if ok {
-		result.Response = response
-	}
-
-	responses, ok := info["responses"].([]interface{})
-	if ok {
-		result.Responses = responses
-	}
-
-	status, ok := info["status"].(int)
-	if ok {
-		result.Status = status
-	}
-
-	return result
 }
 
 func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (dto.AuditLog, error) {

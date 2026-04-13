@@ -34,7 +34,7 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 
 // isAPIPath checks if the path is an API endpoint that should not be redirected.
 func isAPIPath(path string) bool {
-	apiPrefixes := []string{"/api/", "/healthz", "/metrics", "/version"}
+	apiPrefixes := []string{"/api/", "/redfish", "/healthz", "/metrics", "/version"}
 	for _, prefix := range apiPrefixes {
 		if len(path) >= len(prefix) && path[:len(prefix)] == prefix {
 			return true
