@@ -318,6 +318,10 @@ func (r *WsmanComputerSystemRepo) selectCIMObject(hwInfo dto.HardwareInfo, confi
 	case CIMObjectBIOSElement:
 		return hwInfo.CIMBIOSElement.Response
 	case CIMObjectPhysicalMemory:
+		if len(hwInfo.CIMPhysicalMemory.Responses) > 0 {
+			return hwInfo.CIMPhysicalMemory.Responses
+		}
+
 		return hwInfo.CIMPhysicalMemory.Response
 	case CIMObjectProcessor:
 		if len(hwInfo.CIMProcessor.Responses) > 0 {
@@ -412,6 +416,13 @@ func (r *WsmanComputerSystemRepo) processItemsArray(items []interface{}, propert
 			if value := r.extractFromSingleItem(itemMap, propertyName); value != nil {
 				return value
 			}
+
+			continue
+		}
+
+		// Handle typed CIM structs in []interface{} responses.
+		if value := r.extractUsingReflection(item, propertyName); value != nil {
+			return value
 		}
 	}
 
