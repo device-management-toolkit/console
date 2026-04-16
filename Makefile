@@ -74,7 +74,7 @@ test: ### run test
 	go test -v -cover -race ./...
 .PHONY: test
 
-FUZZ_ROOT ?= internal
+FUZZ_ROOT ?= internal redfish
 FUZZTIME ?= 30s
 
 fuzz-list: ### list all fuzz targets as '<package> <target>'
