@@ -7,7 +7,7 @@ go 1.25.0
 require (
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.18.0
-	github.com/device-management-toolkit/go-wsman-messages/v2 v2.38.1
+	github.com/device-management-toolkit/go-wsman-messages/v2 v2.38.2
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-contrib/pprof v1.5.4
 	github.com/gin-gonic/gin v1.12.0
