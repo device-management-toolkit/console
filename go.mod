@@ -24,7 +24,7 @@ require (
 	github.com/zsais/go-gin-prometheus v1.0.3
 	go.uber.org/mock v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.48.2
+	modernc.org/sqlite v1.49.1
 	software.sslmate.com/src/go-pkcs12 v0.7.1
 )
 
@@ -63,7 +63,7 @@ require (
 	go.yaml.in/yaml/v2 v2.4.2 // indirect
 	golang.org/x/oauth2 v0.36.0 // indirect
 	golang.org/x/time v0.12.0 // indirect
-	modernc.org/libc v1.70.0 // indirect
+	modernc.org/libc v1.72.0 // indirect
 )
 
 require (
