@@ -18,7 +18,7 @@ paths:
                     example: /redfish/v1/
           description: Redfish protocol version discovery endpoint
       security:
-      - {}
+      - BasicAuth: []
   /redfish/v1/:
     get:
       responses:
@@ -160,7 +160,7 @@ paths:
                 $ref: '#/components/schemas/RedfishError'
           description: Error condition
       security:
-      - {}
+      - BasicAuth: []
   /redfish/v1/SessionService/Sessions/Members:
     post:
       requestBody:
@@ -186,7 +186,7 @@ paths:
                 $ref: '#/components/schemas/RedfishError'
           description: Error condition
       security:
-      - {}
+      - BasicAuth: []
   /redfish/v1/SessionService/Sessions/{SessionId}:
     delete:
       responses:

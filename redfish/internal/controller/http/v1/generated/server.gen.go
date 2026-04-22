@@ -79,6 +79,8 @@ type MiddlewareFunc func(c *gin.Context)
 // GetRedfish operation middleware
 func (siw *ServerInterfaceWrapper) GetRedfish(c *gin.Context) {
 
+	c.Set(BasicAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -178,6 +180,8 @@ func (siw *ServerInterfaceWrapper) GetRedfishV1SessionServiceSessions(c *gin.Con
 // PostRedfishV1SessionServiceSessions operation middleware
 func (siw *ServerInterfaceWrapper) PostRedfishV1SessionServiceSessions(c *gin.Context) {
 
+	c.Set(BasicAuthScopes, []string{})
+
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
 		if c.IsAborted() {
@@ -190,6 +194,8 @@ func (siw *ServerInterfaceWrapper) PostRedfishV1SessionServiceSessions(c *gin.Co
 
 // PostRedfishV1SessionServiceSessionsMembers operation middleware
 func (siw *ServerInterfaceWrapper) PostRedfishV1SessionServiceSessionsMembers(c *gin.Context) {
+
+	c.Set(BasicAuthScopes, []string{})
 
 	for _, middleware := range siw.HandlerMiddlewares {
 		middleware(c)
