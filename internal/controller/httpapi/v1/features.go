@@ -45,7 +45,13 @@ func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 		HTTPSBootSupported:    features.HTTPSBootSupported,
 		WinREBootSupported:    features.WinREBootSupported,
 		LocalPBABootSupported: features.LocalPBABootSupported,
-		RemoteErase:           features.RemoteErase,
+		RPE:                   features.RPE,
+		RPESupported:          features.RPESupported,
+		RPECaps:               features.RPECaps,
+		RPESecureErase:        features.RPESecureErase,
+		RPETPMClear:           features.RPETPMClear,
+		RPEClearBIOSNVM:       features.RPEClearBIOSNVM,
+		RPEBIOSReload:         features.RPEBIOSReload,
 	}
 
 	c.JSON(http.StatusOK, v1Features)

@@ -239,6 +239,21 @@ func (mr *MockManagementMockRecorder) GetAuditLog(startIndex any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockManagement)(nil).GetAuditLog), startIndex)
 }
 
+// GetBootCapabilities mocks base method.
+func (m *MockManagement) GetBootCapabilities() (boot.BootCapabilitiesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootCapabilities")
+	ret0, _ := ret[0].(boot.BootCapabilitiesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootCapabilities indicates an expected call of GetBootCapabilities.
+func (mr *MockManagementMockRecorder) GetBootCapabilities() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootCapabilities", reflect.TypeOf((*MockManagement)(nil).GetBootCapabilities))
+}
+
 // GetBootData mocks base method.
 func (m *MockManagement) GetBootData() (boot.BootSettingDataResponse, error) {
 	m.ctrl.T.Helper()
@@ -509,21 +524,6 @@ func (mr *MockManagementMockRecorder) GetOSPowerSavingState() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOSPowerSavingState", reflect.TypeOf((*MockManagement)(nil).GetOSPowerSavingState))
 }
 
-// GetPowerCapabilities mocks base method.
-func (m *MockManagement) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetPowerCapabilities")
-	ret0, _ := ret[0].(boot.BootCapabilitiesResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetPowerCapabilities indicates an expected call of GetPowerCapabilities.
-func (mr *MockManagementMockRecorder) GetPowerCapabilities() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPowerCapabilities", reflect.TypeOf((*MockManagement)(nil).GetPowerCapabilities))
-}
-
 // GetPowerState mocks base method.
 func (m *MockManagement) GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error) {
 	m.ctrl.T.Helper()
@@ -688,6 +688,34 @@ func (m *MockManagement) SetBootData(data boot.BootSettingDataRequest) (any, err
 func (mr *MockManagementMockRecorder) SetBootData(data any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetBootData", reflect.TypeOf((*MockManagement)(nil).SetBootData), data)
+}
+
+// SetRPEEnabled mocks base method.
+func (m *MockManagement) SetRPEEnabled(enabled bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRPEEnabled", enabled)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRPEEnabled indicates an expected call of SetRPEEnabled.
+func (mr *MockManagementMockRecorder) SetRPEEnabled(enabled any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRPEEnabled", reflect.TypeOf((*MockManagement)(nil).SetRPEEnabled), enabled)
+}
+
+// SendRemoteErase mocks base method.
+func (m *MockManagement) SendRemoteErase(eraseMask int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendRemoteErase", eraseMask)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendRemoteErase indicates an expected call of SendRemoteErase.
+func (mr *MockManagementMockRecorder) SendRemoteErase(eraseMask any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendRemoteErase", reflect.TypeOf((*MockManagement)(nil).SendRemoteErase), eraseMask)
 }
 
 // SetIPSKVMRedirectionSettingData mocks base method.

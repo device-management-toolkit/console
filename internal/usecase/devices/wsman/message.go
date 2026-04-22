@@ -132,7 +132,7 @@ func (g GoWSMANMessages) Worker() {
 }
 
 func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
-	resultChan := make(chan *ConnectionEntry, 1)
+	resultChan := make(chan *ConnectionEntry)
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
@@ -625,7 +625,7 @@ func (c *ConnectionEntry) RequestOSPowerSavingStateChange(newOSPowerStavingState
 	return response.Body.RequestOSPowerSavingStateChangeResponse, nil
 }
 
-func (c *ConnectionEntry) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {
+func (c *ConnectionEntry) GetBootCapabilities() (boot.BootCapabilitiesResponse, error) {
 	response, err := c.WsmanMessages.AMT.BootCapabilities.Get()
 	if err != nil {
 		return boot.BootCapabilitiesResponse{}, err

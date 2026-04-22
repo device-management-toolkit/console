@@ -12,5 +12,11 @@ type GetFeaturesResponse struct {
 	HTTPSBootSupported    bool   `json:"httpsBootSupported" binding:"required" example:"false"`
 	WinREBootSupported    bool   `json:"winREBootSupported" binding:"required" example:"false"`
 	LocalPBABootSupported bool   `json:"localPBABootSupported" binding:"required" example:"false"`
-	RemoteErase           bool   `json:"remoteErase" binding:"required" example:"false"`
+	RPE                   bool   `json:"rpe" binding:"required" example:"false"`
+	RPESupported          bool   `json:"rpeSupported" example:"false"`
+	RPECaps               int    `json:"rpeCaps" example:"0"`
+	RPESecureErase        bool   `json:"rpeSecureErase" example:"false"`
+	RPETPMClear           bool   `json:"rpeTPMClear" example:"false"`
+	RPEClearBIOSNVM       bool   `json:"rpeClearBIOSNVM" example:"false"`
+	RPEBIOSReload         bool   `json:"rpeBIOSReload" example:"false"`
 }
