@@ -4,21 +4,6 @@ info:
   version: 1.0.0
   description: Merged Redfish API specification
 paths:
-  /redfish:
-    get:
-      responses:
-        '200':
-          content:
-            application/json:
-              schema:
-                type: object
-                properties:
-                  v1:
-                    type: string
-                    example: /redfish/v1/
-          description: Redfish protocol version discovery endpoint
-      security:
-      - {}
   /redfish/v1/:
     get:
       responses:
@@ -160,33 +145,7 @@ paths:
                 $ref: '#/components/schemas/RedfishError'
           description: Error condition
       security:
-      - {}
-  /redfish/v1/SessionService/Sessions/Members:
-    post:
-      requestBody:
-        content:
-          application/json:
-            schema:
-              $ref: '#/components/schemas/Session_Session'
-        required: true
-      responses:
-        '201':
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/Session_Session'
-          description: A resource of type Session has been created (OData Members
-            endpoint)
-        '204':
-          description: Success, but no response data
-        default:
-          content:
-            application/json:
-              schema:
-                $ref: '#/components/schemas/RedfishError'
-          description: Error condition
-      security:
-      - {}
+      - BasicAuth: []
   /redfish/v1/SessionService/Sessions/{SessionId}:
     delete:
       responses:
@@ -2294,13 +2253,6 @@ components:
             that cannot be conveyed with other properties defined for the Placement
             object.
           x-versionAdded: v1_7_0
-        FacilityName:
-          description: The name of the facility.
-          nullable: true
-          readOnly: false
-          type: string
-          x-longDescription: This property shall contain the name of the facility.
-          x-versionAdded: v1_23_0
         Rack:
           description: The name of a rack location within a row.
           nullable: true
@@ -2315,9 +2267,8 @@ components:
           nullable: true
           readOnly: false
           type: integer
-          x-longDescription: The vertical location of the item in the rack, at the
-            lowest point of the unit.  Rack offset units shall be measured from bottom
-            to top, starting with 0.
+          x-longDescription: The vertical location of the item in the rack.  Rack
+            offset units shall be measured from bottom to top, starting with 0.
           x-versionAdded: v1_3_0
         RackOffsetUnits:
           description: The type of rack units in use.
@@ -2329,14 +2280,6 @@ components:
           x-longDescription: This property shall contain a RackUnit enumeration literal
             that indicates the type of rack units in use.
           x-versionAdded: v1_3_0
-        Room:
-          description: The name or number of the room.
-          nullable: true
-          readOnly: false
-          type: string
-          x-longDescription: This property shall contain the name or number of the
-            room.
-          x-versionAdded: v1_23_0
         Row:
           description: The name of the row.
           nullable: true
