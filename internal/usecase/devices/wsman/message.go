@@ -132,7 +132,7 @@ func (g GoWSMANMessages) Worker() {
 }
 
 func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
-	resultChan := make(chan *ConnectionEntry)
+	resultChan := make(chan *ConnectionEntry, 1)
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
