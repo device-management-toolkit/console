@@ -245,10 +245,10 @@ jobs:
 
       - name: Generate OpenAPI specification
         if: steps.semantic-release.outputs.new_release_published == 'true' && steps.check-openapi-changes.outputs.changed == 'true'
-        run: |
-          GIN_MODE=debug go run ./cmd/app
+        run: go run ./cmd/openapi-gen
 
       - name: Verify OpenAPI spec was generated
+        if: steps.semantic-release.outputs.new_release_published == 'true' && steps.check-openapi-changes.outputs.changed == 'true'
         run: |
           if [ ! -f "doc/openapi.json" ]; then
             exit 1
@@ -256,7 +256,7 @@ jobs:
           head -20 doc/openapi.json
 
       - name: Push to SwaggerHub
-        if: vars.SWAGGERHUB_OWNER != '' && vars.SWAGGERHUB_API_NAME != ''
+        if: steps.semantic-release.outputs.new_release_published == 'true' && steps.check-openapi-changes.outputs.changed == 'true' && vars.SWAGGERHUB_OWNER != '' && vars.SWAGGERHUB_API_NAME != ''
         env:
           SWAGGERHUB_API_KEY: ${{ secrets.SWAGGERHUB_API_KEY }}
           SWAGGERHUB_OWNER: ${{ vars.SWAGGERHUB_OWNER }}
