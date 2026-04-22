@@ -1,4 +1,4 @@
-include .env
+-include .env
 export
 
 LOCAL_BIN:=$(CURDIR)/bin
