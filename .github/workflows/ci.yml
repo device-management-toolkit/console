@@ -140,6 +140,12 @@ jobs:
       - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a
         with:
           go-version: ${{ matrix.go-version }}
+      - name: Regenerate mocks
+        shell: bash
+        run: |
+          go install go.uber.org/mock/mockgen@v0.6.0
+          export PATH="$(go env GOPATH)/bin:$PATH"
+          make mock
       - name: build go
         run: go build ./cmd/app
       - name: build noui (headless)
