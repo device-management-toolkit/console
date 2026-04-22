@@ -790,21 +790,6 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetHardwareInfo(ctx, guid any
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetHardwareInfo", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetHardwareInfo), ctx, guid)
 }
 
-// SetLinkPreference mocks base method.
-func (m *MockDeviceManagementFeature) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetLinkPreference", c, guid, req)
-	ret0, _ := ret[0].(dto.LinkPreferenceResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SetLinkPreference indicates an expected call of SetLinkPreference.
-func (mr *MockDeviceManagementFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetLinkPreference), c, guid, req)
-}
-
 // GetKVMScreenSettings mocks base method.
 func (m *MockDeviceManagementFeature) GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error) {
 	m.ctrl.T.Helper()
@@ -1014,6 +999,21 @@ func (m *MockDeviceManagementFeature) SetKVMScreenSettings(c context.Context, gu
 func (mr *MockDeviceManagementFeatureMockRecorder) SetKVMScreenSettings(c, guid, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKVMScreenSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetKVMScreenSettings), c, guid, req)
+}
+
+// SetLinkPreference mocks base method.
+func (m *MockDeviceManagementFeature) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetLinkPreference", c, guid, req)
+	ret0, _ := ret[0].(dto.LinkPreferenceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetLinkPreference indicates an expected call of SetLinkPreference.
+func (mr *MockDeviceManagementFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetLinkPreference), c, guid, req)
 }
 
 // Update mocks base method.
