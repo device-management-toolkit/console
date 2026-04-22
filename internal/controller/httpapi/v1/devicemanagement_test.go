@@ -133,7 +133,7 @@ func TestDeviceManagement(t *testing.T) {
 				OCR:                   false,
 				OptInState:            0,
 				Redirection:           false,
-				RemoteErase:           false,
+				RPE:                   false,
 				UserConsent:           "",
 				WinREBootSupported:    false,
 			},

@@ -270,6 +270,49 @@ func (mr *MockFeatureMockRecorder) GetAuditLog(ctx, startIndex, guid any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootCapabilities mocks base method.
+func (m *MockFeature) GetBootCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootCapabilities", ctx, guid)
+	ret0, _ := ret[0].(dto.BootCapabilities)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootCapabilities indicates an expected call of GetBootCapabilities.
+func (mr *MockFeatureMockRecorder) GetBootCapabilities(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootCapabilities", reflect.TypeOf((*MockFeature)(nil).GetBootCapabilities), ctx, guid)
+}
+
+// SetRPEEnabled mocks base method.
+func (m *MockFeature) SetRPEEnabled(ctx context.Context, guid string, enabled bool) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRPEEnabled", ctx, guid, enabled)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRPEEnabled indicates an expected call of SetRPEEnabled.
+func (mr *MockFeatureMockRecorder) SetRPEEnabled(ctx, guid, enabled any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRPEEnabled", reflect.TypeOf((*MockFeature)(nil).SetRPEEnabled), ctx, guid, enabled)
+}
+
+// SendRemoteErase mocks base method.
+func (m *MockFeature) SendRemoteErase(ctx context.Context, guid string, eraseMask int) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SendRemoteErase", ctx, guid, eraseMask)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SendRemoteErase indicates an expected call of SendRemoteErase.
+func (mr *MockFeatureMockRecorder) SendRemoteErase(ctx, guid, eraseMask any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendRemoteErase", reflect.TypeOf((*MockFeature)(nil).SendRemoteErase), ctx, guid, eraseMask)
+}
+
 // GetBootSourceSetting mocks base method.
 func (m *MockFeature) GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error) {
 	m.ctrl.T.Helper()

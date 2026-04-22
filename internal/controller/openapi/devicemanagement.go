@@ -172,6 +172,20 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		fuego.OptionDescription("Retrieve power capabilities for a device"),
 		fuego.OptionPath("guid", "Device GUID"),
 	)
+
+	fuego.Get(f.server, "/api/v1/admin/amt/boot/capabilities/{guid}", f.getBootCapabilities,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Boot Capabilities"),
+		fuego.OptionDescription("Read AMT_BootCapabilities.PlatformErase to determine Remote Platform Erase (RPE) support in the BIOS"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
+
+	fuego.Post(f.server, "/api/v1/admin/amt/boot/rpe/{guid}", f.setRPEEnabled,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Set RPE Enabled"),
+		fuego.OptionDescription("Enable or disable Remote Platform Erase (RPE) in Intel AMT via CIM_BootService.RequestStateChange. Requires administrative privileges and BIOS support."),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
 }
 
 func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
@@ -357,6 +371,14 @@ func (f *FuegoAdapter) getBootSources(_ fuego.ContextNoBody) ([]dto.BootSources,
 
 func (f *FuegoAdapter) getPowerCapabilities(_ fuego.ContextNoBody) (dto.PowerCapabilities, error) {
 	return dto.PowerCapabilities{}, nil
+}
+
+func (f *FuegoAdapter) getBootCapabilities(_ fuego.ContextNoBody) (dto.BootCapabilities, error) {
+	return dto.BootCapabilities{}, nil
+}
+
+func (f *FuegoAdapter) setRPEEnabled(_ fuego.ContextWithBody[dto.RPERequest]) (any, error) {
+	return nil, nil
 }
 
 func (f *FuegoAdapter) getAlarmOccurrences(_ fuego.ContextNoBody) ([]dto.AlarmClockOccurrence, error) {

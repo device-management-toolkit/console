@@ -28,7 +28,7 @@ type (
 	}
 
 	Redirection interface {
-		SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) (wsman.Messages, error)
+		SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsman.Messages, error)
 		RedirectConnect(ctx context.Context, deviceConnection *DeviceConnection) error
 		RedirectClose(ctx context.Context, deviceConnection *DeviceConnection) error
 		RedirectListen(ctx context.Context, deviceConnection *DeviceConnection) ([]byte, error)
@@ -70,6 +70,9 @@ type (
 		GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error)
 		GetPowerState(ctx context.Context, guid string) (dto.PowerState, error)
 		GetPowerCapabilities(ctx context.Context, guid string) (dto.PowerCapabilities, error)
+		GetBootCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error)
+		SetRPEEnabled(ctx context.Context, guid string, enabled bool) error
+		SendRemoteErase(ctx context.Context, guid string, eraseMask int) error
 		GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error)
 		CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error)
 		GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error)
