@@ -24,6 +24,11 @@ secrets:
   address: http://localhost:8200
   token: ""
 postgres:
+  # provider selects the backend. Empty defaults to "sqlite".
+  #   postgres -> hosted PostgreSQL; DB_URL must be set (postgres://...)
+  #   sqlite   -> embedded SQLite under the user's config dir; DB_URL is ignored
+  #   mongo    -> MongoDB; DB_URL must be set (mongodb://...)
+  provider: sqlite
   pool_max: 2
   url: ""
 ea:

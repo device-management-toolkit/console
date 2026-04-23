@@ -23,6 +23,21 @@ services:
       POSTGRES_DB: "rpsdb"
     ports:
       - 5432:5432
+  # Mongo runs only when the "mongo" profile is activated:
+  #   docker compose --profile mongo up
+  mongo:
+    container_name: mongo
+    image: mongo:7
+    profiles:
+      - mongo
+    networks:
+      - dmtnetwork1
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: consoledb
+    ports:
+      - 27017:27017
   app:
     build: .
     container_name: app
@@ -36,6 +51,10 @@ services:
       HTTP_HOST: ""
       HTTP_TLS_ENABLED: "false"
       GIN_MODE: "debug"
+      # Default here: hosted Postgres. To switch backends override both:
+      #   DB_PROVIDER=mongo    DB_URL=mongodb://mongo:27017     (bring up `mongo` profile)
+      #   DB_PROVIDER=sqlite   DB_URL=                          (embedded, dev only)
+      DB_PROVIDER: "postgres"
       DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
       AUTH_DISABLED: true
     ports:
@@ -52,6 +71,7 @@ services:
   #     - app
 volumes:
   pg-data:
+  mongo-data:
 networks:
   dmtnetwork1:
     driver: "bridge"

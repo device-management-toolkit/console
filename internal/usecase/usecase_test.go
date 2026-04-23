@@ -58,7 +58,7 @@ func TestUsecases(t *testing.T) {
 
 				setupConfig()
 
-				return NewUseCases(mockDB, mockLogger, nil)
+				return NewUseCases(NewSQLRepos(mockDB, mockLogger), mockLogger, nil)
 			},
 			expectedResult: &Usecases{
 				Domains: domains.New(sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements, nil),
@@ -136,7 +136,7 @@ func TestInitialization(t *testing.T) {
 
 			mockLogger := mocks.NewMockLogger(mockCtl)
 
-			uc := NewUseCases(mockDB, mockLogger, nil)
+			uc := NewUseCases(NewSQLRepos(mockDB, mockLogger), mockLogger, nil)
 
 			require.NotNil(t, uc)
 			assert.NotNil(t, uc.Devices)
