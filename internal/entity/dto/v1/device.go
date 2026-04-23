@@ -34,6 +34,7 @@ type Device struct {
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+	IsLMSAvailable   bool        `json:"isLMSAvailable"`
 }
 
 type DeviceInfo struct {
