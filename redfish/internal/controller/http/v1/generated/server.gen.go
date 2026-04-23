@@ -411,15 +411,25 @@ type GetRedfishResponseObject interface {
 	VisitGetRedfishResponse(w http.ResponseWriter) error
 }
 
-type GetRedfish200JSONResponse struct {
-	V1 *string `json:"v1,omitempty"`
-}
+type GetRedfish200JSONResponse ServiceRootRedfishVersionDiscovery
 
 func (response GetRedfish200JSONResponse) VisitGetRedfishResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(200)
 
 	return json.NewEncoder(w).Encode(response)
+}
+
+type GetRedfishdefaultJSONResponse struct {
+	Body       RedfishError
+	StatusCode int
+}
+
+func (response GetRedfishdefaultJSONResponse) VisitGetRedfishResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
 }
 
 type GetRedfishV1RequestObject struct {
@@ -663,7 +673,7 @@ type PostRedfishV1SessionServiceSessionsMembersResponseObject interface {
 	VisitPostRedfishV1SessionServiceSessionsMembersResponse(w http.ResponseWriter) error
 }
 
-type PostRedfishV1SessionServiceSessionsMembers201JSONResponse SessionSession
+type PostRedfishV1SessionServiceSessionsMembers201JSONResponse SessionCollectionSessionMember
 
 func (response PostRedfishV1SessionServiceSessionsMembers201JSONResponse) VisitPostRedfishV1SessionServiceSessionsMembersResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
