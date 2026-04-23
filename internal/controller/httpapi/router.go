@@ -54,6 +54,10 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	vr := v1.NewVersionRoute(cfg)
 	handler.GET("/version", vr.LatestReleaseHandler)
 
+	// server feature flags (e.g. CIRA on/off) for UI bootstrap
+	sfr := v1.NewServerFeaturesRoute(cfg)
+	handler.GET("/api/v1/features", sfr.Handler)
+
 	// Protected routes using JWT middleware
 	var protected *gin.RouterGroup
 	if cfg.Disabled {
@@ -74,13 +78,17 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v1.NewDeviceRoutes(h2, t.Devices, l)
 		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, t.Exporter, l)
-		v1.NewCIRACertRoutes(h2, l)
+		if !cfg.DisableCIRA {
+			v1.NewCIRACertRoutes(h2, l)
+		}
 	}
 
 	h := protected.Group("/v1/admin")
 	{
 		v1.NewDomainRoutes(h, t.Domains, l)
-		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l)
+		if !cfg.DisableCIRA {
+			v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l)
+		}
 		v1.NewProfileRoutes(h, t.Profiles, l)
 		v1.NewWirelessConfigRoutes(h, t.WirelessProfiles, l)
 		v1.NewIEEE8021xConfigRoutes(h, t.IEEE8021xProfiles, l)

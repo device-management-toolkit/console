@@ -38,10 +38,33 @@ services:
       GIN_MODE: "debug"
       DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
       AUTH_DISABLED: true
+      CONSUL_ENABLED: ${CONSUL_ENABLED:-false}
+      CONSUL_HOST: ${CONSUL_HOST:-consul}
+      CONSUL_PORT: ${CONSUL_PORT:-8500}
+      CONSUL_KEY_PREFIX: ${CONSUL_KEY_PREFIX:-console}
     ports:
       - 8181:8181
     depends_on:
       - postgres
+  consul:
+    restart: always
+    image: hashicorp/consul
+    networks:
+      - dmtnetwork1
+    ports:
+      - 8500:8500
+    profiles:
+      - consul
+    volumes:
+      - type: volume
+        source: consul-config
+        target: /consul/config
+        volume: {}
+      - type: volume
+        source: consul-data
+        target: /consul/data
+        volume: {}
+    command: "agent -server -ui -node=OACT-1 -bootstrap-expect=1 -client=0.0.0.0"
   # integration:
   #   build:
   #     context: .
@@ -52,6 +75,8 @@ services:
   #     - app
 volumes:
   pg-data:
+  consul-config:
+  consul-data:
 networks:
   dmtnetwork1:
     driver: "bridge"

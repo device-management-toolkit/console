@@ -27,6 +27,16 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
+		Consul  Consul `yaml:"consul"`
+	}
+
+	// Consul -.
+	Consul struct {
+		Enabled        bool          `yaml:"enabled" env:"CONSUL_ENABLED"`
+		Host           string        `yaml:"host" env:"CONSUL_HOST"`
+		Port           string        `yaml:"port" env:"CONSUL_PORT"`
+		KeyPrefix      string        `yaml:"key_prefix" env:"CONSUL_KEY_PREFIX"`
+		StartupTimeout time.Duration `yaml:"startup_timeout" env:"CONSUL_STARTUP_TIMEOUT"`
 	}
 
 	// App -.
@@ -35,7 +45,7 @@ type (
 		Repo                 string `env-required:"true" yaml:"repo" env:"APP_REPO"`
 		Version              string `env-required:"true"`
 		CommonName           string `env-required:"true" yaml:"common_name" env:"APP_COMMON_NAME"`
-		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
+		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY" json:"-"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
 		DisableCIRA          bool   `yaml:"disable_cira" env:"APP_DISABLE_CIRA"`
 	}
@@ -65,29 +75,29 @@ type (
 	// Secrets -.
 	Secrets struct {
 		Address string `yaml:"address" env:"SECRETS_ADDR"`
-		Token   string `yaml:"token" env:"SECRETS_TOKEN"`
+		Token   string `yaml:"token" env:"SECRETS_TOKEN" json:"-"`
 		Path    string `yaml:"path" env:"SECRETS_PATH"`
 	}
 
 	// DB -.
 	DB struct {
 		PoolMax int    `env-required:"true" yaml:"pool_max" env:"DB_POOL_MAX"`
-		URL     string `env:"DB_URL"`
+		URL     string `env:"DB_URL" json:"-"`
 	}
 
 	// EA -.
 	EA struct {
 		URL      string `yaml:"url" env:"EA_URL"`
 		Username string `yaml:"username" env:"EA_USERNAME"`
-		Password string `yaml:"password" env:"EA_PASSWORD"`
+		Password string `yaml:"password" env:"EA_PASSWORD" json:"-"`
 	}
 
 	// Auth -.
 	Auth struct {
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
-		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD" json:"-"`
+		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY" json:"-"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -196,6 +206,13 @@ func defaultConfig() *Config {
 		},
 		UI: UI{
 			ExternalURL: "",
+		},
+		Consul: Consul{
+			Enabled:        false,
+			Host:           "localhost",
+			Port:           "8500",
+			KeyPrefix:      "console",
+			StartupTimeout: 2 * time.Minute,
 		},
 	}
 }

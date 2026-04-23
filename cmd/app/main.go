@@ -1,6 +1,7 @@
 package main
 
 import (
+	"context"
 	"errors"
 	"fmt"
 	"log"
@@ -11,6 +12,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
 	"github.com/device-management-toolkit/console/internal/certificates"
+	"github.com/device-management-toolkit/console/pkg/consul"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
@@ -39,6 +41,10 @@ func main() {
 		log.Fatalf("Config error: %s", err)
 	}
 
+	if err = setupConsul(cfg); err != nil {
+		log.Fatalf("Consul bootstrap error: %s", err)
+	}
+
 	if err = initializeAppFunc(cfg); err != nil {
 		log.Fatalf("App init error: %s", err)
 	}
@@ -58,6 +64,33 @@ func main() {
 	handleEncryptionKey(cfg)
 	handleDebugMode(cfg, l)
 	runAppFunc(cfg, l)
+}
+
+func setupConsul(cfg *config.Config) error {
+	if !cfg.Consul.Enabled {
+		return nil
+	}
+
+	svc, err := consul.NewService(cfg.Consul.Host, cfg.Consul.Port)
+	if err != nil {
+		return err
+	}
+
+	ctx := context.Background()
+	if cfg.Consul.StartupTimeout > 0 {
+		var cancel context.CancelFunc
+
+		ctx, cancel = context.WithTimeout(ctx, cfg.Consul.StartupTimeout)
+		defer cancel()
+	}
+
+	log.Printf("consul: connecting to %s:%s (startup timeout %s)", cfg.Consul.Host, cfg.Consul.Port, cfg.Consul.StartupTimeout)
+
+	if err := consul.WaitForService(ctx, svc, "consul", log.Printf); err != nil {
+		return err
+	}
+
+	return consul.ProcessServiceConfigs(ctx, svc, cfg)
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {

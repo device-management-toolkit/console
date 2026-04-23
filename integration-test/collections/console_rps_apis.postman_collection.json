@@ -8390,6 +8390,50 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Server",
+			"item": [
+				{
+					"name": "Get Server Features",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Response has cira boolean\", function () {",
+									"    var jsonData = pm.response.json();",
+									"    pm.expect(jsonData).to.have.property('cira');",
+									"    pm.expect(jsonData.cira).to.be.a('boolean');",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/features",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"features"
+							]
+						}
+					}
+				}
+			]
 		}
 	],
 	"auth": {
