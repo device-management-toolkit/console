@@ -50,7 +50,8 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			certhash TEXT NOT NULL DEFAULT '',
 			lastconnected TEXT,
 			lastdisconnected TEXT,
-			lastseen TEXT
+			lastseen TEXT,
+			islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
 		);
 	`)
 	require.NoError(t, err)
@@ -662,7 +663,8 @@ func TestDeviceRepo_Delete(t *testing.T) {
 					mpspassword TEXT,
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
-					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE
+					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
+					islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
 				);
 			`)
 			require.NoError(t, err)
@@ -813,7 +815,8 @@ func TestDeviceRepo_Update(t *testing.T) {
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
 				);
 			`)
 			require.NoError(t, err)
@@ -1068,7 +1071,8 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
                     password TEXT NOT NULL DEFAULT '',
                     usetls BOOLEAN NOT NULL DEFAULT FALSE,
                     allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
                 );
             `)
 			require.NoError(t, err)
