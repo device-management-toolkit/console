@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"net/http"
+
 	"github.com/go-fuego/fuego"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -27,6 +29,7 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Create Profile"),
 		fuego.OptionDescription("Create a new profile"),
+		fuego.OptionDefaultStatusCode(http.StatusCreated),
 	)
 
 	fuego.Patch(f.server, "/api/v1/admin/profiles", f.updateProfile,
@@ -40,6 +43,7 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		fuego.OptionSummary("Delete Profile"),
 		fuego.OptionDescription("Delete a profile by name"),
 		fuego.OptionPath("name", "Profile name"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 	)
 
 	fuego.Get(f.server, "/api/v1/admin/profiles/export/{name}", f.exportProfile,

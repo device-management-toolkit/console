@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"net/http"
 	"time"
 
 	"github.com/go-fuego/fuego"
@@ -9,7 +10,20 @@ import (
 )
 
 func (f *FuegoAdapter) RegisterDeviceRoutes() {
-	fuego.Get(f.server, "/api/v1/admin/devices", f.getDevices,
+	fuego.Post(f.server, "/api/v1/authorize", f.login,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Authorize"),
+		fuego.OptionDescription("Authenticate and return an access token"),
+	)
+
+	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Authorize Redirection"),
+		fuego.OptionDescription("Generate an authorization token for device redirection"),
+		fuego.OptionPath("id", "Device ID"),
+	)
+
+	fuego.Get(f.server, "/api/v1/devices", f.getDevices,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("List Devices"),
 		fuego.OptionDescription("Retrieve all devices with optional pagination and filtering"),
@@ -18,59 +32,94 @@ func (f *FuegoAdapter) RegisterDeviceRoutes() {
 		fuego.OptionQueryBool("$count", "Include total count"),
 		fuego.OptionQuery("tags", "Comma-separated list of tags to filter devices"),
 		fuego.OptionQuery("method", "Method to filter tags (any/all)"),
+		fuego.OptionQuery("hostname", "Filter devices by host name"),
+		fuego.OptionQuery("friendlyName", "Filter devices by friendly name"),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/devices/stats", f.getDeviceStats,
+	fuego.Get(f.server, "/api/v1/devices/stats", f.getDeviceStats,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device Statistics"),
 		fuego.OptionDescription("Retrieve statistics for devices"),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/devices/cert/{id}", f.getDeviceCertificate,
+	fuego.Get(f.server, "/api/v1/devices/redirectstatus/{guid}", f.getRedirectStatus,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Get Redirect Status"),
+		fuego.OptionDescription("Retrieve redirect status for a specific device"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
+
+	fuego.Get(f.server, "/api/v1/devices/cert/{guid}", f.getDeviceCertificate,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device Certificate"),
 		fuego.OptionDescription("Retrieve the certificate for a specific device"),
-		fuego.OptionPath("id", "Device ID"),
+		fuego.OptionPath("guid", "Device GUID"),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/devices/cert/{id}", f.pinDeviceCertificate,
+	fuego.Post(f.server, "/api/v1/devices/cert/{guid}", f.pinDeviceCertificate,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Pin Device Certificate"),
 		fuego.OptionDescription("Pin the certificate for a specific device"),
-		fuego.OptionPath("id", "Device ID"),
+		fuego.OptionPath("guid", "Device GUID"),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/devices/{id}", f.getDeviceByID,
+	fuego.Delete(f.server, "/api/v1/devices/cert/{guid}", f.deleteDeviceCertificate,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Delete Device Certificate"),
+		fuego.OptionDescription("Delete the pinned certificate for a specific device"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
+
+	fuego.Get(f.server, "/api/v1/devices/{guid}", f.getDeviceByID,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device by ID"),
 		fuego.OptionDescription("Retrieve a specific device by ID"),
-		fuego.OptionPath("id", "Device ID"),
+		fuego.OptionPath("guid", "Device GUID"),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/devices/tags", f.getTags,
+	fuego.Get(f.server, "/api/v1/devices/tags", f.getTags,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Available Device Tags"),
 		fuego.OptionDescription("Retrieve a list of all available device tags"),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/devices", f.createDevice,
+	fuego.Post(f.server, "/api/v1/devices", f.createDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
 		fuego.OptionDescription("Create a new device"),
+		fuego.OptionDefaultStatusCode(http.StatusCreated),
 	)
 
-	fuego.Patch(f.server, "/api/v1/admin/devices", f.updateDevice,
+	fuego.Patch(f.server, "/api/v1/devices", f.updateDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Update Device"),
 		fuego.OptionDescription("Update an existing device"),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/devices/{id}", f.deleteDevice,
+	fuego.Delete(f.server, "/api/v1/devices/{guid}", f.deleteDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Delete Device"),
 		fuego.OptionDescription("Delete a device by ID"),
-		fuego.OptionPath("id", "Device ID"),
+		fuego.OptionPath("guid", "Device GUID"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 	)
+}
+
+type AuthorizeRedirectionResponse struct {
+	Token string `json:"token"`
+}
+
+func (f *FuegoAdapter) login(c fuego.ContextWithBody[dto.Credentials]) (AuthorizeRedirectionResponse, error) {
+	_, err := c.Body()
+	if err != nil {
+		return AuthorizeRedirectionResponse{}, err
+	}
+
+	return AuthorizeRedirectionResponse{Token: "example-token"}, nil
+}
+
+func (f *FuegoAdapter) loginRedirection(_ fuego.ContextNoBody) (AuthorizeRedirectionResponse, error) {
+	return AuthorizeRedirectionResponse{Token: "example-token"}, nil
 }
 
 func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountResponse, error) {
@@ -107,6 +156,18 @@ func (f *FuegoAdapter) getDeviceStats(_ fuego.ContextNoBody) (dto.DeviceStatResp
 	}, nil
 }
 
+type DeviceRedirectStatusResponse struct {
+	IsSOLConnected  bool `json:"isSOLConnected"`
+	IsIDERConnected bool `json:"isIDERConnected"`
+}
+
+func (f *FuegoAdapter) getRedirectStatus(_ fuego.ContextNoBody) (DeviceRedirectStatusResponse, error) {
+	return DeviceRedirectStatusResponse{
+		IsSOLConnected:  false,
+		IsIDERConnected: false,
+	}, nil
+}
+
 func (f *FuegoAdapter) getDeviceCertificate(_ fuego.ContextNoBody) (dto.Certificate, error) {
 	return dto.Certificate{
 		GUID:       "example-guid-1",
@@ -120,6 +181,10 @@ func (f *FuegoAdapter) pinDeviceCertificate(_ fuego.ContextNoBody) (any, error) 
 	return map[string]string{
 		"message": "Certificate pinned successfully",
 	}, nil
+}
+
+func (f *FuegoAdapter) deleteDeviceCertificate(_ fuego.ContextNoBody) (dto.Device, error) {
+	return dto.Device{}, nil
 }
 
 func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) {
