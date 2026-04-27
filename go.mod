@@ -24,7 +24,7 @@ require (
 	github.com/zsais/go-gin-prometheus v1.0.3
 	go.uber.org/mock v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.49.1
+	modernc.org/sqlite v1.50.0
 	software.sslmate.com/src/go-pkcs12 v0.7.1
 )
 
