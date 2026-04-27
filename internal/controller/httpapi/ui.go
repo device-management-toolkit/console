@@ -47,14 +47,15 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 	handler.StaticFileFS("/vendor.js", "./vendor.js", http.FS(staticFiles))
 	handler.StaticFileFS("/favicon.ico", "./favicon.ico", http.FS(staticFiles))
 	handler.StaticFileFS("/assets/logo.png", "./assets/logo.png", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/loader.js", "./assets/monaco/min/vs/loader.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.js", "./assets/monaco/min/vs/editor/editor.main.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.css", "./assets/monaco/min/vs/editor/editor.main.css", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/editor/editor.main.nls.js", "./assets/monaco/min/vs/editor/editor.main.nls.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/base/worker/workerMain.js", "./assets/monaco/min/vs/base/worker/workerMain.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/base/common/worker/simpleWorker.nls.js", "./assets/monaco/min/vs/base/common/worker/simpleWorker.nls.js", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", "./assets/monaco/min/vs/base/browser/ui/codicons/codicon/codicon.ttf", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/monaco/min/vs/basic-languages/xml/xml.js", "./assets/monaco/min/vs/basic-languages/xml/xml.js", http.FS(staticFiles))
+
+	// Serve the whole monaco subtree; its AMD loader requests files dynamically
+	// and the exact set changes between monaco versions.
+	monacoFS, err := fs.Sub(staticFiles, "assets/monaco")
+	if err != nil {
+		l.Fatal(err)
+	}
+
+	handler.StaticFS("/assets/monaco", http.FS(monacoFS))
 
 	langs := []string{"en", "fr", "de", "ar", "es", "fi", "he", "it", "ja", "nl", "ru", "sv"}
 	for _, lang := range langs {
@@ -63,8 +64,15 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 		handler.StaticFileFS(relativePath, filePath, http.FS(staticFiles))
 	}
 
-	// Setup default NoRoute handler for SPA
+	// SPA fallback for unmatched routes. Skip /assets/ so a missing static
+	// file 404s instead of silently returning the HTML shell.
 	handler.NoRoute(func(c *gin.Context) {
+		if strings.HasPrefix(c.Request.URL.Path, "/assets/") {
+			c.Status(http.StatusNotFound)
+
+			return
+		}
+
 		c.FileFromFS("./", http.FS(staticFiles))
 	})
 }
