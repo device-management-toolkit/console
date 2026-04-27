@@ -20,7 +20,7 @@ func (uc *UseCase) GetNetworkSettings(c context.Context, guid string) (dto.Netwo
 		return dto.NetworkSettings{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.NetworkSettings{}, err
 	}

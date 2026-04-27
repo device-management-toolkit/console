@@ -21,8 +21,6 @@ jobs:
       - uses: wagoid/commitlint-github-action@0184f5a228ee06430bb9e67d65f73a1a6767496a # v6.2.0
         with:
           configFile: .github/commitlint.config.cjs
-          commitDepth: 1
-          failOnWarnings: false
       - name: Install Dependencies
         run: npm install @commitlint/config-conventional@18.5
       - uses: JulienKode/pull-request-name-linter-action@8c05fb989d9f156ce61e33754f9802c9d3cffa58 # v0.5.0

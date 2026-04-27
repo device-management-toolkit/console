@@ -38,6 +38,6 @@ vendor/
 # ...but keep the folder
 !**/ui/.gitkeep
 # Documentation files
-doc/openapi.json
+**/doc/openapi.json
 # Newman test results
 **/postman/results/

@@ -67,7 +67,7 @@ func TestCancelUserConsent(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					CancelUserConsentRequest().
@@ -102,7 +102,7 @@ func TestCancelUserConsent(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					CancelUserConsentRequest().
@@ -178,7 +178,7 @@ func TestGetUserConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetUserConsentCode().
@@ -211,7 +211,7 @@ func TestGetUserConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetUserConsentCode().
@@ -282,7 +282,7 @@ func TestSendConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					SendConsentCode(123456).
@@ -315,7 +315,7 @@ func TestSendConsentCode(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					SendConsentCode(123456).

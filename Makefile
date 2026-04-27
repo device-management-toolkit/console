@@ -1,4 +1,4 @@
-include .env
+-include .env
 export
 
 LOCAL_BIN:=$(CURDIR)/bin
@@ -33,6 +33,10 @@ run-noui: ### run app without UI
 	go mod tidy && go mod download && \
 	GIN_MODE=debug CGO_ENABLED=0 go run -tags=noui ./cmd/app
 .PHONY: run-noui
+
+openapi: ### generate OpenAPI spec to doc/openapi.json
+	go run ./cmd/openapi-gen
+.PHONY: openapi
 
 build: ### build app
 	CGO_ENABLED=0 go build -o ./bin/console ./cmd/app
