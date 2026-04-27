@@ -11,12 +11,14 @@ paths:
           content:
             application/json:
               schema:
-                type: object
-                properties:
-                  v1:
-                    type: string
-                    example: /redfish/v1/
+                $ref: '#/components/schemas/ServiceRoot_RedfishVersionDiscovery'
           description: Redfish protocol version discovery endpoint
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
       security:
       - {}
   /redfish/v1/:
@@ -167,14 +169,14 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/Session_Session'
+              $ref: '#/components/schemas/SessionCollection_SessionMember'
         required: true
       responses:
         '201':
           content:
             application/json:
               schema:
-                $ref: '#/components/schemas/Session_Session'
+                $ref: '#/components/schemas/SessionCollection_SessionMember'
           description: A resource of type Session has been created (OData Members
             endpoint)
         '204':
@@ -2294,13 +2296,6 @@ components:
             that cannot be conveyed with other properties defined for the Placement
             object.
           x-versionAdded: v1_7_0
-        FacilityName:
-          description: The name of the facility.
-          nullable: true
-          readOnly: false
-          type: string
-          x-longDescription: This property shall contain the name of the facility.
-          x-versionAdded: v1_23_0
         Rack:
           description: The name of a rack location within a row.
           nullable: true
@@ -2315,9 +2310,8 @@ components:
           nullable: true
           readOnly: false
           type: integer
-          x-longDescription: The vertical location of the item in the rack, at the
-            lowest point of the unit.  Rack offset units shall be measured from bottom
-            to top, starting with 0.
+          x-longDescription: The vertical location of the item in the rack.  Rack
+            offset units shall be measured from bottom to top, starting with 0.
           x-versionAdded: v1_3_0
         RackOffsetUnits:
           description: The type of rack units in use.
@@ -2329,14 +2323,6 @@ components:
           x-longDescription: This property shall contain a RackUnit enumeration literal
             that indicates the type of rack units in use.
           x-versionAdded: v1_3_0
-        Room:
-          description: The name or number of the room.
-          nullable: true
-          readOnly: false
-          type: string
-          x-longDescription: This property shall contain the name or number of the
-            room.
-          x-versionAdded: v1_23_0
         Row:
           description: The name of the row.
           nullable: true
@@ -3073,6 +3059,16 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ServiceRoot_RedfishVersionDiscovery:
+      description: The Redfish version discovery payload.
+      properties:
+        v1:
+          description: Link to the Redfish service root.
+          type: string
+          example: /redfish/v1/
+      required:
+      - v1
+      type: object
     ServiceRoot_ServiceRoot:
       additionalProperties: false
       description: The `ServiceRoot` schema describes the root of the Redfish service,
@@ -3211,6 +3207,10 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    SessionCollection_SessionMember:
+      description: A `Session` resource payload used by the Sessions Members endpoint.
+      allOf:
+      - $ref: '#/components/schemas/Session_Session'
     SessionService_Actions:
       additionalProperties: false
       description: The available actions for this resource.
