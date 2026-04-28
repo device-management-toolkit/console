@@ -47,7 +47,7 @@ func TestGetTLSSettings(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetTLSSettingData().
@@ -98,7 +98,7 @@ func TestGetTLSSettings(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetTLSSettingData().

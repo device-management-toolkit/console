@@ -245,16 +245,16 @@ Before contributing code changes, familiarize yourself with:
 
 ### OpenAPI Documentation
 
-Console automatically generates OpenAPI documentation when running in debug mode:
+Console exposes the OpenAPI specification two ways:
 
-1. **Enable Debug Mode**: Set `GIN_MODE=debug` in your `.env` file
-2. **Run Console**: Start the application with `go run ./cmd/app/main.go`
-3. **Access OpenAPI Spec**: The OpenAPI specification is automatically generated and available at:
-   - JSON format: `http://localhost:8181/openapi.json`
-   - The spec is also written to `doc/openapi.json` in your project directory.
-4. **To add API Documentation**: Check wiki `https://github.com/device-management-toolkit/console/wiki/API-Documentation-to-Console`
-
-> **Note**: OpenAPI generation only occurs in debug mode. Production builds will not expose these endpoints. 
+1. **Live HTTP endpoint** (always available when the server runs):
+   - `http://localhost:8181/api/openapi.json`
+2. **Regenerate `doc/openapi.json` on disk** (used by CI to publish to SwaggerHub):
+   ```sh
+   make openapi
+   ```
+   Equivalent to `go run ./cmd/openapi-gen` — a standalone binary that writes `doc/openapi.json` and exits without starting the server.
+3. **To add API Documentation**: Check wiki `https://github.com/device-management-toolkit/console/wiki/API-Documentation-to-Console`
 
 ## Dev tips for passing CI Checks
 

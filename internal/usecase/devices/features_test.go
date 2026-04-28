@@ -151,7 +151,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -232,7 +232,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -338,7 +338,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -429,7 +429,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -449,7 +449,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -487,7 +487,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -539,7 +539,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -588,7 +588,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -637,7 +637,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -691,7 +691,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -761,7 +761,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -838,7 +838,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -913,7 +913,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -1011,7 +1011,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -1111,7 +1111,7 @@ func TestGetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetAMTRedirectionService().
@@ -1284,7 +1284,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1395,7 +1395,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1508,7 +1508,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1528,7 +1528,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1549,7 +1549,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1671,7 +1671,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1706,7 +1706,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1766,7 +1766,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1844,7 +1844,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1912,7 +1912,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
@@ -1960,7 +1960,7 @@ func TestSetFeatures(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					RequestAMTRedirectionServiceStateChange(true, true).
