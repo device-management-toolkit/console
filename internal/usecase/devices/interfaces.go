@@ -7,6 +7,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -80,6 +81,8 @@ type (
 		GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
 		Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error
 		GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
+		RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
+		GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
 		GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)
 		GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
 		GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)

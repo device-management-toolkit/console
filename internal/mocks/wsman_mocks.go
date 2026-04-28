@@ -29,6 +29,7 @@ import (
 	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	service "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	software "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	wifi "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 	alarmclock0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	kvmredirection "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
@@ -177,6 +178,21 @@ func (m *MockManagement) DeleteCertificate(instanceID string) error {
 func (mr *MockManagementMockRecorder) DeleteCertificate(instanceID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificate", reflect.TypeOf((*MockManagement)(nil).DeleteCertificate), instanceID)
+}
+
+// EnumerateWiFiPort mocks base method.
+func (m *MockManagement) EnumerateWiFiPort() (wifi.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "EnumerateWiFiPort")
+	ret0, _ := ret[0].(wifi.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// EnumerateWiFiPort indicates an expected call of EnumerateWiFiPort.
+func (mr *MockManagementMockRecorder) EnumerateWiFiPort() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "EnumerateWiFiPort", reflect.TypeOf((*MockManagement)(nil).EnumerateWiFiPort))
 }
 
 // GetAMTRedirectionService mocks base method.
@@ -584,6 +600,21 @@ func (mr *MockManagementMockRecorder) GetUserConsentCode() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserConsentCode", reflect.TypeOf((*MockManagement)(nil).GetUserConsentCode))
 }
 
+// PullWiFiPort mocks base method.
+func (m *MockManagement) PullWiFiPort(enumerationContext string) (wifi.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PullWiFiPort", enumerationContext)
+	ret0, _ := ret[0].(wifi.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PullWiFiPort indicates an expected call of PullWiFiPort.
+func (mr *MockManagementMockRecorder) PullWiFiPort(enumerationContext any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullWiFiPort", reflect.TypeOf((*MockManagement)(nil).PullWiFiPort), enumerationContext)
+}
+
 // RequestAMTRedirectionServiceStateChange mocks base method.
 func (m *MockManagement) RequestAMTRedirectionServiceStateChange(ider, sol bool) (redirection.RequestedState, int, error) {
 	m.ctrl.T.Helper()
@@ -747,4 +778,18 @@ func (m *MockManagement) SetLinkPreference(linkPreference, timeout uint32) (int,
 func (mr *MockManagementMockRecorder) SetLinkPreference(linkPreference, timeout any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockManagement)(nil).SetLinkPreference), linkPreference, timeout)
+}
+
+// WiFiRequestStateChange mocks base method.
+func (m *MockManagement) WiFiRequestStateChange(requestedState wifi.RequestedState) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "WiFiRequestStateChange", requestedState)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// WiFiRequestStateChange indicates an expected call of WiFiRequestStateChange.
+func (mr *MockManagementMockRecorder) WiFiRequestStateChange(requestedState any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "WiFiRequestStateChange", reflect.TypeOf((*MockManagement)(nil).WiFiRequestStateChange), requestedState)
 }
