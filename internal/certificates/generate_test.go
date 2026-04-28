@@ -163,6 +163,40 @@ func TestParseCertificateFromPEM_FutureNotBefore(t *testing.T) {
 	assert.Contains(t, err.Error(), "not yet valid")
 }
 
+func TestParseCertificateFromPEM_Expired(t *testing.T) {
+	t.Parallel()
+
+	privateKey, err := rsa.GenerateKey(rand.Reader, 2048)
+	assert.NoError(t, err)
+
+	serialNumber, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	assert.NoError(t, err)
+
+	template := x509.Certificate{
+		SerialNumber: serialNumber,
+		Subject: pkix.Name{
+			CommonName:   "expired-cert",
+			Organization: []string{"test-org"},
+		},
+		NotBefore:             time.Now().Add(-48 * time.Hour),
+		NotAfter:              time.Now().Add(-24 * time.Hour),
+		KeyUsage:              x509.KeyUsageDigitalSignature,
+		BasicConstraintsValid: true,
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	assert.NoError(t, err)
+
+	cert, err := x509.ParseCertificate(certBytes)
+	assert.NoError(t, err)
+
+	certPEM, keyPEM := certAndKeyToPEM(cert, privateKey)
+
+	_, _, err = ParseCertificateFromPEM(certPEM, keyPEM)
+	assert.Error(t, err)
+	assert.Contains(t, err.Error(), "expired")
+}
+
 func TestParseCertificateFromPEM_InvalidCert(t *testing.T) {
 	t.Parallel()
 

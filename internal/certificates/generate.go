@@ -33,6 +33,7 @@ var (
 	ErrDecodePrivateKeyPEM   = errors.New("failed to decode private key PEM")
 	ErrCertFilesNotFound     = errors.New("certificate files not found")
 	ErrCertNotYetValid       = errors.New("certificate is not yet valid: notBefore is in the future")
+	ErrCertExpired           = errors.New("certificate has expired")
 )
 
 // validateCertDates checks that the certificate's validity window covers the current time.
@@ -40,6 +41,10 @@ func validateCertDates(cert *x509.Certificate) error {
 	now := time.Now()
 	if now.Before(cert.NotBefore) {
 		return fmt.Errorf("%w: notBefore=%s", ErrCertNotYetValid, cert.NotBefore.Format(time.RFC3339))
+	}
+
+	if cert.NotAfter.Before(now) {
+		return fmt.Errorf("%w: notAfter=%s", ErrCertExpired, cert.NotAfter.Format(time.RFC3339))
 	}
 
 	return nil
