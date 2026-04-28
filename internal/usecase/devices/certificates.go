@@ -327,25 +327,15 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 	}
 }
 
-func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
-	var certData []byte
-
-	item, err := uc.repo.GetByID(c, guid, "")
+// parseCertFromCertInfo decodes, validates, and re-encodes a certificate from a CertInfo DTO.
+// Returns the cleaned base64 DER string ready to send to AMT.
+func parseCertFromCertInfo(certInfo dto.CertInfo) (string, error) {
+	certData, err := base64.StdEncoding.DecodeString(certInfo.Cert)
 	if err != nil {
 		return "", err
 	}
 
-	if item == nil || item.GUID == "" {
-		return "", ErrNotFound
-	}
-
-	// Decode base64 certificate
-	certData, err = base64.StdEncoding.DecodeString(certInfo.Cert)
-	if err != nil {
-		return "", err
-	}
-
-	// Try to decode as PEM
+	// Try to decode as PEM; if it is PEM, unwrap to raw DER bytes.
 	block, _ := pem.Decode(certData)
 	if block != nil {
 		if block.Type != "CERTIFICATE" {
@@ -369,17 +359,30 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 		return "", ValidationError{}.Wrap("AddCertificate", "notAfter", fmt.Sprintf("certificate has expired: notAfter=%s", cert.NotAfter.Format(time.RFC3339)))
 	}
 
-	pemCert := pem.EncodeToMemory(&pem.Block{
-		Type:  "CERTIFICATE",
-		Bytes: cert.Raw,
-	})
+	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 
 	block, _ = pem.Decode(pemCert)
 	if block == nil {
 		return "", ValidationError{}.Wrap("AddCertificate", "pemReEncode", "failed to re-encode certificate as PEM")
 	}
 
-	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
+	return strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", ""), nil
+}
+
+func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
+	item, err := uc.repo.GetByID(c, guid, "")
+	if err != nil {
+		return "", err
+	}
+
+	if item == nil || item.GUID == "" {
+		return "", ErrNotFound
+	}
+
+	cleanedCert, err := parseCertFromCertInfo(certInfo)
+	if err != nil {
+		return "", err
+	}
 
 	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
