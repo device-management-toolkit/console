@@ -359,6 +359,13 @@ func parseCertFromCertInfo(certInfo dto.CertInfo) (string, error) {
 		return "", ValidationError{}.Wrap("AddCertificate", "notAfter", fmt.Sprintf("certificate has expired: notAfter=%s", cert.NotAfter.Format(time.RFC3339)))
 	}
 
+	if rsaPub, ok := cert.PublicKey.(*rsa.PublicKey); ok {
+		const minRSAKeyBits = 2048
+		if rsaPub.N.BitLen() < minRSAKeyBits {
+			return "", ValidationError{}.Wrap("AddCertificate", "keySize", fmt.Sprintf("RSA key size %d is below the minimum required %d bits", rsaPub.N.BitLen(), minRSAKeyBits))
+		}
+	}
+
 	pemCert := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw})
 
 	block, _ = pem.Decode(pemCert)

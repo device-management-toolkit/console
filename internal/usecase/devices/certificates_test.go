@@ -2,9 +2,16 @@ package devices_test
 
 import (
 	"context"
+	"crypto/rand"
+	"crypto/rsa"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/base64"
 	"encoding/xml"
 	"errors"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
@@ -330,6 +337,50 @@ func TestAddCertificate(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestAddCertificate_WeakKey(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+	}
+
+	//nolint:gosec // intentionally weak key for validation testing
+	privateKey, err := rsa.GenerateKey(rand.Reader, 1024)
+	require.NoError(t, err)
+
+	serial, err := rand.Int(rand.Reader, new(big.Int).Lsh(big.NewInt(1), 128))
+	require.NoError(t, err)
+
+	template := x509.Certificate{
+		SerialNumber: serial,
+		Subject:      pkix.Name{CommonName: "weak-key-test"},
+		NotBefore:    time.Now().Add(-time.Hour),
+		NotAfter:     time.Now().Add(48 * time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	certBytes, err := x509.CreateCertificate(rand.Reader, &template, &template, &privateKey.PublicKey, privateKey)
+	require.NoError(t, err)
+
+	weakCertBase64 := base64.StdEncoding.EncodeToString(certBytes)
+
+	useCase, wsmanMock, _, repo := initCertificateTest(t)
+
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Times(0)
+	repo.EXPECT().
+		GetByID(context.Background(), device.GUID, "").
+		Return(device, nil)
+
+	_, err = useCase.AddCertificate(context.Background(), device.GUID, dto.CertInfo{
+		Cert:      weakCertBase64,
+		IsTrusted: true,
+	})
+
+	require.Error(t, err)
+	require.Contains(t, err.Error(), "below the minimum required")
 }
 
 func TestDeleteCertificate(t *testing.T) {
