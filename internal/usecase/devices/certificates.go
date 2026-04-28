@@ -349,7 +349,7 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 	block, _ := pem.Decode(certData)
 	if block != nil {
 		if block.Type != "CERTIFICATE" {
-			return "", err
+			return "", ValidationError{}.Wrap("AddCertificate", "pemType", fmt.Sprintf("invalid PEM block type: expected CERTIFICATE, got %s", block.Type))
 		}
 
 		certData = block.Bytes
@@ -360,8 +360,13 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 		return "", err
 	}
 
-	if cert.NotAfter.Before(time.Now()) {
-		return "", err
+	now := time.Now()
+	if now.Before(cert.NotBefore) {
+		return "", ValidationError{}.Wrap("AddCertificate", "notBefore", fmt.Sprintf("certificate is not yet valid: notBefore=%s", cert.NotBefore.Format(time.RFC3339)))
+	}
+
+	if cert.NotAfter.Before(now) {
+		return "", ValidationError{}.Wrap("AddCertificate", "notAfter", fmt.Sprintf("certificate has expired: notAfter=%s", cert.NotAfter.Format(time.RFC3339)))
 	}
 
 	pemCert := pem.EncodeToMemory(&pem.Block{
@@ -371,7 +376,7 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 
 	block, _ = pem.Decode(pemCert)
 	if block == nil {
-		return "", err
+		return "", ValidationError{}.Wrap("AddCertificate", "pemReEncode", "failed to re-encode certificate as PEM")
 	}
 
 	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
