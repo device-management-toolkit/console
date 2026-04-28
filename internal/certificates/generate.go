@@ -32,7 +32,23 @@ var (
 	ErrDecodeCertificatePEM  = errors.New("failed to decode certificate PEM")
 	ErrDecodePrivateKeyPEM   = errors.New("failed to decode private key PEM")
 	ErrCertFilesNotFound     = errors.New("certificate files not found")
+	ErrCertNotYetValid       = errors.New("certificate is not yet valid: notBefore is in the future")
+	ErrCertExpired           = errors.New("certificate has expired")
 )
+
+// validateCertDates checks that the certificate's validity window covers the current time.
+func validateCertDates(cert *x509.Certificate) error {
+	now := time.Now()
+	if now.Before(cert.NotBefore) {
+		return fmt.Errorf("%w: notBefore=%s", ErrCertNotYetValid, cert.NotBefore.Format(time.RFC3339))
+	}
+
+	if cert.NotAfter.Before(now) {
+		return fmt.Errorf("%w: notAfter=%s", ErrCertExpired, cert.NotAfter.Format(time.RFC3339))
+	}
+
+	return nil
+}
 
 // ObjectStorager extends security.Storager with object storage capabilities.
 type ObjectStorager interface {
@@ -101,6 +117,10 @@ func ParseCertificateFromPEM(certPEM, keyPEM string) (*x509.Certificate, *rsa.Pr
 		return nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
 	}
 
+	if err := validateCertDates(cert); err != nil {
+		return nil, nil, err
+	}
+
 	// Decode private key PEM
 	keyBlock, _ := pem.Decode([]byte(keyPEM))
 	if keyBlock == nil {
@@ -133,6 +153,10 @@ func LoadCertificateFromFile(certPath, keyPath string) (*x509.Certificate, *rsa.
 	cert, err := x509.ParseCertificate(certBlock.Bytes)
 	if err != nil {
 		return nil, nil, fmt.Errorf("failed to parse certificate: %w", err)
+	}
+
+	if err := validateCertDates(cert); err != nil {
+		return nil, nil, err
 	}
 
 	// Read private key file
@@ -169,11 +193,11 @@ func CheckAndLoadOrGenerateRootCertificate(addThumbPrintToName bool, commonName,
 		if err == nil {
 			return cert, key, nil
 		}
-		// If loading fails, fall through to generation
-		log.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
+		// Files exist but failed validation — do not silently regenerate.
+		return nil, nil, fmt.Errorf("existing root certificate is invalid: %w", err)
 	}
 
-	// Files don't exist or loading failed, generate new certificates
+	// Files don't exist — generate new certificates.
 	return GenerateRootCertificate(addThumbPrintToName, commonName, country, organization, strong)
 }
 
@@ -202,7 +226,12 @@ func LoadOrGenerateRootCertificateWithVault(store security.Storager, addThumbPri
 		return cert, key, nil
 	}
 
-	// Generate new certificates
+	// Files exist but failed validation — do not silently regenerate.
+	if !errors.Is(err, ErrCertFilesNotFound) {
+		return nil, nil, err
+	}
+
+	// Files not found — generate new certificates.
 	return generateAndStoreRootCert(store, certName, addThumbPrintToName, commonName, country, organization, strong)
 }
 
@@ -273,11 +302,11 @@ func CheckAndLoadOrGenerateWebServerCertificate(rootCert CertAndKeyType, addThum
 		if err == nil {
 			return cert, key, nil
 		}
-		// If loading fails, fall through to generation
-		log.Printf("Warning: Failed to load existing certificates: %v. Generating new ones...", err)
+		// Files exist but failed validation — do not silently regenerate.
+		return nil, nil, fmt.Errorf("existing web server certificate is invalid: %w", err)
 	}
 
-	// Files don't exist or loading failed, generate new certificates
+	// Files don't exist — generate new certificates.
 	return IssueWebServerCertificate(rootCert, addThumbPrintToName, commonName, country, organization, strong)
 }
 
@@ -308,7 +337,12 @@ func LoadOrGenerateWebServerCertificateWithVault(store security.Storager, rootCe
 		return cert, key, nil
 	}
 
-	// Generate new certificates
+	// Files exist but failed validation — do not silently regenerate.
+	if !errors.Is(err, ErrCertFilesNotFound) {
+		return nil, nil, err
+	}
+
+	// Files not found — generate new certificates.
 	return generateAndStoreWebServerCert(store, rootCert, certName, addThumbPrintToName, commonName, country, organization, strong)
 }
 

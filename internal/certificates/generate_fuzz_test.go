@@ -126,7 +126,7 @@ func generateFuzzPEMCertificate(tb testing.TB, seed int64) (certPEM, keyPEM stri
 
 	serialNumber := new(big.Int).SetInt64(rng.Int63())
 
-	fixedTime := time.Date(2099, 1, 1, 0, 0, 0, 0, time.UTC)
+	now := time.Now()
 
 	template := x509.Certificate{
 		SerialNumber: serialNumber,
@@ -134,8 +134,8 @@ func generateFuzzPEMCertificate(tb testing.TB, seed int64) (certPEM, keyPEM stri
 			CommonName:   "fuzz-cert",
 			Organization: []string{"console"},
 		},
-		NotBefore:             fixedTime.Add(-time.Hour),
-		NotAfter:              fixedTime.Add(24 * time.Hour),
+		NotBefore:             now.Add(-time.Hour),
+		NotAfter:              now.Add(24 * time.Hour),
 		KeyUsage:              x509.KeyUsageDigitalSignature,
 		BasicConstraintsValid: true,
 	}
