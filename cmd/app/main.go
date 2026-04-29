@@ -56,8 +56,13 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-	handleDebugMode(cfg, l)
-	runAppFunc(cfg, l)
+	// Run with system tray (if built with tray tag and --tray flag) or standard mode
+	if trayBuildEnabled && config.TrayMode {
+		runWithTray(cfg, l)
+	} else {
+		handleDebugMode(cfg, l)
+		runAppFunc(cfg, l)
+	}
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
