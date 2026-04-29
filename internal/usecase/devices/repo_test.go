@@ -297,7 +297,7 @@ func TestUpdate(t *testing.T) {
 		Password:     "encrypted",
 		MPSPassword:  nil,
 		MEBXPassword: nil,
-		Tags:         "hello,test",
+		Tags:         []string{"hello", "test"},
 	}
 
 	deviceDTO := &dto.Device{
@@ -418,7 +418,7 @@ func TestInsert(t *testing.T) {
 			deviceDTO := &dto.Device{
 				GUID:     "device-guid-123",
 				TenantID: "tenant-id-456",
-				Tags:     []string{""},
+				Tags:     nil,
 			}
 
 			insertedDevice, err := useCase.Insert(context.Background(), deviceDTO)
@@ -446,7 +446,7 @@ func TestUpdateWithPasswords(t *testing.T) {
 		Password:     "encrypted",
 		MPSPassword:  ptr("encrypted"),
 		MEBXPassword: ptr("encrypted"),
-		Tags:         "hello,test",
+		Tags:         []string{"hello", "test"},
 	}
 
 	// DTO with plaintext passwords (what comes from API)
@@ -516,7 +516,7 @@ func TestInsertWithPasswords(t *testing.T) {
 		deviceDTO := &dto.Device{
 			GUID:         "device-guid-123",
 			TenantID:     "tenant-id-456",
-			Tags:         []string{""},
+			Tags:         nil,
 			MPSPassword:  "mpspass",
 			MEBXPassword: "mebxpass",
 		}
@@ -696,7 +696,7 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 		inputDTO := &dto.Device{
 			GUID:     "AAF0C395-C2A2-992E-5655-48210B50D8C9",
 			TenantID: "tenant-id-456",
-			Tags:     []string{},
+			Tags:     nil,
 		}
 
 		// Expected entity with lowercase GUID (after normalization)

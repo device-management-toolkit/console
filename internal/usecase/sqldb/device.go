@@ -29,6 +29,20 @@ func NewDeviceRepo(database *db.SQL, log logger.Interface) *DeviceRepo {
 	return &DeviceRepo{database, log}
 }
 
+// tags are persisted as a comma-separated string so the same `tags TEXT`
+// column works on both Postgres and SQLite.
+func tagsFromDB(s string) []string {
+	if s == "" {
+		return nil
+	}
+
+	return strings.Split(s, ",")
+}
+
+func tagsToDB(t []string) string {
+	return strings.Join(t, ",")
+}
+
 // GetCount -.
 func (r *DeviceRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 	sqlQuery, _, err := r.Builder.
@@ -114,10 +128,14 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		var tagsStr string
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &tagsStr, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
+
+		d.Tags = tagsFromDB(tagsStr)
 
 		devices = append(devices, d)
 	}
@@ -169,10 +187,14 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	for rows.Next() {
 		d := &entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		var tagsStr string
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &tagsStr, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
 		if err != nil {
 			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
+
+		d.Tags = tagsFromDB(tagsStr)
 
 		devices = append(devices, d)
 	}
@@ -291,10 +313,16 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 	devices := make([]entity.Device, 0)
 
 	for rows.Next() {
-		var d entity.Device
-		if err := rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo); err != nil {
+		var (
+			d       entity.Device
+			tagsStr string
+		)
+
+		if err := rows.Scan(&d.GUID, &d.Hostname, &tagsStr, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo); err != nil {
 			return nil, ErrDeviceDatabase.Wrap("GetByTags", "rows.Scan", err)
 		}
+
+		d.Tags = tagsFromDB(tagsStr)
 
 		devices = append(devices, d)
 	}
@@ -331,7 +359,7 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		Update("devices").
 		Set("guid", d.GUID).
 		Set("hostname", d.Hostname).
-		Set("tags", d.Tags).
+		Set("tags", tagsToDB(d.Tags)).
 		Set("mpsinstance", d.MPSInstance).
 		Set("connectionstatus", d.ConnectionStatus).
 		Set("mpsusername", d.MPSUsername).
@@ -419,7 +447,7 @@ func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error)
 	insertBuilder := r.Builder.
 		Insert("devices").
 		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash").
-		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash)
+		Values(d.GUID, d.Hostname, tagsToDB(d.Tags), d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
@@ -490,10 +518,14 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		var tagsStr string
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &tagsStr, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
+
+		d.Tags = tagsFromDB(tagsStr)
 
 		devices = append(devices, d)
 	}

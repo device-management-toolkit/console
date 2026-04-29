@@ -78,10 +78,15 @@ func FuzzDeviceTransforms(f *testing.F) {
 		}
 
 		buildEntity := func() *entity.Device {
+			var entityTags []string
+			if entityTagsRaw != "" {
+				entityTags = strings.Split(entityTagsRaw, ",")
+			}
+
 			return &entity.Device{
 				ConnectionStatus: connectionStatus,
 				GUID:             guid,
-				Tags:             entityTagsRaw,
+				Tags:             entityTags,
 				TenantID:         tenantID,
 				Username:         username,
 				Password:         password,
