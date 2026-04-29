@@ -152,3 +152,25 @@ bin-deps:
 build-tray: ### build app with system tray support (requires CGO, native build only)
 	CGO_ENABLED=1 go build -tags=tray -o ./bin/console-tray ./cmd/app
 .PHONY: build-tray
+
+# Windows Installer
+VERSION ?= 3.0.0-dev
+
+build-windows-binaries: ### build Windows binaries (full and headless)
+	@echo "Building Windows binaries..."
+	@mkdir -p dist/windows
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
+	@echo "Windows binaries built successfully!"
+.PHONY: build-windows-binaries
+
+build-windows-installer: build-windows-binaries ### build Windows NSIS installers (full + headless)
+	@echo "Building Windows installers with NSIS..."
+	@command -v makensis >/dev/null 2>&1 || { echo "NSIS is not installed. Install with: brew install nsis (macOS) or apt-get install nsis (Linux)"; exit 1; }
+	$(eval VI_VERSION := $(shell echo '$(VERSION)' | sed 's/-.*//' ).0)
+	makensis -DVERSION=$(VERSION) -DVI_VERSION=$(VI_VERSION) -DARCH=x64 -DEDITION=ui -DBINARY="../dist/windows/console_windows_x64.exe" installer/console.nsi
+	@mv installer/console_$(VERSION)_windows_x64_setup.exe dist/windows/
+	makensis -DVERSION=$(VERSION) -DVI_VERSION=$(VI_VERSION) -DARCH=x64 -DEDITION=headless -DBINARY="../dist/windows/console_windows_x64_headless.exe" installer/console.nsi
+	@mv installer/console_$(VERSION)_windows_x64_headless_setup.exe dist/windows/
+	@echo "Windows installers created in dist/windows/"
+.PHONY: build-windows-installer
