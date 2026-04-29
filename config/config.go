@@ -14,6 +14,9 @@ import (
 
 var ConsoleConfig *Config
 
+// TrayMode indicates whether to run with system tray UI.
+var TrayMode bool
+
 const defaultHost = "localhost"
 
 type (
@@ -267,6 +270,10 @@ func NewConfig() (*Config, error) {
 	var configPathFlag string
 	if flag.Lookup("config") == nil {
 		flag.StringVar(&configPathFlag, "config", "", "path to config file")
+	}
+
+	if flag.Lookup("tray") == nil {
+		flag.BoolVar(&TrayMode, "tray", false, "run with system tray icon")
 	}
 
 	if !flag.Parsed() {
