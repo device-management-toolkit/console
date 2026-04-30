@@ -13,7 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -45,8 +45,8 @@ func New(r Repository, log logger.Interface, safeRequirements security.Cryptor, 
 
 var (
 	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
-	ErrDatabase       = sqldb.DatabaseError{Console: ErrDomainsUseCase}
-	ErrNotFound       = sqldb.NotFoundError{Console: ErrDomainsUseCase}
+	ErrDatabase       = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
+	ErrNotFound       = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
 	ErrCertPassword   = CertPasswordError{Console: ErrDomainsUseCase}
 	ErrCertExpiration = CertExpirationError{Console: ErrDomainsUseCase}
 	ErrCertStore      = CertStoreError{Console: ErrDomainsUseCase}

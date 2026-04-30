@@ -13,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -57,7 +58,7 @@ func TestWirelessRepo_GetCount(t *testing.T) {
 			setup:    func(_ *sql.DB) {},
 			tenantID: "tenant1",
 			expected: 0,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -94,7 +95,7 @@ func TestWirelessRepo_GetCount(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				if !errors.As(err, &dbErr) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
 				}
