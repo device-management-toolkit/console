@@ -132,6 +132,37 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 	return d1, nil
 }
 
+// Keys are lowercased to match encoding/json's case-insensitive unmarshal.
+// guid and tenantId identify the record; deviceInfo doesn't round-trip through
+// dtoToEntity/entityToDTO — all three are intentionally omitted.
+var deviceFieldSetters = map[string]func(dst, src *dto.Device){
+	"connectionstatus": func(dst, src *dto.Device) { dst.ConnectionStatus = src.ConnectionStatus },
+	"mpsinstance":      func(dst, src *dto.Device) { dst.MPSInstance = src.MPSInstance },
+	"hostname":         func(dst, src *dto.Device) { dst.Hostname = src.Hostname },
+	"mpsusername":      func(dst, src *dto.Device) { dst.MPSUsername = src.MPSUsername },
+	"tags":             func(dst, src *dto.Device) { dst.Tags = src.Tags },
+	"friendlyname":     func(dst, src *dto.Device) { dst.FriendlyName = src.FriendlyName },
+	"dnssuffix":        func(dst, src *dto.Device) { dst.DNSSuffix = src.DNSSuffix },
+	"lastconnected":    func(dst, src *dto.Device) { dst.LastConnected = src.LastConnected },
+	"lastseen":         func(dst, src *dto.Device) { dst.LastSeen = src.LastSeen },
+	"lastdisconnected": func(dst, src *dto.Device) { dst.LastDisconnected = src.LastDisconnected },
+	"username":         func(dst, src *dto.Device) { dst.Username = src.Username },
+	"password":         func(dst, src *dto.Device) { dst.Password = src.Password },
+	"mpspassword":      func(dst, src *dto.Device) { dst.MPSPassword = src.MPSPassword },
+	"mebxpassword":     func(dst, src *dto.Device) { dst.MEBXPassword = src.MEBXPassword },
+	"usetls":           func(dst, src *dto.Device) { dst.UseTLS = src.UseTLS },
+	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
+	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
+}
+
+func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
+	for key := range fields {
+		if apply, ok := deviceFieldSetters[key]; ok {
+			apply(dst, src)
+		}
+	}
+}
+
 // convert entity.Device to dto.Device.
 func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 	// convert comma separated string to []string

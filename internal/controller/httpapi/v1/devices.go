@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -203,15 +205,38 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 	c.JSON(http.StatusCreated, newDevice)
 }
 
+// Keys are lowercased so callers can match against setter maps regardless of
+// client casing (encoding/json unmarshals case-insensitively).
+func providedJSONFields(c *gin.Context) (map[string]bool, error) {
+	var raw map[string]json.RawMessage
+	if err := c.ShouldBindBodyWithJSON(&raw); err != nil {
+		return nil, err
+	}
+
+	fields := make(map[string]bool, len(raw))
+	for k := range raw {
+		fields[strings.ToLower(k)] = true
+	}
+
+	return fields, nil
+}
+
 func (dr *deviceRoutes) update(c *gin.Context) {
 	var device dto.Device
-	if err := c.ShouldBindJSON(&device); err != nil {
+	if err := c.ShouldBindBodyWithJSON(&device); err != nil {
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	updatedDevice, err := dr.t.Update(c.Request.Context(), &device)
+	fields, err := providedJSONFields(c)
+	if err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	updatedDevice, err := dr.t.Update(c.Request.Context(), &device, fields)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - update")
 		ErrorResponse(c, err)
@@ -308,7 +333,7 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 
 	item.CertHash = certToPin.SHA256Fingerprint
 
-	item, err = dr.t.Update(c.Request.Context(), item)
+	item, err = dr.t.Update(c.Request.Context(), item, nil)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - update")
 		ErrorResponse(c, err)
@@ -339,7 +364,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 
 	item.CertHash = ""
 
-	item, err = dr.t.Update(c.Request.Context(), item)
+	item, err = dr.t.Update(c.Request.Context(), item, nil)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - update")
 		ErrorResponse(c, err)

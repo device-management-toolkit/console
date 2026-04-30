@@ -177,7 +177,19 @@ func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *dto.Device) (*dto.Device, error) {
+// Update persists d. fields == nil writes d as-is; non-nil merges only the
+// listed JSON keys onto the existing record.
+func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error) {
+	if fields != nil {
+		existing, err := uc.GetByID(ctx, d.GUID, d.TenantID, true)
+		if err != nil {
+			return nil, err
+		}
+
+		mergeDeviceFields(existing, d, fields)
+		d = existing
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err

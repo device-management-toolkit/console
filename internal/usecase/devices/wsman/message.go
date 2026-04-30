@@ -113,10 +113,20 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
-	if entry := GetConnectionEntry(device.GUID); entry != nil {
-		entry.Timer.Stop()
-		RemoveConnection(device.GUID)
+	entry := GetConnectionEntry(device.GUID)
+	if entry == nil {
+		return
 	}
+
+	// CIRA entries are owned by the TCP tunnel and re-registered only on a fresh
+	// APF auth. Removing here would orphan the live socket — the device sees no
+	// error and never reconnects, but every SetupWsmanClient returns not-connected.
+	if entry.IsCIRA {
+		return
+	}
+
+	entry.Timer.Stop()
+	RemoveConnection(device.GUID)
 }
 
 func (g GoWSMANMessages) Worker() {
