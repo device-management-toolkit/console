@@ -11,6 +11,7 @@ import (
 	gwmconfig "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -117,4 +118,56 @@ func TestSetupWsmanClientCancelledContextDoesNotDeadlockWorker(t *testing.T) { /
 	case <-time.After(3 * time.Second):
 		t.Fatal("Worker is deadlocked: SetupWsmanClient did not process a new request after a canceled one")
 	}
+}
+
+// TestDestroyWsmanClient_PreservesCIRAEntry is a regression test for a bug
+// where a PATCH on a CIRA-managed device would call DestroyWsmanClient and
+// remove the tunnel registration, orphaning the live socket: the underlying
+// TCP connection stayed open (so AMT never reconnected) but every subsequent
+// SetupWsmanClient returned ErrCIRADeviceNotConnected. The CIRA tunnel is
+// re-registered only on a fresh APF auth, which the orphan state prevents.
+func TestDestroyWsmanClient_PreservesCIRAEntry(t *testing.T) {
+	t.Parallel()
+
+	guid := "destroy-preserves-cira-entry"
+
+	t.Cleanup(func() { RemoveConnection(guid) })
+
+	SetConnectionEntry(guid, &ConnectionEntry{
+		IsCIRA: true,
+		Timer:  time.AfterFunc(time.Hour, func() {}),
+	})
+
+	g := NewGoWSMANMessages(logger.New("error"), passthroughCryptor{})
+	g.DestroyWsmanClient(dto.Device{GUID: guid})
+
+	require.NotNil(t, GetConnectionEntry(guid),
+		"DestroyWsmanClient must preserve CIRA entries; the TCP tunnel is the only registration path")
+}
+
+func TestDestroyWsmanClient_RemovesNonCIRAEntry(t *testing.T) {
+	t.Parallel()
+
+	guid := "destroy-removes-non-cira-entry"
+
+	t.Cleanup(func() { RemoveConnection(guid) })
+
+	SetConnectionEntry(guid, &ConnectionEntry{
+		IsCIRA: false,
+		Timer:  time.AfterFunc(time.Hour, func() {}),
+	})
+
+	g := NewGoWSMANMessages(logger.New("error"), passthroughCryptor{})
+	g.DestroyWsmanClient(dto.Device{GUID: guid})
+
+	require.Nil(t, GetConnectionEntry(guid),
+		"DestroyWsmanClient must remove non-CIRA entries so the cache is rebuilt with current credentials")
+}
+
+func TestDestroyWsmanClient_MissingEntryIsNoop(t *testing.T) {
+	t.Parallel()
+
+	g := NewGoWSMANMessages(logger.New("error"), passthroughCryptor{})
+	// Should not panic when the entry is absent.
+	g.DestroyWsmanClient(dto.Device{GUID: "destroy-missing-entry"})
 }
