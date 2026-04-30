@@ -101,7 +101,7 @@ func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
 		CIMChassis:        dto.CIMResponse{Response: hw.ChassisResult.Body.PackageResponse},
 		CIMChip:           dto.CIMResponse{Responses: chipItems},
 		CIMCard:           dto.CIMResponse{Response: hw.CardResult.Body.PackageResponse},
-		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.GetResponse},
+		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.BIOSElementGetResponse},
 		CIMProcessor:      dto.CIMResponse{Responses: []any{hw.ProcessorResult.Body.PackageResponse}},
 		CIMPhysicalMemory: dto.CIMResponse{Responses: memoryItems},
 	}
