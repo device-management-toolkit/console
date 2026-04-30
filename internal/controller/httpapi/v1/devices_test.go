@@ -50,6 +50,28 @@ var (
 	timeNow        = time.Now().UTC()
 	requestDevice  = dto.Device{ConnectionStatus: true, MPSInstance: "mpsInstance", Hostname: "hostname", GUID: "guid", MPSUsername: "mpsusername", Tags: []string{"tag1", "tag2"}, TenantID: "tenantId", FriendlyName: "friendlyName", DNSSuffix: "dnsSuffix", Username: "admin", Password: "password", UseTLS: true, AllowSelfSigned: true, LastConnected: &timeNow, LastSeen: &timeNow, LastDisconnected: &timeNow}
 	responseDevice = dto.Device{ConnectionStatus: true, MPSInstance: "mpsInstance", Hostname: "hostname", GUID: "guid", MPSUsername: "mpsusername", Tags: []string{"tag1", "tag2"}, TenantID: "tenantId", FriendlyName: "friendlyName", DNSSuffix: "dnsSuffix", Username: "admin", Password: "password", UseTLS: true, AllowSelfSigned: true, LastConnected: &timeNow, LastSeen: &timeNow, LastDisconnected: &timeNow}
+
+	requestDeviceFields = map[string]bool{
+		"connectionstatus": true,
+		"mpsinstance":      true,
+		"hostname":         true,
+		"guid":             true,
+		"mpsusername":      true,
+		"tags":             true,
+		"tenantid":         true,
+		"friendlyname":     true,
+		"dnssuffix":        true,
+		"lastconnected":    true,
+		"lastseen":         true,
+		"lastdisconnected": true,
+		"username":         true,
+		"password":         true,
+		"mpspassword":      true,
+		"mebxpassword":     true,
+		"usetls":           true,
+		"allowselfsigned":  true,
+		"certhash":         true,
+	}
 )
 
 func TestDevicesRoutes(t *testing.T) {
@@ -214,7 +236,7 @@ func TestDevicesRoutes(t *testing.T) {
 					LastSeen:         &timeNow,
 					LastDisconnected: &timeNow,
 				}
-				device.EXPECT().Update(context.Background(), deviceTest).Return(deviceTest, nil)
+				device.EXPECT().Update(context.Background(), deviceTest, requestDeviceFields).Return(deviceTest, nil)
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
@@ -243,7 +265,7 @@ func TestDevicesRoutes(t *testing.T) {
 					LastSeen:         &timeNow,
 					LastDisconnected: &timeNow,
 				}
-				device.EXPECT().Update(context.Background(), deviceTest).Return(nil, devices.ErrDatabase)
+				device.EXPECT().Update(context.Background(), deviceTest, requestDeviceFields).Return(nil, devices.ErrDatabase)
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
@@ -318,4 +340,84 @@ func TestDevicesRoutes(t *testing.T) {
 			}
 		})
 	}
+}
+
+// TestDevicesUpdatePartialPatch verifies that the v1 update controller
+// translates the JSON keys actually present in the body into the fields map
+// passed to Update, and forwards a DTO containing only those provided values.
+// The merge against the existing record is exercised in the usecase tests.
+const testDeviceGUID = "4c4c4544-0046-3510-8050-c2c04f365033"
+
+func TestDevicesUpdatePartialPatch(t *testing.T) {
+	t.Parallel()
+
+	guid := testDeviceGUID
+
+	incoming := &dto.Device{
+		GUID:     guid,
+		Hostname: "test-device-renamed",
+	}
+
+	expectedFields := map[string]bool{"guid": true, "hostname": true}
+
+	response := &dto.Device{
+		GUID:         guid,
+		Hostname:     "test-device-renamed",
+		Tags:         []string{"lab", "floor-2"},
+		MPSUsername:  "admin",
+		MPSPassword:  "P@ssw0rd!",
+		Username:     "admin",
+		Password:     "AmtP@ss123",
+		MEBXPassword: "mebxsecret",
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(response, nil)
+
+	body := []byte(`{"guid":"` + guid + `","hostname":"test-device-renamed"}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	expected, _ := json.Marshal(response)
+	require.Equal(t, string(expected), w.Body.String())
+}
+
+// encoding/json unmarshals case-insensitively; the merge must see the field as
+// provided regardless of the casing the client used.
+func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
+	t.Parallel()
+
+	guid := testDeviceGUID
+
+	incoming := &dto.Device{
+		GUID:     guid,
+		Hostname: "test-device-renamed",
+	}
+
+	expectedFields := map[string]bool{"guid": true, "hostname": true}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"GUID":"` + guid + `","Hostname":"test-device-renamed"}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
 }
