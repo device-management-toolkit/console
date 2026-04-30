@@ -58,7 +58,7 @@ type (
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 		GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) error
-		Update(ctx context.Context, d *dto.Device) (*dto.Device, error)
+		Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error)
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
 		// Management Calls
