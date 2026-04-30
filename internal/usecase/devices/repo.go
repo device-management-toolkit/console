@@ -226,7 +226,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 	}
 
 	d2 := uc.entityToDTO(newDevice)
-	if newDevice.Tags == "" {
+	if len(newDevice.Tags) == 0 {
 		d2.Tags = []string{}
 	}
 

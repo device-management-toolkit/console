@@ -188,7 +188,7 @@ func TestDeviceRepo_Get(t *testing.T) {
 				{
 					GUID:             "guid1",
 					Hostname:         "hostname1",
-					Tags:             "tag1",
+					Tags:             []string{"tag1"},
 					MPSInstance:      "mpsinstance1",
 					ConnectionStatus: true,
 					MPSUsername:      "mpsusername1",
@@ -284,7 +284,7 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 			expected: &entity.Device{
 				GUID:             "guid1",
 				Hostname:         "hostname1",
-				Tags:             "tag1",
+				Tags:             []string{"tag1"},
 				MPSInstance:      "mpsinstance1",
 				ConnectionStatus: true,
 				MPSUsername:      "mpsusername1",
@@ -466,7 +466,7 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 				{
 					GUID:             "guid1",
 					Hostname:         "hostname1",
-					Tags:             ",tag1,tag2,",
+					Tags:             []string{"", "tag1", "tag2", ""},
 					MPSInstance:      "mpsinstance1",
 					ConnectionStatus: true,
 					MPSUsername:      "mpsusername1",
@@ -494,7 +494,7 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 				{
 					GUID:             "guid1",
 					Hostname:         "hostname1",
-					Tags:             ",tag1,",
+					Tags:             []string{"", "tag1", ""},
 					MPSInstance:      "mpsinstance1",
 					ConnectionStatus: true,
 					MPSUsername:      "mpsusername1",
@@ -720,7 +720,7 @@ func TestDeviceRepo_Update(t *testing.T) {
 			device: &entity.Device{
 				GUID:             "guid1",
 				Hostname:         "updated_hostname",
-				Tags:             "updated_tags",
+				Tags:             []string{"updated_tags"},
 				MPSInstance:      "updated_mpsinstance",
 				ConnectionStatus: false,
 				MPSUsername:      "updated_mpsusername",
@@ -743,7 +743,7 @@ func TestDeviceRepo_Update(t *testing.T) {
 			device: &entity.Device{
 				GUID:             "nonexistent_guid",
 				Hostname:         "hostname",
-				Tags:             "tags",
+				Tags:             []string{"tags"},
 				MPSInstance:      "mpsinstance",
 				ConnectionStatus: true,
 				MPSUsername:      "mpsusername",
@@ -766,7 +766,7 @@ func TestDeviceRepo_Update(t *testing.T) {
 			device: &entity.Device{
 				GUID:             "guid1",
 				Hostname:         "hostname",
-				Tags:             "tags",
+				Tags:             []string{"tags"},
 				MPSInstance:      "mpsinstance",
 				ConnectionStatus: true,
 				MPSUsername:      "mpsusername",
@@ -867,7 +867,7 @@ func TestDeviceRepo_Insert(t *testing.T) {
 			device: &entity.Device{
 				GUID:             "guid1",
 				Hostname:         "hostname",
-				Tags:             "tags",
+				Tags:             []string{"tags"},
 				MPSInstance:      "mpsinstance",
 				ConnectionStatus: true,
 				MPSUsername:      "mpsusername",
@@ -894,7 +894,7 @@ func TestDeviceRepo_Insert(t *testing.T) {
 			device: &entity.Device{
 				GUID:             "guid1",
 				Hostname:         "hostname",
-				Tags:             "tags",
+				Tags:             []string{"tags"},
 				MPSInstance:      "mpsinstance",
 				ConnectionStatus: true,
 				MPSUsername:      "mpsusername",
@@ -917,7 +917,7 @@ func TestDeviceRepo_Insert(t *testing.T) {
 			device: &entity.Device{
 				GUID:             "guid1",
 				Hostname:         "hostname",
-				Tags:             "tags",
+				Tags:             []string{"tags"},
 				MPSInstance:      "mpsinstance",
 				ConnectionStatus: true,
 				MPSUsername:      "mpsusername",
@@ -994,7 +994,7 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
 				{
 					GUID:             "guid1",
 					Hostname:         "hostname1",
-					Tags:             "tag1",
+					Tags:             []string{"tag1"},
 					MPSInstance:      "mpsinstance1",
 					ConnectionStatus: true,
 					MPSUsername:      "mpsusername1",

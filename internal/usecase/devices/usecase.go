@@ -67,20 +67,13 @@ func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, s
 
 // convert dto.Device to entity.Device.
 func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
-	// convert []string to comma separated string
-	if d.Tags == nil {
-		d.Tags = []string{}
-	}
-
-	tags := strings.Join(d.Tags, ",")
-
 	d1 := &entity.Device{
 		ConnectionStatus: d.ConnectionStatus,
 		MPSInstance:      d.MPSInstance,
 		Hostname:         d.Hostname,
 		GUID:             strings.ToLower(d.GUID), // Normalize GUID to lowercase for case-insensitive matching
 		MPSUsername:      d.MPSUsername,
-		Tags:             tags,
+		Tags:             d.Tags,
 		TenantID:         d.TenantID,
 		FriendlyName:     d.FriendlyName,
 		DNSSuffix:        d.DNSSuffix,
@@ -134,19 +127,13 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 
 // convert entity.Device to dto.Device.
 func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
-	// convert comma separated string to []string
-	var tags []string
-	if d.Tags != "" {
-		tags = strings.Split(d.Tags, ",")
-	}
-
 	d1 := &dto.Device{
 		ConnectionStatus: d.ConnectionStatus,
 		MPSInstance:      d.MPSInstance,
 		Hostname:         d.Hostname,
 		GUID:             d.GUID,
 		MPSUsername:      d.MPSUsername,
-		Tags:             tags,
+		Tags:             d.Tags,
 		TenantID:         d.TenantID,
 		FriendlyName:     d.FriendlyName,
 		DNSSuffix:        d.DNSSuffix,

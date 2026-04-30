@@ -8,7 +8,7 @@ type Device struct {
 	Hostname         string
 	GUID             string
 	MPSUsername      string
-	Tags             string
+	Tags             []string
 	TenantID         string
 	FriendlyName     string
 	DNSSuffix        string
