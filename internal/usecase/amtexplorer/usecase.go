@@ -3,12 +3,12 @@ package amtexplorer
 import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-var ErrDatabase = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
+var ErrDatabase = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
 
 // UseCase -.
 type UseCase struct {

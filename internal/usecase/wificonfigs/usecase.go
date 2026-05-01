@@ -10,8 +10,8 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -35,10 +35,10 @@ func New(r Repository, ieee ieee8021xconfigs.Feature, log logger.Interface, safe
 }
 
 var (
-	ErrCountNotUnique = sqldb.NotUniqueError{Console: consoleerrors.CreateConsoleError("WifiConfigs")}
+	ErrCountNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("WifiConfigs")}
 	ErrDomainsUseCase = consoleerrors.CreateConsoleError("WificonfigsUseCase")
-	ErrDatabase       = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("WificonfigsUseCase")}
-	ErrNotFound       = sqldb.NotFoundError{Console: consoleerrors.CreateConsoleError("WificonfigsUseCase")}
+	ErrDatabase       = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("WificonfigsUseCase")}
+	ErrNotFound       = repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("WificonfigsUseCase")}
 )
 
 // History - getting translate history from store.

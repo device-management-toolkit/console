@@ -1,4 +1,4 @@
-package sqldb
+package repoerrors
 
 import "github.com/device-management-toolkit/console/pkg/consoleerrors"
 

@@ -7,6 +7,12 @@ import (
 	"strings"
 )
 
+// Vault KV v2 field name constants.
+const (
+	vaultDataField  = "data"
+	vaultValueField = "value"
+)
+
 // Sentinel errors for secret operations.
 var (
 	ErrSecretNotFound       = errors.New("secret not found")
@@ -29,7 +35,7 @@ func (c *Client) GetKeyValue(key string) (string, error) {
 	if strings.Contains(key, "/") {
 		// Path-based storage: {basePath}/{key} with "value" field
 		secretPath = c.path + "/" + key
-		dataKey = "value"
+		dataKey = vaultValueField
 	} else {
 		// Key-based storage: {basePath}/keys with key as field name
 		secretPath = c.path + "/keys"
@@ -46,7 +52,7 @@ func (c *Client) GetKeyValue(key string) (string, error) {
 	}
 
 	// Extract data from KV v2 response
-	data, ok := secret.Data["data"].(map[string]interface{})
+	data, ok := secret.Data[vaultDataField].(map[string]interface{})
 	if !ok {
 		return "", fmt.Errorf("%w at %s", ErrUnexpectedDataFormat, secretPath)
 	}
@@ -79,8 +85,8 @@ func (c *Client) SetKeyValue(key, value string) error {
 		// Path-based storage: {basePath}/{key} with "value" field
 		secretPath = c.path + "/" + key
 		secretData = map[string]interface{}{
-			"data": map[string]interface{}{
-				"value": value,
+			vaultDataField: map[string]interface{}{
+				vaultValueField: value,
 			},
 		}
 	} else {
@@ -93,7 +99,7 @@ func (c *Client) SetKeyValue(key, value string) error {
 
 		if err == nil && secret != nil {
 			// Secret exists, preserve existing data
-			if d, ok := secret.Data["data"].(map[string]interface{}); ok {
+			if d, ok := secret.Data[vaultDataField].(map[string]interface{}); ok {
 				data = d
 			}
 		}
@@ -102,7 +108,7 @@ func (c *Client) SetKeyValue(key, value string) error {
 		data[key] = value
 
 		secretData = map[string]interface{}{
-			"data": data,
+			vaultDataField: data,
 		}
 	}
 
@@ -141,7 +147,7 @@ func (c *Client) DeleteKeyValue(key string) error {
 	}
 
 	// Extract data from KV v2 response
-	data, ok := secret.Data["data"].(map[string]interface{})
+	data, ok := secret.Data[vaultDataField].(map[string]interface{})
 	if !ok {
 		return fmt.Errorf("%w at %s", ErrUnexpectedDataFormat, secretPath)
 	}
@@ -149,7 +155,7 @@ func (c *Client) DeleteKeyValue(key string) error {
 	delete(data, key)
 
 	secretData := map[string]interface{}{
-		"data": data,
+		vaultDataField: data,
 	}
 
 	_, err = c.client.Logical().WriteWithContext(ctx, secretPath, secretData)
@@ -173,7 +179,7 @@ func (c *Client) GetObject(key string) (map[string]string, error) {
 	}
 
 	// Extract data from KV v2 response
-	data, ok := secret.Data["data"].(map[string]interface{})
+	data, ok := secret.Data[vaultDataField].(map[string]interface{})
 	if !ok {
 		return nil, fmt.Errorf("%w at %s", ErrUnexpectedDataFormat, secretPath)
 	}
@@ -202,7 +208,7 @@ func (c *Client) SetObject(key string, data map[string]string) error {
 	}
 
 	secretData := map[string]interface{}{
-		"data": dataInterface,
+		vaultDataField: dataInterface,
 	}
 
 	_, err := c.client.Logical().WriteWithContext(ctx, secretPath, secretData)

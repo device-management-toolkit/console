@@ -5,7 +5,7 @@ go 1.25.0
 // replace github.com/device-management-toolkit/go-wsman-messages/v2 => ../go-wsman-messages
 
 require (
-	fyne.io/systray v1.12.0
+	fyne.io/systray v1.12.1
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.18.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.43.0

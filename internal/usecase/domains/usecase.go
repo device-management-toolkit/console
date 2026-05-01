@@ -13,9 +13,14 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
+)
+
+// Object storage field name constants for domain certificates.
+const (
+	certStoreFieldCert = "cert"
 )
 
 // ObjectStorager extends security.Storager with object storage capabilities.
@@ -45,8 +50,8 @@ func New(r Repository, log logger.Interface, safeRequirements security.Cryptor, 
 
 var (
 	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
-	ErrDatabase       = sqldb.DatabaseError{Console: ErrDomainsUseCase}
-	ErrNotFound       = sqldb.NotFoundError{Console: ErrDomainsUseCase}
+	ErrDatabase       = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
+	ErrNotFound       = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
 	ErrCertPassword   = CertPasswordError{Console: ErrDomainsUseCase}
 	ErrCertExpiration = CertExpirationError{Console: ErrDomainsUseCase}
 	ErrCertStore      = CertStoreError{Console: ErrDomainsUseCase}
@@ -138,7 +143,7 @@ func (uc *UseCase) GetByNameWithCert(ctx context.Context, domainName, tenantID s
 				uc.log.Warn("Failed to retrieve domain certificate from Vault: %v", err)
 				// Continue without cert - it may be a legacy domain stored in DB
 			} else {
-				data.ProvisioningCert = certData["cert"]
+				data.ProvisioningCert = certData[certStoreFieldCert]
 				data.ProvisioningCertPassword = certData["password"]
 			}
 		}
@@ -216,8 +221,8 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 		// Use object storage if available
 		if objStore, ok := uc.certStore.(ObjectStorager); ok {
 			err = objStore.SetObject(certKey, map[string]string{
-				"cert":     d.ProvisioningCert,
-				"password": d.ProvisioningCertPassword,
+				certStoreFieldCert: d.ProvisioningCert,
+				"password":         d.ProvisioningCertPassword,
 			})
 			if err != nil {
 				return nil, ErrCertStore.Wrap("Insert", "objStore.SetObject", err)
