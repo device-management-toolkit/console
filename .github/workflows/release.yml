@@ -21,7 +21,7 @@ jobs:
       version: ${{ steps.semantic-release.outputs.version }}
     steps:
       - name: Checkout Console
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
@@ -64,12 +64,12 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Console
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
 
       - name: Check out Sample Web UI
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: device-management-toolkit/sample-web-ui
           ref: main
@@ -147,7 +147,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Console
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           persist-credentials: false
   
@@ -182,7 +182,7 @@ jobs:
           go env -w GOTOOLCHAIN=local
 
       - name: Checkout Sample Web UI for license scan
-        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+        uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           repository: device-management-toolkit/sample-web-ui
           ref: main
