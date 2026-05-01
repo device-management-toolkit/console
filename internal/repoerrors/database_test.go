@@ -1,4 +1,4 @@
-package sqldb
+package repoerrors
 
 import (
 	"errors"
@@ -9,10 +9,7 @@ import (
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
-var (
-	ErrSQLSyntax = errors.New("SQL syntax error")
-	ErrOther     = errors.New("another error")
-)
+var ErrSQLSyntax = errors.New("SQL syntax error")
 
 func TestDatabaseError_Error(t *testing.T) {
 	t.Parallel()

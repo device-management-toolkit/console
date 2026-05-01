@@ -8,7 +8,7 @@ import (
 	"github.com/go-xmlfmt/xmlfmt"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
@@ -17,7 +17,7 @@ var (
 	ErrExplorerAMT       = ExplorerError{Console: consoleerrors.CreateConsoleError("AMT Error")}
 	ErrExplorerNoResults = ExplorerError{Console: consoleerrors.CreateConsoleError("No results returned")}
 	ErrExplorerInResult  = ExplorerError{Console: consoleerrors.CreateConsoleError("Error in result")}
-	ErrNotFound          = sqldb.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
+	ErrNotFound          = repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("AMTExplorerUseCase")}
 )
 
 func (uc *UseCase) GetExplorerSupportedCalls() []string {

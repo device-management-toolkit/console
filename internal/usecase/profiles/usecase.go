@@ -13,11 +13,11 @@ import (
 	local "github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
 	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
 	"github.com/device-management-toolkit/console/internal/usecase/profilewificonfigs"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -37,8 +37,8 @@ type UseCase struct {
 
 var (
 	ErrProfilesUseCase = consoleerrors.CreateConsoleError("ProfilesUseCase")
-	ErrDatabase        = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
-	ErrNotFound        = sqldb.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
+	ErrDatabase        = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
+	ErrNotFound        = repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
 	ErrNotValid        = dto.NotValidError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
 )
 
@@ -574,7 +574,7 @@ func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Prof
 func (uc *UseCase) checkIEEE8021xProfile(ctx context.Context, profileName, tenantID string) error {
 	res, err := uc.ieee.GetByName(ctx, profileName, tenantID)
 	if err != nil {
-		var nfErr sqldb.NotFoundError
+		var nfErr repoerrors.NotFoundError
 		if errors.As(err, &nfErr) {
 			return ErrNotValid.Wrap("Insert", "uc.ieee.GetByName", consoleerrors.CreateConsoleError("IEEE profile is not found in the database"))
 		}
