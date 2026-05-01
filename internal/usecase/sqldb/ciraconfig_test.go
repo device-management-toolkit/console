@@ -12,6 +12,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/db"
 )
@@ -48,7 +49,7 @@ func assertTestResult(t *testing.T, expected, actual *entity.CIRAConfig, expecte
 	if actualErr == nil && expectedErr != nil {
 		t.Errorf("Expected error of type %T, got nil", expectedErr)
 	} else if actualErr != nil {
-		var dbErr sqldb.DatabaseError
+		var dbErr repoerrors.DatabaseError
 		if !errors.As(actualErr, &dbErr) {
 			t.Errorf("Expected error of type %T, got %T", expectedErr, actualErr)
 		}
@@ -93,7 +94,7 @@ func TestCIRARepo_GetCount(t *testing.T) {
 			setup:    func(_ *sql.DB) {},
 			tenantID: "tenant1",
 			expected: 0,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -125,7 +126,7 @@ func TestCIRARepo_GetCount(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				if !errors.As(err, &dbErr) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
 				}
@@ -205,7 +206,7 @@ func TestCIRARepo_Get(t *testing.T) {
 			skip:     0,
 			tenantID: "tenant1",
 			expected: nil,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 		{
 			name: "Rows scan error",
@@ -217,7 +218,7 @@ func TestCIRARepo_Get(t *testing.T) {
 			skip:     0,
 			tenantID: "tenant1",
 			expected: nil,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -304,7 +305,7 @@ func TestCIRARepo_GetByName(t *testing.T) {
 			configName: "config1",
 			tenantID:   "tenant1",
 			expected:   nil,
-			err:        &sqldb.DatabaseError{},
+			err:        &repoerrors.DatabaseError{},
 		},
 		{
 			name: "Rows scan error",
@@ -319,7 +320,7 @@ func TestCIRARepo_GetByName(t *testing.T) {
 			configName: "config1",
 			tenantID:   "tenant1",
 			expected:   nil,
-			err:        &sqldb.DatabaseError{},
+			err:        &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -408,7 +409,7 @@ func TestCIRARepo_Update(t *testing.T) {
 				ProxyDetails:       "proxy",
 			},
 			expected: false,
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 	}
 
@@ -484,7 +485,7 @@ func TestCIRARepo_Insert(t *testing.T) {
 				TenantID:           "tenant1",
 			},
 			expected: "",
-			err:      sqldb.NotUniqueError{},
+			err:      repoerrors.NotUniqueError{},
 		},
 		{
 			name:  QueryExecutionErrorTestName,
@@ -501,7 +502,7 @@ func TestCIRARepo_Insert(t *testing.T) {
 				TenantID:           "tenant1",
 			},
 			expected: "",
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -568,7 +569,7 @@ func TestCIRARepo_Delete(t *testing.T) {
 			configName: "config1",
 			tenantID:   "tenant1",
 			expected:   false,
-			err:        &sqldb.DatabaseError{},
+			err:        &repoerrors.DatabaseError{},
 		},
 	}
 
