@@ -28,6 +28,8 @@ const (
 
 	_filePerm   = 0o600
 	_rsaKeyBits = 2048
+
+	_localhost = "localhost"
 )
 
 // Server -.
@@ -179,13 +181,13 @@ func generateSelfSignedCert() (certPEM, keyPEM []byte, err error) {
 
 	tmpl := x509.Certificate{
 		SerialNumber:          big.NewInt(1),
-		Subject:               pkix.Name{CommonName: "localhost"},
+		Subject:               pkix.Name{CommonName: _localhost},
 		NotBefore:             time.Now().Add(-time.Minute),
 		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
-		DNSNames:              []string{"localhost"},
+		DNSNames:              []string{_localhost},
 	}
 
 	derBytes, err := x509.CreateCertificate(rand.Reader, &tmpl, &tmpl, &priv.PublicKey, priv)

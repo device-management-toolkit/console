@@ -52,7 +52,7 @@ func (lr LoginRoute) Login(c *gin.Context) {
 	var creds dto.Credentials
 
 	if err := c.ShouldBindJSON(&creds); err != nil {
-		c.JSON(http.StatusBadRequest, gin.H{"error": "invalid request"})
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "invalid request"})
 
 		return
 	}
@@ -62,7 +62,7 @@ func (lr LoginRoute) Login(c *gin.Context) {
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	if creds.Username != lr.Config.AdminUsername || creds.Password != lr.Config.AdminPassword {
-		c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid credentials"})
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials"})
 
 		return
 	}
@@ -77,7 +77,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	tokenString, err := token.SignedString([]byte(lr.Config.JWTKey))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{"error": "could not create token"})
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not create token"})
 
 		return
 	}
@@ -92,7 +92,7 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 		tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
 
 		if tokenString == "" {
-			c.JSON(http.StatusUnauthorized, gin.H{"error": "request does not contain an access token"})
+			c.JSON(http.StatusUnauthorized, gin.H{errorKey: "request does not contain an access token"})
 			c.Abort()
 
 			return
@@ -102,7 +102,7 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 		if config.ConsoleConfig.ClientID != "" {
 			_, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
 			if err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid access token"})
+				c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid access token"})
 				c.Abort()
 
 				return
@@ -119,7 +119,7 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 			})
 
 			if err != nil || !token.Valid {
-				c.JSON(http.StatusUnauthorized, gin.H{"error": "invalid access token"})
+				c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid access token"})
 				c.Abort()
 
 				return

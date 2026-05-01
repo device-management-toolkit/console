@@ -151,12 +151,12 @@ func (f *FuegoAdapter) loginRedirection(_ fuego.ContextNoBody) (AuthorizeRedirec
 func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountResponse, error) {
 	devices := []dto.Device{
 		{
-			GUID:             "example-guid-1",
+			GUID:             exampleDeviceGUID,
 			MPSUsername:      "mpsuser1",
 			Username:         "admin1",
 			Password:         "password1",
 			ConnectionStatus: true,
-			Hostname:         "device1.example.com",
+			Hostname:         exampleDeviceHost,
 		},
 		{
 			GUID:             "example-guid-2",
@@ -196,8 +196,8 @@ func (f *FuegoAdapter) getRedirectStatus(_ fuego.ContextNoBody) (DeviceRedirectS
 
 func (f *FuegoAdapter) getDeviceCertificate(_ fuego.ContextNoBody) (dto.Certificate, error) {
 	return dto.Certificate{
-		GUID:       "example-guid-1",
-		CommonName: "device1.example.com",
+		GUID:       exampleDeviceGUID,
+		CommonName: exampleDeviceHost,
 		NotBefore:  time.Now(),
 		NotAfter:   time.Now().Add(365 * 24 * time.Hour),
 	}, nil
@@ -210,10 +210,10 @@ func (f *FuegoAdapter) pinDeviceCertificate(c fuego.ContextWithBody[dto.PinCerti
 	}
 
 	return dto.Device{
-		GUID:     "example-guid-1",
-		Hostname: "device1.example.com",
+		GUID:     exampleDeviceGUID,
+		Hostname: exampleDeviceHost,
 		CertHash: req.SHA256Fingerprint,
-		TenantID: "default",
+		TenantID: defaultTenantID,
 		Tags:     []string{},
 		UseTLS:   true,
 	}, nil
@@ -225,12 +225,12 @@ func (f *FuegoAdapter) deleteDeviceCertificate(_ fuego.ContextNoBody) (dto.Devic
 
 func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) {
 	return dto.Device{
-		GUID:             "example-guid-1",
+		GUID:             exampleDeviceGUID,
 		MPSUsername:      "mpsuser1",
 		Username:         "admin1",
 		Password:         "password1",
 		ConnectionStatus: true,
-		Hostname:         "device1.example.com",
+		Hostname:         exampleDeviceHost,
 	}, nil
 }
 
