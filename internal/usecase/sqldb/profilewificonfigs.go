@@ -4,6 +4,7 @@ import (
 	"context"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -17,8 +18,8 @@ type ProfileWiFiConfigsRepo struct {
 }
 
 var (
-	ErrProfileWiFiConfigsDatabase            = DatabaseError{Console: consoleerrors.CreateConsoleError("ProfileWiFiConfigsRepo")}
-	ErrProfileWiFiConfigsNotUnique           = NotUniqueError{Console: consoleerrors.CreateConsoleError("ProfileWiFiConfigsRepo")}
+	ErrProfileWiFiConfigsDatabase            = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfileWiFiConfigsRepo")}
+	ErrProfileWiFiConfigsNotUnique           = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("ProfileWiFiConfigsRepo")}
 	ErrProfileWiFiConfigsForeignKeyViolation = ForeignKeyViolationError{Console: consoleerrors.CreateConsoleError("ProfileWiFiConfigsRepo")}
 )
 

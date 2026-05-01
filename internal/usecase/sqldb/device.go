@@ -8,6 +8,7 @@ import (
 	"time"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -20,8 +21,8 @@ type DeviceRepo struct {
 }
 
 var (
-	ErrDeviceDatabase  = DatabaseError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
-	ErrDeviceNotUnique = NotUniqueError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
+	ErrDeviceDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
+	ErrDeviceNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
 )
 
 // New -.

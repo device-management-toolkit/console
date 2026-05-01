@@ -9,14 +9,14 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
 var (
 	ErrDeviceUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
-	ErrDatabase      = sqldb.DatabaseError{Console: ErrDeviceUseCase}
-	ErrNotFound      = sqldb.NotFoundError{Console: ErrDeviceUseCase}
+	ErrDatabase      = repoerrors.DatabaseError{Console: ErrDeviceUseCase}
+	ErrNotFound      = repoerrors.NotFoundError{Console: ErrDeviceUseCase}
 	ErrCancelled     = dto.CanceledError{Console: ErrDeviceUseCase}
 )
 

@@ -7,6 +7,7 @@ import (
 	"fmt"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -19,8 +20,8 @@ type DomainRepo struct {
 }
 
 var (
-	ErrDomainDatabase  = DatabaseError{Console: consoleerrors.CreateConsoleError("DomainRepo")}
-	ErrDomainNotUnique = NotUniqueError{Console: consoleerrors.CreateConsoleError("DomainRepo")}
+	ErrDomainDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DomainRepo")}
+	ErrDomainNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("DomainRepo")}
 )
 
 // New -.
@@ -227,7 +228,7 @@ func (r *DomainRepo) Update(_ context.Context, d *entity.Domain) (bool, error) {
 	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
 	if err != nil {
 		if db.CheckNotUnique(err) {
-			return false, ErrProfileNotUnique.Wrap(err.Error())
+			return false, ErrDomainNotUnique.Wrap(err.Error())
 		}
 
 		return false, ErrDomainDatabase.Wrap("Update", "r.Pool.Exec", err)
@@ -267,7 +268,7 @@ func (r *DomainRepo) Insert(_ context.Context, d *entity.Domain) (string, error)
 
 	if err != nil {
 		if db.CheckNotUnique(err) {
-			return "", ErrProfileNotUnique.Wrap(err.Error())
+			return "", ErrDomainNotUnique.Wrap(err.Error())
 		}
 
 		return "", ErrDomainDatabase.Wrap("Insert", "r.Pool.QueryRow", err)

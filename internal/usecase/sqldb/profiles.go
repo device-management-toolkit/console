@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -18,8 +19,8 @@ type ProfileRepo struct {
 }
 
 var (
-	ErrProfileDatabase  = DatabaseError{Console: consoleerrors.CreateConsoleError("ProfileRepo")}
-	ErrProfileNotUnique = NotUniqueError{Console: consoleerrors.CreateConsoleError("ProfileRepo")}
+	ErrProfileDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfileRepo")}
+	ErrProfileNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("ProfileRepo")}
 )
 
 // New -.

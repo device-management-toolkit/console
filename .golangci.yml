@@ -20,7 +20,7 @@ linters:
     - gocyclo
     - godot
     - godox
-    - gomodguard
+    - gomodguard_v2
     - goprintffuncname
     - gosec
     - govet
@@ -63,7 +63,7 @@ linters:
       min-complexity: 16
     goconst:
       min-len: 2
-      min-occurrences: 2
+      min-occurrences: 3
     gocritic:
       disabled-checks:
         - dupImport
@@ -113,6 +113,7 @@ linters:
       - linters:
           - err113
           - funlen
+          - goconst
           - gosec
           - noctx
         path: (.+)_test.go

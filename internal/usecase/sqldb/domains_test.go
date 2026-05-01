@@ -13,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/db"
 )
@@ -62,7 +63,7 @@ func TestDomainRepo_GetCount(t *testing.T) {
 			setup:    func(_ *sql.DB) {},
 			tenantID: "tenant1",
 			expected: 0,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -94,7 +95,7 @@ func TestDomainRepo_GetCount(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbError sqldb.DatabaseError
+				var dbError repoerrors.DatabaseError
 
 				if !errors.As(err, &dbError) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
@@ -207,7 +208,7 @@ func GetDomainByDomainSuffixHelper(t *testing.T, tc GetDomainByDomainSuffixTestC
 	if err == nil && tc.err != nil {
 		t.Errorf("Expected error of type %T, got nil", tc.err)
 	} else if err != nil {
-		var dbError sqldb.DatabaseError
+		var dbError repoerrors.DatabaseError
 
 		if !errors.As(err, &dbError) {
 			t.Errorf("Expected error of type %T, got %T", tc.err, err)
@@ -259,7 +260,7 @@ func TestDomainRepo_GetDomainByDomainSuffix(t *testing.T) {
 			domainSuffix: "suffix1",
 			tenantID:     "tenant1",
 			expected:     nil,
-			err:          &sqldb.DatabaseError{},
+			err:          &repoerrors.DatabaseError{},
 		},
 		{
 			name: "Rows scan error",
@@ -270,7 +271,7 @@ func TestDomainRepo_GetDomainByDomainSuffix(t *testing.T) {
 			domainSuffix: "suffix1",
 			tenantID:     "tenant1",
 			expected:     nil,
-			err:          &sqldb.DatabaseError{},
+			err:          &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -423,7 +424,7 @@ func TestDomainRepo_Delete(t *testing.T) {
 			domainName: "test-domain",
 			tenantID:   "tenant1",
 			expected:   false,
-			err:        &sqldb.DatabaseError{},
+			err:        &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -455,7 +456,7 @@ func TestDomainRepo_Delete(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbError sqldb.DatabaseError
+				var dbError repoerrors.DatabaseError
 
 				if !errors.As(err, &dbError) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
@@ -526,7 +527,7 @@ func TestDomainRepo_Update(t *testing.T) {
 				TenantID:                      "tenant1",
 			},
 			expected: false,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -558,7 +559,7 @@ func TestDomainRepo_Update(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbError sqldb.DatabaseError
+				var dbError repoerrors.DatabaseError
 
 				if !errors.As(err, &dbError) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
@@ -586,9 +587,9 @@ func DomainInsertHelper(t *testing.T, tc DomainInsertTestCase, version string, e
 	if err == nil && tc.err != nil {
 		t.Errorf("Expected error of type %T, got nil", tc.err)
 	} else if err != nil {
-		var notUniqueError sqldb.NotUniqueError
+		var notUniqueError repoerrors.NotUniqueError
 
-		var dbError sqldb.DatabaseError
+		var dbError repoerrors.DatabaseError
 
 		if !errors.As(err, &notUniqueError) && !errors.As(err, &dbError) {
 			t.Errorf("Expected error of type %T or %T, got %T", tc.err, notUniqueError, err)
@@ -634,7 +635,7 @@ func TestDomainRepo_Insert(t *testing.T) {
 				TenantID:                      "tenant1",
 			},
 			expected: "",
-			err:      sqldb.NotUniqueError{},
+			err:      repoerrors.NotUniqueError{},
 		},
 		{
 			name:  "Query execution error",
@@ -648,7 +649,7 @@ func TestDomainRepo_Insert(t *testing.T) {
 				TenantID:                      "tenant1",
 			},
 			expected: "",
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 

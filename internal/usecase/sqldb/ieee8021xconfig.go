@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -18,8 +19,8 @@ type IEEE8021xRepo struct {
 }
 
 var (
-	ErrIEEE8021xDatabase  = DatabaseError{Console: consoleerrors.CreateConsoleError("IEEE8021xRepo")}
-	ErrIEEE8021xNotUnique = NotUniqueError{Console: consoleerrors.CreateConsoleError("IEEE8021xRepo")}
+	ErrIEEE8021xDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("IEEE8021xRepo")}
+	ErrIEEE8021xNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("IEEE8021xRepo")}
 )
 
 // New -.
