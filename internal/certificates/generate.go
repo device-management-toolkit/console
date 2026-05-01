@@ -24,6 +24,12 @@ const (
 	RootKeyPath  = "config/root_key.pem"
 )
 
+// PEM block type constants.
+const (
+	pemTypeCertificate = "CERTIFICATE"
+	pemTypeRSAKey      = "RSA PRIVATE KEY"
+)
+
 // Sentinel errors for certificate operations.
 var (
 	ErrCertFieldNotFound     = errors.New("cert field not found in secret")
@@ -73,8 +79,8 @@ func LoadCertificateFromStore(store security.Storager, name string) (*x509.Certi
 // If the store implements ObjectStorager, certificates are stored as {cert, key} fields.
 // Path: certs/{name}.
 func SaveCertificateToStore(store security.Storager, name string, cert *x509.Certificate, key *rsa.PrivateKey) error {
-	certPEM := string(pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: cert.Raw}))
-	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(key)}))
+	certPEM := string(pem.EncodeToMemory(&pem.Block{Type: pemTypeCertificate, Bytes: cert.Raw}))
+	keyPEM := string(pem.EncodeToMemory(&pem.Block{Type: pemTypeRSAKey, Bytes: x509.MarshalPKCS1PrivateKey(key)}))
 
 	// Try object storage first (stores cert/key as proper fields)
 	if objStore, ok := store.(ObjectStorager); ok {
@@ -422,7 +428,7 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 	}
 
 	// Encoding certificate to PEM format
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: pemTypeCertificate, Bytes: certBytes})
 
 	// Save to files (optional)
 	certOut, err := os.Create("config/root_cert.pem")
@@ -442,7 +448,7 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 		return nil, nil, err
 	}
 
-	err = pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
+	err = pem.Encode(keyOut, &pem.Block{Type: pemTypeRSAKey, Bytes: x509.MarshalPKCS1PrivateKey(privateKey)})
 	if err != nil {
 		return nil, nil, err
 	}
@@ -533,7 +539,7 @@ func IssueWebServerCertificate(rootCert CertAndKeyType, addThumbPrintToName bool
 
 // saveCertAndKeyToFiles saves a certificate and private key to PEM files.
 func saveCertAndKeyToFiles(commonName string, certBytes []byte, keys *rsa.PrivateKey) error {
-	certPEM := pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: certBytes})
+	certPEM := pem.EncodeToMemory(&pem.Block{Type: pemTypeCertificate, Bytes: certBytes})
 
 	certOut, err := os.Create("config/" + commonName + "_cert.pem")
 	if err != nil {
@@ -551,5 +557,5 @@ func saveCertAndKeyToFiles(commonName string, certBytes []byte, keys *rsa.Privat
 	}
 	defer keyOut.Close()
 
-	return pem.Encode(keyOut, &pem.Block{Type: "RSA PRIVATE KEY", Bytes: x509.MarshalPKCS1PrivateKey(keys)})
+	return pem.Encode(keyOut, &pem.Block{Type: pemTypeRSAKey, Bytes: x509.MarshalPKCS1PrivateKey(keys)})
 }

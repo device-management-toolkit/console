@@ -15,6 +15,9 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
 
+// errorKey is the JSON field name used for error messages in gin.H responses.
+const errorKey = "error"
+
 type response struct {
 	Error   string `json:"error,omitempty" example:"message"`
 	Message string `json:"message,omitempty" example:"message"`

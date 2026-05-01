@@ -59,7 +59,7 @@ func (f *FuegoAdapter) getWirelessConfigs(_ fuego.ContextNoBody) (dto.WirelessCo
 			SSID:                 "ExampleSSID",
 			AuthenticationMethod: 6, // WPA2-Personal
 			EncryptionMethod:     4,
-			TenantID:             "default",
+			TenantID:             defaultTenantID,
 			Version:              "1.0",
 		},
 	}
@@ -78,7 +78,7 @@ func (f *FuegoAdapter) getWirelessConfigByName(c fuego.ContextNoBody) (dto.Wirel
 		SSID:                 "ExampleSSID",
 		AuthenticationMethod: 6,
 		EncryptionMethod:     4,
-		TenantID:             "default",
+		TenantID:             defaultTenantID,
 		Version:              "1.0",
 	}, nil
 }
