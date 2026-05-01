@@ -14,6 +14,14 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// Shared constants for OpenAPI example responses and defaults.
+const (
+	defaultVersion    = "1.0.0"
+	defaultTenantID   = "default"
+	exampleDeviceGUID = "example-guid-1"
+	exampleDeviceHost = "device1.example.com"
+)
+
 type FuegoAdapter struct {
 	server   *fuego.Server
 	usecases usecase.Usecases
@@ -72,7 +80,7 @@ func (f *FuegoAdapter) GetOpenAPISpec() ([]byte, error) {
 	spec := f.server.OutputOpenAPISpec()
 
 	// Default
-	version := "1.0.0"
+	version := defaultVersion
 	if config.ConsoleConfig != nil && config.ConsoleConfig.Version != "" {
 		version = config.ConsoleConfig.Version
 	}

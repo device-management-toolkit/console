@@ -7,13 +7,16 @@ import (
 	"github.com/prometheus/client_golang/prometheus/promauto"
 )
 
+// metricLabelMode is the Prometheus label name shared by KVM metric vectors.
+const metricLabelMode = "mode"
+
 var (
 	kvmDeviceToBrowserBytes = promauto.NewCounterVec(
 		prometheus.CounterOpts{
 			Name: "kvm_device_to_browser_bytes_total",
 			Help: "Total bytes forwarded from AMT device to browser (per mode)",
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmBrowserToDeviceBytes = promauto.NewCounterVec(
@@ -21,7 +24,7 @@ var (
 			Name: "kvm_browser_to_device_bytes_total",
 			Help: "Total bytes forwarded from browser to AMT device (per mode)",
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmDeviceToBrowserMessages = promauto.NewCounterVec(
@@ -29,7 +32,7 @@ var (
 			Name: "kvm_device_to_browser_messages_total",
 			Help: "Number of frames/messages from AMT device forwarded to browser (per mode)",
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmBrowserToDeviceMessages = promauto.NewCounterVec(
@@ -37,7 +40,7 @@ var (
 			Name: "kvm_browser_to_device_messages_total",
 			Help: "Number of frames/messages from browser forwarded to AMT device (per mode)",
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmDeviceToBrowserWriteSeconds = promauto.NewHistogramVec(
@@ -46,7 +49,7 @@ var (
 			Help:    "Time to write a device frame to the websocket (per mode)",
 			Buckets: []float64{0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmBrowserToDeviceSendSeconds = promauto.NewHistogramVec(
@@ -55,7 +58,7 @@ var (
 			Help:    "Time to send a browser frame to the device TCP connection (per mode)",
 			Buckets: []float64{0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmDevicePayloadBytes = promauto.NewHistogramVec(
@@ -64,7 +67,7 @@ var (
 			Help:    "Distribution of device payload sizes forwarded to browser (per mode)",
 			Buckets: []float64{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmBrowserPayloadBytes = promauto.NewHistogramVec(
@@ -73,7 +76,7 @@ var (
 			Help:    "Distribution of browser payload sizes forwarded to device (per mode)",
 			Buckets: []float64{64, 128, 256, 512, 1024, 2048, 4096, 8192, 16384, 32768, 65536},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	// Time spent blocked waiting for data.
@@ -83,7 +86,7 @@ var (
 			Help:    "Time blocked on device TCP Receive() waiting for data (per mode)",
 			Buckets: []float64{0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmBrowserReadBlockSeconds = promauto.NewHistogramVec(
@@ -92,7 +95,7 @@ var (
 			Help:    "Time blocked on websocket ReadMessage() from browser (per mode)",
 			Buckets: []float64{0.0005, 0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	// KVM Connection Performance Metrics.
@@ -110,7 +113,7 @@ var (
 			Help:    "Time to establish TCP connection to device during KVM setup (KVM_TIMING)",
 			Buckets: []float64{0.01, 0.02, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmWebsocketUpgradeSeconds = promauto.NewHistogram(
@@ -127,7 +130,7 @@ var (
 			Help:    "Total time from request to ready KVM connection (KVM_TIMING)",
 			Buckets: []float64{0.1, 0.2, 0.5, 1, 2, 5, 10, 20, 30},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 
 	kvmConsentCodeWaitSeconds = promauto.NewHistogramVec(
@@ -136,7 +139,7 @@ var (
 			Help:    "Time spent waiting for consent code handling during KVM setup (KVM_TIMING)",
 			Buckets: []float64{0.01, 0.05, 0.1, 0.2, 0.5, 1, 2, 5, 10, 30, 60},
 		},
-		[]string{"mode"},
+		[]string{metricLabelMode},
 	)
 )
 

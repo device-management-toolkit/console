@@ -68,7 +68,7 @@ func (vr VersionRoute) LatestReleaseHandler(c *gin.Context) {
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{
 			"current": vr.Config.Version,
-			"error":   err.Error(),
+			errorKey:  err.Error(),
 		})
 
 		return
