@@ -60,8 +60,8 @@ func (f *FuegoAdapter) getIEEE8021xConfigs(_ fuego.ContextNoBody) (dto.IEEE8021x
 			AuthenticationProtocol: 2,
 			PXETimeout:             &timeout,
 			WiredInterface:         true,
-			TenantID:               "default",
-			Version:                "1.0.0",
+			TenantID:               defaultTenantID,
+			Version:                defaultVersion,
 		},
 	}
 
@@ -80,8 +80,8 @@ func (f *FuegoAdapter) getIEEE8021xConfigByName(c fuego.ContextNoBody) (dto.IEEE
 		AuthenticationProtocol: 2,
 		PXETimeout:             &timeout,
 		WiredInterface:         true,
-		TenantID:               "default",
-		Version:                "1.0.0",
+		TenantID:               defaultTenantID,
+		Version:                defaultVersion,
 	}, nil
 }
 

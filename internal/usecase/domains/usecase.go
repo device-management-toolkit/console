@@ -18,6 +18,11 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// Object storage field name constants for domain certificates.
+const (
+	certStoreFieldCert = "cert"
+)
+
 // ObjectStorager extends security.Storager with object storage capabilities.
 type ObjectStorager interface {
 	security.Storager
@@ -138,7 +143,7 @@ func (uc *UseCase) GetByNameWithCert(ctx context.Context, domainName, tenantID s
 				uc.log.Warn("Failed to retrieve domain certificate from Vault: %v", err)
 				// Continue without cert - it may be a legacy domain stored in DB
 			} else {
-				data.ProvisioningCert = certData["cert"]
+				data.ProvisioningCert = certData[certStoreFieldCert]
 				data.ProvisioningCertPassword = certData["password"]
 			}
 		}
@@ -216,8 +221,8 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 		// Use object storage if available
 		if objStore, ok := uc.certStore.(ObjectStorager); ok {
 			err = objStore.SetObject(certKey, map[string]string{
-				"cert":     d.ProvisioningCert,
-				"password": d.ProvisioningCertPassword,
+				certStoreFieldCert: d.ProvisioningCert,
+				"password":         d.ProvisioningCertPassword,
 			})
 			if err != nil {
 				return nil, ErrCertStore.Wrap("Insert", "objStore.SetObject", err)

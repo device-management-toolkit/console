@@ -66,7 +66,7 @@ func (r *deviceManagementRoutes) getWirelessState(c *gin.Context) {
 
 		if errors.Is(err, wsman.ErrNoWiFiPort) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Get Wireless State failed for guid: " + guid + ". - " + err.Error(),
+				errorKey: "Get Wireless State failed for guid: " + guid + ". - " + err.Error(),
 			})
 
 			return

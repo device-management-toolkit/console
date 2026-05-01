@@ -104,7 +104,7 @@ func invokeMethod(input []reflect.Value, method reflect.Value) (reflect.Value, e
 	resultType := result[0]
 
 	// Ensure we're working with a struct or a pointer to a struct
-	if resultType.Kind() == reflect.Ptr {
+	if resultType.Kind() == reflect.Pointer {
 		resultType = resultType.Elem()
 	}
 
