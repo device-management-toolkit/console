@@ -88,7 +88,7 @@ jobs:
         uses: sonatype-nexus-community/nancy-github-action@395e2fb168f674f96502e5652103d112899ea369 # main
         continue-on-error: true
       - name: "Dependency Review"
-        uses: actions/dependency-review-action@3b139cfc5fae8b618d3eae3675e383bb1769c019 # v4.5.0
+        uses: actions/dependency-review-action@2031cfc080254a8a887f58cffee85186f0e49e48 # v4.9.0
         with:
           base-ref: ${{ github.event.pull_request.base.sha || 'main' }}
           head-ref: ${{ github.event.pull_request.head.sha || github.ref }}
