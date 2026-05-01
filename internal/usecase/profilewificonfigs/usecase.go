@@ -5,7 +5,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -17,8 +17,8 @@ type UseCase struct {
 
 var (
 	ErrProfileWiFiConfigsUseCase = consoleerrors.CreateConsoleError("ProfilesWiFiUseCase")
-	ErrDatabase                  = sqldb.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfilesWiFiUseCase")}
-	ErrNotFound                  = sqldb.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesWiFiUseCase")}
+	ErrDatabase                  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfilesWiFiUseCase")}
+	ErrNotFound                  = repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesWiFiUseCase")}
 )
 
 func New(r Repository, log logger.Interface) *UseCase {

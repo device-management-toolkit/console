@@ -7,6 +7,7 @@ import (
 	"time"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -19,8 +20,8 @@ type WirelessRepo struct {
 }
 
 var (
-	ErrWiFiDatabase                = DatabaseError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
-	ErrWiFiNotUnique               = NotUniqueError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
+	ErrWiFiDatabase                = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
+	ErrWiFiNotUnique               = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
 	ErrWiFiIEEEForeignKeyViolation = ForeignKeyViolationError{Console: consoleerrors.CreateConsoleError("WirelessRepo")}
 )
 
