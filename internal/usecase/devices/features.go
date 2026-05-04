@@ -33,6 +33,11 @@ const (
 	userConsentKVM = "kvm"
 )
 
+// User consent option string values.
+const (
+	userConsentKVM = "kvm"
+)
+
 const (
 	targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
 	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
