@@ -149,6 +149,10 @@ bin-deps:
 	GOBIN=$(LOCAL_BIN) go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	GOBIN=$(LOCAL_BIN) go install go.uber.org/mock/mockgen@latest
 
+build-tray: ### build app with system tray support (requires CGO, native build only)
+	CGO_ENABLED=1 go build -tags=tray -o ./bin/console-tray ./cmd/app
+.PHONY: build-tray
+
 # Linux Installer
 VERSION ?= 3.0.0-dev
 
