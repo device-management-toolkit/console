@@ -1048,18 +1048,18 @@ func (mr *MockDeviceManagementFeatureMockRecorder) SetLinkPreference(c, guid, re
 }
 
 // Update mocks base method.
-func (m *MockDeviceManagementFeature) Update(ctx context.Context, d *dto.Device) (*dto.Device, error) {
+func (m *MockDeviceManagementFeature) Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", ctx, d)
+	ret := m.ctrl.Call(m, "Update", ctx, d, fields)
 	ret0, _ := ret[0].(*dto.Device)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockDeviceManagementFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
+func (mr *MockDeviceManagementFeatureMockRecorder) Update(ctx, d, fields any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Update), ctx, d)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Update), ctx, d, fields)
 }
 
 // UpdateConnectionStatus mocks base method.

@@ -3,22 +3,35 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
+	"runtime"
 	"syscall"
 )
 
-// logDir returns the macOS-conventional log directory for the app.
+// logDir returns the conventional log directory for the current platform.
+// macOS: ~/Library/Logs/device-management-toolkit
+// Linux: $XDG_STATE_HOME/device-management-toolkit/logs (fallback ~/.local/state/...)
 func logDir() string {
 	home, err := os.UserHomeDir()
 	if err != nil {
 		return os.TempDir()
 	}
 
-	return filepath.Join(home, "Library", "Logs", "device-management-toolkit")
+	if runtime.GOOS == "darwin" {
+		return filepath.Join(home, "Library", "Logs", "device-management-toolkit")
+	}
+
+	// Linux / other unix: follow XDG Base Directory spec for state files.
+	if state := os.Getenv("XDG_STATE_HOME"); state != "" {
+		return filepath.Join(state, "device-management-toolkit", "logs")
+	}
+
+	return filepath.Join(home, ".local", "state", "device-management-toolkit", "logs")
 }
 
 // relaunchInBackground re-execs the current process detached from the terminal,
@@ -42,7 +55,7 @@ func relaunchInBackground() {
 		log.Fatalf("Failed to get executable path: %v", err)
 	}
 
-	cmd := exec.Command(exePath, os.Args[1:]...)
+	cmd := exec.CommandContext(context.Background(), exePath, os.Args[1:]...)
 	cmd.Stdout = f
 	cmd.Stderr = f
 	cmd.Env = append(os.Environ(), "DMT_BACKGROUND=1")

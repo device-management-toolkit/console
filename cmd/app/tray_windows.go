@@ -3,6 +3,7 @@
 package main
 
 import (
+	"context"
 	"fmt"
 	"log"
 	"os"
@@ -11,14 +12,23 @@ import (
 	"syscall"
 )
 
+// detachedProcess is the Windows CreationFlag that runs the child without
+// inheriting the parent console. Defined here to avoid pulling in
+// golang.org/x/sys/windows just for the constant.
+const detachedProcess = 0x00000008
+
 // logDir returns the Windows-conventional log directory for the app.
 func logDir() string {
-	appData := os.Getenv("LOCALAPPDATA")
-	if appData == "" {
+	if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
+		return filepath.Join(dir, "device-management-toolkit", "logs")
+	}
+
+	home, err := os.UserHomeDir()
+	if err != nil {
 		return os.TempDir()
 	}
 
-	return filepath.Join(appData, "device-management-toolkit", "logs")
+	return filepath.Join(home, "AppData", "Local", "device-management-toolkit", "logs")
 }
 
 // relaunchInBackground re-execs the current process detached from the console,
@@ -42,19 +52,19 @@ func relaunchInBackground() {
 		log.Fatalf("Failed to get executable path: %v", err)
 	}
 
-	cmd := exec.Command(exePath, os.Args[1:]...)
+	cmd := exec.CommandContext(context.Background(), exePath, os.Args[1:]...)
 	cmd.Stdout = f
 	cmd.Stderr = f
 	cmd.Env = append(os.Environ(), "DMT_BACKGROUND=1")
 	cmd.SysProcAttr = &syscall.SysProcAttr{
-		CreationFlags: syscall.CREATE_NEW_PROCESS_GROUP,
+		HideWindow:    true,
+		CreationFlags: detachedProcess,
 	}
 
 	if err := cmd.Start(); err != nil {
 		log.Fatalf("Failed to start in background: %v", err)
 	}
 
-	// Close our copy now that the child has inherited its own FD.
 	_ = f.Close()
 
 	fmt.Printf("DMT Console started in background (PID %d)\n", cmd.Process.Pid)

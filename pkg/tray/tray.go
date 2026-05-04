@@ -1,8 +1,12 @@
+//go:build tray
+
 package tray
 
 import (
+	"context"
 	"os/exec"
 	"runtime"
+	"sync"
 
 	"fyne.io/systray"
 )
@@ -18,7 +22,8 @@ type Config struct {
 
 // Manager handles the system tray lifecycle.
 type Manager struct {
-	config Config
+	config   Config
+	quitOnce sync.Once
 }
 
 // New creates a new tray manager.
@@ -26,14 +31,26 @@ func New(cfg Config) *Manager {
 	return &Manager{config: cfg}
 }
 
-// Run starts the system tray - this blocks until quit.
+// Run starts the system tray - this blocks until quit. OnQuit is wired into
+// the systray exit callback so it fires regardless of how shutdown was
+// triggered (menu click, Manager.Quit, OS session end, etc.).
 func (m *Manager) Run() {
-	systray.Run(m.onReady, nil)
+	systray.Run(m.onReady, m.onExit)
 }
 
-// Quit exits the system tray.
+// Quit exits the system tray. OnQuit runs once via onExit when systray stops.
 func (m *Manager) Quit() {
 	systray.Quit()
+}
+
+// onExit fires after systray.Run unwinds. Guarded so OnQuit only runs once
+// even if a menu handler also called it.
+func (m *Manager) onExit() {
+	m.quitOnce.Do(func() {
+		if m.config.OnQuit != nil {
+			m.config.OnQuit()
+		}
+	})
 }
 
 func (m *Manager) onReady() {
@@ -66,17 +83,13 @@ func (m *Manager) onReadyFull() {
 		m.config.OnReady()
 	}
 
-	// Handle menu clicks
+	// Handle menu clicks. OnQuit runs from onExit after systray unwinds.
 	go func() {
 		for {
 			select {
 			case <-mOpen.ClickedCh:
 				_ = openBrowser(m.config.URL)
 			case <-mQuit.ClickedCh:
-				if m.config.OnQuit != nil {
-					m.config.OnQuit()
-				}
-
 				systray.Quit()
 
 				return
@@ -101,13 +114,9 @@ func (m *Manager) onReadyHeadless() {
 		m.config.OnReady()
 	}
 
-	// Handle menu clicks
+	// Handle menu clicks. OnQuit runs from onExit after systray unwinds.
 	go func() {
 		<-mQuit.ClickedCh
-
-		if m.config.OnQuit != nil {
-			m.config.OnQuit()
-		}
 
 		systray.Quit()
 	}()
@@ -134,7 +143,7 @@ func openBrowser(url string) error {
 		args = []string{url}
 	}
 
-	return exec.Command(cmd, args...).Start()
+	return exec.CommandContext(context.Background(), cmd, args...).Start()
 }
 
 // getIcon returns the icon bytes for the system tray.

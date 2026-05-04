@@ -27,7 +27,7 @@ func (r *deviceManagementRoutes) setLinkPreference(c *gin.Context) {
 		// Handle no WiFi port error with 404 and error message
 		if errors.Is(err, wsman.ErrNoWiFiPort) {
 			c.JSON(http.StatusNotFound, gin.H{
-				"error": "Set Link Preference failed for guid: " + guid + ". - " + err.Error(),
+				errorKey: "Set Link Preference failed for guid: " + guid + ". - " + err.Error(),
 			})
 
 			return
@@ -43,7 +43,7 @@ func (r *deviceManagementRoutes) setLinkPreference(c *gin.Context) {
 	// 0 -> 200 OK with success response
 	if response.ReturnValue != 0 {
 		c.JSON(http.StatusBadRequest, gin.H{
-			"error": "Set Link Preference failed for guid: " + guid + ".",
+			errorKey: "Set Link Preference failed for guid: " + guid + ".",
 		})
 
 		return

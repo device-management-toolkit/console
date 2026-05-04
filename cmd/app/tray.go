@@ -52,8 +52,16 @@ func runWithTray(cfg *config.Config, l logger.Interface) {
 		OnQuit: func() {
 			log.Println("Shutting down DMT Console...")
 			// Send interrupt signal to trigger graceful shutdown
-			p, _ := os.FindProcess(os.Getpid())
-			_ = p.Signal(os.Interrupt)
+			p, err := os.FindProcess(os.Getpid())
+			if err != nil {
+				log.Printf("Failed to find current process for shutdown signal: %v", err)
+
+				return
+			}
+
+			if err := p.Signal(os.Interrupt); err != nil {
+				log.Printf("Failed to send interrupt signal: %v", err)
+			}
 		},
 	})
 

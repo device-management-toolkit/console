@@ -152,7 +152,6 @@ bin-deps:
 build-tray: ### build app with system tray support (requires CGO, native build only)
 	CGO_ENABLED=1 go build -tags=tray -o ./bin/console-tray ./cmd/app
 .PHONY: build-tray
-
 # Windows Installer
 VERSION ?= 3.0.0-dev
 
