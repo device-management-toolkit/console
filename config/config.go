@@ -214,6 +214,14 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return "", err
 	}
 
+	// Resolve symlinks to find actual executable location.
+	// On macOS, os.Executable() may return the symlink path (e.g. /usr/local/bin/dmt-console)
+	// rather than the target (e.g. /usr/local/device-management-toolkit/console).
+	ex, err = filepath.EvalSymlinks(ex)
+	if err != nil {
+		return "", err
+	}
+
 	exPath := filepath.Dir(ex)
 
 	return filepath.Join(exPath, "config", "config.yml"), nil

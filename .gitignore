@@ -37,3 +37,5 @@ vendor/
 !**/ui/.gitkeep
 # Documentation files
 **/doc/openapi.json
+
+/dist

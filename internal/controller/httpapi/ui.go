@@ -40,39 +40,23 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 	modifiedMainJS := injectConfigToMainJS(l, cfg)
 	handler.StaticFile("/main.js", modifiedMainJS)
 
-	handler.StaticFileFS("/polyfills.js", "./polyfills.js", http.FS(staticFiles))
-	handler.StaticFileFS("/media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", "./media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", http.FS(staticFiles))
-	handler.StaticFileFS("/runtime.js", "./runtime.js", http.FS(staticFiles))
-	handler.StaticFileFS("/styles.css", "./styles.css", http.FS(staticFiles))
-	handler.StaticFileFS("/vendor.js", "./vendor.js", http.FS(staticFiles))
-	handler.StaticFileFS("/favicon.ico", "./favicon.ico", http.FS(staticFiles))
-	handler.StaticFileFS("/assets/logo.png", "./assets/logo.png", http.FS(staticFiles))
-
-	// Serve the whole monaco subtree; its AMD loader requests files dynamically
-	// and the exact set changes between monaco versions.
-	monacoFS, err := fs.Sub(staticFiles, "assets/monaco")
-	if err != nil {
-		l.Fatal(err)
-	}
-
-	handler.StaticFS("/assets/monaco", http.FS(monacoFS))
-
-	langs := []string{"en", "fr", "de", "ar", "es", "fi", "he", "it", "ja", "nl", "ru", "sv"}
-	for _, lang := range langs {
-		relativePath := "/assets/i18n/" + lang + ".json"
-		filePath := "." + relativePath
-		handler.StaticFileFS(relativePath, filePath, http.FS(staticFiles))
-	}
-
-	// SPA fallback for unmatched routes. Skip /assets/ so a missing static
-	// file 404s instead of silently returning the HTML shell.
+	// Serve all other static files dynamically via NoRoute handler
+	// This handles chunk files, assets, and any other embedded files
 	handler.NoRoute(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/assets/") {
-			c.Status(http.StatusNotFound)
+		path := strings.TrimPrefix(c.Request.URL.Path, "/")
+		if path == "" {
+			path = "."
+		}
+
+		// Try to serve the actual file if it exists
+		if file, err := staticFiles.Open(path); err == nil {
+			file.Close()
+			c.FileFromFS(path, http.FS(staticFiles))
 
 			return
 		}
 
+		// Fallback to index.html for SPA routing
 		c.FileFromFS("./", http.FS(staticFiles))
 	})
 }
