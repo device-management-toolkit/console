@@ -28,17 +28,6 @@ func TestGetBootCapabilities(t *testing.T) {
 	require.Equal(t, dto.BootCapabilities{}, result)
 }
 
-func TestSetRPEEnabled(t *testing.T) {
-	t.Parallel()
-
-	f := newTestAdapter()
-
-	result, err := f.setRPEEnabled(nil)
-
-	require.NoError(t, err)
-	require.Nil(t, result)
-}
-
 func TestRegisterPowerRoutes_IncludesBootEndpoints(t *testing.T) {
 	t.Parallel()
 
@@ -55,5 +44,5 @@ func TestRegisterPowerRoutes_IncludesBootEndpoints(t *testing.T) {
 	require.True(t, ok)
 
 	require.Contains(t, paths, "/api/v1/admin/amt/boot/capabilities/{guid}", "boot capabilities route should be registered")
-	require.Contains(t, paths, "/api/v1/admin/amt/boot/rpe/{guid}", "set RPE enabled route should be registered")
+	require.Contains(t, paths, "/api/v1/admin/amt/boot/remoteErase/{guid}", "set RPE enabled route should be registered")
 }

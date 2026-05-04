@@ -137,7 +137,7 @@ func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, 
 
 	device.Password = decryptedPassword
 
-	ctx, cancel := context.WithCancel(c) //nolint:gosec // G118: cancel is stored in DeviceConnection and called on cleanup
+	ctx, cancel := context.WithCancel(c)
 	now := time.Now()
 	deviceConnection := &DeviceConnection{
 		Conn:          conn,

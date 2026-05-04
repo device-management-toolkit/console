@@ -3,7 +3,6 @@ package devices
 import (
 	"context"
 	"errors"
-	"log"
 	"strings"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/amterror"
@@ -29,6 +28,11 @@ const (
 	enabledStateOCRAndRPEEnabled  = 32771 // OCR enabled,  RPE enabled
 )
 
+// User consent option string values.
+const (
+	userConsentKVM = "kvm"
+)
+
 const (
 	targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
 	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
@@ -36,11 +40,11 @@ const (
 
 // PlatformErase capability bitmask bits (AMT_BootCapabilities.PlatformErase).
 const (
-	platformEraseRPESupport   = 0x01      // Bit 0: RPE overall support
-	platformEraseSecureErase  = 0x04      // Bit 2: Secure Erase All SSDs
-	platformEraseTPMClear     = 0x40      // Bit 6: TPM Clear
-	platformEraseClearBIOSNVM = 0x2000000 // Bit 25: Clear BIOS NVM Variables
-	platformEraseBIOSReload   = 0x4000000 // Bit 26: BIOS Reload of Golden Configuration
+	platformEraseRPESupport      = 0x01      // Bit 0: RPE overall support
+	platformEraseSecureErase     = 0x04      // Bit 2: Secure Erase All SSDs
+	platformEraseTPMClear        = 0x40      // Bit 6: TPM Clear
+	platformEraseCSMEUnconfigure = 0x10000   // Bit 16: CSME Unconfigure (UI sentinel)
+	platformEraseBIOSReload      = 0x4000000 // Bit 26: BIOS Reload of Golden Configuration
 )
 
 type BootConfiguration struct {
@@ -108,18 +112,13 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
 	settingsResults.RPESupported = settingsResultsV2.RPESupported
-	settingsResults.RPECaps = settingsResultsV2.RPECaps
-	settingsResults.RPESecureErase = settingsResultsV2.RPESecureErase
-	settingsResults.RPETPMClear = settingsResultsV2.RPETPMClear
-	settingsResults.RPEClearBIOSNVM = settingsResultsV2.RPEClearBIOSNVM
-	settingsResults.RPEBIOSReload = settingsResultsV2.RPEBIOSReload
 
 	uc.log.Debug("GetFeatures: RemoteErase (PlatformErase) support guid=%s RPESupported=%v RPE=%v", guid, settingsResultsV2.RPESupported, settingsResultsV2.RPE)
 
 	return settingsResults, settingsResultsV2, nil
 }
 
-func getBootConfiguration(device wsman.Management) (BootConfiguration, error) {
+func getBootConfiguration(device wsman.Management) BootConfiguration {
 	// These are non-fatal: if unavailable, OCR/RPE state and boot settings default to zero values
 	bootService, _ := device.GetBootService()
 
@@ -127,11 +126,9 @@ func getBootConfiguration(device wsman.Management) (BootConfiguration, error) {
 
 	bootSourceSettings, _ = device.GetCIMBootSourceSetting()
 
-	// These are fatal: capabilities and boot data are required for correct operation
-	capabilities, err := device.GetBootCapabilities()
-	if err != nil {
-		return BootConfiguration{}, err
-	}
+	// Non-fatal: older devices that do not support OCR/RPE will return an error here;
+	// all capability-derived fields will default to false/zero.
+	capabilities, _ := device.GetBootCapabilities()
 
 	bootData, _ := device.GetBootData()
 
@@ -140,14 +137,11 @@ func getBootConfiguration(device wsman.Management) (BootConfiguration, error) {
 		bootSourceSettings: bootSourceSettings.Body.PullResponse.BootSourceSettingItems,
 		capabilities:       capabilities,
 		bootData:           bootData,
-	}, nil
+	}
 }
 
 func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsman.Management) error {
-	bootConfig, err := getBootConfiguration(device)
-	if err != nil {
-		return err
-	}
+	bootConfig := getBootConfiguration(device)
 
 	isOCR := bootConfig.bootService.EnabledState == enabledStateOCREnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
 	isRPE := bootConfig.bootService.EnabledState == enabledStateRPEEnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
@@ -162,23 +156,6 @@ func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsma
 	settingsResultsV2.WinREBootSupported = result.IsWinREExists && bootConfig.bootData.WinREBootEnabled && bootConfig.capabilities.ForceWinREBoot
 	settingsResultsV2.LocalPBABootSupported = result.IsPBAExists && bootConfig.bootData.UEFILocalPBABootEnabled && bootConfig.capabilities.ForceUEFILocalPBABoot
 	settingsResultsV2.RPESupported = bootConfig.capabilities.PlatformErase&platformEraseRPESupport != 0
-	settingsResultsV2.RPECaps = bootConfig.capabilities.PlatformErase
-	settingsResultsV2.RPESecureErase = bootConfig.capabilities.PlatformErase&platformEraseSecureErase != 0
-	settingsResultsV2.RPETPMClear = bootConfig.capabilities.PlatformErase&platformEraseTPMClear != 0
-	settingsResultsV2.RPEClearBIOSNVM = bootConfig.capabilities.PlatformErase&platformEraseClearBIOSNVM != 0
-	settingsResultsV2.RPEBIOSReload = bootConfig.capabilities.PlatformErase&platformEraseBIOSReload != 0
-
-	log.Printf("getBootConfigurationSettings: RPE caps from BIOS PlatformErase=0x%08x (rpeSupport=%v secureEraseSSDs=%v verifyStorageErase=%v sanitizationReport=%v tpmClear=%v oemCustom=%v clearBIOSNVM=%v biosReloadGolden=%v)",
-		bootConfig.capabilities.PlatformErase,
-		bootConfig.capabilities.PlatformErase&0x01 != 0,      // Bit 0: RPE overall support
-		bootConfig.capabilities.PlatformErase&0x04 != 0,      // Bit 2: Secure Erase All SSDs
-		bootConfig.capabilities.PlatformErase&0x08 != 0,      // Bit 3: Verify Storage Erase (CSME 18.0+)
-		bootConfig.capabilities.PlatformErase&0x10 != 0,      // Bit 4: Generate sanitization report (CSME 18.0+)
-		bootConfig.capabilities.PlatformErase&0x40 != 0,      // Bit 6: TPM Clear
-		bootConfig.capabilities.PlatformErase&0x10000 != 0,   // Bit 16: OEM Custom Action (Raptor Lake CSME 16.1+)
-		bootConfig.capabilities.PlatformErase&0x2000000 != 0, // Bit 25: Clear BIOS NVM Variables (Raptor Lake CSME 16.1+)
-		bootConfig.capabilities.PlatformErase&0x4000000 != 0, // Bit 26: BIOS Reload of Golden Configuration
-	)
 
 	return nil
 }
@@ -297,11 +274,6 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 func syncRPEResults(src *dtov2.Features, dst *dto.Features) {
 	dst.RPE = src.RPE
 	dst.RPESupported = src.RPESupported
-	dst.RPECaps = src.RPECaps
-	dst.RPESecureErase = src.RPESecureErase
-	dst.RPETPMClear = src.RPETPMClear
-	dst.RPEClearBIOSNVM = src.RPEClearBIOSNVM
-	dst.RPEBIOSReload = src.RPEBIOSReload
 }
 
 func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
@@ -312,22 +284,6 @@ func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device ws
 
 	settingsResultsV2.RPE = enableRemoteErase
 	settingsResultsV2.RPESupported = bootCapabilities.PlatformErase&platformEraseRPESupport != 0 // Bit 0: RPE overall support
-	settingsResultsV2.RPECaps = bootCapabilities.PlatformErase
-	settingsResultsV2.RPESecureErase = bootCapabilities.PlatformErase&platformEraseSecureErase != 0
-	settingsResultsV2.RPETPMClear = bootCapabilities.PlatformErase&platformEraseTPMClear != 0
-	settingsResultsV2.RPEClearBIOSNVM = bootCapabilities.PlatformErase&platformEraseClearBIOSNVM != 0
-	settingsResultsV2.RPEBIOSReload = bootCapabilities.PlatformErase&platformEraseBIOSReload != 0
-
-	// Latch PlatformErase=true in AMT_BootSettingData while the boot service is idle.
-	// This must happen before setOCRFeatures calls BootServiceStateChange, which prevents the PUT.
-	// Non-fatal: the PUT may fail on some firmware versions.
-	if enableRemoteErase {
-		if err := device.SetRPEEnabled(true); err != nil {
-			log.Printf("setRPE: SetRPEEnabled failed (non-fatal): %v", err)
-		} else {
-			log.Printf("setRPE: SetRPEEnabled succeeded - PlatformErase latched")
-		}
-	}
 
 	return nil
 }
@@ -501,7 +457,7 @@ func determineConsentCode(consent string) int {
 	consent = strings.ToLower(consent)
 
 	switch consent {
-	case "kvm":
+	case userConsentKVM:
 		consentCode = optin.OptInRequiredKVM
 	case "all":
 		consentCode = optin.OptInRequiredAll
@@ -514,6 +470,6 @@ func determineConsentCode(consent string) int {
 
 var UserConsentOptions = map[int]string{
 	0:          "none",
-	1:          "kvm",
+	1:          userConsentKVM,
 	4294967295: "all",
 }

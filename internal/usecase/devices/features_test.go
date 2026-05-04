@@ -732,7 +732,7 @@ func TestGetFeatures(t *testing.T) {
 			err: nil,
 		},
 		{
-			name:   "GetFeatures fails on power capabilities",
+			name:   "GetFeatures succeeds with zero capabilities when boot capabilities unavailable",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
@@ -791,16 +791,36 @@ func TestGetFeatures(t *testing.T) {
 				man2.EXPECT().
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
-				// GetBootData is not called because GetBootCapabilities is fatal
+				man2.EXPECT().
+					GetBootData().
+					Return(boot.BootSettingDataResponse{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			res:   dto.Features{},
-			resV2: dtov2.Features{},
-			err:   ErrGeneral,
+			res: dto.Features{
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+				OptInState:   1,
+				OCR:          true, // GetBootService succeeded with EnabledState=32769
+			},
+			resV2: dtov2.Features{
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+				OptInState:   1,
+				OCR:          true,
+			},
+			err: nil,
 		},
 		{
 			name:   "GetFeatures fails on boot data",
@@ -1287,34 +1307,28 @@ func TestGetFeatures(t *testing.T) {
 					Return(device, nil)
 			},
 			res: dto.Features{
-				UserConsent:    "kvm",
-				EnableSOL:      true,
-				EnableIDER:     true,
-				EnableKVM:      true,
-				Redirection:    true,
-				KVMAvailable:   true,
-				OptInState:     1,
-				OCR:            false,
-				RPE:            true,
-				RPESupported:   true,
-				RPECaps:        0x45,
-				RPESecureErase: true,
-				RPETPMClear:    true,
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+				OptInState:   1,
+				OCR:          false,
+				RPE:          true,
+				RPESupported: true,
 			},
 			resV2: dtov2.Features{
-				UserConsent:    "kvm",
-				EnableSOL:      true,
-				EnableIDER:     true,
-				EnableKVM:      true,
-				Redirection:    true,
-				KVMAvailable:   true,
-				OptInState:     1,
-				OCR:            false,
-				RPE:            true,
-				RPESupported:   true,
-				RPECaps:        0x45,
-				RPESecureErase: true,
-				RPETPMClear:    true,
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+				OptInState:   1,
+				OCR:          false,
+				RPE:          true,
+				RPESupported: true,
 			},
 			err: nil,
 		},
@@ -1374,38 +1388,28 @@ func TestGetFeatures(t *testing.T) {
 					Return(device, nil)
 			},
 			res: dto.Features{
-				UserConsent:     "kvm",
-				EnableSOL:       true,
-				EnableIDER:      true,
-				EnableKVM:       true,
-				Redirection:     true,
-				KVMAvailable:    true,
-				OptInState:      1,
-				OCR:             true,
-				RPE:             true,
-				RPESupported:    true,
-				RPECaps:         0x6000045,
-				RPESecureErase:  true,
-				RPETPMClear:     true,
-				RPEClearBIOSNVM: true,
-				RPEBIOSReload:   true,
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+				OptInState:   1,
+				OCR:          true,
+				RPE:          true,
+				RPESupported: true,
 			},
 			resV2: dtov2.Features{
-				UserConsent:     "kvm",
-				EnableSOL:       true,
-				EnableIDER:      true,
-				EnableKVM:       true,
-				Redirection:     true,
-				KVMAvailable:    true,
-				OptInState:      1,
-				OCR:             true,
-				RPE:             true,
-				RPESupported:    true,
-				RPECaps:         0x6000045,
-				RPESecureErase:  true,
-				RPETPMClear:     true,
-				RPEClearBIOSNVM: true,
-				RPEBIOSReload:   true,
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				Redirection:  true,
+				KVMAvailable: true,
+				OptInState:   1,
+				OCR:          true,
+				RPE:          true,
+				RPESupported: true,
 			},
 			err: nil,
 		},
@@ -2375,7 +2379,10 @@ func TestSetFeatures(t *testing.T) {
 					Return(cimBoot.Response{}, nil)
 				man2.EXPECT().
 					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{}, ErrGeneral) // fatal: causes getBootConfigurationSettings to return error
+					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
+				man2.EXPECT().
+					GetBootData().
+					Return(boot.BootSettingDataResponse{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -2651,9 +2658,6 @@ func TestSetFeatures(t *testing.T) {
 				man2.EXPECT().
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				man2.EXPECT().
-					SetRPEEnabled(true).
-					Return(nil)
 				// BootServiceStateChange fails (non-fatal), so getOneClickRecoverySettings
 				// is skipped and the RPE fields set by setRPE are preserved.
 				// OCR=true + RPE=true → state 32771
@@ -2675,7 +2679,6 @@ func TestSetFeatures(t *testing.T) {
 				OCR:          false,
 				RPE:          true,
 				RPESupported: true,
-				RPECaps:      3,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
@@ -2687,12 +2690,11 @@ func TestSetFeatures(t *testing.T) {
 				OCR:          false,
 				RPE:          true,
 				RPESupported: true,
-				RPECaps:      3,
 			},
 			err: nil,
 		},
 		{
-			name:   "setRPE SetRPEEnabled fails non-fatal - flow continues",
+			name:   "setRPE succeeds with OCR and RPE both enabled",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
@@ -2746,10 +2748,6 @@ func TestSetFeatures(t *testing.T) {
 				man2.EXPECT().
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
-				// SetRPEEnabled returns error — non-fatal, flow must continue
-				man2.EXPECT().
-					SetRPEEnabled(true).
-					Return(ErrGeneral)
 				// OCR=true + RPE=true → state 32771
 				man2.EXPECT().
 					BootServiceStateChange(32771).
@@ -2789,7 +2787,6 @@ func TestSetFeatures(t *testing.T) {
 				OCR:                true,
 				RPE:                true,
 				RPESupported:       true,
-				RPECaps:            1,
 				HTTPSBootSupported: true,
 			},
 			resV2: dtov2.Features{
@@ -2802,7 +2799,6 @@ func TestSetFeatures(t *testing.T) {
 				OCR:                true,
 				RPE:                true,
 				RPESupported:       true,
-				RPECaps:            1,
 				HTTPSBootSupported: true,
 			},
 			err: nil,
@@ -2862,9 +2858,6 @@ func TestSetFeatures(t *testing.T) {
 				man2.EXPECT().
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
-				man2.EXPECT().
-					SetRPEEnabled(true).
-					Return(nil)
 				// OCR=false + RPE=true → state 32770
 				man2.EXPECT().
 					BootServiceStateChange(32770).
@@ -2896,7 +2889,6 @@ func TestSetFeatures(t *testing.T) {
 				OCR:          false,
 				RPE:          true,
 				RPESupported: true,
-				RPECaps:      1,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
@@ -2908,7 +2900,6 @@ func TestSetFeatures(t *testing.T) {
 				OCR:          false,
 				RPE:          true,
 				RPESupported: true,
-				RPECaps:      1,
 			},
 			err: nil,
 		},
@@ -2934,7 +2925,7 @@ func TestSetFeatures(t *testing.T) {
 				inputFeatures = featureSetDisabledOCR
 			case "setRPE succeeds with PlatformErase supported and enabled":
 				inputFeatures = featureSetWithRPE
-			case "setRPE SetRPEEnabled fails non-fatal - flow continues":
+			case "setRPE succeeds with OCR and RPE both enabled":
 				inputFeatures = featureSetWithRPE
 			case "RPE only enabled (OCR=false RPE=true state 32770)":
 				inputFeatures = featureSetRPEOnly

@@ -7,6 +7,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -57,7 +58,7 @@ type (
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 		GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) error
-		Update(ctx context.Context, d *dto.Device) (*dto.Device, error)
+		Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error)
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
 		// Management Calls
@@ -70,9 +71,8 @@ type (
 		GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error)
 		GetPowerState(ctx context.Context, guid string) (dto.PowerState, error)
 		GetPowerCapabilities(ctx context.Context, guid string) (dto.PowerCapabilities, error)
-		GetBootCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error)
-		SetRPEEnabled(ctx context.Context, guid string, enabled bool) error
-		SendRemoteErase(ctx context.Context, guid string, eraseMask int) error
+		GetRemoteEraseCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error)
+		SetRemoteEraseOptions(ctx context.Context, guid string, req dto.RemoteEraseRequest) error
 		GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error)
 		CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error)
 		GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error)
@@ -83,6 +83,8 @@ type (
 		GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
 		Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error
 		GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
+		RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
+		GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
 		GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)
 		GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
 		GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)

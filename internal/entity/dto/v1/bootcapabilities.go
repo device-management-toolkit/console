@@ -5,9 +5,15 @@ type RPERequest struct {
 }
 
 type RemoteEraseRequest struct {
-	EraseMask int `json:"eraseMask"`
+	SecureEraseAllSSDs bool `json:"secureEraseAllSSDs"`
+	TPMClear           bool `json:"tpmClear"`
+	RestoreBIOSToEOM   bool `json:"restoreBIOSToEOM"`
+	UnconfigureCSME    bool `json:"unconfigureCSME"`
 }
 
 type BootCapabilities struct {
-	PlatformErase int `json:"PlatformErase,omitempty"`
+	SecureEraseAllSSDs bool `json:"secureEraseAllSSDs"`
+	TPMClear           bool `json:"tpmClear"`
+	RestoreBIOSToEOM   bool `json:"restoreBIOSToEOM"`
+	UnconfigureCSME    bool `json:"unconfigureCSME"`
 }

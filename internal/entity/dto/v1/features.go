@@ -25,11 +25,6 @@ type Features struct {
 	LocalPBABootSupported bool   `json:"localPBABootSupported" example:"true"`
 	RPE                   bool   `json:"rpe" example:"true"`
 	RPESupported          bool   `json:"rpeSupported" example:"true"`
-	RPECaps               int    `json:"rpeCaps,omitempty" example:"15"`
-	RPESecureErase        bool   `json:"rpeSecureErase,omitempty" example:"false"`
-	RPETPMClear           bool   `json:"rpeTPMClear,omitempty" example:"false"`
-	RPEClearBIOSNVM       bool   `json:"rpeClearBIOSNVM,omitempty" example:"false"`
-	RPEBIOSReload         bool   `json:"rpeBIOSReload,omitempty" example:"false"`
 }
 
 type FeaturesRequest struct {

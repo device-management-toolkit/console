@@ -9,7 +9,7 @@ import (
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
-func (uc *UseCase) GetBootCapabilities(c context.Context, guid string) (dto.BootCapabilities, error) {
+func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid string) (dto.BootCapabilities, error) {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return dto.BootCapabilities{}, err
@@ -29,14 +29,17 @@ func (uc *UseCase) GetBootCapabilities(c context.Context, guid string) (dto.Boot
 		return dto.BootCapabilities{}, err
 	}
 
-	uc.log.Debug("GetBootCapabilities: PlatformErase capability", "guid", guid, "PlatformErase", capabilities.PlatformErase, "supported", capabilities.PlatformErase != 0)
+	uc.log.Debug("getRemoteEraseCapabilities: PlatformErase capability", "guid", guid, "PlatformErase", capabilities.PlatformErase, "supported", capabilities.PlatformErase != 0)
 
 	return dto.BootCapabilities{
-		PlatformErase: capabilities.PlatformErase,
+		SecureEraseAllSSDs: capabilities.PlatformErase&platformEraseSecureErase != 0,
+		TPMClear:           capabilities.PlatformErase&platformEraseTPMClear != 0,
+		RestoreBIOSToEOM:   capabilities.PlatformErase&platformEraseBIOSReload != 0,
+		UnconfigureCSME:    capabilities.PlatformErase != 0,
 	}, nil
 }
 
-func (uc *UseCase) SetRPEEnabled(c context.Context, guid string, enabled bool) error {
+func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto.RemoteEraseRequest) error {
 	item, err := uc.repo.GetByID(c, guid, "")
 	if err != nil {
 		return err
@@ -57,40 +60,35 @@ func (uc *UseCase) SetRPEEnabled(c context.Context, guid string, enabled bool) e
 	}
 
 	if capabilities.PlatformErase == 0 {
-		return ValidationError{}.Wrap("SetRPEEnabled", "check boot capabilities", "device does not support Remote Platform Erase")
+		return ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support Remote Platform Erase")
 	}
 
-	return device.SetRPEEnabled(enabled)
-}
-
-func (uc *UseCase) SendRemoteErase(c context.Context, guid string, eraseMask int) error {
-	item, err := uc.repo.GetByID(c, guid, "")
-	if err != nil {
-		return err
+	eraseMask := 0
+	if req.SecureEraseAllSSDs {
+		eraseMask |= platformEraseSecureErase
+	}
+	
+	if req.TPMClear {
+		eraseMask |= platformEraseTPMClear
 	}
 
-	if item == nil || item.GUID == "" {
-		return ErrNotFound
+	if req.RestoreBIOSToEOM {
+		eraseMask |= platformEraseBIOSReload
 	}
 
-	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
-	if err != nil {
-		return err
+	if req.UnconfigureCSME {
+		eraseMask |= platformEraseCSMEUnconfigure
 	}
 
-	capabilities, err := device.GetBootCapabilities()
-	if err != nil {
-		return err
-	}
+	uc.log.Debug("SetRemoteEraseOptions guid=%s eraseMask=0x%x secureErase=%v tpmClear=%v biosReload=%v csmeReset=%v",
+		guid, eraseMask,
+		req.SecureEraseAllSSDs,
+		req.TPMClear,
+		req.RestoreBIOSToEOM,
+		req.UnconfigureCSME,
+	)
 
-	if capabilities.PlatformErase == 0 {
-		return ValidationError{}.Wrap("SendRemoteErase", "check boot capabilities", "device does not support Remote Platform Erase")
-	}
-
-	uc.log.Debug("SendRemoteErase guid=%s eraseMask=%d secureErase=%v ecStorage=%v storageDrives=%v meRegion=%v",
-		guid, eraseMask, eraseMask&0x01 != 0, eraseMask&0x02 != 0, eraseMask&0x04 != 0, eraseMask&0x08 != 0)
-
-	if err := device.SendRemoteErase(eraseMask); err != nil {
+	if err := device.SetRemoteEraseOptions(eraseMask); err != nil {
 		if errors.Is(err, deviceManagement.ErrRPENotEnabled) {
 			return NotSupportedError{Console: consoleerrors.CreateConsoleError("Remote Platform Erase is not enabled by the BIOS on this device")}
 		}

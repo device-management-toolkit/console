@@ -18,6 +18,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 	ipsAlarmClock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/kvmredirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
@@ -59,6 +60,9 @@ type Management interface {
 	GetAuditLog(startIndex int) (auditlog.Response, error)
 	GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error)
 	GetNetworkSettings() (NetworkResults, error)
+	EnumerateWiFiPort() (wifi.Response, error)
+	PullWiFiPort(enumerationContext string) (wifi.Response, error)
+	WiFiRequestStateChange(requestedState wifi.RequestedState) error
 	GetCertificates() (Certificates, error)
 	GetTLSSettingData() ([]tls.SettingDataResponse, error)
 	GetCredentialRelationships() (credential.Items, error)
@@ -72,6 +76,5 @@ type Management interface {
 	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
 	DeleteCertificate(instanceID string) error
 	SetLinkPreference(linkPreference, timeout uint32) (int, error)
-	SetRPEEnabled(enabled bool) error
-	SendRemoteErase(eraseMask int) error
+	SetRemoteEraseOptions(eraseMask int) error
 }

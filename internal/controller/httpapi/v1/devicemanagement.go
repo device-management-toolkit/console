@@ -30,9 +30,8 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("alarmOccurrences/:guid", r.createAlarmOccurrences)
 		h.DELETE("alarmOccurrences/:guid", r.deleteAlarmOccurrences)
 
-		h.GET("boot/capabilities/:guid", r.getBootCapabilities)
-		h.POST("boot/rpe/:guid", r.setRPEEnabled)
-		h.POST("remoteErase/:guid", r.sendRemoteErase)
+		h.GET("boot/remoteErase/:guid", r.getRemoteEraseCapabilities)
+		h.POST("boot/remoteErase/:guid", r.setRemoteEraseOptions)
 		h.GET("hardwareInfo/:guid", r.getHardwareInfo)
 		h.GET("diskInfo/:guid", r.getDiskInfo)
 		h.GET("power/state/:guid", r.getPowerState)
@@ -53,6 +52,8 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("userConsentCode/:guid", r.sendConsentCode)
 
 		h.GET("networkSettings/:guid", r.getNetworkSettings)
+		h.GET("networkSettings/wireless/state/:guid", r.getWirelessState)
+		h.POST("networkSettings/wireless/state/:guid", r.requestWirelessStateChange)
 
 		h.GET("explorer", r.getCallList)
 		h.GET("explorer/:guid/:call", r.executeCall)

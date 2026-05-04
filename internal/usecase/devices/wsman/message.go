@@ -113,10 +113,20 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
-	if entry := GetConnectionEntry(device.GUID); entry != nil {
-		entry.Timer.Stop()
-		RemoveConnection(device.GUID)
+	entry := GetConnectionEntry(device.GUID)
+	if entry == nil {
+		return
 	}
+
+	// CIRA entries are owned by the TCP tunnel and re-registered only on a fresh
+	// APF auth. Removing here would orphan the live socket — the device sees no
+	// error and never reconnects, but every SetupWsmanClient returns not-connected.
+	if entry.IsCIRA {
+		return
+	}
+
+	entry.Timer.Stop()
+	RemoveConnection(device.GUID)
 }
 
 func (g GoWSMANMessages) Worker() {
@@ -132,7 +142,7 @@ func (g GoWSMANMessages) Worker() {
 }
 
 func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
-	resultChan := make(chan *ConnectionEntry)
+	resultChan := make(chan *ConnectionEntry, 1)
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
@@ -931,6 +941,14 @@ func (c *ConnectionEntry) GetWiFiPortConfigurationService() (wifiportconfigurati
 	return response.Body.WiFiPortConfigurationService, nil
 }
 
+func (c *ConnectionEntry) EnumerateWiFiPort() (response wifi.Response, err error) {
+	return c.WsmanMessages.CIM.WiFiPort.Enumerate()
+}
+
+func (c *ConnectionEntry) PullWiFiPort(enumerationContext string) (response wifi.Response, err error) {
+	return c.WsmanMessages.CIM.WiFiPort.Pull(enumerationContext)
+}
+
 func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 	// if local sync not enable, enable it
 	// if response.Body.WiFiPortConfigurationService.LocalProfileSynchronizationEnabled == wifiportconfiguration.LocalSyncDisabled {
@@ -956,10 +974,8 @@ func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfig
 	return response.Body.WiFiPortConfigurationService, nil
 }
 
-func (c *ConnectionEntry) WiFiRequestStateChange() (err error) {
-	// always turn wifi on via state change request
-	// Enumeration 32769 - WiFi is enabled in S0 + Sx/AC
-	_, err = c.WsmanMessages.CIM.WiFiPort.RequestStateChange(int(wifi.EnabledStateWifiEnabledS0SxAC))
+func (c *ConnectionEntry) WiFiRequestStateChange(requestedState wifi.RequestedState) (err error) {
+	_, err = c.WsmanMessages.CIM.WiFiPort.RequestStateChange(int(requestedState))
 	if err != nil {
 		return err // utils.WSMANMessageError
 	}

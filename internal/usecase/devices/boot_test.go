@@ -17,7 +17,7 @@ import (
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
-func TestGetBootCapabilities(t *testing.T) {
+func TestGetRemoteEraseCapabilities(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
@@ -30,7 +30,7 @@ func TestGetBootCapabilities(t *testing.T) {
 	}
 
 	expectedDTO := dto.BootCapabilities{
-		PlatformErase: 1,
+		UnconfigureCSME: true,
 	}
 
 	tests := []struct {
@@ -136,14 +136,14 @@ func TestGetBootCapabilities(t *testing.T) {
 			tc.manMock(wsmanMock, management)
 			tc.repoMock(repo)
 
-			res, err := useCase.GetBootCapabilities(context.Background(), device.GUID)
+			res, err := useCase.GetRemoteEraseCapabilities(context.Background(), device.GUID)
 			require.Equal(t, tc.err, err)
 			require.Equal(t, tc.res, res)
 		})
 	}
 }
 
-func TestSetRPEEnabled(t *testing.T) {
+func TestSetRemoteEraseOptions(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
@@ -153,23 +153,23 @@ func TestSetRPEEnabled(t *testing.T) {
 
 	tests := []struct {
 		name     string
-		enabled  bool
+		req      dto.RemoteEraseRequest
 		manMock  func(*mocks.MockWSMAN, *mocks.MockManagement)
 		repoMock func(*mocks.MockDeviceManagementRepository)
 		err      error
 	}{
 		{
-			name:    "success - enable RPE on supported device",
-			enabled: true,
+			name: "success - eraseMask 0 erases all",
+			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRPEEnabled(true).
+					SetRemoteEraseOptions(0).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -180,17 +180,17 @@ func TestSetRPEEnabled(t *testing.T) {
 			err: nil,
 		},
 		{
-			name:    "success - disable RPE on supported device",
-			enabled: false,
+			name: "success - specific supported eraseMask",
+			req:  dto.RemoteEraseRequest{SecureEraseAllSSDs: true, TPMClear: true},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRPEEnabled(false).
+					SetRemoteEraseOptions(0x44).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -201,8 +201,8 @@ func TestSetRPEEnabled(t *testing.T) {
 			err: nil,
 		},
 		{
-			name:    "device does not support RPE - PlatformErase is 0",
-			enabled: true,
+			name: "device does not support RPE - PlatformErase is 0",
+			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
@@ -216,11 +216,32 @@ func TestSetRPEEnabled(t *testing.T) {
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			err: devices.ValidationError{}.Wrap("SetRPEEnabled", "check boot capabilities", "device does not support Remote Platform Erase"),
+			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support Remote Platform Erase"),
+		},
+		{
+			name: "eraseMask with PlatformErase nonzero succeeds regardless of specific bits",
+			req:  dto.RemoteEraseRequest{SecureEraseAllSSDs: true},
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
+				man2.EXPECT().
+					SetRemoteEraseOptions(4).
+					Return(nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: nil,
 		},
 		{
 			name:    "GetByID returns error",
-			enabled: true,
+			req:     dto.RemoteEraseRequest{},
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -231,7 +252,7 @@ func TestSetRPEEnabled(t *testing.T) {
 		},
 		{
 			name:    "GetByID returns nil device",
-			enabled: true,
+			req:     dto.RemoteEraseRequest{},
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -242,7 +263,7 @@ func TestSetRPEEnabled(t *testing.T) {
 		},
 		{
 			name:    "GetByID returns device with empty GUID",
-			enabled: true,
+			req:     dto.RemoteEraseRequest{},
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -252,8 +273,8 @@ func TestSetRPEEnabled(t *testing.T) {
 			err: devices.ErrNotFound,
 		},
 		{
-			name:    "SetupWsmanClient returns error",
-			enabled: true,
+			name: "SetupWsmanClient returns error",
+			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, _ *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
@@ -267,8 +288,8 @@ func TestSetRPEEnabled(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name:    "GetBootCapabilities returns error",
-			enabled: true,
+			name: "GetBootCapabilities returns error",
+			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
@@ -285,62 +306,8 @@ func TestSetRPEEnabled(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name:    "SetRPEEnabled wsman call returns error",
-			enabled: true,
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
-				man2.EXPECT().
-					SetRPEEnabled(true).
-					Return(ErrGeneral)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: ErrGeneral,
-		},
-	}
-
-	for _, tc := range tests {
-		tc := tc
-
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			useCase, wsmanMock, management, repo := initInfoTest(t)
-			tc.manMock(wsmanMock, management)
-			tc.repoMock(repo)
-
-			err := useCase.SetRPEEnabled(context.Background(), device.GUID, tc.enabled)
-			require.Equal(t, tc.err, err)
-		})
-	}
-}
-
-func TestSendRemoteErase(t *testing.T) {
-	t.Parallel()
-
-	device := &entity.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-	}
-
-	tests := []struct {
-		name      string
-		eraseMask int
-		manMock   func(*mocks.MockWSMAN, *mocks.MockManagement)
-		repoMock  func(*mocks.MockDeviceManagementRepository)
-		err       error
-	}{
-		{
-			name:      "success - eraseMask 0 erases all",
-			eraseMask: 0,
+			name: "SetRemoteEraseOptions wsman call returns error",
+			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
@@ -349,154 +316,7 @@ func TestSendRemoteErase(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SendRemoteErase(0).
-					Return(nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: nil,
-		},
-		{
-			name:      "success - specific supported eraseMask",
-			eraseMask: 2,
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				man2.EXPECT().
-					SendRemoteErase(2).
-					Return(nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: nil,
-		},
-		{
-			name:      "device does not support RPE - PlatformErase is 0",
-			eraseMask: 0,
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 0}, nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: devices.ValidationError{}.Wrap("SendRemoteErase", "check boot capabilities", "device does not support Remote Platform Erase"),
-		},
-		{
-			name:      "eraseMask with PlatformErase nonzero succeeds regardless of specific bits",
-			eraseMask: 4,
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				man2.EXPECT().
-					SendRemoteErase(4).
-					Return(nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: nil,
-		},
-		{
-			name:      "GetByID returns error",
-			eraseMask: 0,
-			manMock:   func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(nil, ErrGeneral)
-			},
-			err: ErrGeneral,
-		},
-		{
-			name:      "GetByID returns nil device",
-			eraseMask: 0,
-			manMock:   func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(nil, nil)
-			},
-			err: devices.ErrNotFound,
-		},
-		{
-			name:      "GetByID returns device with empty GUID",
-			eraseMask: 0,
-			manMock:   func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(&entity.Device{GUID: "", TenantID: "tenant-id-456"}, nil)
-			},
-			err: devices.ErrNotFound,
-		},
-		{
-			name:      "SetupWsmanClient returns error",
-			eraseMask: 0,
-			manMock: func(man *mocks.MockWSMAN, _ *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(nil, ErrGeneral)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: ErrGeneral,
-		},
-		{
-			name:      "GetBootCapabilities returns error",
-			eraseMask: 0,
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
-					Return(device, nil)
-			},
-			err: ErrGeneral,
-		},
-		{
-			name:      "SendRemoteErase wsman call returns error",
-			eraseMask: 0,
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				man2.EXPECT().
-					SendRemoteErase(0).
+					SetRemoteEraseOptions(0).
 					Return(ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -507,8 +327,8 @@ func TestSendRemoteErase(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name:      "SendRemoteErase returns ErrRPENotEnabled - converted to NotSupportedError",
-			eraseMask: 0,
+			name: "SetRemoteEraseOptions returns ErrRPENotEnabled - converted to NotSupportedError",
+			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
@@ -517,7 +337,7 @@ func TestSendRemoteErase(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SendRemoteErase(0).
+					SetRemoteEraseOptions(0).
 					Return(devicewsman.ErrRPENotEnabled)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -539,7 +359,7 @@ func TestSendRemoteErase(t *testing.T) {
 			tc.manMock(wsmanMock, management)
 			tc.repoMock(repo)
 
-			err := useCase.SendRemoteErase(context.Background(), device.GUID, tc.eraseMask)
+			err := useCase.SetRemoteEraseOptions(context.Background(), device.GUID, tc.req)
 			require.Equal(t, tc.err, err)
 		})
 	}

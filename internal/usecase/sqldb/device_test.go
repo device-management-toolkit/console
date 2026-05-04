@@ -13,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/db"
 )
@@ -122,7 +123,7 @@ func TestDeviceRepo_GetCount(t *testing.T) {
 			setup:    func(_ *sql.DB) {},
 			tenantID: "tenant1",
 			expected: 0,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -146,7 +147,7 @@ func TestDeviceRepo_GetCount(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				if !errors.As(err, &dbErr) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
 				}
@@ -239,7 +240,7 @@ func TestDeviceRepo_Get(t *testing.T) {
 			skip:     0,
 			tenantID: "tenant1",
 			expected: nil,
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 		{
 			name: "Rows scan error",
@@ -251,7 +252,7 @@ func TestDeviceRepo_Get(t *testing.T) {
 			skip:     0,
 			tenantID: "tenant1",
 			expected: nil,
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 	}
 
@@ -332,7 +333,7 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 			guid:     "guid1",
 			tenantID: "tenant1",
 			expected: nil,
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 		{
 			name: "Rows scan error",
@@ -343,7 +344,7 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 			guid:     "guid1",
 			tenantID: "tenant1",
 			expected: nil,
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 	}
 
@@ -421,7 +422,7 @@ func TestDeviceRepo_GetDistinctTags(t *testing.T) {
 			setup:    func(_ *sql.DB) {},
 			tenantID: "tenant1",
 			expected: []string{},
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 	}
 
@@ -649,7 +650,7 @@ func TestDeviceRepo_Delete(t *testing.T) {
 			guid:     "guid1",
 			tenantID: "tenant1",
 			expected: false,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -705,7 +706,7 @@ func TestDeviceRepo_Delete(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				if !errors.As(err, &dbErr) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
 				}
@@ -799,7 +800,7 @@ func TestDeviceRepo_Update(t *testing.T) {
 				CertHash:         Certhash,
 			},
 			expected: false,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -856,7 +857,7 @@ func TestDeviceRepo_Update(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				if !errors.As(err, &dbErr) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
 				}
@@ -927,7 +928,7 @@ func TestDeviceRepo_Insert(t *testing.T) {
 				CertHash:         Certhash,
 			},
 			expected: "",
-			err:      sqldb.NotUniqueError{},
+			err:      repoerrors.NotUniqueError{},
 		},
 		{
 			name:  QueryExecutionErrorTestName,
@@ -950,7 +951,7 @@ func TestDeviceRepo_Insert(t *testing.T) {
 				CertHash:         Certhash,
 			},
 			expected: "",
-			err:      sqldb.DatabaseError{},
+			err:      repoerrors.DatabaseError{},
 		},
 	}
 
@@ -1194,7 +1195,7 @@ func TestDeviceRepo_UpdateConnectionStatus(t *testing.T) {
 			setup:  func(_ *sql.DB) {},
 			guid:   "guid1",
 			status: true,
-			err:    &sqldb.DatabaseError{},
+			err:    &repoerrors.DatabaseError{},
 			verify: func(_ *testing.T, _ *sql.DB) {},
 		},
 		{
@@ -1202,7 +1203,7 @@ func TestDeviceRepo_UpdateConnectionStatus(t *testing.T) {
 			setup:  func(_ *sql.DB) {},
 			guid:   "guid1",
 			status: true,
-			err:    &sqldb.DatabaseError{},
+			err:    &repoerrors.DatabaseError{},
 			verify: func(_ *testing.T, _ *sql.DB) {},
 		},
 	}
@@ -1234,7 +1235,7 @@ func TestDeviceRepo_UpdateConnectionStatus(t *testing.T) {
 			} else {
 				require.Error(t, err)
 
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				assert.True(t, errors.As(err, &dbErr))
 			}
 
@@ -1286,14 +1287,14 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 			name:   QueryExecutionErrorTestName,
 			setup:  func(_ *sql.DB) {},
 			guid:   "guid1",
-			err:    &sqldb.DatabaseError{},
+			err:    &repoerrors.DatabaseError{},
 			verify: func(_ *testing.T, _ *sql.DB) {},
 		},
 		{
 			name:   BuilderErrorTestName,
 			setup:  func(_ *sql.DB) {},
 			guid:   "guid1",
-			err:    &sqldb.DatabaseError{},
+			err:    &repoerrors.DatabaseError{},
 			verify: func(_ *testing.T, _ *sql.DB) {},
 		},
 	}
@@ -1325,7 +1326,7 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 			} else {
 				require.Error(t, err)
 
-				var dbErr sqldb.DatabaseError
+				var dbErr repoerrors.DatabaseError
 				assert.True(t, errors.As(err, &dbErr))
 			}
 

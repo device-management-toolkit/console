@@ -5,6 +5,7 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
+	"log"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
@@ -50,12 +51,24 @@ func (c *ConnectionEntry) SetRPEEnabled(enabled bool) error {
 	return err
 }
 
-func (c *ConnectionEntry) SendRemoteErase(eraseMask int) error {
+func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
 	if eraseMask < 0 {
 		return ErrInvalidEraseMask
 	}
 
-	// Step 1: Read AMT_BootSettingData to check RPEEnabled and current state.
+	// Step 0: Return boot service to idle (32768) so AMT_BootSettingData.Put is allowed.
+	// Non-fatal: some firmware versions return ActionNotSupported for this state change.
+	const enabledStateOCRAndRPEDisabled = 32768 // OCR disabled, RPE disabled
+	_, _ = c.WsmanMessages.CIM.BootService.RequestStateChange(enabledStateOCRAndRPEDisabled)
+
+	// Step 1: Attempt to latch PlatformErase=true while the boot service is idle.
+	// Non-fatal: some firmware versions block this sparse PUT; the full PUT in step 3
+	// also sets PlatformErase=true, so the erase can still succeed without this latch.
+	if err := c.SetRPEEnabled(true); err != nil {
+		log.Printf("SetRemoteEraseOptions: SetRPEEnabled pre-latch failed (non-fatal): %v", err)
+	}
+
+	// Step 2: Read AMT_BootSettingData to check RPEEnabled and current state.
 	bootData, err := c.WsmanMessages.AMT.BootSettingData.Get()
 	if err != nil {
 		return fmt.Errorf("BootSettingData.Get: %w", err)
@@ -86,9 +99,9 @@ func (c *ConnectionEntry) SendRemoteErase(eraseMask int) error {
 		_, _ = c.WsmanMessages.CIM.BootConfigSetting.ChangeBootOrder("")
 	}
 
-	// Step 1b: Enable RPE mode in the boot service (32770 = OCR disabled, RPE enabled).
+	// Step 2b: Enable RPE mode in the boot service (32770 = OCR disabled, RPE enabled).
 	// This is required when the boot service is in OCR mode (32769) from a prior SetFeatures call.
-	const rpeEnabledState = 32770
+	const rpeEnabledState = 32770 // OCR disabled, RPE enabled
 
 	_, _ = c.WsmanMessages.CIM.BootService.RequestStateChange(rpeEnabledState)
 
@@ -101,7 +114,7 @@ func (c *ConnectionEntry) SendRemoteErase(eraseMask int) error {
 		encodedParams, uefiBootNumParams = buildRPETLVParams(tlvMask)
 	}
 
-	// Step 2: PUT the erase flags.
+	// Step 3: PUT the erase flags.
 	// ConfigurationDataReset=true resets AMT's NV provisioning state (= AMT unprovision).
 	// PlatformErase=true triggers the RPE UEFI sequence for hardware targets (TPM, SSDs, ...).
 	// The two are independent: CSME unconfigure never uses PlatformErase (per Intel C# SDK).
@@ -129,6 +142,7 @@ func (c *ConnectionEntry) SendRemoteErase(eraseMask int) error {
 			return fmt.Errorf("%w: PUT err=%w; verify GET err=%w", ErrRPEPutAndVerifyFailed, putErr, verifyErr)
 		}
 	}
+
 	// Step 4: Activate the RPE boot config role so it executes on next restart.
 	if _, err = c.WsmanMessages.CIM.BootService.SetBootConfigRole("Intel(r) AMT: Boot Configuration 0", 1); err != nil {
 		return fmt.Errorf("SetBootConfigRole: %w", err)

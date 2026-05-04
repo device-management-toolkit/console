@@ -14,9 +14,4 @@ type GetFeaturesResponse struct {
 	LocalPBABootSupported bool   `json:"localPBABootSupported" binding:"required" example:"false"`
 	RPE                   bool   `json:"rpe" binding:"required" example:"false"`
 	RPESupported          bool   `json:"rpeSupported" example:"false"`
-	RPECaps               int    `json:"rpeCaps" example:"0"`
-	RPESecureErase        bool   `json:"rpeSecureErase" example:"false"`
-	RPETPMClear           bool   `json:"rpeTPMClear" example:"false"`
-	RPEClearBIOSNVM       bool   `json:"rpeClearBIOSNVM" example:"false"`
-	RPEBIOSReload         bool   `json:"rpeBIOSReload" example:"false"`
 }

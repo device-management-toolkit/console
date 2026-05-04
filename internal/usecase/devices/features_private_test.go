@@ -60,13 +60,8 @@ func TestSyncRPEResults(t *testing.T) {
 	t.Parallel()
 
 	src := &dtov2.Features{
-		RPE:             true,
-		RPESupported:    true,
-		RPECaps:         0x45,
-		RPESecureErase:  true,
-		RPETPMClear:     true,
-		RPEClearBIOSNVM: true,
-		RPEBIOSReload:   true,
+		RPE:          true,
+		RPESupported: true,
 	}
 
 	dst := &dto.Features{}
@@ -75,11 +70,6 @@ func TestSyncRPEResults(t *testing.T) {
 
 	require.Equal(t, src.RPE, dst.RPE)
 	require.Equal(t, src.RPESupported, dst.RPESupported)
-	require.Equal(t, src.RPECaps, dst.RPECaps)
-	require.Equal(t, src.RPESecureErase, dst.RPESecureErase)
-	require.Equal(t, src.RPETPMClear, dst.RPETPMClear)
-	require.Equal(t, src.RPEClearBIOSNVM, dst.RPEClearBIOSNVM)
-	require.Equal(t, src.RPEBIOSReload, dst.RPEBIOSReload)
 }
 
 func TestSyncRPEResultsZeroValues(t *testing.T) {
@@ -88,22 +78,12 @@ func TestSyncRPEResultsZeroValues(t *testing.T) {
 	src := &dtov2.Features{}
 
 	dst := &dto.Features{
-		RPE:             true,
-		RPESupported:    true,
-		RPECaps:         0xFF,
-		RPESecureErase:  true,
-		RPETPMClear:     true,
-		RPEClearBIOSNVM: true,
-		RPEBIOSReload:   true,
+		RPE:          true,
+		RPESupported: true,
 	}
 
 	syncRPEResults(src, dst)
 
 	require.False(t, dst.RPE)
 	require.False(t, dst.RPESupported)
-	require.Equal(t, 0, dst.RPECaps)
-	require.False(t, dst.RPESecureErase)
-	require.False(t, dst.RPETPMClear)
-	require.False(t, dst.RPEClearBIOSNVM)
-	require.False(t, dst.RPEBIOSReload)
 }
