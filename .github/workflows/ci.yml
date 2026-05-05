@@ -1,7 +1,7 @@
 name: CI
 on:
   push:
-    branches: [main]
+    branches: [main, redfish]
   pull_request:
 permissions:
   contents: read # for actions/checkout to fetch code
