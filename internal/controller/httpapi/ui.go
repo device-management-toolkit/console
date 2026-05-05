@@ -20,6 +20,12 @@ import (
 //go:embed all:ui
 var content embed.FS
 
+func HasUI() bool {
+	_, err := fs.Stat(content, "ui/index.html")
+
+	return err == nil
+}
+
 const (
 	protocolHTTP  = "http://"
 	protocolHTTPS = "https://"
