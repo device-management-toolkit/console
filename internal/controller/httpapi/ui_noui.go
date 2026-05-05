@@ -10,6 +10,8 @@ import (
 	"github.com/gin-gonic/gin"
 )
 
+func HasUI() bool { return false }
+
 // setupUIRoutes handles UI routes when building with the noui tag.
 // If UI.ExternalURL is configured, requests to UI paths will be redirected there.
 // Otherwise, they will return 404.
