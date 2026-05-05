@@ -1,8 +1,6 @@
 // Package v1 provides Redfish v1 API handlers for system actions.
 package v1
 
-
-
 import (
 	"errors"
 	"fmt"
@@ -87,8 +85,8 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 		odataContextKey: odataContextTask,
 		odataIDKey:      taskServiceTasks + taskID,
 		odataTypeKey:    odataTypeTask,
-		"EndTime":        now,
-		idKey:             taskID,
+		"EndTime":       now,
+		idKey:           taskID,
 		"Messages": []map[string]interface{}{
 			{
 				"Message":   successMsg.Message,
@@ -96,7 +94,7 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 				"Severity":  string(generated.OK),
 			},
 		},
-		nameKey:       taskName,
+		nameKey:      taskName,
 		"StartTime":  now,
 		"TaskState":  taskStateCompleted,
 		"TaskStatus": string(generated.OK),

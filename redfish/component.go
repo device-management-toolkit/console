@@ -45,13 +45,13 @@ const (
 	statusForbidden        = 403
 	statusMethodNotAllowed = 405
 )
+
 const (
 	// Redfish API paths.
 	redfishV1Base          = "/redfish/v1"
 	redfishSessionsPath    = "/redfish/v1/SessionService/Sessions"
 	redfishSessionsMembers = "/redfish/v1/SessionService/Sessions/Members"
 )
-
 
 var (
 	server          *v1.RedfishServer

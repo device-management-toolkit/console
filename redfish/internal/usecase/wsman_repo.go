@@ -368,7 +368,7 @@ func (r *WsmanComputerSystemRepo) extractFromSingleResponse(response interface{}
 func (r *WsmanComputerSystemRepo) extractUsingReflection(response interface{}, fieldName string) interface{} {
 	responseValue := reflect.ValueOf(response)
 	// Handle pointer types by dereferencing
-	if responseValue.Kind() == reflect.Ptr {
+	if responseValue.Kind() == reflect.Pointer {
 		if responseValue.IsNil() {
 			return nil
 		}

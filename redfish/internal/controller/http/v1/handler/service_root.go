@@ -379,7 +379,7 @@ func (s *RedfishServer) GetRedfishV1Odata(c *gin.Context) {
 
 	response := map[string]interface{}{
 		odataContext: "/redfish/v1/$metadata",
-		"value":          services,
+		"value":      services,
 	}
 	c.JSON(http.StatusOK, response)
 }
