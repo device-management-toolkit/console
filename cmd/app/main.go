@@ -208,7 +208,12 @@ func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.St
 
 	// Check for unexpected errors
 	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
-		log.Fatal(err)
+		log.Fatalf(
+			"Local keyring unavailable (%v).\n"+
+				"Set APP_ENCRYPTION_KEY in the environment (or encryption_key in config) "+
+				"to provide the encryption key directly, or configure a remote secret store.",
+			err,
+		)
 	}
 
 	return false
