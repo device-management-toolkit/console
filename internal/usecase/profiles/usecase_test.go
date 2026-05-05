@@ -1016,6 +1016,86 @@ func TestBuildConfigurationObject(t *testing.T) {
 		},
 	}
 
+	ciraTests := []struct {
+		name                   string
+		generateRandomPassword bool
+	}{
+		{"cira config with generate random password true", true},
+		{"cira config with generate random password false", false},
+	}
+
+	for _, ct := range ciraTests {
+		ct := ct
+		tests = append(tests, struct {
+			name     string
+			profile  *entity.Profile
+			domain   *entity.Domain
+			wifi     []config.WirelessProfile
+			cira     *entity.CIRAConfig
+			expected config.Configuration
+		}{
+			name: ct.name,
+			profile: &entity.Profile{
+				ProfileName:   "test-profile-cira",
+				Tags:          "cira",
+				DHCPEnabled:   true,
+				IPSyncEnabled: true,
+				Activation:    "acmactivate",
+				AMTPassword:   "amtpw",
+				MEBXPassword:  "mebxpw",
+				TLSMode:       0,
+				UserConsent:   "None",
+			},
+			domain: &entity.Domain{},
+			wifi:   []config.WirelessProfile{},
+			cira: &entity.CIRAConfig{
+				Username:               "mpsuser",
+				Password:               "mpspw",
+				MPSAddress:             "mps.example.com",
+				MPSRootCertificate:     "mpscert",
+				GenerateRandomPassword: ct.generateRandomPassword,
+			},
+			expected: config.Configuration{
+				Name: "test-profile-cira",
+				Tags: []string{"cira"},
+				Configuration: config.RemoteManagement{
+					GeneralSettings: config.GeneralSettings{},
+					Network: config.Network{
+						Wired: config.Wired{
+							DHCPEnabled:   true,
+							IPSyncEnabled: true,
+						},
+						Wireless: config.Wireless{
+							Profiles: []config.WirelessProfile{},
+						},
+					},
+					Redirection: config.Redirection{
+						UserConsent: "None",
+					},
+					TLS: config.TLS{},
+					EnterpriseAssistant: config.EnterpriseAssistant{
+						URL:      "http://test.com:8080",
+						Username: "username",
+						Password: "password",
+					},
+					AMTSpecific: config.AMTSpecific{
+						ControlMode:   "acmactivate",
+						AdminPassword: "amtpw",
+						MEBXPassword:  "mebxpw",
+						CIRA: config.CIRA{
+							MPSUsername:            "mpsuser",
+							MPSPassword:            "mpspw",
+							MPSAddress:             "mps.example.com",
+							MPSCert:                "mpscert",
+							EnvironmentDetection:   []string{},
+							GenerateRandomPassword: ct.generateRandomPassword,
+						},
+					},
+				},
+			},
+		})
+	}
+
 	for _, tc := range tests {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()

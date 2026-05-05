@@ -598,3 +598,99 @@ func TestCIRARepo_Delete(t *testing.T) {
 		})
 	}
 }
+
+func TestCIRARepo_GenerateRandomPasswordRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		value bool
+	}{
+		{"true round-trip", true},
+		{"false round-trip", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDatabase(t)
+			defer dbConn.Close()
+
+			sqlConfig := CreateSQLConfig(dbConn, false)
+			mockLog := mocks.NewMockLogger(nil)
+			repo := sqldb.NewCIRARepo(sqlConfig, mockLog)
+
+			input := &entity.CIRAConfig{
+				ConfigName:             "cfg",
+				MPSAddress:             "mps",
+				MPSPort:                4433,
+				Username:               "u",
+				Password:               "p",
+				CommonName:             "cn",
+				MPSRootCertificate:     "cert",
+				ProxyDetails:           "proxy",
+				TenantID:               "tenant1",
+				GenerateRandomPassword: tc.value,
+			}
+
+			_, err := repo.Insert(context.Background(), input)
+			require.NoError(t, err)
+
+			got, err := repo.GetByName(context.Background(), "cfg", "tenant1")
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, tc.value, got.GenerateRandomPassword)
+
+			input.GenerateRandomPassword = !tc.value
+
+			updated, err := repo.Update(context.Background(), input)
+			require.NoError(t, err)
+			assert.True(t, updated)
+
+			got, err = repo.GetByName(context.Background(), "cfg", "tenant1")
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, !tc.value, got.GenerateRandomPassword)
+		})
+	}
+}
+
+func TestCIRARepo_Get_GenerateRandomPasswordTextValues(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		stored   any
+		expected bool
+	}{
+		{"text true", "true", true},
+		{"text false", "false", false},
+		{"null", nil, false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDatabase(t)
+			defer dbConn.Close()
+
+			_, err := dbConn.ExecContext(context.Background(),
+				`INSERT INTO ciraconfigs (cira_config_name, mps_server_address, mps_port, user_name, password, common_name, server_address_format, auth_method, mps_root_certificate, proxydetails, tenant_id, generate_random_password) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+				"cfg", "mps", 4433, "u", "p", "cn", 0, 0, "cert", "proxy", "tenant1", tc.stored)
+			require.NoError(t, err)
+
+			sqlConfig := CreateSQLConfig(dbConn, false)
+			mockLog := mocks.NewMockLogger(nil)
+			repo := sqldb.NewCIRARepo(sqlConfig, mockLog)
+
+			got, err := repo.GetByName(context.Background(), "cfg", "tenant1")
+			require.NoError(t, err)
+			require.NotNil(t, got)
+			assert.Equal(t, tc.expected, got.GenerateRandomPassword)
+		})
+	}
+}
