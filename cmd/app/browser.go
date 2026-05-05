@@ -4,6 +4,7 @@ package main
 
 import (
 	"context"
+	"log"
 	"os/exec"
 	"runtime"
 
@@ -17,7 +18,7 @@ func launchBrowser(cfg *config.Config) {
 	}
 
 	if err := openBrowser(scheme+"://localhost:"+cfg.Port, runtime.GOOS); err != nil {
-		panic(err)
+		log.Printf("Skipping browser launch: %v", err)
 	}
 }
 
