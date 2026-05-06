@@ -39,6 +39,12 @@ func MigrationError(op string) error {
 }
 
 func Init(cfg *config.Config) error {
+	// Mongo is schemaless; ensureIndexes (in internal/usecase/nosqldb/mongo)
+	// creates the unique constraints. SQL migrations don't apply.
+	if cfg.Provider == ProviderMongo {
+		return nil
+	}
+
 	databaseURL := cfg.DB.URL
 	if databaseURL == "" {
 		log.Printf("migrate: environment variable not declared: DB_URL -- using embedded database")
