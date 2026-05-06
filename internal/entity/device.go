@@ -23,6 +23,7 @@ type Device struct {
 	UseTLS           bool
 	AllowSelfSigned  bool
 	CertHash         *string
+	IsLMSAvailable   bool
 }
 
 type Explorer struct {

@@ -88,7 +88,8 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 			"password",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+			"islmsavailable").
 		From("devices").
 		Where("tenantid = ?", tenantID).
 		OrderBy("guid").
@@ -115,7 +116,7 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.IsLMSAvailable)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
@@ -146,7 +147,8 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 			"mebxpassword",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+			"islmsavailable").
 		From("devices").
 		Where("guid = ? and tenantid = ?").
 		ToSql()
@@ -170,7 +172,7 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	for rows.Next() {
 		d := &entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.IsLMSAvailable)
 		if err != nil {
 			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
@@ -347,6 +349,7 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		Set("useTLS", d.UseTLS).
 		Set("allowSelfSigned", d.AllowSelfSigned).
 		Set("certhash", d.CertHash).
+		Set("islmsavailable", d.IsLMSAvailable).
 		Where("guid = ? AND tenantid = ?", d.GUID, d.TenantID).
 		ToSql()
 	if err != nil {
@@ -419,8 +422,8 @@ func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
 func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error) {
 	insertBuilder := r.Builder.
 		Insert("devices").
-		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash").
-		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash)
+		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash", "islmsavailable").
+		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash, d.IsLMSAvailable)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
@@ -467,7 +470,8 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 			"password",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+			"islmsavailable").
 		From("devices").
 		Where(columnName+" = ? AND tenantid = ?", queryValue, tenantID).
 		ToSql()
@@ -491,7 +495,7 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.IsLMSAvailable)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}

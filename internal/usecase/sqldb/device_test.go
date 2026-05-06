@@ -51,7 +51,8 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			certhash TEXT NOT NULL DEFAULT '',
 			lastconnected TEXT,
 			lastdisconnected TEXT,
-			lastseen TEXT
+			lastseen TEXT,
+			islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
 		);
 	`)
 	require.NoError(t, err)
@@ -663,7 +664,8 @@ func TestDeviceRepo_Delete(t *testing.T) {
 					mpspassword TEXT,
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
-					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE
+					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
+					islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
 				);
 			`)
 			require.NoError(t, err)
@@ -814,7 +816,8 @@ func TestDeviceRepo_Update(t *testing.T) {
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
 				);
 			`)
 			require.NoError(t, err)
@@ -1069,7 +1072,8 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
                     password TEXT NOT NULL DEFAULT '',
                     usetls BOOLEAN NOT NULL DEFAULT FALSE,
                     allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					islmsavailable BOOLEAN NOT NULL DEFAULT FALSE
                 );
             `)
 			require.NoError(t, err)
@@ -1290,4 +1294,51 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 			tc.verify(t, dbConn)
 		})
 	}
+}
+
+func TestDeviceRepo_IsLMSAvailable_RoundTrip(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	sqlConfig := &db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}
+
+	mockLog := mocks.NewMockLogger(nil)
+	repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
+
+	// Insert a device with IsLMSAvailable = true
+	dev := &entity.Device{
+		GUID:           "guid-lms-true",
+		Hostname:       "host-lms",
+		TenantID:       "tenant1",
+		Username:       "admin",
+		Password:       "pass",
+		CertHash:       Certhash,
+		IsLMSAvailable: true,
+	}
+
+	_, err := repo.Insert(context.Background(), dev)
+	require.NoError(t, err)
+
+	// Retrieve and verify the field round-trips
+	got, err := repo.GetByID(context.Background(), "guid-lms-true", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.True(t, got.IsLMSAvailable, "IsLMSAvailable should be true after insert")
+
+	// Update the device with IsLMSAvailable = false
+	dev.IsLMSAvailable = false
+
+	_, err = repo.Update(context.Background(), dev)
+	require.NoError(t, err)
+
+	got, err = repo.GetByID(context.Background(), "guid-lms-true", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	assert.False(t, got.IsLMSAvailable, "IsLMSAvailable should be false after update")
 }

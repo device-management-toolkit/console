@@ -92,6 +92,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		Password:        d.Password,
 		UseTLS:          d.UseTLS,
 		AllowSelfSigned: d.AllowSelfSigned,
+		IsLMSAvailable:  d.IsLMSAvailable,
 	}
 
 	var err error
@@ -189,6 +190,7 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 		// Password:        d.Password,
 		UseTLS:          d.UseTLS,
 		AllowSelfSigned: d.AllowSelfSigned,
+		IsLMSAvailable:  d.IsLMSAvailable,
 	}
 
 	if d.CertHash != nil {
