@@ -33,11 +33,6 @@ const (
 	userConsentKVM = "kvm"
 )
 
-// User consent option string values.
-const (
-	userConsentKVM = "kvm"
-)
-
 const (
 	targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
 	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
@@ -106,10 +101,7 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.KVMAvailable = settingsResultsV2.KVMAvailable
 
 	// Get boot service related settings
-	err = getBootConfigurationSettings(&settingsResultsV2, device)
-	if err != nil {
-		return dto.Features{}, dtov2.Features{}, err
-	}
+	getBootConfigurationSettings(&settingsResultsV2, device)
 
 	settingsResults.OCR = settingsResultsV2.OCR
 	settingsResults.RPE = settingsResultsV2.RPE
@@ -145,7 +137,7 @@ func getBootConfiguration(device wsman.Management) BootConfiguration {
 	}
 }
 
-func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsman.Management) error {
+func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsman.Management) {
 	bootConfig := getBootConfiguration(device)
 
 	isOCR := bootConfig.bootService.EnabledState == enabledStateOCREnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
@@ -161,8 +153,6 @@ func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsma
 	settingsResultsV2.WinREBootSupported = result.IsWinREExists && bootConfig.bootData.WinREBootEnabled && bootConfig.capabilities.ForceWinREBoot
 	settingsResultsV2.LocalPBABootSupported = result.IsPBAExists && bootConfig.bootData.UEFILocalPBABootEnabled && bootConfig.capabilities.ForceUEFILocalPBABoot
 	settingsResultsV2.RPESupported = bootConfig.capabilities.PlatformErase&platformEraseRPESupport != 0
-
-	return nil
 }
 
 func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dtov2.BootSettings {
@@ -260,11 +250,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	_, err = device.BootServiceStateChange(requestedState)
 	if err == nil {
 		// Get OCR settings
-		err = getBootConfigurationSettings(&settingsResultsV2, device)
-		if err != nil {
-			return settingsResults, settingsResultsV2, nil
-		}
-
+		getBootConfigurationSettings(&settingsResultsV2, device)
 		settingsResults.OCR = settingsResultsV2.OCR
 		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported

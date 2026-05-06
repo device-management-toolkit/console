@@ -68,6 +68,8 @@ type Feature interface {
 	AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
 	DeleteCertificate(c context.Context, guid, instanceID string) error
 	GetBootCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error)
+	GetRemoteEraseCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error)
+	SetRemoteEraseOptions(ctx context.Context, guid string, req dto.RemoteEraseRequest) error
 	GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error)
 	GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
 	SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)

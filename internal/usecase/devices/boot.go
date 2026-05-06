@@ -67,7 +67,7 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 	if req.SecureEraseAllSSDs {
 		eraseMask |= platformEraseSecureErase
 	}
-	
+
 	if req.TPMClear {
 		eraseMask |= platformEraseTPMClear
 	}

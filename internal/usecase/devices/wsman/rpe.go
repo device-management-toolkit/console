@@ -59,6 +59,7 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
 	// Step 0: Return boot service to idle (32768) so AMT_BootSettingData.Put is allowed.
 	// Non-fatal: some firmware versions return ActionNotSupported for this state change.
 	const enabledStateOCRAndRPEDisabled = 32768 // OCR disabled, RPE disabled
+
 	_, _ = c.WsmanMessages.CIM.BootService.RequestStateChange(enabledStateOCRAndRPEDisabled)
 
 	// Step 1: Attempt to latch PlatformErase=true while the boot service is idle.
