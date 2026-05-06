@@ -21,6 +21,10 @@ const (
 
 	// Default test processor count (only value available from CIM_Processor enumeration).
 	mockProcessorCount = 2
+
+	// State and health strings.
+	enabledState = "Enabled"
+	okHealth     = "OK"
 )
 
 // float32Ptr creates a pointer to a float32 value.
@@ -54,14 +58,14 @@ func NewMockComputerSystemRepo() *MockComputerSystemRepo {
 		SerialNumber: "TEST-SN-001",
 		PowerState:   redfishv1.PowerStateOn,
 		Status: &redfishv1.Status{
-			State:  "Enabled",
-			Health: "OK",
+			State:  enabledState,
+			Health: okHealth,
 		},
 		MemorySummary: &redfishv1.ComputerSystemMemorySummary{
 			TotalSystemMemoryGiB: float32Ptr(testSystemMemoryGiB),
 			Status: &redfishv1.Status{
-				State:  "Enabled",
-				Health: "OK",
+				State:  enabledState,
+				Health: okHealth,
 			},
 		},
 		ProcessorSummary: &redfishv1.ComputerSystemProcessorSummary{
@@ -72,7 +76,7 @@ func NewMockComputerSystemRepo() *MockComputerSystemRepo {
 			LogicalProcessorCount: nil,
 			Model:                 nil,
 			Status: &redfishv1.Status{
-				State:        "Enabled",
+				State:        enabledState,
 				Health:       "OK",
 				HealthRollup: "OK",
 			},

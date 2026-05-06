@@ -6,6 +6,7 @@ import (
 	"errors"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -24,8 +25,8 @@ func NewCIRARepo(database *db.SQL, log logger.Interface) *CIRARepo {
 
 var (
 	ErrCIRARepo          = consoleerrors.CreateConsoleError("CIRARepo")
-	ErrCIRARepoDatabase  = DatabaseError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
-	ErrCIRARepoNotUnique = NotUniqueError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
+	ErrCIRARepoDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
+	ErrCIRARepoNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("CIRARepo")}
 )
 
 // GetCount -.

@@ -46,6 +46,13 @@ const (
 	statusMethodNotAllowed = 405
 )
 
+const (
+	// Redfish API paths.
+	redfishV1Base          = "/redfish/v1"
+	redfishSessionsPath    = "/redfish/v1/SessionService/Sessions"
+	redfishSessionsMembers = "/redfish/v1/SessionService/Sessions/Members"
+)
+
 var (
 	server          *v1.RedfishServer
 	componentConfig *ComponentConfig
@@ -58,7 +65,7 @@ func Initialize(_ *gin.Engine, log logger.Interface, _ *db.SQL, usecases *dmtuse
 	componentConfig = &ComponentConfig{
 		Enabled:      true,
 		AuthRequired: !auth.Disabled,
-		BaseURL:      "/redfish/v1",
+		BaseURL:      redfishV1Base,
 	}
 
 	// Check if we should use mock repository (for testing)
@@ -122,7 +129,7 @@ func isPublicEndpoint(path, method string) bool {
 		return true
 	}
 
-	return (path == "/redfish/v1/SessionService/Sessions" || path == "/redfish/v1/SessionService/Sessions/Members") && method == "POST"
+	return (path == redfishSessionsPath || path == redfishSessionsMembers) && method == "POST"
 }
 
 // createAuthMiddleware creates the authentication middleware for protected endpoints.

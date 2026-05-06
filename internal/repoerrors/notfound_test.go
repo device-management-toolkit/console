@@ -1,4 +1,4 @@
-package sqldb
+package repoerrors
 
 import (
 	"errors"
@@ -84,6 +84,53 @@ func TestNotFoundError_Wrap(t *testing.T) {
 			wrappedErr := err.Wrap(tc.call, tc.function, tc.err)
 
 			require.Equal(t, tc.expectedResult, wrappedErr.Error())
+		})
+	}
+}
+
+func TestNotFoundError_WrapWithMessage(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name             string
+		call             string
+		function         string
+		message          string
+		expectedError    string
+		expectedFriendly string
+	}{
+		{
+			name:             "Wrap with custom message",
+			call:             "FindRecord",
+			function:         "Query",
+			message:          "device not found",
+			expectedError:    " - Query - FindRecord: ",
+			expectedFriendly: "device not found",
+		},
+		{
+			name:             "Wrap with empty message",
+			call:             "FindRecord",
+			function:         "Query",
+			message:          "",
+			expectedError:    " - Query - FindRecord: ",
+			expectedFriendly: "",
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := NotFoundError{Console: consoleerrors.InternalError{}}
+
+			wrappedErr := err.WrapWithMessage(tc.call, tc.function, tc.message)
+
+			require.Equal(t, tc.expectedError, wrappedErr.Error())
+
+			var nfErr NotFoundError
+			require.ErrorAs(t, wrappedErr, &nfErr)
+			require.Equal(t, tc.expectedFriendly, nfErr.Console.FriendlyMessage())
 		})
 	}
 }

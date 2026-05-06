@@ -13,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/db"
 )
@@ -144,7 +145,7 @@ func TestIEEE8021xRepo_GetCount(t *testing.T) {
 			setup:    func(_ *sql.DB) {},
 			tenantID: "tenant1",
 			expected: 0,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -176,7 +177,7 @@ func TestIEEE8021xRepo_GetCount(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbError sqldb.DatabaseError
+				var dbError repoerrors.DatabaseError
 
 				if !errors.As(err, &dbError) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
@@ -211,7 +212,7 @@ func checkErrorType(t *testing.T, err, expectedErr error) {
 	}
 
 	if err != nil {
-		var dbError sqldb.DatabaseError
+		var dbError repoerrors.DatabaseError
 		if !errors.As(err, &dbError) {
 			t.Errorf("Expected error of type %T, got %T", expectedErr, err)
 		}
@@ -296,7 +297,7 @@ func TestIEEE8021xRepo_Get(t *testing.T) {
 			skip:     0,
 			tenantID: "tenant1",
 			expected: nil,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 		{
 			name: "Rows scan error",
@@ -308,7 +309,7 @@ func TestIEEE8021xRepo_Get(t *testing.T) {
 			skip:     0,
 			tenantID: "tenant1",
 			expected: nil,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -557,7 +558,7 @@ func TestIEEE8021xRepo_Update(t *testing.T) {
 				TenantID:               "tenant1",
 			},
 			expected: false,
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 
@@ -589,7 +590,7 @@ func TestIEEE8021xRepo_Update(t *testing.T) {
 			if err == nil && tc.err != nil {
 				t.Errorf("Expected error of type %T, got nil", tc.err)
 			} else if err != nil {
-				var dbError sqldb.DatabaseError
+				var dbError repoerrors.DatabaseError
 
 				if !errors.As(err, &dbError) {
 					t.Errorf("Expected error of type %T, got %T", tc.err, err)
@@ -609,9 +610,9 @@ func InsertIEEEHelper(t *testing.T, tc InsertIEEETestCase, version string, err e
 	if err == nil && tc.err != nil {
 		t.Errorf("Expected error of type %T, got nil", tc.err)
 	} else if err != nil {
-		var notUniqueError sqldb.NotUniqueError
+		var notUniqueError repoerrors.NotUniqueError
 
-		var dbError sqldb.DatabaseError
+		var dbError repoerrors.DatabaseError
 
 		if !errors.As(err, &notUniqueError) && !errors.As(err, &dbError) {
 			t.Errorf("Expected error of type %T or %T, got %T", tc.err, notUniqueError, err)
@@ -661,7 +662,7 @@ func TestIEEE8021xRepo_Insert(t *testing.T) {
 				TenantID:               "tenant1",
 			},
 			expected: "",
-			err:      sqldb.NotUniqueError{},
+			err:      repoerrors.NotUniqueError{},
 		},
 		{
 			name:  "Query execution error",
@@ -673,7 +674,7 @@ func TestIEEE8021xRepo_Insert(t *testing.T) {
 				TenantID:               "tenant1",
 			},
 			expected: "",
-			err:      &sqldb.DatabaseError{},
+			err:      &repoerrors.DatabaseError{},
 		},
 	}
 

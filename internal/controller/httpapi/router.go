@@ -74,6 +74,10 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		if err := v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore); err != nil {
 			l.Error("failed to register custom validation: " + err.Error())
 		}
+
+		if err := v.RegisterValidation("wifistate", dto.ValidateWirelessState); err != nil {
+			l.Error("failed to register custom validation: " + err.Error())
+		}
 	}
 
 	// Routers

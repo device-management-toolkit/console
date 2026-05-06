@@ -35,6 +35,10 @@ const (
 
 	// Common error messages
 	msgInternalServerError = "An internal server error occurred."
+
+	// Error registry keys
+	errResourceInUse = "ResourceInUse"
+	statusOKStr      = "OK"
 )
 
 // ErrUnknownErrorType is returned when an unknown error type is requested
@@ -56,17 +60,17 @@ type ErrorConfig struct {
 // errorConfigMap maps error types to their registry configuration
 var errorConfigMap = map[string]ErrorConfig{
 	"Conflict": {
-		RegistryKey: "ResourceInUse",
+		RegistryKey: errResourceInUse,
 		StatusCode:  http.StatusConflict,
 	},
 	"SessionConflict": {
-		RegistryKey:   "ResourceInUse",
+		RegistryKey:   errResourceInUse,
 		StatusCode:    http.StatusConflict,
 		CustomMessage: "A session already exists for this user. Delete the existing session before creating a new one.",
 		OverrideMsg:   true,
 	},
 	"PowerStateConflict": {
-		RegistryKey: "ResourceInUse",
+		RegistryKey: errResourceInUse,
 		StatusCode:  http.StatusConflict,
 	},
 	"MethodNotAllowed": {
@@ -193,7 +197,7 @@ func mapSeverityToResourceHealth(severity string) string {
 		return string(generated.Critical)
 	case "Warning":
 		return string(generated.Warning)
-	case "OK":
+	case statusOKStr:
 		return string(generated.OK)
 	default:
 		// Default to Warning for unknown severity levels
