@@ -17,6 +17,7 @@ import (
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	v2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
+	wifi "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 	gin "github.com/gin-gonic/gin"
 	websocket "github.com/gorilla/websocket"
 	gomock "go.uber.org/mock/gomock"
@@ -238,21 +239,6 @@ func (m *MockFeature) GetAlarmOccurrences(ctx context.Context, guid string) ([]d
 func (mr *MockFeatureMockRecorder) GetAlarmOccurrences(ctx, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAlarmOccurrences", reflect.TypeOf((*MockFeature)(nil).GetAlarmOccurrences), ctx, guid)
-}
-
-// SetLinkPreference mocks base method.
-func (m *MockFeature) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetLinkPreference", c, guid, req)
-	ret0, _ := ret[0].(dto.LinkPreferenceResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// SetLinkPreference indicates an expected call of SetLinkPreference.
-func (mr *MockFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockFeature)(nil).SetLinkPreference), c, guid, req)
 }
 
 // GetAuditLog mocks base method.
@@ -572,6 +558,21 @@ func (mr *MockFeatureMockRecorder) GetVersion(ctx, guid any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetVersion", reflect.TypeOf((*MockFeature)(nil).GetVersion), ctx, guid)
 }
 
+// GetWirelessState mocks base method.
+func (m *MockFeature) GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWirelessState", c, guid)
+	ret0, _ := ret[0].(wifi.EnabledState)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWirelessState indicates an expected call of GetWirelessState.
+func (mr *MockFeatureMockRecorder) GetWirelessState(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWirelessState", reflect.TypeOf((*MockFeature)(nil).GetWirelessState), c, guid)
+}
+
 // Insert mocks base method.
 func (m *MockFeature) Insert(ctx context.Context, d *dto.Device) (*dto.Device, error) {
 	m.ctrl.T.Helper()
@@ -599,6 +600,21 @@ func (m *MockFeature) Redirect(ctx context.Context, conn *websocket.Conn, guid, 
 func (mr *MockFeatureMockRecorder) Redirect(ctx, conn, guid, mode any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Redirect", reflect.TypeOf((*MockFeature)(nil).Redirect), ctx, conn, guid, mode)
+}
+
+// RequestWirelessStateChange mocks base method.
+func (m *MockFeature) RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "RequestWirelessStateChange", c, guid, requestedState)
+	ret0, _ := ret[0].(wifi.RequestedState)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// RequestWirelessStateChange indicates an expected call of RequestWirelessStateChange.
+func (mr *MockFeatureMockRecorder) RequestWirelessStateChange(c, guid, requestedState any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "RequestWirelessStateChange", reflect.TypeOf((*MockFeature)(nil).RequestWirelessStateChange), c, guid, requestedState)
 }
 
 // SendConsentCode mocks base method.
@@ -677,19 +693,34 @@ func (mr *MockFeatureMockRecorder) SetKVMScreenSettings(c, guid, req any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetKVMScreenSettings", reflect.TypeOf((*MockFeature)(nil).SetKVMScreenSettings), c, guid, req)
 }
 
-// Update mocks base method.
-func (m *MockFeature) Update(ctx context.Context, d *dto.Device) (*dto.Device, error) {
+// SetLinkPreference mocks base method.
+func (m *MockFeature) SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Update", ctx, d)
+	ret := m.ctrl.Call(m, "SetLinkPreference", c, guid, req)
+	ret0, _ := ret[0].(dto.LinkPreferenceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// SetLinkPreference indicates an expected call of SetLinkPreference.
+func (mr *MockFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockFeature)(nil).SetLinkPreference), c, guid, req)
+}
+
+// Update mocks base method.
+func (m *MockFeature) Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Update", ctx, d, fields)
 	ret0, _ := ret[0].(*dto.Device)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // Update indicates an expected call of Update.
-func (mr *MockFeatureMockRecorder) Update(ctx, d any) *gomock.Call {
+func (mr *MockFeatureMockRecorder) Update(ctx, d, fields any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Update", reflect.TypeOf((*MockFeature)(nil).Update), ctx, d, fields)
 }
 
 // UpdateConnectionStatus mocks base method.

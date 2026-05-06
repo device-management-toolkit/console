@@ -54,7 +54,7 @@ func TestGetCertificates(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetCertificates().
@@ -82,7 +82,7 @@ func TestGetCertificates(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetCertificates().
@@ -198,7 +198,7 @@ func TestGetCertificates(t *testing.T) {
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					GetCertificates().
@@ -293,7 +293,7 @@ func TestAddCertificate(t *testing.T) {
 			},
 			mock: func(m *mocks.MockWSMAN, man *mocks.MockManagement) {
 				m.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man, nil)
 				man.EXPECT().
 					AddTrustedRootCert(gomock.Any()).
@@ -388,7 +388,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil)
 				management.EXPECT().GetCertificates().Return(wsman.Certificates{}, errors.New("wsman error"))
 			},
 			err: errors.New("wsman error"),
@@ -400,7 +400,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil)
 				// Return empty certificates response
 				management.EXPECT().GetCertificates().Return(wsman.Certificates{}, nil)
 			},
@@ -413,7 +413,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil)
 				// Return certificate with associated profiles
 				certificates := wsman.Certificates{
 					PublicKeyCertificateResponse: publickey.RefinedPullResponse{
@@ -440,7 +440,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil)
 				// Return read-only certificate
 				certificates := wsman.Certificates{
 					PublicKeyCertificateResponse: publickey.RefinedPullResponse{
@@ -467,7 +467,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate
 				// Return valid certificate that can be deleted
 				certificates := wsman.Certificates{
 					PublicKeyCertificateResponse: publickey.RefinedPullResponse{
@@ -495,7 +495,7 @@ func TestDeleteCertificate(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2) // Called twice: once by DeleteCertificate, once by GetCertificates
 			},
 			mockWsman: func(wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate
 				// Return valid certificate that can be deleted
 				certificates := wsman.Certificates{
 					PublicKeyCertificateResponse: publickey.RefinedPullResponse{
@@ -566,8 +566,8 @@ func TestDeleteCertificate_Integration(t *testing.T) {
 
 		useCase, wsmanMock, management, repo := initCertificateTest(t)
 
-		repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2)  // Called twice: once by DeleteCertificate, once by GetCertificates
-		wsmanMock.EXPECT().SetupWsmanClient(*device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate setup
+		repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2)                // Called twice: once by DeleteCertificate, once by GetCertificates
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate setup
 
 		// Mock GetCertificates to return a certificate that can be deleted
 		certificates := wsman.Certificates{

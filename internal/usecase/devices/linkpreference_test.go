@@ -60,7 +60,7 @@ func TestSetLinkPreference(t *testing.T) {
 			request: request,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(wsman.Management(man2), nil)
 				man2.EXPECT().
 					SetLinkPreference(uint32(1), uint32(300)).
@@ -82,7 +82,7 @@ func TestSetLinkPreference(t *testing.T) {
 			},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(wsman.Management(man2), nil)
 				man2.EXPECT().
 					SetLinkPreference(uint32(2), uint32(60)).
@@ -113,7 +113,7 @@ func TestSetLinkPreference(t *testing.T) {
 			request: request,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					SetLinkPreference(uint32(1), uint32(300)).
@@ -132,7 +132,7 @@ func TestSetLinkPreference(t *testing.T) {
 			request: request,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					SetLinkPreference(uint32(1), uint32(300)).
@@ -151,7 +151,7 @@ func TestSetLinkPreference(t *testing.T) {
 			request: request,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
 					SetLinkPreference(uint32(1), uint32(300)).

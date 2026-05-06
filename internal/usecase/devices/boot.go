@@ -19,7 +19,7 @@ func (uc *UseCase) setupDeviceClient(c context.Context, guid string) (wsmanAPI.M
 		return nil, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return nil, err
 	}

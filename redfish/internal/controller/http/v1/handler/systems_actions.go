@@ -14,6 +14,15 @@ import (
 	"github.com/device-management-toolkit/console/redfish/internal/usecase"
 )
 
+const (
+	// JSON field names
+	odataContextKey = "@odata.context"
+	odataIDKey      = "@odata.id"
+	odataTypeKey    = "@odata.type"
+	idKey           = "Id"
+	nameKey         = "Name"
+)
+
 // PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset handles reset action for a computer system.
 // Validates system ID and reset type before executing power state change.
 //
@@ -73,11 +82,11 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 	}
 
 	task := map[string]interface{}{
-		"@odata.context": odataContextTask,
-		"@odata.id":      taskServiceTasks + taskID,
-		"@odata.type":    odataTypeTask,
-		"EndTime":        now,
-		"Id":             taskID,
+		odataContextKey: odataContextTask,
+		odataIDKey:      taskServiceTasks + taskID,
+		odataTypeKey:    odataTypeTask,
+		"EndTime":       now,
+		idKey:           taskID,
 		"Messages": []map[string]interface{}{
 			{
 				"Message":   successMsg.Message,
@@ -85,7 +94,7 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 				"Severity":  string(generated.OK),
 			},
 		},
-		"Name":       taskName,
+		nameKey:      taskName,
 		"StartTime":  now,
 		"TaskState":  taskStateCompleted,
 		"TaskStatus": string(generated.OK),

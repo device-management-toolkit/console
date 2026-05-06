@@ -1,4 +1,4 @@
-include .env
+-include .env
 export
 
 LOCAL_BIN:=$(CURDIR)/bin
@@ -33,6 +33,10 @@ run-noui: ### run app without UI
 	go mod tidy && go mod download && \
 	GIN_MODE=debug CGO_ENABLED=0 go run -tags=noui ./cmd/app
 .PHONY: run-noui
+
+openapi: ### generate OpenAPI spec to doc/openapi.json
+	go run ./cmd/openapi-gen
+.PHONY: openapi
 
 build: ### build app
 	CGO_ENABLED=0 go build -o ./bin/console ./cmd/app
@@ -144,3 +148,7 @@ migrate-up: ### migration up
 bin-deps:
 	GOBIN=$(LOCAL_BIN) go install -tags 'postgres' github.com/golang-migrate/migrate/v4/cmd/migrate@latest
 	GOBIN=$(LOCAL_BIN) go install go.uber.org/mock/mockgen@latest
+
+build-tray: ### build app with system tray support (requires CGO, native build only)
+	CGO_ENABLED=1 go build -tags=tray -o ./bin/console-tray ./cmd/app
+.PHONY: build-tray
