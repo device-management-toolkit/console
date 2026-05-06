@@ -60,7 +60,7 @@ func TestGetBootData(t *testing.T) {
 			name: "success",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
@@ -102,7 +102,7 @@ func TestGetBootData(t *testing.T) {
 			name: "failed to setup wsman client",
 			manMock: func(man *mocks.MockWSMAN, _ *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(nil, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -117,7 +117,7 @@ func TestGetBootData(t *testing.T) {
 			name: "failed to get boot data",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					GetBootData().
@@ -177,7 +177,7 @@ func TestSetBootData(t *testing.T) {
 			name: "success",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					ChangeBootOrder("").
@@ -222,7 +222,7 @@ func TestSetBootData(t *testing.T) {
 			name: "failed to setup wsman client",
 			manMock: func(man *mocks.MockWSMAN, _ *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(nil, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -236,7 +236,7 @@ func TestSetBootData(t *testing.T) {
 			name: "failed to clear boot order",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					ChangeBootOrder("").
@@ -253,7 +253,7 @@ func TestSetBootData(t *testing.T) {
 			name: "failed to set boot data",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					ChangeBootOrder("").
@@ -273,7 +273,7 @@ func TestSetBootData(t *testing.T) {
 			name: "failed to set boot config role",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					ChangeBootOrder("").
@@ -331,7 +331,7 @@ func TestChangeBootOrder(t *testing.T) {
 			name: "success",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					ChangeBootOrder(bootSource).
@@ -370,7 +370,7 @@ func TestChangeBootOrder(t *testing.T) {
 			name: "failed to setup wsman client",
 			manMock: func(man *mocks.MockWSMAN, _ *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(nil, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -384,7 +384,7 @@ func TestChangeBootOrder(t *testing.T) {
 			name: "failed to change boot order",
 			manMock: func(man *mocks.MockWSMAN, hmm *mocks.MockManagement) {
 				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), false, true).
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
 					ChangeBootOrder(bootSource).

@@ -1,4 +1,4 @@
-package sqldb
+package repoerrors
 
 import (
 	"testing"
@@ -45,22 +45,19 @@ func TestNotUniqueError_Wrap(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name           string
-		initialMessage string
-		details        string
-		expectedResult string
+		name             string
+		details          string
+		expectedFriendly string
 	}{
 		{
-			name:           "Wrap with details",
-			initialMessage: "error occurred",
-			details:        "unique constraint",
-			expectedResult: " -  - : ",
+			name:             "Wrap with details",
+			details:          "unique constraint",
+			expectedFriendly: "unique constraint violation: unique constraint",
 		},
 		{
-			name:           "Wrap with empty details",
-			initialMessage: "error occurred",
-			details:        "",
-			expectedResult: " -  - : ",
+			name:             "Wrap with empty details",
+			details:          "",
+			expectedFriendly: "unique constraint violation: ",
 		},
 	}
 
@@ -69,12 +66,13 @@ func TestNotUniqueError_Wrap(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			internalErr := consoleerrors.InternalError{Message: tc.initialMessage}
-			err := NotUniqueError{Console: internalErr}
+			err := NotUniqueError{Console: consoleerrors.InternalError{}}
 
 			wrappedErr := err.Wrap(tc.details)
 
-			require.Equal(t, tc.expectedResult, wrappedErr.Error())
+			var nuErr NotUniqueError
+			require.ErrorAs(t, wrappedErr, &nuErr)
+			require.Equal(t, tc.expectedFriendly, nuErr.Console.FriendlyMessage())
 		})
 	}
 }

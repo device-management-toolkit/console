@@ -22,7 +22,7 @@ func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v
 		return v1, v2, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return v1, v2, err
 	}
@@ -73,7 +73,7 @@ func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (dto.Hardware
 		return dto.HardwareInfo{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.HardwareInfo{}, err
 	}
@@ -101,7 +101,7 @@ func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
 		CIMChassis:        dto.CIMResponse{Response: hw.ChassisResult.Body.PackageResponse},
 		CIMChip:           dto.CIMResponse{Responses: chipItems},
 		CIMCard:           dto.CIMResponse{Response: hw.CardResult.Body.PackageResponse},
-		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.GetResponse},
+		CIMBIOSElement:    dto.CIMResponse{Response: hw.BiosResult.Body.BIOSElementGetResponse},
 		CIMProcessor:      dto.CIMResponse{Responses: []any{hw.ProcessorResult.Body.PackageResponse}},
 		CIMPhysicalMemory: dto.CIMResponse{Responses: memoryItems},
 	}
@@ -117,7 +117,7 @@ func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, er
 		return dto.DiskInfo{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.DiskInfo{}, err
 	}
@@ -147,7 +147,7 @@ func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (
 		return dto.AuditLog{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.AuditLog{}, err
 	}
@@ -174,7 +174,7 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 		return dto.EventLogs{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.EventLogs{}, err
 	}
@@ -228,7 +228,7 @@ func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (dto.Gener
 		return dto.GeneralSettings{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.GeneralSettings{}, err
 	}

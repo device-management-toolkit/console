@@ -29,6 +29,11 @@ const (
 	serviceRootID           = "RootService"
 	serviceRootName         = "Root Service"
 	redfishVersion          = "1.19.0"
+
+	// Redfish common paths and attributes
+	odataID      = "@odata.id"
+	odataContext = "@odata.context"
+	systemsName  = "Systems"
 )
 
 // ODataService represents a Redfish service in the OData service document
@@ -284,7 +289,7 @@ func ExtractServicesFromOpenAPIData(data []byte) ([]ODataService, error) {
 // GetDefaultServices returns the standard Redfish services as fallback
 func GetDefaultServices() []ODataService {
 	return []ODataService{
-		{Name: "Systems", Kind: "Singleton", URL: "/redfish/v1/Systems"},
+		{Name: systemsName, Kind: "Singleton", URL: "/redfish/v1/Systems"},
 	}
 }
 
@@ -313,7 +318,7 @@ func (s *RedfishServer) GetRedfishV1(c *gin.Context) {
 	// Create Links with Sessions for redfishtool compatibility
 	links := generated.ServiceRootLinks{
 		"Sessions": map[string]interface{}{
-			"@odata.id": "/redfish/v1/SessionService/Sessions",
+			odataID: "/redfish/v1/SessionService/Sessions",
 		},
 	}
 
@@ -373,8 +378,8 @@ func (s *RedfishServer) GetRedfishV1Odata(c *gin.Context) {
 	}
 
 	response := map[string]interface{}{
-		"@odata.context": "/redfish/v1/$metadata",
-		"value":          services,
+		odataContext: "/redfish/v1/$metadata",
+		"value":      services,
 	}
 	c.JSON(http.StatusOK, response)
 }

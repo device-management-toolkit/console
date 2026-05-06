@@ -11,20 +11,20 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@fa2e9d605c4eeb9fcad4c99c224cee0c6c7f3594 # v2.16.0
+        uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
         with:
           egress-policy: audit
 
-      - uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8 # v5.0.0
+      - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
         with:
           fetch-depth: 0
-      - uses: wagoid/commitlint-github-action@0184f5a228ee06430bb9e67d65f73a1a6767496a # v6.2.0
+      - uses: wagoid/commitlint-github-action@b948419dd99f3fd78a6548d48f94e3df7f6bf3ed # v6.2.1
         with:
           configFile: .github/commitlint.config.cjs
           commitDepth: 1
           failOnWarnings: false
       - name: Install Dependencies
         run: npm install @commitlint/config-conventional@18.5
-      - uses: JulienKode/pull-request-name-linter-action@8c05fb989d9f156ce61e33754f9802c9d3cffa58 # v0.5.0
+      - uses: JulienKode/pull-request-name-linter-action@4fb4c2773193ad7ae5fe105c98ab30778abb1536 # v20.1.0
         with:
           configuration-path: ./.github/commitlint.config.cjs

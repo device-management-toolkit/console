@@ -5,12 +5,21 @@ import (
 	"net/http"
 	"strings"
 
+	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/gin-gonic/gin"
 	"github.com/go-fuego/fuego"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
+)
+
+// Shared constants for OpenAPI example responses and defaults.
+const (
+	defaultVersion    = "1.0.0"
+	defaultTenantID   = "default"
+	exampleDeviceGUID = "example-guid-1"
+	exampleDeviceHost = "device1.example.com"
 )
 
 type FuegoAdapter struct {
@@ -22,6 +31,14 @@ type FuegoAdapter struct {
 func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdapter {
 	server := fuego.NewServer(
 		fuego.WithoutStartupMessages(),
+		fuego.WithSecurity(openapi3.SecuritySchemes{
+			"bearerAuth": &openapi3.SecuritySchemeRef{
+				Value: openapi3.NewSecurityScheme().
+					WithType("http").
+					WithScheme("bearer").
+					WithBearerFormat("JWT"),
+			},
+		}),
 	)
 
 	return &FuegoAdapter{
@@ -33,6 +50,9 @@ func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdap
 
 // Registers API routes with Fuego for automatic OpenAPI generation.
 func (f *FuegoAdapter) RegisterRoutes() {
+	// Domains
+	f.RegisterDomainRoutes()
+
 	// Profiles
 	f.RegisterProfileRoutes()
 
@@ -48,6 +68,9 @@ func (f *FuegoAdapter) RegisterRoutes() {
 	// Devices
 	f.RegisterDeviceRoutes()
 
+	// CIRA certificate
+	f.RegisterCIRACertRoutes()
+
 	// Device Management
 	f.RegisterDeviceManagementRoutes()
 }
@@ -57,7 +80,7 @@ func (f *FuegoAdapter) GetOpenAPISpec() ([]byte, error) {
 	spec := f.server.OutputOpenAPISpec()
 
 	// Default
-	version := "1.0.0"
+	version := defaultVersion
 	if config.ConsoleConfig != nil && config.ConsoleConfig.Version != "" {
 		version = config.ConsoleConfig.Version
 	}

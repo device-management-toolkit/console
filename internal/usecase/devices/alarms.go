@@ -27,7 +27,7 @@ func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid string) ([]dto.Al
 		return nil, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return nil, err
 	}
@@ -64,7 +64,7 @@ func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid string, alarm 
 
 	alarm.InstanceID = alarm.ElementName
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.AddAlarmOutput{}, err
 	}
@@ -89,7 +89,7 @@ func (uc *UseCase) DeleteAlarmOccurrences(c context.Context, guid, instanceID st
 		return ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return err
 	}

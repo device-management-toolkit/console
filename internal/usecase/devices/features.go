@@ -28,6 +28,11 @@ const (
 	enabledStateDisabled          = 32768
 )
 
+// User consent option string values.
+const (
+	userConsentKVM = "kvm"
+)
+
 const (
 	targetHTTPSBootInstanceID = "Intel(r) AMT: Force OCR UEFI HTTPS Boot"
 	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
@@ -50,7 +55,7 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 		return settingsResults, settingsResultsV2, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.Features{}, dtov2.Features{}, err
 	}
@@ -192,7 +197,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 		return settingsResults, settingsResultsV2, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return settingsResults, settingsResultsV2, err
 	}
@@ -418,7 +423,7 @@ func determineConsentCode(consent string) int {
 	consent = strings.ToLower(consent)
 
 	switch consent {
-	case "kvm":
+	case userConsentKVM:
 		consentCode = optin.OptInRequiredKVM
 	case "all":
 		consentCode = optin.OptInRequiredAll
@@ -431,6 +436,6 @@ func determineConsentCode(consent string) int {
 
 var UserConsentOptions = map[int]string{
 	0:          "none",
-	1:          "kvm",
+	1:          userConsentKVM,
 	4294967295: "all",
 }

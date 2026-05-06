@@ -11,8 +11,6 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
 	"github.com/device-management-toolkit/console/internal/certificates"
-	"github.com/device-management-toolkit/console/internal/controller/openapi"
-	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
@@ -29,13 +27,6 @@ var (
 	initializeAppFunc    = app.Init
 	runAppFunc           = func(cfg *config.Config, log logger.Interface) {
 		app.Run(cfg, log)
-	}
-	// NewGeneratorFunc allows tests to inject a fake OpenAPI generator.
-	NewGeneratorFunc = func(u usecase.Usecases, l logger.Interface) interface {
-		GenerateSpec() ([]byte, error)
-		SaveSpec([]byte, string) error
-	} {
-		return openapi.NewGenerator(u, l)
 	}
 	// Certificate loading functions for testability.
 	loadOrGenerateRootCertFunc      = certificates.LoadOrGenerateRootCertificateWithVault
@@ -65,8 +56,17 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-	handleDebugMode(cfg, l)
-	runAppFunc(cfg, l)
+	// Run with system tray (if built with tray tag and --tray flag) or standard mode
+	if config.TrayMode && !trayBuildEnabled {
+		log.Fatal("--tray was specified but this binary was built without tray support. Rebuild with `make build-tray` (or `go build -tags=tray`).")
+	}
+
+	if trayBuildEnabled && config.TrayMode {
+		runWithTray(cfg, l)
+	} else {
+		handleDebugMode(cfg, l)
+		runAppFunc(cfg, l)
+	}
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
@@ -87,36 +87,10 @@ func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) 
 	return nil
 }
 
-func handleDebugMode(cfg *config.Config, l logger.Interface) {
+func handleDebugMode(cfg *config.Config, _ logger.Interface) {
 	if os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
-	} else {
-		handleOpenAPIGeneration(l)
 	}
-}
-
-func handleOpenAPIGeneration(l logger.Interface) {
-	usecases := usecase.Usecases{}
-
-	// Create OpenAPI generator
-	generator := NewGeneratorFunc(usecases, l)
-
-	// Generate specification
-	spec, err := generator.GenerateSpec()
-	if err != nil {
-		l.Warn("Failed to generate OpenAPI spec: %s", err)
-
-		return
-	}
-
-	// Save to file
-	if err := generator.SaveSpec(spec, "doc/openapi.json"); err != nil {
-		l.Warn("Failed to save OpenAPI spec: %s", err)
-
-		return
-	}
-
-	l.Info("OpenAPI specification generated at doc/openapi.json")
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {

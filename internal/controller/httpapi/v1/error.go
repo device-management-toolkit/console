@@ -10,10 +10,14 @@ import (
 	"github.com/go-playground/validator/v10"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
+
+// errorKey is the JSON field name used for error messages in gin.H responses.
+const errorKey = "error"
 
 type response struct {
 	Error   string `json:"error,omitempty" example:"message"`
@@ -23,10 +27,11 @@ type response struct {
 func ErrorResponse(c *gin.Context, err error) {
 	var (
 		validatorErr    validator.ValidationErrors
-		nfErr           sqldb.NotFoundError
+		cancelledError  dto.CanceledError
+		nfErr           repoerrors.NotFoundError
 		notValidErr     dto.NotValidError
-		dbErr           sqldb.DatabaseError
-		NotUniqueErr    sqldb.NotUniqueError
+		dbErr           repoerrors.DatabaseError
+		notUniqueErr    repoerrors.NotUniqueError
 		amtErr          devices.AMTError
 		notSupportedErr devices.NotSupportedError
 		validationErr   devices.ValidationError
@@ -38,14 +43,16 @@ func ErrorResponse(c *gin.Context, err error) {
 	switch {
 	case errors.As(err, &netErr):
 		netErrorHandle(c, netErr)
+	case errors.As(err, &cancelledError):
+		cancelledErrorHandle(c, cancelledError)
 	case errors.As(err, &notValidErr):
 		notValidErrorHandle(c, notValidErr)
 	case errors.As(err, &validatorErr):
 		validatorErrorHandle(c, validatorErr)
 	case errors.As(err, &nfErr):
 		notFoundErrorHandle(c, nfErr)
-	case errors.As(err, &NotUniqueErr):
-		notUniqueErrorHandle(c, NotUniqueErr)
+	case errors.As(err, &notUniqueErr):
+		notUniqueErrorHandle(c, notUniqueErr)
 	case errors.As(err, &dbErr):
 		dbErrorHandle(c, dbErr)
 	case errors.As(err, &amtErr):
@@ -72,6 +79,15 @@ func netErrorHandle(c *gin.Context, netErr net.Error) {
 	c.AbortWithStatusJSON(http.StatusGatewayTimeout, response{Error: msg, Message: msg})
 }
 
+func cancelledErrorHandle(c *gin.Context, cancelError dto.CanceledError) {
+	msg := cancelError.Console.FriendlyMessage()
+	if msg == "" {
+		msg = "request canceled"
+	}
+
+	c.AbortWithStatusJSON(http.StatusRequestTimeout, response{Error: msg, Message: msg})
+}
+
 func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
 	msg := err.Console.FriendlyMessage()
 	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
@@ -82,7 +98,7 @@ func validatorErrorHandle(c *gin.Context, err validator.ValidationErrors) {
 	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
 
-func notFoundErrorHandle(c *gin.Context, err sqldb.NotFoundError) {
+func notFoundErrorHandle(c *gin.Context, err repoerrors.NotFoundError) {
 	message := "Error not found"
 	if err.Console.FriendlyMessage() != "" {
 		message = err.Console.FriendlyMessage()
@@ -91,8 +107,8 @@ func notFoundErrorHandle(c *gin.Context, err sqldb.NotFoundError) {
 	c.AbortWithStatusJSON(http.StatusNotFound, response{Error: message, Message: message})
 }
 
-func dbErrorHandle(c *gin.Context, err sqldb.DatabaseError) {
-	var notUniqueErr sqldb.NotUniqueError
+func dbErrorHandle(c *gin.Context, err repoerrors.DatabaseError) {
+	var notUniqueErr repoerrors.NotUniqueError
 
 	var foreignKeyViolationErr sqldb.ForeignKeyViolationError
 
@@ -122,7 +138,7 @@ func amtErrorHandle(c *gin.Context, err devices.AMTError) {
 	}
 }
 
-func notUniqueErrorHandle(c *gin.Context, err sqldb.NotUniqueError) {
+func notUniqueErrorHandle(c *gin.Context, err repoerrors.NotUniqueError) {
 	msg := err.Console.FriendlyMessage()
 	if msg == "" {
 		msg = "resource already exists"

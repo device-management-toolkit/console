@@ -1,6 +1,7 @@
 package wsman
 
 import (
+	"context"
 	gotls "crypto/tls"
 	"errors"
 	"net"
@@ -61,6 +62,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -83,6 +85,8 @@ var (
 	ErrCIRADeviceNotConnected = errors.New("CIRA device not connected/not found")
 	// ErrNoWiFiPort is returned when no WiFi interface is found on the device.
 	ErrNoWiFiPort = errors.New("no WiFi interface found (InstanceID == Intel(r) AMT Ethernet Port Settings 1)")
+
+	ErrCancelled = dto.CanceledError{Console: consoleerrors.CreateConsoleError("WsmanMessages")}
 )
 
 type ConnectionEntry struct {
@@ -109,10 +113,20 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
-	if entry := GetConnectionEntry(device.GUID); entry != nil {
-		entry.Timer.Stop()
-		RemoveConnection(device.GUID)
+	entry := GetConnectionEntry(device.GUID)
+	if entry == nil {
+		return
 	}
+
+	// CIRA entries are owned by the TCP tunnel and re-registered only on a fresh
+	// APF auth. Removing here would orphan the live socket — the device sees no
+	// error and never reconnects, but every SetupWsmanClient returns not-connected.
+	if entry.IsCIRA {
+		return
+	}
+
+	entry.Timer.Stop()
+	RemoveConnection(device.GUID)
 }
 
 func (g GoWSMANMessages) Worker() {
@@ -127,8 +141,8 @@ func (g GoWSMANMessages) Worker() {
 	}
 }
 
-func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
-	resultChan := make(chan *ConnectionEntry)
+func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
+	resultChan := make(chan *ConnectionEntry, 1)
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
@@ -179,6 +193,8 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, isRedirection, l
 		return nil, err
 	case result := <-resultChan:
 		return result, nil
+	case <-ctx.Done():
+		return nil, ErrCancelled.Wrap("SetupWsmanClient", "ctx.Done", ctx.Err())
 	}
 }
 
@@ -925,6 +941,14 @@ func (c *ConnectionEntry) GetWiFiPortConfigurationService() (wifiportconfigurati
 	return response.Body.WiFiPortConfigurationService, nil
 }
 
+func (c *ConnectionEntry) EnumerateWiFiPort() (response wifi.Response, err error) {
+	return c.WsmanMessages.CIM.WiFiPort.Enumerate()
+}
+
+func (c *ConnectionEntry) PullWiFiPort(enumerationContext string) (response wifi.Response, err error) {
+	return c.WsmanMessages.CIM.WiFiPort.Pull(enumerationContext)
+}
+
 func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 	// if local sync not enable, enable it
 	// if response.Body.WiFiPortConfigurationService.LocalProfileSynchronizationEnabled == wifiportconfiguration.LocalSyncDisabled {
@@ -950,10 +974,8 @@ func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfig
 	return response.Body.WiFiPortConfigurationService, nil
 }
 
-func (c *ConnectionEntry) WiFiRequestStateChange() (err error) {
-	// always turn wifi on via state change request
-	// Enumeration 32769 - WiFi is enabled in S0 + Sx/AC
-	_, err = c.WsmanMessages.CIM.WiFiPort.RequestStateChange(int(wifi.EnabledStateWifiEnabledS0SxAC))
+func (c *ConnectionEntry) WiFiRequestStateChange(requestedState wifi.RequestedState) (err error) {
+	_, err = c.WsmanMessages.CIM.WiFiPort.RequestStateChange(int(requestedState))
 	if err != nil {
 		return err // utils.WSMANMessageError
 	}

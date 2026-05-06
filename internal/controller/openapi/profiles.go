@@ -1,6 +1,8 @@
 package openapi
 
 import (
+	"net/http"
+
 	"github.com/go-fuego/fuego"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -14,6 +16,7 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		fuego.OptionQueryInt("$top", "Number of records to return"),
 		fuego.OptionQueryInt("$skip", "Number of records to skip"),
 		fuego.OptionQueryBool("$count", "Include total count"),
+		protectedRouteOptions(),
 	)
 
 	fuego.Get(f.server, "/api/v1/admin/profiles/{name}", f.getProfileByName,
@@ -21,18 +24,22 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		fuego.OptionSummary("Get Profile by Name"),
 		fuego.OptionDescription("Retrieve a specific profile by name"),
 		fuego.OptionPath("name", "Profile name"),
+		protectedRouteOptions(),
 	)
 
 	fuego.Post(f.server, "/api/v1/admin/profiles", f.createProfile,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Create Profile"),
 		fuego.OptionDescription("Create a new profile"),
+		fuego.OptionDefaultStatusCode(http.StatusCreated),
+		protectedRouteOptions(),
 	)
 
 	fuego.Patch(f.server, "/api/v1/admin/profiles", f.updateProfile,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Update Profile"),
 		fuego.OptionDescription("Update an existing profile"),
+		protectedRouteOptions(),
 	)
 
 	fuego.Delete(f.server, "/api/v1/admin/profiles/{name}", f.deleteProfile,
@@ -40,6 +47,8 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		fuego.OptionSummary("Delete Profile"),
 		fuego.OptionDescription("Delete a profile by name"),
 		fuego.OptionPath("name", "Profile name"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
+		protectedRouteOptions(),
 	)
 
 	fuego.Get(f.server, "/api/v1/admin/profiles/export/{name}", f.exportProfile,
@@ -48,6 +57,7 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		fuego.OptionDescription("Export a profile configuration"),
 		fuego.OptionPath("name", "Profile name"),
 		fuego.OptionQuery("domainName", "Domain name for export"),
+		protectedRouteOptions(),
 	)
 }
 
@@ -63,7 +73,7 @@ func (f *FuegoAdapter) getProfiles(_ fuego.ContextNoBody) (dto.ProfileCountRespo
 			DHCPEnabled:                true,
 			IPSyncEnabled:              true,
 			LocalWiFiSyncEnabled:       true,
-			TenantID:                   "default",
+			TenantID:                   defaultTenantID,
 			TLSMode:                    1,
 			TLSSigningAuthority:        "SelfSigned",
 			UserConsent:                "All",
@@ -88,7 +98,7 @@ func (f *FuegoAdapter) getProfileByName(_ fuego.ContextNoBody) (dto.Profile, err
 		DHCPEnabled:                true,
 		IPSyncEnabled:              true,
 		LocalWiFiSyncEnabled:       true,
-		TenantID:                   "default",
+		TenantID:                   defaultTenantID,
 		TLSMode:                    1,
 		TLSSigningAuthority:        "SelfSigned",
 		UserConsent:                "All",
@@ -114,8 +124,8 @@ func (f *FuegoAdapter) updateProfile(c fuego.ContextWithBody[dto.Profile]) (dto.
 	return body, nil
 }
 
-func (f *FuegoAdapter) deleteProfile(_ fuego.ContextNoBody) (any, error) {
-	return nil, nil
+func (f *FuegoAdapter) deleteProfile(_ fuego.ContextNoBody) (NoContentResponse, error) {
+	return NoContentResponse{}, nil
 }
 
 func (f *FuegoAdapter) exportProfile(_ fuego.ContextNoBody) (dto.ProfileExportResponse, error) {

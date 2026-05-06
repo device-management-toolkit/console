@@ -169,7 +169,7 @@ func (uc *UseCase) GetCertificates(c context.Context, guid string) (dto.Security
 		return dto.SecuritySettings{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.SecuritySettings{}, err
 	}
@@ -266,7 +266,7 @@ func (uc *UseCase) GetDeviceCertificate(c context.Context, guid string) (dto.Cer
 		return dto.Certificate{}, ErrNotFound
 	}
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return dto.Certificate{}, err
 	}
@@ -376,7 +376,7 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 
 	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
 
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return "", err
 	}
@@ -442,7 +442,7 @@ func (uc *UseCase) DeleteCertificate(c context.Context, guid, instanceID string)
 	}
 
 	// If the certificate is not associated with any profiles and is not read-only, proceed with deletion
-	device, err := uc.device.SetupWsmanClient(*item, false, true)
+	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
 		return err
 	}

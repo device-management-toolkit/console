@@ -353,7 +353,7 @@ func TestUpdate(t *testing.T) {
 
 			tc.mock(repo, management)
 
-			result, err := useCase.Update(context.Background(), deviceDTO)
+			result, err := useCase.Update(context.Background(), deviceDTO, nil)
 
 			require.Equal(t, tc.res, result)
 			require.IsType(t, tc.err, err)
@@ -481,7 +481,7 @@ func TestUpdateWithPasswords(t *testing.T) {
 		management.EXPECT().
 			DestroyWsmanClient(*expectedDTO)
 
-		result, err := useCase.Update(context.Background(), deviceDTOWithPasswords)
+		result, err := useCase.Update(context.Background(), deviceDTOWithPasswords, nil)
 
 		require.NoError(t, err)
 		require.Equal(t, expectedDTO, result)
@@ -722,10 +722,117 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 		management.EXPECT().
 			DestroyWsmanClient(*expectedDTO)
 
-		result, err := useCase.Update(context.Background(), inputDTO)
+		result, err := useCase.Update(context.Background(), inputDTO, nil)
 
 		require.NoError(t, err)
 		require.Equal(t, "aaf0c395-c2a2-992e-5655-48210b50d8c9", result.GUID)
+	})
+}
+
+// TestUpdatePartial verifies that when a fields map is supplied, Update
+// performs a merge: fields not listed retain their existing (decrypted)
+// values and only listed keys are overwritten before persisting.
+func TestUpdatePartial(t *testing.T) {
+	t.Parallel()
+
+	// Stored entity has encrypted secrets and old hostname.
+	existing := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Hostname:     "old-hostname",
+		Tags:         "lab,floor-2",
+		MPSUsername:  "admin",
+		Username:     "amtadmin",
+		Password:     "encrypted-amt",
+		MPSPassword:  ptr("encrypted-mps"),
+		MEBXPassword: ptr("encrypted-mebx"),
+	}
+
+	// Client sends only guid, tenantId and a new hostname.
+	incoming := &dto.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		Hostname: "new-hostname",
+	}
+	fields := map[string]bool{"guid": true, "tenantId": true, "hostname": true}
+
+	// After merge + dtoToEntity (MockCrypto re-encrypts plaintext to "encrypted"):
+	expectedEntity := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Hostname:     "new-hostname",
+		Tags:         "lab,floor-2",
+		MPSUsername:  "admin",
+		Username:     "amtadmin",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+	}
+
+	expectedDTO := &dto.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Hostname:     "new-hostname",
+		Tags:         []string{"lab", "floor-2"},
+		MPSUsername:  "admin",
+		Username:     "amtadmin",
+		MPSPassword:  "encrypted",
+		MEBXPassword: "encrypted",
+	}
+
+	t.Run("preserves untouched fields", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+
+		gomock.InOrder(
+			repo.EXPECT().
+				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+				Return(existing, nil),
+			repo.EXPECT().
+				Update(context.Background(), expectedEntity).
+				Return(true, nil),
+			repo.EXPECT().
+				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+				Return(expectedEntity, nil),
+		)
+		management.EXPECT().DestroyWsmanClient(*expectedDTO)
+
+		result, err := useCase.Update(context.Background(), incoming, fields)
+
+		require.NoError(t, err)
+		require.Equal(t, expectedDTO, result)
+	})
+
+	t.Run("propagates not-found from initial fetch", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(nil, nil)
+
+		result, err := useCase.Update(context.Background(), incoming, fields)
+
+		require.Nil(t, result)
+		require.IsType(t, devices.ErrNotFound, err)
+	})
+
+	t.Run("propagates database error from initial fetch", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(nil, devices.ErrDatabase)
+
+		result, err := useCase.Update(context.Background(), incoming, fields)
+
+		require.Nil(t, result)
+		require.Error(t, err)
+		require.Contains(t, err.Error(), devices.ErrDatabase.Error())
 	})
 }
 
