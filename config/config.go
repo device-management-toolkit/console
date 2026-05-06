@@ -73,9 +73,13 @@ type (
 	}
 
 	// DB -.
+	//
+	// Provider selects the backend: "postgres", "sqlite" (default), or "mongo".
+	// See internal/app/repos.go for the per-provider rules around DB_URL.
 	DB struct {
-		PoolMax int    `env-required:"true" yaml:"pool_max" env:"DB_POOL_MAX"`
-		URL     string `env:"DB_URL"`
+		Provider string `yaml:"provider" env:"DB_PROVIDER"`
+		PoolMax  int    `env-required:"true" yaml:"pool_max" env:"DB_POOL_MAX"`
+		URL      string `env:"DB_URL"`
 	}
 
 	// EA -.
@@ -170,8 +174,9 @@ func defaultConfig() *Config {
 			Path:    "secret/data/console",
 		},
 		DB: DB{
-			PoolMax: 2,
-			URL:     "",
+			Provider: "sqlite",
+			PoolMax:  2,
+			URL:      "",
 		},
 		EA: EA{
 			URL:      "http://localhost:8000",
