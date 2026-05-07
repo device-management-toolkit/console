@@ -15,13 +15,13 @@ jobs:
     runs-on: ubuntu-latest
     steps:
     - name: Harden Runner
-      uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+      uses: step-security/harden-runner@a5ad31d6a139d249332a2605b85202e8c0b78450 # v2.19.1
       with:
         egress-policy: audit
 
     - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
     - run: cp .env.example .env
-    - run: docker compose up -d --build    
+    - run: docker compose up -d --build
     - name: Let Docker Spin up
       run: sleep 5
     - name: Run Console API Tests
@@ -30,7 +30,38 @@ jobs:
       if: failure()
       uses: jwalton/gh-docker-logs@2741064ab9d7af54b0b1ffb6076cf64c16f0220e # v2.2.2
     - name: Upload Postman Results
+      if: always()
       uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
       with:
         name: rps-api
+        path: /home/runner/work/console/console/integration-test/results
+
+  build-mongo:
+    runs-on: ubuntu-latest
+    # Gate on the Postgres baseline. If the API contract is broken there,
+    # don't waste time spinning up the Mongo flow.
+    needs: [build]
+    env:
+      DB_PROVIDER: mongo
+      DB_URL: mongodb://mongoadmin:admin123@mongo:27017/?authSource=admin
+    steps:
+    - name: Harden Runner
+      uses: step-security/harden-runner@8d3c67de8e2fe68ef647c8db1e6a09f647780f40 # v2.19.0
+      with:
+        egress-policy: audit
+
+    - uses: actions/checkout@de0fac2e4500dabe0009e67214ff5f5447ce83dd # v6.0.2
+    - run: cp .env.example .env
+    # --wait gates on app's depends_on (mongo: service_healthy) to avoid the auth race.
+    - run: docker compose --profile mongo up -d --build --wait
+    - name: Run Console API Tests against MongoDB
+      run: docker run --network=host -v  /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_mps_apis.postman_collection.json run /collections/console_rps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_api_results.json --reporter-junit-export /results/console_api_results_junit.xml
+    - name: Dump docker logs on failure
+      if: failure()
+      uses: jwalton/gh-docker-logs@2741064ab9d7af54b0b1ffb6076cf64c16f0220e # v2.2.2
+    - name: Upload Postman Results
+      if: always()
+      uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+      with:
+        name: rps-api-mongo
         path: /home/runner/work/console/console/integration-test/results

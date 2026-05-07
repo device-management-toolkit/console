@@ -11,6 +11,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
 	"github.com/device-management-toolkit/console/internal/certificates"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
@@ -34,6 +35,10 @@ var (
 )
 
 func main() {
+	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
+		runHealthCheck()
+	}
+
 	cfg, err := initializeConfigFunc()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)
@@ -87,7 +92,13 @@ func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) 
 	return nil
 }
 
-func handleDebugMode(cfg *config.Config, _ logger.Interface) {
+func handleDebugMode(cfg *config.Config, l logger.Interface) {
+	if !httpapi.HasUI() {
+		l.Info("UI assets not embedded; skipping browser launch")
+
+		return
+	}
+
 	if os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	}
@@ -201,7 +212,12 @@ func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.St
 
 	// Check for unexpected errors
 	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
-		log.Fatal(err)
+		log.Fatalf(
+			"Local keyring unavailable (%v).\n"+
+				"Set APP_ENCRYPTION_KEY in the environment (or encryption_key in config) "+
+				"to provide the encryption key directly, or configure a remote secret store.",
+			err,
+		)
 	}
 
 	return false

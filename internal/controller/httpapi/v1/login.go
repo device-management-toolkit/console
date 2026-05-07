@@ -71,6 +71,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
 	claims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(expirationTime),
+		Issuer:    config.ConsoleConfig.Issuer,
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
