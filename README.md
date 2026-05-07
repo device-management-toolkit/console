@@ -61,6 +61,132 @@ Warning: Key Not Found, Generate new key? Y/N
 
 ---
 
+## Docker Compose Deployment
+
+Run Console end-to-end (app + database + vault) in containers. Two database backends are supported via Docker Compose profiles: **PostgreSQL** (default) and **MongoDB**.
+
+### Prerequisites
+
+- [Docker Desktop](https://www.docker.com/products/docker-desktop/) (Windows/macOS) or Docker Engine + Compose plugin (Linux)
+- [Node.js 22.x](https://nodejs.org/) (only required if you want to embed the Web UI in the image)
+- A clone of [`device-management-toolkit/sample-web-ui`](https://github.com/device-management-toolkit/sample-web-ui) next to this repo (only required for the embedded UI)
+- A `console.local` hostname mapped to `127.0.0.1` on the machine that opens the browser. The compose `extra_hosts` entry handles the in-container side; the host-side mapping is your responsibility.
+
+#### Add the `console.local` host entry
+
+Why this is needed: the Go binary uses a single `HTTP_HOST` value both to bind the HTTP server inside the container *and* to inject the API base URL into `main.js`. The browser therefore needs to reach the same hostname the binary was told about. `console.local` is a hostname that resolves to `0.0.0.0` inside the container (binds on all interfaces, reachable through Docker port forwarding) and to `127.0.0.1` on the host (browser-friendly).
+
+**Windows** (run PowerShell as **Administrator**):
+```powershell
+Add-Content -Path C:\Windows\System32\drivers\etc\hosts -Value "`n127.0.0.1`tconsole.local"
+```
+
+**Linux/macOS**:
+```sh
+echo "127.0.0.1 console.local" | sudo tee -a /etc/hosts
+```
+
+### 1. Build the embedded Web UI (optional but recommended)
+
+Skip this step if you want a headless build (API only, no SPA). For an embedded UI, mirror what CI does in `.github/workflows/release.yml`:
+
+```sh
+# From a sibling directory of the console repo
+git clone https://github.com/device-management-toolkit/sample-web-ui
+cd sample-web-ui
+
+npm ci
+npm run build-enterprise        # produces ./ui/browser/
+
+# Copy the built assets into the console repo's embed directory
+# (the contents of ui/browser/, not the folder itself)
+```
+
+**Windows PowerShell:**
+```powershell
+Copy-Item -Recurse -Force ..\sample-web-ui\ui\browser\* `
+  ..\console\internal\controller\httpapi\ui\
+```
+
+**Linux/macOS:**
+```sh
+cp -r ../sample-web-ui/ui/browser/. ../console/internal/controller/httpapi/ui/
+```
+
+Verify `internal/controller/httpapi/ui/` contains at minimum `index.html`, `main.js`, `polyfills.js`, `styles.css`, and the `assets/` and `media/` subfolders.
+
+> **Headless build instead?** Build with the `noui` tag (`docker build --build-arg BUILD_TAGS=noui ...`) and skip this step entirely.
+
+### 2. Choose your database backend
+
+The compose file has two database services. PostgreSQL runs by default; MongoDB is gated behind the `mongo` Compose profile.
+
+#### Option A — PostgreSQL (default)
+
+```sh
+docker compose up -d --build
+```
+
+This starts `postgres`, `vault`, and `app`. The app uses `DB_PROVIDER=postgres` and `DB_URL=postgres://postgresadmin:admin123@postgres:5432/rpsdb` by default.
+
+#### Option B — MongoDB
+
+```sh
+# Bash / Linux / macOS
+DB_PROVIDER=mongo \
+DB_URL='mongodb://mongoadmin:admin123@mongo:27017/consoledb?authSource=admin' \
+  docker compose --profile mongo up -d --build
+```
+
+```powershell
+# Windows PowerShell
+$env:DB_PROVIDER = "mongo"
+$env:DB_URL = "mongodb://mongoadmin:admin123@mongo:27017/consoledb?authSource=admin"
+docker compose --profile mongo up -d --build
+```
+
+The `--profile mongo` flag activates the `mongo` service (it has `profiles: [mongo]` in `docker-compose.yml`); without it the mongo container is not started. The app waits for `mongo` to become healthy before starting.
+
+### 3. Open the UI
+
+```
+http://console.local:8181
+```
+
+> **Don't use `http://localhost:8181`** — the page loads, but the API URL embedded in `main.js` is `http://console.local:8181`, so the browser will block XHRs as cross-origin. Use the same hostname both places.
+
+### 4. Stop and clean up
+
+```sh
+docker compose down              # stop containers, keep volumes (pg-data, mongo-data)
+docker compose down -v           # also drop volumes (wipes the database)
+docker compose --profile mongo down -v   # include mongo profile when tearing it down
+```
+
+### Troubleshooting
+
+#### `UI assets not embedded; skipping browser launch` in startup logs
+
+`internal/controller/httpapi/ui/` is empty (only `.gitkeep`). Re-run step 1 — make sure you copied the **contents** of `sample-web-ui/ui/browser/` (note the trailing `*` or `/.`), not the `browser` folder itself. The file `internal/controller/httpapi/ui/index.html` must exist directly under `ui/`.
+
+#### Browser console: `Failed to execute 'open' on XMLHttpRequest: Invalid URL` or `net::ERR_ADDRESS_INVALID`
+
+The `##CONSOLE_SERVER_API##` placeholder was injected with an empty or `0.0.0.0` host. Confirm `docker-compose.yml` sets `HTTP_HOST: "console.local"` (not `""` or `"0.0.0.0"`) for the `app` service, and that you opened the UI at `http://console.local:8181`. If `console.local` doesn't resolve, redo the hosts-file step in the prerequisites.
+
+#### `Dirty database version <ts>. Fix and force version.`
+
+A migration ran partially, then was retried and failed (e.g., `column "..." already exists`). Clear the dirty flag without losing data:
+
+```sh
+docker exec -it postgres psql -U postgresadmin -d rpsdb -c \
+  "UPDATE schema_migrations SET dirty = false WHERE version = <ts>;"
+docker compose restart app
+```
+
+Replace `<ts>` with the timestamp shown in the error. If data is disposable, `docker compose down -v && docker compose up -d --build` is faster.
+
+---
+
 ## For Developers
 
 ### Development Environment

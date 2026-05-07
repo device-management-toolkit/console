@@ -66,12 +66,14 @@ services:
       - .env
     environment:
       APP_ENCRYPTION_KEY: "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL" # test-only
-      HTTP_HOST: ""
+      HTTP_HOST: "console.local"
       HTTP_TLS_ENABLED: "false"
       GIN_MODE: "debug"
       DB_PROVIDER: "${DB_PROVIDER:-postgres}"
       DB_URL: "${DB_URL:-postgres://postgresadmin:admin123@postgres:5432/rpsdb}"
       AUTH_DISABLED: true
+    extra_hosts:
+      - "console.local:0.0.0.0"
     ports:
       - 8181:8181
     depends_on:
