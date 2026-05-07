@@ -775,6 +775,12 @@ type ResourceStatus_State struct {
 // ServiceRootLinks The links to other resources that are related to this resource.
 type ServiceRootLinks = map[string]interface{}
 
+// ServiceRootRedfishVersionDiscovery The Redfish version discovery payload.
+type ServiceRootRedfishVersionDiscovery struct {
+	// V1 Link to the Redfish service root.
+	V1 string `json:"v1"`
+}
+
 // ServiceRootServiceRoot The `ServiceRoot` schema describes the root of the Redfish service, located at the '/redfish/v1' URI.  All other resources accessible through the Redfish interface on this device are linked directly or indirectly from the service root.
 type ServiceRootServiceRoot struct {
 	// OdataContext The OData description of a payload.
@@ -858,6 +864,9 @@ type SessionCollectionSessionCollectionDescription1 = interface{}
 type SessionCollectionSessionCollection_Description struct {
 	union json.RawMessage
 }
+
+// SessionCollectionSessionMember The `Session` resource describes a single connection (session) between a client and a Redfish service instance.
+type SessionCollectionSessionMember = SessionSession
 
 // SessionServiceActions The available actions for this resource.
 type SessionServiceActions = map[string]interface{}
@@ -1030,7 +1039,7 @@ type PutRedfishV1SessionServiceJSONRequestBody = SessionServiceSessionService
 type PostRedfishV1SessionServiceSessionsJSONRequestBody = SessionSession
 
 // PostRedfishV1SessionServiceSessionsMembersJSONRequestBody defines body for PostRedfishV1SessionServiceSessionsMembers for application/json ContentType.
-type PostRedfishV1SessionServiceSessionsMembersJSONRequestBody = SessionSession
+type PostRedfishV1SessionServiceSessionsMembersJSONRequestBody = SessionCollectionSessionMember
 
 // PatchRedfishV1SystemsComputerSystemIdJSONRequestBody defines body for PatchRedfishV1SystemsComputerSystemId for application/json ContentType.
 type PatchRedfishV1SystemsComputerSystemIdJSONRequestBody = ComputerSystemComputerSystem

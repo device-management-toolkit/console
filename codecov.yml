@@ -5,3 +5,4 @@ coverage:
   # Specify files or directories to ignore
 ignore:
 - "internal/usecase/devices/wsman/*"
+- "redfish/internal/controller/http/v1/generated/*"  # Exclude generated code (oapi-codegen)
