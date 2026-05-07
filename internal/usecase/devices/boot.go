@@ -35,7 +35,7 @@ func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid string) (d
 		SecureEraseAllSSDs: capabilities.PlatformErase&platformEraseSecureErase != 0,
 		TPMClear:           capabilities.PlatformErase&platformEraseTPMClear != 0,
 		RestoreBIOSToEOM:   capabilities.PlatformErase&platformEraseBIOSReload != 0,
-		UnconfigureCSME:    capabilities.PlatformErase != 0,
+		UnconfigureCSME:    capabilities.PlatformErase&platformEraseCSMEUnconfigure != 0,
 	}, nil
 }
 
@@ -77,6 +77,10 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 	}
 
 	if req.UnconfigureCSME {
+		if capabilities.PlatformErase&platformEraseCSMEUnconfigure == 0 {
+			return ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support CSME unconfigure")
+		}
+
 		eraseMask |= platformEraseCSMEUnconfigure
 	}
 

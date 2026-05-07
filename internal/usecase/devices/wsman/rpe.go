@@ -5,7 +5,6 @@ import (
 	"encoding/binary"
 	"errors"
 	"fmt"
-	"log"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
@@ -29,6 +28,8 @@ var (
 	ErrInvalidEraseMask = errors.New("eraseMask must be non-negative")
 	// ErrRPEPlatformEraseNotLatched is returned when the PlatformErase flag did not latch after PUT.
 	ErrRPEPlatformEraseNotLatched = errors.New("remote erase: PlatformErase did not latch; aborting to avoid reboot with erase disabled")
+	// ErrRPEConfigurationDataResetNotLatched is returned when ConfigurationDataReset did not latch after PUT.
+	ErrRPEConfigurationDataResetNotLatched = errors.New("remote erase: ConfigurationDataReset did not latch; aborting to avoid reboot without CSME reset")
 	// ErrRPEPutAndVerifyFailed is returned when both the PUT and the verify GET fail.
 	ErrRPEPutAndVerifyFailed = errors.New("remote erase: PUT failed and verify GET failed; aborting")
 )
@@ -65,9 +66,7 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
 	// Step 1: Attempt to latch PlatformErase=true while the boot service is idle.
 	// Non-fatal: some firmware versions block this sparse PUT; the full PUT in step 3
 	// also sets PlatformErase=true, so the erase can still succeed without this latch.
-	if err := c.SetRPEEnabled(true); err != nil {
-		log.Printf("SetRemoteEraseOptions: SetRPEEnabled pre-latch failed (non-fatal): %v", err)
-	}
+	_ = c.SetRPEEnabled(true)
 
 	// Step 2: Read AMT_BootSettingData to check RPEEnabled and current state.
 	bootData, err := c.WsmanMessages.AMT.BootSettingData.Get()
@@ -129,19 +128,8 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
 		UefiBootNumberOfParams:  uefiBootNumParams,
 	}
 
-	_, putErr := c.WsmanMessages.AMT.BootSettingData.Put(putReq)
-	if putErr != nil {
-		// Verify whether PlatformErase latched from SetFeatures despite PUT failure.
-		verifyData, verifyErr := c.WsmanMessages.AMT.BootSettingData.Get()
-		if verifyErr == nil {
-			v := verifyData.Body.BootSettingDataGetResponse
-
-			if !v.PlatformErase {
-				return fmt.Errorf("%w: PUT err=%w", ErrRPEPlatformEraseNotLatched, putErr)
-			}
-		} else {
-			return fmt.Errorf("%w: PUT err=%w; verify GET err=%w", ErrRPEPutAndVerifyFailed, putErr, verifyErr)
-		}
+	if _, putErr := c.WsmanMessages.AMT.BootSettingData.Put(putReq); putErr != nil {
+		return c.verifyPutLatched(putErr, wantCSMEReset, tlvMask)
 	}
 
 	// Step 4: Activate the RPE boot config role so it executes on next restart.
@@ -154,6 +142,35 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
 	// so the BIOS never gets the opportunity to execute the CSME/platform erase.
 	if _, err = c.WsmanMessages.CIM.PowerManagementService.RequestPowerStateChange(power.PowerCycleOffHard); err != nil {
 		return fmt.Errorf("RequestPowerStateChange: %w", err)
+	}
+
+	return nil
+}
+
+// verifyPutLatched is called when BootSettingData.Put returns an error. It issues a
+// follow-up GET to check whether the flag that was actually requested (PlatformErase for
+// hardware targets, ConfigurationDataReset for CSME-only) latched despite the PUT error.
+// If it did not latch, a sentinel error is returned to abort the sequence safely.
+func (c *ConnectionEntry) verifyPutLatched(putErr error, wantCSMEReset bool, tlvMask int) error {
+	verifyData, verifyErr := c.WsmanMessages.AMT.BootSettingData.Get()
+	if verifyErr != nil {
+		return fmt.Errorf("%w: PUT err=%w; verify GET err=%w", ErrRPEPutAndVerifyFailed, putErr, verifyErr)
+	}
+
+	v := verifyData.Body.BootSettingDataGetResponse
+
+	if wantCSMEReset && tlvMask == 0 {
+		// CSME-only path: the flag that matters is ConfigurationDataReset.
+		if !v.ConfigurationDataReset {
+			return fmt.Errorf("%w: PUT err=%w", ErrRPEConfigurationDataResetNotLatched, putErr)
+		}
+
+		return nil
+	}
+
+	// Hardware-target path: the flag that matters is PlatformErase.
+	if !v.PlatformErase {
+		return fmt.Errorf("%w: PUT err=%w", ErrRPEPlatformEraseNotLatched, putErr)
 	}
 
 	return nil

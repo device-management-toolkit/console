@@ -43,6 +43,6 @@ func TestRegisterPowerRoutes_IncludesBootEndpoints(t *testing.T) {
 	paths, ok := spec["paths"].(map[string]interface{})
 	require.True(t, ok)
 
-	require.Contains(t, paths, "/api/v1/admin/amt/boot/capabilities/{guid}", "boot capabilities route should be registered")
-	require.Contains(t, paths, "/api/v1/admin/amt/boot/remoteErase/{guid}", "set RPE enabled route should be registered")
+	require.Contains(t, paths, "/api/v1/amt/boot/capabilities/{guid}", "boot capabilities route should be registered")
+	require.Contains(t, paths, "/api/v1/amt/boot/remoteErase/{guid}", "set RPE enabled route should be registered")
 }

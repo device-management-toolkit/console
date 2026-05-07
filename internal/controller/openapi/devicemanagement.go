@@ -221,14 +221,14 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/amt/boot/capabilities/{guid}", f.getBootCapabilities,
+	fuego.Get(f.server, "/api/v1/amt/boot/capabilities/{guid}", f.getBootCapabilities,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Boot Capabilities"),
 		fuego.OptionDescription("Read AMT_BootCapabilities.PlatformErase to determine Remote Platform Erase (RPE) support in the BIOS"),
 		fuego.OptionPath("guid", "Device GUID"),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
+	fuego.Get(f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Remote Erase Capabilities"),
 		fuego.OptionDescription("Retrieve Remote Platform Erase capabilities for a device"),
