@@ -159,6 +159,9 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 	// Convert ProcessorSummary if present
 	processorSummary := uc.convertProcessorSummaryToGenerated(system.ProcessorSummary)
 
+	// Convert GraphicalConsole if present
+	graphicalConsole := uc.convertGraphicalConsoleToGenerated(system.GraphicalConsole)
+
 	result := generated.ComputerSystemComputerSystem{
 		OdataContext:     &odataContext,
 		OdataId:          &odataID,
@@ -167,6 +170,7 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		Name:             system.Name,
 		Description:      descriptionUnion,
 		BiosVersion:      biosVersion,
+		GraphicalConsole: graphicalConsole,
 		HostName:         hostName,
 		Manufacturer:     manufacturer,
 		Model:            model,
@@ -229,6 +233,112 @@ func stringPtrIfNotEmpty(s string) *string {
 // SystemTypePtr creates a pointer to a ComputerSystemSystemType value.
 func SystemTypePtr(st generated.ComputerSystemSystemType) *generated.ComputerSystemSystemType {
 	return &st
+}
+
+func (uc *ComputerSystemUseCase) convertGraphicalConsoleToGenerated(console *redfishv1.ComputerSystemHostGraphicalConsole) *generated.ComputerSystemHostGraphicalConsole {
+	if console == nil {
+		return nil
+	}
+
+	connectTypes := make([]generated.ComputerSystemGraphicalConnectTypesSupported, 0, len(console.ConnectTypesSupported))
+	for _, ct := range console.ConnectTypesSupported {
+		switch ct {
+		case string(generated.ComputerSystemGraphicalConnectTypesSupportedKVMIP):
+			connectTypes = append(connectTypes, generated.ComputerSystemGraphicalConnectTypesSupportedKVMIP)
+		case string(generated.ComputerSystemGraphicalConnectTypesSupportedOEM):
+			connectTypes = append(connectTypes, generated.ComputerSystemGraphicalConnectTypesSupportedOEM)
+		}
+	}
+
+	generatedConsole := &generated.ComputerSystemHostGraphicalConsole{
+		MaxConcurrentSessions: console.MaxConcurrentSessions,
+		Port:                  console.Port,
+		ServiceEnabled:        console.ServiceEnabled,
+	}
+
+	if len(connectTypes) > 0 {
+		generatedConsole.ConnectTypesSupported = &connectTypes
+	}
+
+	if console.OEM != nil {
+		generatedConsole.Oem = uc.convertGraphicalConsoleOEMToGenerated(console.OEM)
+	}
+
+	return generatedConsole
+}
+
+func (uc *ComputerSystemUseCase) convertGraphicalConsoleOEMToGenerated(oem *redfishv1.ComputerSystemHostGraphicalConsoleOEM) *generated.ComputerSystemOemGraphicalConsole {
+	if oem == nil {
+		return nil
+	}
+
+	generatedOEM := &generated.ComputerSystemOemGraphicalConsole{}
+	if oem.Intel == nil {
+		return generatedOEM
+	}
+
+	generatedIntel := &generated.ComputerSystemOemIntelGraphicalConsole{}
+	if oem.Intel.AMT != nil {
+		generatedIntel.AMT = convertAMTGraphicalConsoleToGenerated(oem.Intel.AMT)
+	}
+
+	generatedOEM.Intel = generatedIntel
+
+	return generatedOEM
+}
+
+func convertAMTGraphicalConsoleToGenerated(amt *redfishv1.ComputerSystemHostGraphicalConsoleAMT) *generated.ComputerSystemOemIntelAMTGraphicalConsole {
+	generatedAMT := &generated.ComputerSystemOemIntelAMTGraphicalConsole{}
+	generatedAMT.ControlMode = convertControlModeToGenerated(amt.ControlMode)
+	generatedAMT.KVMStatus = convertKVMStatusToGenerated(amt.KVMStatus)
+	generatedAMT.UserConsentStatus = convertUserConsentStatusToGenerated(amt.UserConsentStatus)
+
+	return generatedAMT
+}
+
+func convertControlModeToGenerated(value string) *generated.ComputerSystemOemIntelAMTGraphicalConsole_ControlMode {
+	if value == "" {
+		return nil
+	}
+
+	wrapper := &generated.ComputerSystemOemIntelAMTGraphicalConsole_ControlMode{}
+
+	controlMode := generated.ComputerSystemOemIntelAMTControlMode(value)
+	if err := wrapper.FromComputerSystemOemIntelAMTControlMode(controlMode); err != nil {
+		return nil
+	}
+
+	return wrapper
+}
+
+func convertKVMStatusToGenerated(value string) *generated.ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus {
+	if value == "" {
+		return nil
+	}
+
+	wrapper := &generated.ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus{}
+
+	kvmStatus := generated.ComputerSystemOemIntelAMTKVMStatus(value)
+	if err := wrapper.FromComputerSystemOemIntelAMTKVMStatus(kvmStatus); err != nil {
+		return nil
+	}
+
+	return wrapper
+}
+
+func convertUserConsentStatusToGenerated(value string) *generated.ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus {
+	if value == "" {
+		return nil
+	}
+
+	wrapper := &generated.ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus{}
+
+	status := generated.ComputerSystemOemIntelAMTUserConsentStatus(value)
+	if err := wrapper.FromComputerSystemOemIntelAMTUserConsentStatus(status); err != nil {
+		return nil
+	}
+
+	return wrapper
 }
 
 // convertToEntityResetType converts from generated reset type to entity reset type.
