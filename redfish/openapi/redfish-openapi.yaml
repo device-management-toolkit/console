@@ -329,6 +329,36 @@ paths:
           description: Error condition
       security:
       - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/EmptyActionRequest'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/GenerateRedirectionTokenResponse'
+          description: The response contains a generated redirection token
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
   /redfish/v1/odata:
     get:
       responses:
@@ -664,6 +694,11 @@ components:
       properties:
         '#ComputerSystem.Reset':
           $ref: '#/components/schemas/ComputerSystem_Reset'
+        Oem:
+          $ref: '#/components/schemas/ComputerSystem_OemActions'
+          description: The available OEM-specific actions for this resource.
+          x-longDescription: This property shall contain the available OEM-specific
+            actions for this resource.
       type: object
       x-longDescription: This type shall contain the available actions for this resource.
       x-patternProperties:
@@ -1003,6 +1038,13 @@ components:
           - enum:
             - null
           readOnly: true
+        GraphicalConsole:
+          $ref: '#/components/schemas/ComputerSystem_HostGraphicalConsole'
+          description: The information about the graphical console (KVM-IP) service
+            of this system.
+          x-longDescription: This property shall contain the information about the
+            graphical console (KVM-IP) service of this system.
+          x-versionAdded: v1_13_0
         HostName:
           description: The DNS host name, without any domain information.
           nullable: true
@@ -1085,6 +1127,79 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_GenerateRedirectionToken:
+      additionalProperties: false
+      description: This action generates a short-lived redirection token.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall generate a short-lived redirection token.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_GraphicalConnectTypesSupported:
+      enum:
+      - KVMIP
+      - OEM
+      type: string
+      x-enumDescriptions:
+        KVMIP: The controller supports a graphical console connection through a KVM-IP
+          (redirection of Keyboard, Video, Mouse over IP) protocol.
+        OEM: The controller supports a graphical console connection through an OEM-specific
+          protocol.
+    ComputerSystem_HostGraphicalConsole:
+      additionalProperties: false
+      description: The information about a graphical console service for this system.
+      properties:
+        ConnectTypesSupported:
+          description: This property enumerates the graphical console connection types
+            that the implementation allows.
+          items:
+            $ref: '#/components/schemas/ComputerSystem_GraphicalConnectTypesSupported'
+          readOnly: true
+          type: array
+          x-longDescription: This property shall contain an array of the enumerations.  `KVMIP`
+            shall be included if a vendor-defined KVM-IP protocol is supported.
+          x-versionAdded: v1_13_0
+        MaxConcurrentSessions:
+          description: The maximum number of service sessions, regardless of protocol,
+            that this system can support.
+          format: int64
+          minimum: 0
+          readOnly: true
+          type: integer
+          x-longDescription: This property shall contain the maximum number of concurrent
+            service sessions that this implementation supports.
+          x-versionAdded: v1_13_0
+        Port:
+          description: The protocol port.
+          format: int64
+          minimum: 0
+          nullable: true
+          readOnly: false
+          type: integer
+          x-longDescription: This property shall contain the port assigned to the
+            service.
+          x-versionAdded: v1_13_0
+        ServiceEnabled:
+          description: An indication of whether the service is enabled for this system.
+          readOnly: false
+          type: boolean
+          x-longDescription: This property shall indicate whether the protocol for
+            the service is enabled.
+          x-versionAdded: v1_13_0
+      type: object
+      x-longDescription: This type shall describe a graphical console service for
+        a computer system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     ComputerSystem_MemoryMirroring:
       enum:
       - System
@@ -1146,6 +1261,18 @@ components:
       type: object
       x-longDescription: This type shall contain properties that describe the central
         memory for a system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemActions:
+      additionalProperties: true
+      description: The available OEM-specific actions for this resource.
+      properties:
+        '#IntelComputerSystem.GenerateRedirectionToken':
+          $ref: '#/components/schemas/ComputerSystem_GenerateRedirectionToken'
+      type: object
+      x-longDescription: This type shall contain the available OEM-specific actions
+        for this resource.
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
@@ -1343,6 +1470,26 @@ components:
         Disabled: This value shall indicate a Trusted Module is not required to boot.
         Required: This value shall indicate a functioning Trusted Module is required
           to boot.
+    EmptyActionRequest:
+      additionalProperties: false
+      description: Empty JSON body for Redfish action invocation.
+      properties: {}
+      type: object
+    GenerateRedirectionTokenResponse:
+      additionalProperties: false
+      description: The response payload containing a short-lived redirection token.
+      properties:
+        ExpirationTime:
+          description: The token expiration time in RFC3339 format.
+          format: date-time
+          type: string
+        RedirectionToken:
+          description: A short-lived token used for WebSocket redirection authentication.
+          type: string
+      required:
+      - RedirectionToken
+      - ExpirationTime
+      type: object
     Message_Message:
       additionalProperties: false
       description: The message that the Redfish service returns.

@@ -5,6 +5,7 @@ package generated
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/oapi-codegen/runtime"
@@ -71,6 +72,12 @@ const (
 	UEFI   ComputerSystemBootSourceOverrideMode = "UEFI"
 )
 
+// Defines values for ComputerSystemGraphicalConnectTypesSupported.
+const (
+	ComputerSystemGraphicalConnectTypesSupportedKVMIP ComputerSystemGraphicalConnectTypesSupported = "KVMIP"
+	ComputerSystemGraphicalConnectTypesSupportedOEM   ComputerSystemGraphicalConnectTypesSupported = "OEM"
+)
+
 // Defines values for ComputerSystemMemoryMirroring.
 const (
 	ComputerSystemMemoryMirroringDIMM   ComputerSystemMemoryMirroring = "DIMM"
@@ -130,11 +137,11 @@ const (
 
 // Defines values for ResourcePowerState.
 const (
-	Off         ResourcePowerState = "Off"
-	On          ResourcePowerState = "On"
-	Paused      ResourcePowerState = "Paused"
-	PoweringOff ResourcePowerState = "PoweringOff"
-	PoweringOn  ResourcePowerState = "PoweringOn"
+	ResourcePowerStateOff         ResourcePowerState = "Off"
+	ResourcePowerStateOn          ResourcePowerState = "On"
+	ResourcePowerStatePaused      ResourcePowerState = "Paused"
+	ResourcePowerStatePoweringOff ResourcePowerState = "PoweringOff"
+	ResourcePowerStatePoweringOn  ResourcePowerState = "PoweringOn"
 )
 
 // Defines values for ResourceResetType.
@@ -283,6 +290,9 @@ type ComputerSystemCollectionComputerSystemCollection_Description struct {
 type ComputerSystemActions struct {
 	// HashComputerSystemReset This action resets the system.
 	HashComputerSystemReset *ComputerSystemReset `json:"#ComputerSystem.Reset,omitempty"`
+
+	// Oem The available OEM-specific actions for this resource.
+	Oem *ComputerSystemOemActions `json:"Oem,omitempty"`
 }
 
 // ComputerSystemAutomaticRetryConfig defines model for ComputerSystem_AutomaticRetryConfig.
@@ -436,6 +446,9 @@ type ComputerSystemComputerSystem struct {
 	Boot        *ComputerSystemBoot                       `json:"Boot,omitempty"`
 	Description *ComputerSystemComputerSystem_Description `json:"Description,omitempty"`
 
+	// GraphicalConsole The information about a graphical console service for this system.
+	GraphicalConsole *ComputerSystemHostGraphicalConsole `json:"GraphicalConsole,omitempty"`
+
 	// HostName The DNS host name, without any domain information.
 	HostName *string `json:"HostName"`
 
@@ -484,6 +497,33 @@ type ComputerSystemComputerSystem_PowerState struct {
 	union json.RawMessage
 }
 
+// ComputerSystemGenerateRedirectionToken This action generates a short-lived redirection token.
+type ComputerSystemGenerateRedirectionToken struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemGraphicalConnectTypesSupported defines model for ComputerSystem_GraphicalConnectTypesSupported.
+type ComputerSystemGraphicalConnectTypesSupported string
+
+// ComputerSystemHostGraphicalConsole The information about a graphical console service for this system.
+type ComputerSystemHostGraphicalConsole struct {
+	// ConnectTypesSupported This property enumerates the graphical console connection types that the implementation allows.
+	ConnectTypesSupported *[]ComputerSystemGraphicalConnectTypesSupported `json:"ConnectTypesSupported,omitempty"`
+
+	// MaxConcurrentSessions The maximum number of service sessions, regardless of protocol, that this system can support.
+	MaxConcurrentSessions *int64 `json:"MaxConcurrentSessions,omitempty"`
+
+	// Port The protocol port.
+	Port *int64 `json:"Port"`
+
+	// ServiceEnabled An indication of whether the service is enabled for this system.
+	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
+}
+
 // ComputerSystemMemoryMirroring defines model for ComputerSystem_MemoryMirroring.
 type ComputerSystemMemoryMirroring string
 
@@ -508,6 +548,13 @@ type ComputerSystemMemorySummaryMemoryMirroring1 = interface{}
 // ComputerSystemMemorySummary_MemoryMirroring The ability and type of memory mirroring that this computer system supports.
 type ComputerSystemMemorySummary_MemoryMirroring struct {
 	union json.RawMessage
+}
+
+// ComputerSystemOemActions The available OEM-specific actions for this resource.
+type ComputerSystemOemActions struct {
+	// HashIntelComputerSystemGenerateRedirectionToken This action generates a short-lived redirection token.
+	HashIntelComputerSystemGenerateRedirectionToken *ComputerSystemGenerateRedirectionToken `json:"#IntelComputerSystem.GenerateRedirectionToken,omitempty"`
+	AdditionalProperties                            map[string]interface{}                  `json:"-"`
 }
 
 // ComputerSystemProcessorSummary The central processors of the system in general detail.
@@ -556,6 +603,18 @@ type ComputerSystemSystemType string
 
 // ComputerSystemTrustedModuleRequiredToBoot defines model for ComputerSystem_TrustedModuleRequiredToBoot.
 type ComputerSystemTrustedModuleRequiredToBoot string
+
+// EmptyActionRequest Empty JSON body for Redfish action invocation.
+type EmptyActionRequest = map[string]interface{}
+
+// GenerateRedirectionTokenResponse The response payload containing a short-lived redirection token.
+type GenerateRedirectionTokenResponse struct {
+	// ExpirationTime The token expiration time in RFC3339 format.
+	ExpirationTime time.Time `json:"ExpirationTime"`
+
+	// RedirectionToken A short-lived token used for WebSocket redirection authentication.
+	RedirectionToken string `json:"RedirectionToken"`
+}
 
 // MessageMessage The message that the Redfish service returns.
 type MessageMessage struct {
@@ -1046,6 +1105,77 @@ type PatchRedfishV1SystemsComputerSystemIdJSONRequestBody = ComputerSystemComput
 
 // PostRedfishV1SystemsComputerSystemIdActionsComputerSystemResetJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsComputerSystemResetJSONRequestBody = ComputerSystemResetRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody = EmptyActionRequest
+
+// Getter for additional properties for ComputerSystemOemActions. Returns the specified
+// element and whether it was found
+func (a ComputerSystemOemActions) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ComputerSystemOemActions
+func (a *ComputerSystemOemActions) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ComputerSystemOemActions to handle AdditionalProperties
+func (a *ComputerSystemOemActions) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["#IntelComputerSystem.GenerateRedirectionToken"]; found {
+		err = json.Unmarshal(raw, &a.HashIntelComputerSystemGenerateRedirectionToken)
+		if err != nil {
+			return fmt.Errorf("error reading '#IntelComputerSystem.GenerateRedirectionToken': %w", err)
+		}
+		delete(object, "#IntelComputerSystem.GenerateRedirectionToken")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ComputerSystemOemActions to handle AdditionalProperties
+func (a ComputerSystemOemActions) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.HashIntelComputerSystemGenerateRedirectionToken != nil {
+		object["#IntelComputerSystem.GenerateRedirectionToken"], err = json.Marshal(a.HashIntelComputerSystemGenerateRedirectionToken)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#IntelComputerSystem.GenerateRedirectionToken': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // AsActionInfoParameterTypes returns the union data inside the ActionInfoParameters_DataType as a ActionInfoParameterTypes
 func (t ActionInfoParameters_DataType) AsActionInfoParameterTypes() (ActionInfoParameterTypes, error) {
