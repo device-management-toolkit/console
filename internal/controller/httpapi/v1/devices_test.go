@@ -10,17 +10,32 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+func setupTestConfig() {
+	if config.ConsoleConfig == nil {
+		config.ConsoleConfig = &config.Config{
+			Auth: config.Auth{
+				JWTKey:                   "test-key",
+				JWTExpiration:            24 * time.Hour,
+				RedirectionJWTExpiration: 5 * time.Minute,
+			},
+		}
+	}
+}
+
 func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine) {
 	t.Helper()
+	setupTestConfig()
 
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
@@ -420,4 +435,116 @@ func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
+}
+
+// TestLoginRedirection verifies the device redirection token endpoint
+func TestLoginRedirection(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		deviceID     string
+		mock         func(devFeature *mocks.MockDeviceManagementFeature)
+		expectedCode int
+		expectedErr  bool
+	}{
+		{
+			name:     "login redirection - success",
+			deviceID: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedErr:  false,
+		},
+		{
+			name:     "login redirection - device not found",
+			deviceID: "invalid-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "invalid-guid", "", false).
+					Return(nil, devices.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedErr:  true,
+		},
+		{
+			name:     "login redirection - database error",
+			deviceID: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+					Return(nil, devices.ErrDatabase)
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedErr:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			devicesFeature, engine := devicesTest(t)
+			tc.mock(devicesFeature)
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+				"/api/v1/authorize/redirection/"+tc.deviceID, http.NoBody)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, tc.expectedCode, w.Code)
+
+			if !tc.expectedErr && tc.expectedCode == http.StatusOK {
+				// Parse response
+				var response map[string]string
+
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				require.NoError(t, err)
+
+				tokenString, ok := response["token"]
+				require.True(t, ok, "token field not found in response")
+				require.NotEmpty(t, tokenString)
+
+				// Decode and verify token expiration
+				verifyRedirectionTokenExpiration(t, tokenString)
+			}
+		})
+	}
+}
+
+// verifyRedirectionTokenExpiration decodes JWT token and verifies 5-minute expiration
+func verifyRedirectionTokenExpiration(t *testing.T, tokenString string) {
+	t.Helper()
+
+	// Parse JWT claims without verification (we just need to check the structure)
+	claims := jwt.RegisteredClaims{}
+	_, err := jwt.ParseWithClaims(tokenString, &claims, func(_ *jwt.Token) (interface{}, error) {
+		// Return the key for verification (we're using a test key)
+		return []byte(config.ConsoleConfig.JWTKey), nil
+	})
+	require.NoError(t, err, "token should be parseable")
+
+	// Verify ExpiresAt is set
+	require.NotNil(t, claims.ExpiresAt, "token should have expiration time")
+
+	// Calculate expected expiration window
+	now := time.Now()
+	expirationTime := claims.ExpiresAt.Time
+	timeDiff := expirationTime.Sub(now)
+
+	// Should be approximately 5 minutes (with some tolerance for test execution time)
+	expectedDuration := config.ConsoleConfig.RedirectionJWTExpiration
+	tolerance := 10 * time.Second
+
+	// Verify expiration is close to configured RedirectionJWTExpiration (5 minutes by default)
+	require.True(t, timeDiff > expectedDuration-tolerance && timeDiff < expectedDuration+tolerance,
+		"token expiration should be ~5 minutes, got %v", timeDiff)
+
+	// Specifically verify it's NOT 24 hours (the bug)
+	maxWrongExpiration := 24 * time.Hour
+	require.True(t, timeDiff < maxWrongExpiration-time.Hour,
+		"token expiration time %v is suspiciously close to 24 hours (the bug)", timeDiff)
 }
