@@ -3,21 +3,30 @@ package redfish
 
 // ComputerSystem represents a Redfish Computer System entity.
 type ComputerSystem struct {
-	ID               string                          `json:"Id"`
-	Name             string                          `json:"Name"`
-	Description      string                          `json:"Description,omitempty"`
-	BiosVersion      string                          `json:"BiosVersion,omitempty"`
-	HostName         string                          `json:"HostName,omitempty"`
-	SystemType       SystemType                      `json:"SystemType"`
-	Manufacturer     string                          `json:"Manufacturer"`
-	Model            string                          `json:"Model"`
-	SerialNumber     string                          `json:"SerialNumber"`
-	PowerState       PowerState                      `json:"PowerState"`
-	Status           *Status                         `json:"Status,omitempty"`
-	MemorySummary    *ComputerSystemMemorySummary    `json:"MemorySummary,omitempty"`
-	ProcessorSummary *ComputerSystemProcessorSummary `json:"ProcessorSummary,omitempty"`
-	ODataID          string                          `json:"@odata.id"`
-	ODataType        string                          `json:"@odata.type"`
+	ID               string                              `json:"Id"`
+	Name             string                              `json:"Name"`
+	Description      string                              `json:"Description,omitempty"`
+	BiosVersion      string                              `json:"BiosVersion,omitempty"`
+	GraphicalConsole *ComputerSystemHostGraphicalConsole `json:"GraphicalConsole,omitempty"`
+	HostName         string                              `json:"HostName,omitempty"`
+	SystemType       SystemType                          `json:"SystemType"`
+	Manufacturer     string                              `json:"Manufacturer"`
+	Model            string                              `json:"Model"`
+	SerialNumber     string                              `json:"SerialNumber"`
+	PowerState       PowerState                          `json:"PowerState"`
+	Status           *Status                             `json:"Status,omitempty"`
+	MemorySummary    *ComputerSystemMemorySummary        `json:"MemorySummary,omitempty"`
+	ProcessorSummary *ComputerSystemProcessorSummary     `json:"ProcessorSummary,omitempty"`
+	ODataID          string                              `json:"@odata.id"`
+	ODataType        string                              `json:"@odata.type"`
+}
+
+// ComputerSystemHostGraphicalConsole represents graphical console (KVM) capabilities for a system.
+type ComputerSystemHostGraphicalConsole struct {
+	ConnectTypesSupported []string `json:"ConnectTypesSupported,omitempty"`
+	MaxConcurrentSessions *int64   `json:"MaxConcurrentSessions,omitempty"`
+	Port                  *int64   `json:"Port,omitempty"`
+	ServiceEnabled        *bool    `json:"ServiceEnabled,omitempty"`
 }
 
 // Status represents the status and health of a resource.

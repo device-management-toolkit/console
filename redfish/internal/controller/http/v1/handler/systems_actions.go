@@ -14,6 +14,26 @@ import (
 	"github.com/device-management-toolkit/console/redfish/internal/usecase"
 )
 
+func sendNotImplementedActionError(c *gin.Context, action string) {
+	SetRedfishHeaders(c)
+
+	errorResponse, err := createErrorResponse("Base", "GeneralError")
+	if err != nil {
+		InternalServerError(c, err)
+
+		return
+	}
+
+	message := fmt.Sprintf("%s is not implemented", action)
+	errorResponse.Error.Message = &message
+
+	if errorResponse.Error.MessageExtendedInfo != nil && len(*errorResponse.Error.MessageExtendedInfo) > 0 {
+		(*errorResponse.Error.MessageExtendedInfo)[0].Message = &message
+	}
+
+	c.JSON(http.StatusNotImplemented, errorResponse)
+}
+
 const (
 	// JSON field names
 	odataContextKey = "@odata.context"
@@ -101,4 +121,43 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 	}
 	c.Header(headerLocation, taskServiceTasks+taskID)
 	c.JSON(http.StatusAccepted, task)
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemDisableKVM handles the KVM disable OEM action.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemDisableKVM(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	sendNotImplementedActionError(c, "DisableKVM")
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemEnableKVM handles the KVM enable OEM action.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemEnableKVM(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	sendNotImplementedActionError(c, "EnableKVM")
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken handles token generation for KVM redirection.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	sendNotImplementedActionError(c, "GenerateRedirectionToken")
 }

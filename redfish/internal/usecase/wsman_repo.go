@@ -6,9 +6,11 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	amtBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	wsmanClient "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -873,8 +875,51 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 
 	// Build and return the complete ComputerSystem using CIM data and hardware info
 	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, hwInfo)
+	system.GraphicalConsole = r.buildGraphicalConsole(ctx, systemID)
 
 	return system, nil
+}
+
+func (r *WsmanComputerSystemRepo) buildGraphicalConsole(ctx context.Context, systemID string) *redfishv1.ComputerSystemHostGraphicalConsole {
+	device, err := r.usecase.GetByID(ctx, systemID, "", false)
+	if err != nil {
+		r.log.Warn("Failed to retrieve device details for GraphicalConsole", "systemID", systemID, "error", err)
+
+		return nil
+	}
+
+	_, featuresV2, err := r.usecase.GetFeatures(ctx, systemID)
+	if err != nil {
+		r.log.Warn("Failed to retrieve KVM features for GraphicalConsole", "systemID", systemID, "error", err)
+
+		return nil
+	}
+
+	serviceEnabled := featuresV2.EnableKVM
+
+	var connectTypes []string
+
+	var port *int64
+
+	if featuresV2.KVMAvailable {
+		connectTypes = []string{"KVMIP"}
+
+		redirectionPort := wsmanClient.RedirectionNonTLSPort
+		if device.UseTLS {
+			redirectionPort = wsmanClient.RedirectionTLSPort
+		}
+
+		parsedPort, parseErr := strconv.ParseInt(redirectionPort, 10, 64)
+		if parseErr == nil {
+			port = &parsedPort
+		}
+	}
+
+	return &redfishv1.ComputerSystemHostGraphicalConsole{
+		ConnectTypesSupported: connectTypes,
+		Port:                  port,
+		ServiceEnabled:        &serviceEnabled,
+	}
 }
 
 // UpdatePowerState sends a power action command to the specified system via WSMAN.

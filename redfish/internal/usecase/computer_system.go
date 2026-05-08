@@ -99,13 +99,13 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 
 		switch system.PowerState {
 		case redfishv1.PowerStateOn:
-			redfishPowerState = generated.On
+			redfishPowerState = generated.ResourcePowerStateOn
 		case redfishv1.PowerStateOff:
-			redfishPowerState = generated.Off
+			redfishPowerState = generated.ResourcePowerStateOff
 		case redfishv1.ResetTypeForceOff, redfishv1.ResetTypeForceRestart, redfishv1.ResetTypePowerCycle:
-			redfishPowerState = generated.Off // These reset types default to Off state
+			redfishPowerState = generated.ResourcePowerStateOff // These reset types default to Off state
 		default:
-			redfishPowerState = generated.Off // Default to Off for unknown states
+			redfishPowerState = generated.ResourcePowerStateOff // Default to Off for unknown states
 		}
 
 		powerState = &generated.ComputerSystemComputerSystem_PowerState{}
@@ -159,6 +159,9 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 	// Convert ProcessorSummary if present
 	processorSummary := uc.convertProcessorSummaryToGenerated(system.ProcessorSummary)
 
+	// Convert GraphicalConsole if present
+	graphicalConsole := uc.convertGraphicalConsoleToGenerated(system.GraphicalConsole)
+
 	result := generated.ComputerSystemComputerSystem{
 		OdataContext:     &odataContext,
 		OdataId:          &odataID,
@@ -167,6 +170,7 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		Name:             system.Name,
 		Description:      descriptionUnion,
 		BiosVersion:      biosVersion,
+		GraphicalConsole: graphicalConsole,
 		HostName:         hostName,
 		Manufacturer:     manufacturer,
 		Model:            model,
@@ -229,6 +233,34 @@ func stringPtrIfNotEmpty(s string) *string {
 // SystemTypePtr creates a pointer to a ComputerSystemSystemType value.
 func SystemTypePtr(st generated.ComputerSystemSystemType) *generated.ComputerSystemSystemType {
 	return &st
+}
+
+func (uc *ComputerSystemUseCase) convertGraphicalConsoleToGenerated(console *redfishv1.ComputerSystemHostGraphicalConsole) *generated.ComputerSystemHostGraphicalConsole {
+	if console == nil {
+		return nil
+	}
+
+	connectTypes := make([]generated.ComputerSystemGraphicalConnectTypesSupported, 0, len(console.ConnectTypesSupported))
+	for _, ct := range console.ConnectTypesSupported {
+		switch ct {
+		case string(generated.ComputerSystemGraphicalConnectTypesSupportedKVMIP):
+			connectTypes = append(connectTypes, generated.ComputerSystemGraphicalConnectTypesSupportedKVMIP)
+		case string(generated.ComputerSystemGraphicalConnectTypesSupportedOEM):
+			connectTypes = append(connectTypes, generated.ComputerSystemGraphicalConnectTypesSupportedOEM)
+		}
+	}
+
+	generatedConsole := &generated.ComputerSystemHostGraphicalConsole{
+		MaxConcurrentSessions: console.MaxConcurrentSessions,
+		Port:                  console.Port,
+		ServiceEnabled:        console.ServiceEnabled,
+	}
+
+	if len(connectTypes) > 0 {
+		generatedConsole.ConnectTypesSupported = &connectTypes
+	}
+
+	return generatedConsole
 }
 
 // convertToEntityResetType converts from generated reset type to entity reset type.
