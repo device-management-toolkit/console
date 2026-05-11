@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -21,16 +22,20 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+var testConfigOnce sync.Once
+
 func setupTestConfig() {
-	if config.ConsoleConfig == nil {
-		config.ConsoleConfig = &config.Config{
-			Auth: config.Auth{
-				JWTKey:                   "test-key",
-				JWTExpiration:            24 * time.Hour,
-				RedirectionJWTExpiration: 5 * time.Minute,
-			},
+	testConfigOnce.Do(func() {
+		if config.ConsoleConfig == nil {
+			config.ConsoleConfig = &config.Config{
+				Auth: config.Auth{
+					JWTKey:                   "test-key",
+					JWTExpiration:            24 * time.Hour,
+					RedirectionJWTExpiration: 5 * time.Minute,
+				},
+			}
 		}
-	}
+	})
 }
 
 func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine) {
