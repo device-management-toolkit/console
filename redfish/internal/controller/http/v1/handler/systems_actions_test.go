@@ -6,23 +6,30 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 	"github.com/device-management-toolkit/console/redfish/internal/usecase"
 )
 
+var configTestMu sync.Mutex
+
 // Test constants for system actions
 const (
-	testSystemID        = "550e8400-e29b-41d4-a716-446655440001"
-	resetActionEndpoint = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/ComputerSystem.Reset"
-	taskServiceEndpoint = "/redfish/v1/TaskService/Tasks/"
-	taskODataContext    = "/redfish/v1/$metadata#Task.Task"
-	taskODataType       = "#Task.v1_6_0.Task"
+	testSystemID                = "550e8400-e29b-41d4-a716-446655440001"
+	resetActionEndpoint         = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/ComputerSystem.Reset"
+	generateTokenActionEndpoint = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken"
+	taskServiceEndpoint         = "/redfish/v1/TaskService/Tasks/"
+	taskODataContext            = "/redfish/v1/$metadata#Task.Task"
+	taskODataType               = "#Task.v1_6_0.Task"
 )
 
 // setupSystemActionsTestServer creates a test server with a mock repository
@@ -45,6 +52,11 @@ func setupSystemActionsTestRouter(server *RedfishServer) *gin.Engine {
 		func(c *gin.Context) {
 			computerSystemID := c.Param("computerSystemId")
 			server.PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset(c, computerSystemID)
+		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(c, computerSystemID)
 		})
 
 	return router
@@ -69,6 +81,30 @@ func executeResetRequest(router *gin.Engine, endpoint string, body []byte) *http
 	router.ServeHTTP(w, req)
 
 	return w
+}
+
+func createEmptyActionRequest() []byte {
+	return []byte(`{}`)
+}
+
+func configureTestJWT(t *testing.T) {
+	t.Helper()
+
+	configTestMu.Lock()
+
+	originalConfig := config.ConsoleConfig
+	config.ConsoleConfig = &config.Config{
+		Auth: config.Auth{
+			JWTKey:                   "redfish-test-jwt-key",
+			JWTExpiration:            time.Hour,
+			RedirectionJWTExpiration: 5 * time.Minute,
+		},
+	}
+
+	t.Cleanup(func() {
+		config.ConsoleConfig = originalConfig
+		configTestMu.Unlock()
+	})
 }
 
 // assertErrorResponse verifies the response contains an error
@@ -260,4 +296,49 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset_EmptyRes
 	w := executeResetRequest(router, resetActionEndpoint, body)
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken_Success(t *testing.T) {
+	t.Parallel()
+	configureTestJWT(t)
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test System"})
+
+	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
+
+	w := executeResetRequest(router, generateTokenActionEndpoint, createEmptyActionRequest())
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response generated.GenerateRedirectionTokenResponse
+
+	err := json.Unmarshal(w.Body.Bytes(), &response)
+	assert.NoError(t, err)
+	assert.NotEmpty(t, response.RedirectionToken)
+	assert.WithinDuration(t, time.Now().Add(5*time.Minute), response.ExpirationTime, 5*time.Second)
+
+	parsedToken, err := jwt.Parse(response.RedirectionToken, func(_ *jwt.Token) (interface{}, error) {
+		return []byte(config.ConsoleConfig.JWTKey), nil
+	})
+	assert.NoError(t, err)
+	assert.True(t, parsedToken.Valid)
+	assert.Equal(t, contentTypeJSON, w.Header().Get("Content-Type"))
+	assert.Equal(t, SupportedODataVersion, w.Header().Get("OData-Version"))
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken_SystemNotFound(t *testing.T) {
+	t.Parallel()
+	configureTestJWT(t)
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
+
+	endpoint := "/redfish/v1/Systems/999e8400-e29b-41d4-a716-446655440000/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken"
+	w := executeResetRequest(router, endpoint, createEmptyActionRequest())
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+	assertErrorResponse(t, w)
 }

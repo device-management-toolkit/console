@@ -159,5 +159,26 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	sendNotImplementedActionError(c, "GenerateRedirectionToken")
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	response, err := s.ComputerSystemUC.GenerateRedirectionToken(c.Request.Context(), computerSystemID)
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	SetRedfishHeaders(c)
+	c.JSON(http.StatusOK, response)
 }

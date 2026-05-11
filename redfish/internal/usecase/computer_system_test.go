@@ -155,3 +155,52 @@ func TestGetComputerSystemGraphicalConsoleDropsUnsupportedConnectTypes(t *testin
 		t.Fatalf("expected unsupported connect types to be omitted, got %#v", result.GraphicalConsole.ConnectTypesSupported)
 	}
 }
+
+func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
+	t.Parallel()
+
+	const systemID = "system-1"
+
+	repo := &graphicalConsoleTestRepo{
+		system: &redfishv1.ComputerSystem{
+			ID:         systemID,
+			Name:       "Test System",
+			SystemType: redfishv1.SystemTypePhysical,
+			PowerState: redfishv1.PowerStateOn,
+		},
+	}
+
+	uc := &ComputerSystemUseCase{Repo: repo}
+
+	result, err := uc.GetComputerSystem(context.Background(), systemID)
+	if err != nil {
+		t.Fatalf("GetComputerSystem returned error: %v", err)
+	}
+
+	if result.Actions == nil {
+		t.Fatal("expected Actions to be present")
+	}
+
+	if result.Actions.HashComputerSystemReset == nil {
+		t.Fatal("expected #ComputerSystem.Reset action to be present")
+	}
+
+	if result.Actions.Oem == nil {
+		t.Fatal("expected OEM actions to be present")
+	}
+
+	if result.Actions.Oem.HashIntelComputerSystemGenerateRedirectionToken == nil {
+		t.Fatal("expected #IntelComputerSystem.GenerateRedirectionToken action to be present")
+	}
+
+	action := result.Actions.Oem.HashIntelComputerSystemGenerateRedirectionToken
+	expectedTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken"
+
+	if action.Target == nil || *action.Target != expectedTarget {
+		t.Fatalf("expected action target %q, got %#v", expectedTarget, action.Target)
+	}
+
+	if action.Title == nil || *action.Title != "Generate Redirection Token" {
+		t.Fatalf("expected action title %q, got %#v", "Generate Redirection Token", action.Title)
+	}
+}
