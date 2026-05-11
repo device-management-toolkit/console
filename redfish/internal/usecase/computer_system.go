@@ -5,7 +5,11 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
@@ -31,6 +35,9 @@ var (
 
 	// ErrSystemNotFound is returned when a system is not found.
 	ErrSystemNotFound = errors.New("system not found")
+
+	// ErrConsoleConfigNotInitialized is returned when console config is not initialized.
+	ErrConsoleConfigNotInitialized = errors.New("console config is not initialized")
 )
 
 // OData and schema constants for ComputerSystem.
@@ -313,6 +320,34 @@ func (uc *ComputerSystemUseCase) UpdateGraphicalConsoleServiceEnabled(ctx contex
 	return uc.Repo.UpdateGraphicalConsoleServiceEnabled(ctx, systemID, enabled)
 }
 
+// GenerateRedirectionToken validates that the target system exists and returns a short-lived redirection token.
+func (uc *ComputerSystemUseCase) GenerateRedirectionToken(ctx context.Context, systemID string) (*generated.GenerateRedirectionTokenResponse, error) {
+	if _, err := uc.Repo.GetByID(ctx, systemID); err != nil {
+		return nil, err
+	}
+
+	if config.ConsoleConfig == nil {
+		return nil, ErrConsoleConfigNotInitialized
+	}
+
+	expirationTime := time.Now().Add(config.ConsoleConfig.RedirectionJWTExpiration)
+	claims := jwt.RegisteredClaims{
+		ExpiresAt: jwt.NewNumericDate(expirationTime),
+	}
+
+	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
+
+	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.JWTKey))
+	if err != nil {
+		return nil, fmt.Errorf("sign redirection token: %w", err)
+	}
+
+	return &generated.GenerateRedirectionTokenResponse{
+		ExpirationTime:   expirationTime,
+		RedirectionToken: tokenString,
+	}, nil
+}
+
 // validateBootSettings validates all boot configuration fields.
 func (uc *ComputerSystemUseCase) validateBootSettings(boot *generated.ComputerSystemBoot) error {
 	if err := uc.validateBootTargetField(boot.BootSourceOverrideTarget); err != nil {
@@ -525,6 +560,8 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 	// Create the target URI for the Reset action
 	target := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/ComputerSystem.Reset", systemID)
 	title := "Reset"
+	generateTokenTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken", systemID)
+	generateTokenTitle := "Generate Redirection Token"
 
 	// Create the ComputerSystem.Reset action
 	resetAction := &generated.ComputerSystemReset{
@@ -532,9 +569,18 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 		Title:  &title,
 	}
 
+	// Create the IntelComputerSystem.GenerateRedirectionToken OEM action.
+	generateTokenAction := &generated.ComputerSystemGenerateRedirectionToken{
+		Target: &generateTokenTarget,
+		Title:  &generateTokenTitle,
+	}
+
 	// Create and return the Actions structure
 	return &generated.ComputerSystemActions{
 		HashComputerSystemReset: resetAction,
+		Oem: &generated.ComputerSystemOemActions{
+			HashIntelComputerSystemGenerateRedirectionToken: generateTokenAction,
+		},
 	}
 }
 
