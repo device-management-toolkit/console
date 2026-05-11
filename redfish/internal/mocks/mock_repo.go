@@ -209,3 +209,19 @@ func (r *MockComputerSystemRepo) UpdateBootSettings(_ context.Context, systemID 
 	// Mock implementation accepts any valid boot settings
 	return nil
 }
+
+// UpdateGraphicalConsoleServiceEnabled updates the mock KVM service enabled state for a system.
+func (r *MockComputerSystemRepo) UpdateGraphicalConsoleServiceEnabled(_ context.Context, systemID string, enabled bool) error {
+	system, exists := r.systems[systemID]
+	if !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	if system.GraphicalConsole == nil {
+		system.GraphicalConsole = &redfishv1.ComputerSystemHostGraphicalConsole{}
+	}
+
+	system.GraphicalConsole.ServiceEnabled = &enabled
+
+	return nil
+}
