@@ -308,6 +308,11 @@ func (uc *ComputerSystemUseCase) UpdateBootSettings(ctx context.Context, systemI
 	return uc.Repo.UpdateBootSettings(ctx, systemID, boot)
 }
 
+// UpdateGraphicalConsoleServiceEnabled updates KVM service enabled state for a system.
+func (uc *ComputerSystemUseCase) UpdateGraphicalConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error {
+	return uc.Repo.UpdateGraphicalConsoleServiceEnabled(ctx, systemID, enabled)
+}
+
 // validateBootSettings validates all boot configuration fields.
 func (uc *ComputerSystemUseCase) validateBootSettings(boot *generated.ComputerSystemBoot) error {
 	if err := uc.validateBootTargetField(boot.BootSourceOverrideTarget); err != nil {

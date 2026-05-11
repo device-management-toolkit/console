@@ -141,6 +141,14 @@ func (r *TestSystemsComputerSystemRepository) UpdateBootSettings(_ context.Conte
 	return usecase.ErrSystemNotFound
 }
 
+func (r *TestSystemsComputerSystemRepository) UpdateGraphicalConsoleServiceEnabled(_ context.Context, systemID string, _ bool) error {
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
 // TestCase represents a generic test case structure
 type SystemsTestCase[T any] struct {
 	name           string

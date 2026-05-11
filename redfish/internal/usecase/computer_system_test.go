@@ -44,6 +44,10 @@ func (r *graphicalConsoleTestRepo) UpdateBootSettings(_ context.Context, _ strin
 	return nil
 }
 
+func (r *graphicalConsoleTestRepo) UpdateGraphicalConsoleServiceEnabled(_ context.Context, _ string, _ bool) error {
+	return nil
+}
+
 func TestConvertGraphicalConsoleToGeneratedNil(t *testing.T) {
 	t.Parallel()
 
