@@ -75,6 +75,14 @@ func (r *fuzzMockRepo) UpdateBootSettings(_ context.Context, systemID string, _ 
 	return nil
 }
 
+func (r *fuzzMockRepo) UpdateGraphicalConsoleServiceEnabled(_ context.Context, systemID string, _ bool) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
 // newFuzzUseCase returns a ComputerSystemUseCase backed by the inline mock repository.
 func newFuzzUseCase() *ComputerSystemUseCase {
 	return &ComputerSystemUseCase{Repo: newFuzzMockRepo()}

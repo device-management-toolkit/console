@@ -1,11 +1,22 @@
 package usecase
 
 import (
+	"context"
+	"errors"
 	"testing"
 
+	gomock "go.uber.org/mock/gomock"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
+	"github.com/device-management-toolkit/console/internal/entity"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
+	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
@@ -219,6 +230,252 @@ func TestBuildGraphicalConsole(t *testing.T) {
 
 			got := repo.buildGraphicalConsole(tt.useTLS, tt.features)
 			assertGraphicalConsole(t, got, tt.wantEnabled, tt.wantConnTypes, tt.wantPort, tt.wantKVMStatus)
+		})
+	}
+}
+
+func boolToListener(enabled bool) int {
+	if enabled {
+		return 1
+	}
+
+	return 0
+}
+
+func expectGetFeaturesSuccess(t *testing.T, repo *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement, device *entity.Device, kvmEnabled bool) {
+	t.Helper()
+
+	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+	management.EXPECT().GetAMTRedirectionService().Return(redirection.Response{
+		Body: redirection.Body{
+			GetAndPutResponse: redirection.RedirectionResponse{
+				EnabledState:    32771,
+				ListenerEnabled: true,
+			},
+		},
+	}, nil)
+	management.EXPECT().GetIPSOptInService().Return(optin.Response{
+		Body: optin.Body{
+			GetAndPutResponse: optin.OptInServiceResponse{
+				OptInRequired: 1,
+				OptInState:    1,
+			},
+		},
+	}, nil)
+
+	kvmState := kvm.EnabledState(0)
+	if kvmEnabled {
+		kvmState = kvm.EnabledState(redirection.Enabled)
+	}
+
+	management.EXPECT().GetKVMRedirection().Return(kvm.Response{
+		Body: kvm.Body{
+			GetResponse: kvm.KVMRedirectionSAP{EnabledState: kvmState},
+		},
+	}, nil)
+	management.EXPECT().GetBootService().Return(cimBoot.BootService{EnabledState: 32769}, nil)
+	management.EXPECT().GetCIMBootSourceSetting().Return(cimBoot.Response{
+		Body: cimBoot.Body{
+			PullResponse: cimBoot.PullResponse{
+				BootSourceSettingItems: []cimBoot.BootSourceSetting{
+					{InstanceID: "Intel(r) AMT: Force OCR UEFI HTTPS Boot"},
+					{InstanceID: "Intel(r) AMT: Force OCR UEFI Boot Option"},
+				},
+			},
+		},
+	}, nil)
+	management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{
+		ForceUEFIHTTPSBoot:    true,
+		ForceWinREBoot:        false,
+		ForceUEFILocalPBABoot: false,
+	}, nil)
+	management.EXPECT().GetBootData().Return(boot.BootSettingDataResponse{
+		UEFIHTTPSBootEnabled:    true,
+		WinREBootEnabled:        false,
+		UEFILocalPBABootEnabled: false,
+	}, nil)
+}
+
+func expectSetFeaturesSuccess(t *testing.T, repo *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement, device *entity.Device, enableKVM bool) {
+	t.Helper()
+
+	repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+	management.EXPECT().RequestAMTRedirectionServiceStateChange(true, true).Return(redirection.EnableIDERAndSOL, 1, nil)
+	management.EXPECT().SetKVMRedirection(enableKVM).Return(boolToListener(enableKVM), nil)
+	management.EXPECT().GetAMTRedirectionService().Return(redirection.Response{
+		Body: redirection.Body{
+			GetAndPutResponse: redirection.RedirectionResponse{
+				EnabledState:    32771,
+				ListenerEnabled: true,
+			},
+		},
+	}, nil)
+	management.EXPECT().SetAMTRedirectionService(&redirection.RedirectionRequest{
+		EnabledState:    redirection.EnabledState(redirection.EnableIDERAndSOL),
+		ListenerEnabled: true,
+	}).Return(redirection.Response{}, nil)
+	management.EXPECT().GetIPSOptInService().Return(optin.Response{
+		Body: optin.Body{
+			GetAndPutResponse: optin.OptInServiceResponse{
+				OptInRequired: 1,
+				OptInState:    0,
+			},
+		},
+	}, nil)
+	management.EXPECT().SetIPSOptInService(optin.OptInServiceRequest{
+		OptInRequired: 1,
+		OptInState:    0,
+	}).Return(nil)
+	management.EXPECT().BootServiceStateChange(32769).Return(cimBoot.BootService{}, nil)
+	management.EXPECT().GetBootService().Return(cimBoot.BootService{EnabledState: 32769}, nil)
+	management.EXPECT().GetCIMBootSourceSetting().Return(cimBoot.Response{
+		Body: cimBoot.Body{
+			PullResponse: cimBoot.PullResponse{
+				BootSourceSettingItems: []cimBoot.BootSourceSetting{
+					{InstanceID: "Intel(r) AMT: Force OCR UEFI HTTPS Boot"},
+					{InstanceID: "Intel(r) AMT: Force OCR UEFI Boot Option"},
+				},
+			},
+		},
+	}, nil)
+	management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{
+		ForceUEFIHTTPSBoot:    true,
+		ForceWinREBoot:        false,
+		ForceUEFILocalPBABoot: false,
+	}, nil)
+	management.EXPECT().GetBootData().Return(boot.BootSettingDataResponse{
+		UEFIHTTPSBootEnabled:    true,
+		WinREBootEnabled:        false,
+		UEFILocalPBABootEnabled: false,
+	}, nil)
+}
+
+func TestUpdateGraphicalConsoleServiceEnabledRepo(t *testing.T) {
+	t.Parallel()
+
+	errDeviceNotFound := errors.New(ErrMsgDeviceNotFound)
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		enabled bool
+		setup   func(*testing.T, *mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement, *mocks.MockManagement, *entity.Device)
+		wantErr error
+	}{
+		{
+			name:    "success",
+			enabled: true,
+			setup: func(
+				t *testing.T,
+				repo *mocks.MockDeviceManagementRepository,
+				wsmanMock *mocks.MockWSMAN,
+				getMgmt *mocks.MockManagement,
+				setMgmt *mocks.MockManagement,
+				device *entity.Device,
+			) {
+				t.Helper()
+				expectGetFeaturesSuccess(t, repo, wsmanMock, getMgmt, device, false)
+				expectSetFeaturesSuccess(t, repo, wsmanMock, setMgmt, device, true)
+			},
+		},
+		{
+			name:    "GetFeatures device not found",
+			enabled: true,
+			setup: func(
+				_ *testing.T,
+				repo *mocks.MockDeviceManagementRepository,
+				wsmanMock *mocks.MockWSMAN,
+				getMgmt *mocks.MockManagement,
+				_ *mocks.MockManagement,
+				device *entity.Device,
+			) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(getMgmt, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name:    "GetFeatures generic error",
+			enabled: true,
+			setup: func(
+				_ *testing.T,
+				repo *mocks.MockDeviceManagementRepository,
+				wsmanMock *mocks.MockWSMAN,
+				getMgmt *mocks.MockManagement,
+				_ *mocks.MockManagement,
+				device *entity.Device,
+			) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(getMgmt, errAMT)
+			},
+			wantErr: errAMT,
+		},
+		{
+			name:    "SetFeatures device not found",
+			enabled: true,
+			setup: func(
+				t *testing.T,
+				repo *mocks.MockDeviceManagementRepository,
+				wsmanMock *mocks.MockWSMAN,
+				getMgmt *mocks.MockManagement,
+				setMgmt *mocks.MockManagement,
+				device *entity.Device,
+			) {
+				t.Helper()
+				expectGetFeaturesSuccess(t, repo, wsmanMock, getMgmt, device, false)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(setMgmt, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name:    "SetFeatures generic error",
+			enabled: true,
+			setup: func(
+				t *testing.T,
+				repo *mocks.MockDeviceManagementRepository,
+				wsmanMock *mocks.MockWSMAN,
+				getMgmt *mocks.MockManagement,
+				setMgmt *mocks.MockManagement,
+				device *entity.Device,
+			) {
+				t.Helper()
+				expectGetFeaturesSuccess(t, repo, wsmanMock, getMgmt, device, false)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(setMgmt, errAMT)
+			},
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			getMgmt := mocks.NewMockManagement(ctrl)
+			setMgmt := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			tt.setup(t, repoMock, wsmanMock, getMgmt, setMgmt, device)
+
+			err := repo.UpdateGraphicalConsoleServiceEnabled(context.Background(), device.GUID, tt.enabled)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("UpdateGraphicalConsoleServiceEnabled() error = %v, wantErr %v", err, tt.wantErr)
+			}
 		})
 	}
 }
