@@ -486,7 +486,24 @@ func (uc *UseCase) isWifiProfileExists(ctx context.Context, d *dto.Profile, acti
 	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
+// fields == nil writes d as-is; non-nil merges only the listed JSON keys.
+//
+//nolint:gocognit // PATCH merge + replace + nested wifi-config insert; split scheduled separately
+func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string]bool) (*dto.Profile, error) {
+	if fields != nil {
+		existing, err := uc.getProfileWithSecrets(ctx, d.ProfileName, d.TenantID)
+		if err != nil {
+			return nil, err
+		}
+
+		if existing == nil {
+			return nil, ErrNotFound
+		}
+
+		mergeProfileFields(existing, d, fields)
+		d = existing
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
@@ -621,6 +638,66 @@ func (uc *UseCase) createdProfile(ctx context.Context, d *dto.Profile) (*dto.Pro
 	d2.WiFiConfigs = d.WiFiConfigs
 
 	return d2, nil
+}
+
+func (uc *UseCase) getProfileWithSecrets(ctx context.Context, profileName, tenantID string) (*dto.Profile, error) {
+	data, err := uc.repo.GetByName(ctx, profileName, tenantID)
+	if err != nil {
+		return nil, ErrDatabase.Wrap("getProfileWithSecrets", "uc.repo.GetByName", err)
+	}
+
+	if data == nil {
+		return nil, nil
+	}
+
+	if err := uc.DecryptPasswords(data); err != nil {
+		return nil, ErrProfilesUseCase.Wrap("getProfileWithSecrets", "DecryptPasswords", err)
+	}
+
+	d2 := uc.entityToDTO(data)
+	d2.AMTPassword = data.AMTPassword
+	d2.MEBXPassword = data.MEBXPassword
+
+	wifiConfigs, err := uc.profileWifiConfig.GetByProfileName(ctx, profileName, tenantID)
+	if err != nil && !errors.Is(err, profilewificonfigs.ErrNotFound) {
+		return nil, err
+	}
+
+	d2.WiFiConfigs = wifiConfigs
+
+	return d2, nil
+}
+
+// Keys are lowercased to match encoding/json's case-insensitive field matching.
+var profileFieldSetters = map[string]func(dst, src *dto.Profile){
+	"amtpassword":                func(dst, src *dto.Profile) { dst.AMTPassword = src.AMTPassword },
+	"generaterandompassword":     func(dst, src *dto.Profile) { dst.GenerateRandomPassword = src.GenerateRandomPassword },
+	"ciraconfigname":             func(dst, src *dto.Profile) { dst.CIRAConfigName = src.CIRAConfigName },
+	"activation":                 func(dst, src *dto.Profile) { dst.Activation = src.Activation },
+	"mebxpassword":               func(dst, src *dto.Profile) { dst.MEBXPassword = src.MEBXPassword },
+	"generaterandommebxpassword": func(dst, src *dto.Profile) { dst.GenerateRandomMEBxPassword = src.GenerateRandomMEBxPassword },
+	"tags":                       func(dst, src *dto.Profile) { dst.Tags = src.Tags },
+	"dhcpenabled":                func(dst, src *dto.Profile) { dst.DHCPEnabled = src.DHCPEnabled },
+	"ipsyncenabled":              func(dst, src *dto.Profile) { dst.IPSyncEnabled = src.IPSyncEnabled },
+	"localwifisyncenabled":       func(dst, src *dto.Profile) { dst.LocalWiFiSyncEnabled = src.LocalWiFiSyncEnabled },
+	"wificonfigs":                func(dst, src *dto.Profile) { dst.WiFiConfigs = src.WiFiConfigs },
+	"tlsmode":                    func(dst, src *dto.Profile) { dst.TLSMode = src.TLSMode },
+	"tlssigningauthority":        func(dst, src *dto.Profile) { dst.TLSSigningAuthority = src.TLSSigningAuthority },
+	"userconsent":                func(dst, src *dto.Profile) { dst.UserConsent = src.UserConsent },
+	"iderenabled":                func(dst, src *dto.Profile) { dst.IDEREnabled = src.IDEREnabled },
+	"kvmenabled":                 func(dst, src *dto.Profile) { dst.KVMEnabled = src.KVMEnabled },
+	"solenabled":                 func(dst, src *dto.Profile) { dst.SOLEnabled = src.SOLEnabled },
+	"ieee8021xprofilename":       func(dst, src *dto.Profile) { dst.IEEE8021xProfileName = src.IEEE8021xProfileName },
+	"version":                    func(dst, src *dto.Profile) { dst.Version = src.Version },
+	"uefiwifisyncenabled":        func(dst, src *dto.Profile) { dst.UEFIWiFiSyncEnabled = src.UEFIWiFiSyncEnabled },
+}
+
+func mergeProfileFields(dst, src *dto.Profile, fields map[string]bool) {
+	for key := range fields {
+		if apply, ok := profileFieldSetters[key]; ok {
+			apply(dst, src)
+		}
+	}
 }
 
 // convert dto.Profile to entity.Profile.

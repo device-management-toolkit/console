@@ -401,12 +401,74 @@ func TestUpdate(t *testing.T) {
 
 			tc.mock(repo, wifiFeat, pwfFeat)
 
-			result, err := useCase.Update(context.Background(), profileDTO)
+			result, err := useCase.Update(context.Background(), profileDTO, nil)
 
 			require.Equal(t, tc.res, result)
 			require.IsType(t, err, tc.err)
 		})
 	}
+}
+
+func TestUpdatePartialPatchMergesWithExisting(t *testing.T) {
+	t.Parallel()
+
+	tenantID := "tenant-id-456"
+	oldCira := "previous-cira"
+	oldEntity := &entity.Profile{
+		ProfileName:    "example-profile",
+		TenantID:       tenantID,
+		AMTPassword:    "old-encrypted-amt",
+		MEBXPassword:   "old-encrypted-mebx",
+		CIRAConfigName: &oldCira,
+		Tags:           "alpha",
+		Activation:     "acmactivate",
+		DHCPEnabled:    true,
+		KVMEnabled:     false,
+	}
+
+	payload := &dto.Profile{
+		ProfileName: "example-profile",
+		TenantID:    tenantID,
+		KVMEnabled:  true,
+	}
+
+	fields := map[string]bool{
+		"profilename": true,
+		"kvmenabled":  true,
+	}
+
+	expected := &entity.Profile{
+		ProfileName:    "example-profile",
+		TenantID:       tenantID,
+		Activation:     "acmactivate",
+		AMTPassword:    "encrypted",
+		MEBXPassword:   "encrypted",
+		CIRAConfigName: &oldCira,
+		Tags:           "alpha",
+		DHCPEnabled:    true,
+		KVMEnabled:     true,
+	}
+
+	useCase, repo, _, profilewifi := profilesTest(t)
+
+	repo.EXPECT().
+		GetByName(context.Background(), "example-profile", tenantID).
+		Return(oldEntity, nil)
+	profilewifi.EXPECT().
+		GetByProfileName(context.Background(), "example-profile", tenantID).
+		Return(nil, nil)
+	repo.EXPECT().
+		Update(context.Background(), expected).
+		Return(true, nil)
+	profilewifi.EXPECT().
+		DeleteByProfileName(context.Background(), "example-profile", tenantID).
+		Return(nil)
+	repo.EXPECT().
+		GetByName(context.Background(), "example-profile", tenantID).
+		Return(oldEntity, nil)
+
+	_, err := useCase.Update(context.Background(), payload, fields)
+	require.NoError(t, err)
 }
 
 func TestInsert(t *testing.T) {
