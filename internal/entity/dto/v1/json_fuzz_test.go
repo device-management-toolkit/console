@@ -236,6 +236,8 @@ func newProfileValidatorForFuzz() *validator.Validate {
 	_ = v.RegisterValidation("genpasswordwone", ValidateAMTPassOrGenRan)
 	_ = v.RegisterValidation("ciraortls", ValidateCIRAOrTLS)
 	_ = v.RegisterValidation("wifidhcp", ValidateWiFiDHCP)
+	_ = v.RegisterValidation("profilename", ValidateProfileName)
+	_ = v.RegisterValidation("amtpasswordcomplexity", ValidateAMTPasswordComplexity)
 
 	return v
 }

@@ -22,7 +22,7 @@ type (
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Profile, error)
 		GetByName(ctx context.Context, profileName, tenantID string) (*dto.Profile, error)
 		Delete(ctx context.Context, profileName, tenantID string) error
-		Update(ctx context.Context, p *dto.Profile) (*dto.Profile, error)
+		Update(ctx context.Context, p *dto.Profile, fields map[string]bool) (*dto.Profile, error)
 		Insert(ctx context.Context, p *dto.Profile) (*dto.Profile, error)
 		Export(ctx context.Context, profileName, domainName, tenantID string) (string, string, error)
 	}
