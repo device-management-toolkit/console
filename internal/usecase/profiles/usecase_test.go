@@ -511,21 +511,25 @@ func TestInsert(t *testing.T) {
 	t.Parallel()
 
 	profile := &entity.Profile{
-		ProfileName:  "new-profile",
-		TenantID:     "tenant-id-789",
-		Version:      "1.0.0",
-		Tags:         "",
-		DHCPEnabled:  true,
-		AMTPassword:  "encrypted",
-		MEBXPassword: "encrypted",
+		ProfileName:            "new-profile",
+		TenantID:               "tenant-id-789",
+		Version:                "1.0.0",
+		Tags:                   "",
+		DHCPEnabled:            true,
+		AMTPassword:            "encrypted",
+		MEBXPassword:           "encrypted",
+		GenerateRandomPassword: true,
+		Activation:             dto.ActivationCCM,
 	}
 
 	profileDTO := &dto.Profile{
-		ProfileName: "new-profile",
-		TenantID:    "tenant-id-789",
-		Version:     "1.0.0",
-		Tags:        []string{""},
-		DHCPEnabled: true,
+		ProfileName:            "new-profile",
+		TenantID:               "tenant-id-789",
+		Version:                "1.0.0",
+		Tags:                   []string{""},
+		DHCPEnabled:            true,
+		GenerateRandomPassword: true,
+		Activation:             dto.ActivationCCM,
 		WiFiConfigs: []dto.ProfileWiFiConfigs{
 			{
 				ProfileName:         "new-profile",
@@ -587,6 +591,41 @@ func TestInsert(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestInsertValidationFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   dto.Profile
+		wantErr error
+	}{
+		{
+			name:    "ccm activation, no amtPassword and not generated",
+			input:   dto.Profile{ProfileName: "p", Activation: dto.ActivationCCM},
+			wantErr: profiles.ErrAMTPasswordRequired,
+		},
+		{
+			name:    "acm activation, no mebxPassword and not generated",
+			input:   dto.Profile{ProfileName: "p", Activation: dto.ActivationACM, AMTPassword: "P@ssw0rd"},
+			wantErr: profiles.ErrMEBXPasswordRequired,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, _, _, _ := profilesTest(t)
+
+			result, err := useCase.Insert(context.Background(), &tc.input)
+
+			require.Nil(t, result)
+			require.ErrorIs(t, err, tc.wantErr)
 		})
 	}
 }
