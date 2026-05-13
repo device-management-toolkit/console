@@ -12,7 +12,8 @@ const amtRequiredSpecialChars = `!@#$%^&*`
 // profileNameDisallowedChars are chars that break the ":name" path-segment routes.
 const profileNameDisallowedChars = `/?#%`
 
-var amtPasswordCharsRegex = regexp.MustCompile(`^[a-zA-Z0-9$@!%*#?&-_~^]+$`) //nolint:gocritic // badRegexp: &-_ range matches RPS amtProfileValidator
+// &-_ is a literal U+0026-U+005F range (not three chars).
+var amtPasswordCharsRegex = regexp.MustCompile(`^[a-zA-Z0-9$@!%*#?&-_~^]+$`) //nolint:gocritic // badRegexp: matches RPS amtProfileValidator
 
 type Profile struct {
 	ProfileName                string               `json:"profileName,omitempty" binding:"required,profilename" example:"My_Profile"`

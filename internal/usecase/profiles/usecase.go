@@ -486,22 +486,17 @@ func (uc *UseCase) isWifiProfileExists(ctx context.Context, d *dto.Profile, acti
 	return nil
 }
 
-// fields == nil writes d as-is; non-nil merges only the listed JSON keys.
-//
-//nolint:gocognit // PATCH merge + replace + nested wifi-config insert; split scheduled separately
+// fields == nil writes d as a full replace; non-nil merges those keys
+// onto the existing record. profileName and tenantId identify the row
+// and are not patchable (silently skipped if listed in fields).
 func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string]bool) (*dto.Profile, error) {
 	if fields != nil {
-		existing, err := uc.getProfileWithSecrets(ctx, d.ProfileName, d.TenantID)
+		merged, err := uc.applyPATCHMerge(ctx, d, fields)
 		if err != nil {
 			return nil, err
 		}
 
-		if existing == nil {
-			return nil, ErrNotFound
-		}
-
-		mergeProfileFields(existing, d, fields)
-		d = existing
+		d = merged
 	}
 
 	d1, err := uc.dtoToEntity(d)
@@ -514,6 +509,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 		return nil, err
 	}
 
+	if err := uc.validateIEEE8021xProfile(ctx, d1, "update"); err != nil {
+		return nil, err
+	}
+
 	updated, err := uc.repo.Update(ctx, d1)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
@@ -522,26 +521,9 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 	if !updated {
 		return nil, ErrNotFound
 	}
-	// remove all wifi configs associated with the profile
-	err = uc.profileWifiConfig.DeleteByProfileName(ctx, d.ProfileName, d.TenantID)
-	if err != nil {
-		return nil, ErrDatabase.Wrap("Delete", "uc.wifiRepo.DeleteByProfileName", err)
-	}
 
-	if d.DHCPEnabled {
-		// insert new wifi configs
-		if len(d.WiFiConfigs) > 0 {
-			for _, wifiConfig := range d.WiFiConfigs {
-				wifiConfig.ProfileName = d1.ProfileName
-
-				tmpWifiConfig := wifiConfig // create a new variable to avoid memory aliasing
-
-				err = uc.profileWifiConfig.Insert(ctx, &tmpWifiConfig)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
+	if err := uc.replaceProfileWifiConfigs(ctx, d); err != nil {
+		return nil, err
 	}
 
 	updatedProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
@@ -565,7 +547,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 		return nil, err
 	}
 
-	if err := uc.validateIEEE8021xProfile(ctx, d1); err != nil {
+	if err := uc.validateIEEE8021xProfile(ctx, d1, "insert"); err != nil {
 		return nil, err
 	}
 
@@ -580,27 +562,27 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 	return uc.createdProfile(ctx, d)
 }
 
-func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Profile) error {
+func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Profile, action string) error {
 	if d1.IEEE8021xProfileName == nil || *d1.IEEE8021xProfileName == "" {
 		return nil
 	}
 
-	return uc.checkIEEE8021xProfile(ctx, *d1.IEEE8021xProfileName, d1.TenantID)
+	return uc.checkIEEE8021xProfile(ctx, *d1.IEEE8021xProfileName, d1.TenantID, action)
 }
 
-func (uc *UseCase) checkIEEE8021xProfile(ctx context.Context, profileName, tenantID string) error {
+func (uc *UseCase) checkIEEE8021xProfile(ctx context.Context, profileName, tenantID, action string) error {
 	res, err := uc.ieee.GetByName(ctx, profileName, tenantID)
 	if err != nil {
 		var nfErr repoerrors.NotFoundError
 		if errors.As(err, &nfErr) {
-			return ErrNotValid.Wrap("Insert", "uc.ieee.GetByName", consoleerrors.CreateConsoleError("IEEE profile is not found in the database"))
+			return ErrNotValid.Wrap(action, "uc.ieee.GetByName", consoleerrors.CreateConsoleError("IEEE profile is not found in the database"))
 		}
 
 		return err
 	}
 
 	if !res.WiredInterface {
-		return ErrNotValid.Wrap("Insert", "uc.ieee.GetByName", consoleerrors.CreateConsoleError("Wired interface is required"))
+		return ErrNotValid.Wrap(action, "uc.ieee.GetByName", consoleerrors.CreateConsoleError("Wired interface is required"))
 	}
 
 	return nil
@@ -628,6 +610,19 @@ func (uc *UseCase) insertProfileWifiConfigs(ctx context.Context, d *dto.Profile)
 	return nil
 }
 
+// Always delete; wifi configs are only valid on DHCP profiles.
+func (uc *UseCase) replaceProfileWifiConfigs(ctx context.Context, d *dto.Profile) error {
+	if err := uc.profileWifiConfig.DeleteByProfileName(ctx, d.ProfileName, d.TenantID); err != nil {
+		return ErrDatabase.Wrap("replaceProfileWifiConfigs", "uc.profileWifiConfig.DeleteByProfileName", err)
+	}
+
+	if !d.DHCPEnabled {
+		return nil
+	}
+
+	return uc.insertProfileWifiConfigs(ctx, d)
+}
+
 func (uc *UseCase) createdProfile(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
 	newProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
@@ -640,6 +635,17 @@ func (uc *UseCase) createdProfile(ctx context.Context, d *dto.Profile) (*dto.Pro
 	return d2, nil
 }
 
+func (uc *UseCase) applyPATCHMerge(ctx context.Context, d *dto.Profile, fields map[string]bool) (*dto.Profile, error) {
+	existing, err := uc.getProfileWithSecrets(ctx, d.ProfileName, d.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	mergeProfileFields(existing, d, fields)
+
+	return existing, nil
+}
+
 func (uc *UseCase) getProfileWithSecrets(ctx context.Context, profileName, tenantID string) (*dto.Profile, error) {
 	data, err := uc.repo.GetByName(ctx, profileName, tenantID)
 	if err != nil {
@@ -647,7 +653,7 @@ func (uc *UseCase) getProfileWithSecrets(ctx context.Context, profileName, tenan
 	}
 
 	if data == nil {
-		return nil, nil
+		return nil, ErrNotFound
 	}
 
 	if err := uc.DecryptPasswords(data); err != nil {

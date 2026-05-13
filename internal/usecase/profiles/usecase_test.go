@@ -13,7 +13,9 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -469,6 +471,40 @@ func TestUpdatePartialPatchMergesWithExisting(t *testing.T) {
 
 	_, err := useCase.Update(context.Background(), payload, fields)
 	require.NoError(t, err)
+}
+
+func TestUpdateRejectsUnknownIEEE8021xProfile(t *testing.T) {
+	t.Parallel()
+
+	tenantID := "tenant-id-456"
+	ieeeName := "missing-8021x-profile"
+
+	payload := &dto.Profile{
+		ProfileName:          "example-profile",
+		TenantID:             tenantID,
+		Version:              "1.0.0",
+		Tags:                 []string{""},
+		IEEE8021xProfileName: &ieeeName,
+	}
+
+	mockCtl := gomock.NewController(t)
+	defer mockCtl.Finish()
+
+	repo := mocks.NewMockProfilesRepository(mockCtl)
+	wifiConfig := mocks.NewMockWiFiConfigsRepository(mockCtl)
+	profileWifi := mocks.NewMockProfileWiFiConfigsFeature(mockCtl)
+	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
+	domainsMock := mocks.NewMockDomainsFeature(mockCtl)
+	ciraMock := mocks.NewMockCIRAConfigsRepository(mockCtl)
+	useCase := profiles.New(repo, wifiConfig, profileWifi, ieeeMock, logger.New("error"), domainsMock, ciraMock, mocks.MockCrypto{})
+
+	ieeeMock.EXPECT().
+		GetByName(context.Background(), ieeeName, tenantID).
+		Return(nil, repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("ieee not found")})
+
+	_, err := useCase.Update(context.Background(), payload, nil)
+	require.Error(t, err)
+	require.IsType(t, dto.NotValidError{}, err)
 }
 
 func TestInsert(t *testing.T) {
