@@ -5,6 +5,7 @@ package generated
 
 import (
 	"encoding/json"
+	"fmt"
 	"time"
 
 	"github.com/oapi-codegen/runtime"
@@ -71,12 +72,42 @@ const (
 	UEFI   ComputerSystemBootSourceOverrideMode = "UEFI"
 )
 
+// Defines values for ComputerSystemGraphicalConnectTypesSupported.
+const (
+	ComputerSystemGraphicalConnectTypesSupportedKVMIP ComputerSystemGraphicalConnectTypesSupported = "KVMIP"
+	ComputerSystemGraphicalConnectTypesSupportedOEM   ComputerSystemGraphicalConnectTypesSupported = "OEM"
+)
+
 // Defines values for ComputerSystemMemoryMirroring.
 const (
 	ComputerSystemMemoryMirroringDIMM   ComputerSystemMemoryMirroring = "DIMM"
 	ComputerSystemMemoryMirroringHybrid ComputerSystemMemoryMirroring = "Hybrid"
 	ComputerSystemMemoryMirroringNone   ComputerSystemMemoryMirroring = "None"
 	ComputerSystemMemoryMirroringSystem ComputerSystemMemoryMirroring = "System"
+)
+
+// Defines values for ComputerSystemOemIntelAMTControlMode.
+const (
+	ACM ComputerSystemOemIntelAMTControlMode = "ACM"
+	CCM ComputerSystemOemIntelAMTControlMode = "CCM"
+)
+
+// Defines values for ComputerSystemOemIntelAMTKVMStatus.
+const (
+	ComputerSystemOemIntelAMTKVMStatusActive         ComputerSystemOemIntelAMTKVMStatus = "Active"
+	ComputerSystemOemIntelAMTKVMStatusDisabled       ComputerSystemOemIntelAMTKVMStatus = "Disabled"
+	ComputerSystemOemIntelAMTKVMStatusEnabled        ComputerSystemOemIntelAMTKVMStatus = "Enabled"
+	ComputerSystemOemIntelAMTKVMStatusError          ComputerSystemOemIntelAMTKVMStatus = "Error"
+	ComputerSystemOemIntelAMTKVMStatusPendingConsent ComputerSystemOemIntelAMTKVMStatus = "PendingConsent"
+)
+
+// Defines values for ComputerSystemOemIntelAMTUserConsentStatus.
+const (
+	Denied      ComputerSystemOemIntelAMTUserConsentStatus = "Denied"
+	Granted     ComputerSystemOemIntelAMTUserConsentStatus = "Granted"
+	NotRequired ComputerSystemOemIntelAMTUserConsentStatus = "NotRequired"
+	Requested   ComputerSystemOemIntelAMTUserConsentStatus = "Requested"
+	Timeout     ComputerSystemOemIntelAMTUserConsentStatus = "Timeout"
 )
 
 // Defines values for ComputerSystemStopBootOnFault.
@@ -130,11 +161,11 @@ const (
 
 // Defines values for ResourcePowerState.
 const (
-	Off         ResourcePowerState = "Off"
-	On          ResourcePowerState = "On"
-	Paused      ResourcePowerState = "Paused"
-	PoweringOff ResourcePowerState = "PoweringOff"
-	PoweringOn  ResourcePowerState = "PoweringOn"
+	ResourcePowerStateOff         ResourcePowerState = "Off"
+	ResourcePowerStateOn          ResourcePowerState = "On"
+	ResourcePowerStatePaused      ResourcePowerState = "Paused"
+	ResourcePowerStatePoweringOff ResourcePowerState = "PoweringOff"
+	ResourcePowerStatePoweringOn  ResourcePowerState = "PoweringOn"
 )
 
 // Defines values for ResourceResetType.
@@ -156,19 +187,19 @@ const (
 
 // Defines values for ResourceState.
 const (
-	ResourceStateAbsent             ResourceState = "Absent"
-	ResourceStateDeferring          ResourceState = "Deferring"
-	ResourceStateDegraded           ResourceState = "Degraded"
-	ResourceStateDisabled           ResourceState = "Disabled"
-	ResourceStateEnabled            ResourceState = "Enabled"
-	ResourceStateInTest             ResourceState = "InTest"
-	ResourceStateQualified          ResourceState = "Qualified"
-	ResourceStateQuiesced           ResourceState = "Quiesced"
-	ResourceStateStandbyOffline     ResourceState = "StandbyOffline"
-	ResourceStateStandbySpare       ResourceState = "StandbySpare"
-	ResourceStateStarting           ResourceState = "Starting"
-	ResourceStateUnavailableOffline ResourceState = "UnavailableOffline"
-	ResourceStateUpdating           ResourceState = "Updating"
+	Absent             ResourceState = "Absent"
+	Deferring          ResourceState = "Deferring"
+	Degraded           ResourceState = "Degraded"
+	Disabled           ResourceState = "Disabled"
+	Enabled            ResourceState = "Enabled"
+	InTest             ResourceState = "InTest"
+	Qualified          ResourceState = "Qualified"
+	Quiesced           ResourceState = "Quiesced"
+	StandbyOffline     ResourceState = "StandbyOffline"
+	StandbySpare       ResourceState = "StandbySpare"
+	Starting           ResourceState = "Starting"
+	UnavailableOffline ResourceState = "UnavailableOffline"
+	Updating           ResourceState = "Updating"
 )
 
 // Defines values for SessionSessionTypes.
@@ -283,6 +314,9 @@ type ComputerSystemCollectionComputerSystemCollection_Description struct {
 type ComputerSystemActions struct {
 	// HashComputerSystemReset This action resets the system.
 	HashComputerSystemReset *ComputerSystemReset `json:"#ComputerSystem.Reset,omitempty"`
+
+	// Oem The available OEM-specific actions for this resource.
+	Oem *ComputerSystemOemActions `json:"Oem,omitempty"`
 }
 
 // ComputerSystemAutomaticRetryConfig defines model for ComputerSystem_AutomaticRetryConfig.
@@ -436,6 +470,9 @@ type ComputerSystemComputerSystem struct {
 	Boot        *ComputerSystemBoot                       `json:"Boot,omitempty"`
 	Description *ComputerSystemComputerSystem_Description `json:"Description,omitempty"`
 
+	// GraphicalConsole The information about a graphical console service for this system.
+	GraphicalConsole *ComputerSystemHostGraphicalConsole `json:"GraphicalConsole,omitempty"`
+
 	// HostName The DNS host name, without any domain information.
 	HostName *string `json:"HostName"`
 
@@ -484,6 +521,27 @@ type ComputerSystemComputerSystem_PowerState struct {
 	union json.RawMessage
 }
 
+// ComputerSystemGraphicalConnectTypesSupported defines model for ComputerSystem_GraphicalConnectTypesSupported.
+type ComputerSystemGraphicalConnectTypesSupported string
+
+// ComputerSystemHostGraphicalConsole The information about a graphical console service for this system.
+type ComputerSystemHostGraphicalConsole struct {
+	// ConnectTypesSupported This property enumerates the graphical console connection types that the implementation allows.
+	ConnectTypesSupported *[]ComputerSystemGraphicalConnectTypesSupported `json:"ConnectTypesSupported,omitempty"`
+
+	// MaxConcurrentSessions The maximum number of service sessions, regardless of protocol, that this system can support.
+	MaxConcurrentSessions *int64 `json:"MaxConcurrentSessions,omitempty"`
+
+	// Oem OEM extensions for the graphical console service.
+	Oem *ComputerSystemOemGraphicalConsole `json:"Oem,omitempty"`
+
+	// Port The protocol port.
+	Port *int64 `json:"Port"`
+
+	// ServiceEnabled An indication of whether the service is enabled for this system.
+	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
+}
+
 // ComputerSystemMemoryMirroring defines model for ComputerSystem_MemoryMirroring.
 type ComputerSystemMemoryMirroring string
 
@@ -508,6 +566,139 @@ type ComputerSystemMemorySummaryMemoryMirroring1 = interface{}
 // ComputerSystemMemorySummary_MemoryMirroring The ability and type of memory mirroring that this computer system supports.
 type ComputerSystemMemorySummary_MemoryMirroring struct {
 	union json.RawMessage
+}
+
+// ComputerSystemOemActions The available OEM-specific actions for this resource.
+type ComputerSystemOemActions struct {
+	// HashOemIntelAMTCancelKVMConsent This action cancels a pending user consent request for KVM redirection.
+	HashOemIntelAMTCancelKVMConsent *ComputerSystemOemIntelAmtCancelKVMConsent `json:"#Oem.Intel.AMT.CancelKVMConsent,omitempty"`
+
+	// HashOemIntelAMTGenerateRedirectionToken This action generates a short-lived redirection token.
+	HashOemIntelAMTGenerateRedirectionToken *ComputerSystemOemIntelAmtGenerateRedirectionToken `json:"#Oem.Intel.AMT.GenerateRedirectionToken,omitempty"`
+
+	// HashOemIntelAMTRequestKVMConsent This action requests user consent for KVM redirection.
+	HashOemIntelAMTRequestKVMConsent *ComputerSystemOemIntelAmtRequestKVMConsent `json:"#Oem.Intel.AMT.RequestKVMConsent,omitempty"`
+
+	// HashOemIntelAMTSubmitKVMConsentCode This action submits a user consent code for KVM redirection.
+	HashOemIntelAMTSubmitKVMConsentCode *ComputerSystemOemIntelAmtSubmitKVMConsentCode `json:"#Oem.Intel.AMT.SubmitKVMConsentCode,omitempty"`
+	AdditionalProperties                map[string]interface{}                         `json:"-"`
+}
+
+// ComputerSystemOemGraphicalConsole OEM extensions for the graphical console service.
+type ComputerSystemOemGraphicalConsole struct {
+	// Intel Intel-specific OEM extensions for the graphical console service.
+	Intel *ComputerSystemOemIntelGraphicalConsole `json:"Intel,omitempty"`
+}
+
+// ComputerSystemOemIntelAMTControlMode The Intel AMT provisioning control mode of the device.
+type ComputerSystemOemIntelAMTControlMode string
+
+// ComputerSystemOemIntelAMTGraphicalConsole Intel AMT-specific KVM options for the graphical console service.
+type ComputerSystemOemIntelAMTGraphicalConsole struct {
+	// ControlMode The Intel AMT provisioning control mode of the device.
+	ControlMode *ComputerSystemOemIntelAMTGraphicalConsole_ControlMode `json:"ControlMode,omitempty"`
+
+	// KVMStatus The current operational status of the KVM redirection service.
+	KVMStatus *ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus `json:"KVMStatus,omitempty"`
+
+	// UserConsentStatus The current user consent status for KVM access.
+	UserConsentStatus *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus `json:"UserConsentStatus,omitempty"`
+}
+
+// ComputerSystemOemIntelAMTGraphicalConsoleControlMode1 defines model for .
+type ComputerSystemOemIntelAMTGraphicalConsoleControlMode1 = interface{}
+
+// ComputerSystemOemIntelAMTGraphicalConsole_ControlMode The Intel AMT provisioning control mode of the device.
+type ComputerSystemOemIntelAMTGraphicalConsole_ControlMode struct {
+	union json.RawMessage
+}
+
+// ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1 defines model for .
+type ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1 = interface{}
+
+// ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus The current operational status of the KVM redirection service.
+type ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus struct {
+	union json.RawMessage
+}
+
+// ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1 defines model for .
+type ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1 = interface{}
+
+// ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus The current user consent status for KVM access.
+type ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus struct {
+	union json.RawMessage
+}
+
+// ComputerSystemOemIntelAMTKVMStatus The current operational status of the KVM redirection service on the Intel AMT device.
+type ComputerSystemOemIntelAMTKVMStatus string
+
+// ComputerSystemOemIntelAMTUserConsentStatus The current user consent status for KVM access on the Intel AMT device.
+type ComputerSystemOemIntelAMTUserConsentStatus string
+
+// ComputerSystemOemIntelAmtCancelKVMConsent This action cancels a pending user consent request for KVM redirection.
+type ComputerSystemOemIntelAmtCancelKVMConsent struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtCancelKVMConsentRequestBody This action cancels a pending user consent request for KVM redirection.
+type ComputerSystemOemIntelAmtCancelKVMConsentRequestBody = map[string]interface{}
+
+// ComputerSystemOemIntelAmtGenerateRedirectionToken This action generates a short-lived redirection token.
+type ComputerSystemOemIntelAmtGenerateRedirectionToken struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtGenerateRedirectionTokenRequestBody This action generates a short-lived redirection token.
+type ComputerSystemOemIntelAmtGenerateRedirectionTokenRequestBody = map[string]interface{}
+
+// ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse The response payload containing a short-lived redirection token.
+type ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse struct {
+	// ExpirationTime The token expiration time in RFC3339 format.
+	ExpirationTime *time.Time `json:"ExpirationTime,omitempty"`
+
+	// RedirectionToken A short-lived token used for WebSocket redirection authentication.
+	RedirectionToken *string `json:"RedirectionToken,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtRequestKVMConsent This action requests user consent for KVM redirection.
+type ComputerSystemOemIntelAmtRequestKVMConsent struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtRequestKVMConsentRequestBody This action requests user consent for KVM redirection.
+type ComputerSystemOemIntelAmtRequestKVMConsentRequestBody = map[string]interface{}
+
+// ComputerSystemOemIntelAmtSubmitKVMConsentCode This action submits a user consent code for KVM redirection.
+type ComputerSystemOemIntelAmtSubmitKVMConsentCode struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody This action submits a user consent code for KVM redirection.
+type ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody struct {
+	// ConsentCode The user consent code.
+	ConsentCode string `json:"ConsentCode"`
+}
+
+// ComputerSystemOemIntelGraphicalConsole Intel-specific OEM extensions for the graphical console service.
+type ComputerSystemOemIntelGraphicalConsole struct {
+	// AMT Intel AMT-specific KVM options for the graphical console service.
+	AMT *ComputerSystemOemIntelAMTGraphicalConsole `json:"AMT,omitempty"`
 }
 
 // ComputerSystemProcessorSummary The central processors of the system in general detail.
@@ -1046,6 +1237,131 @@ type PatchRedfishV1SystemsComputerSystemIdJSONRequestBody = ComputerSystemComput
 
 // PostRedfishV1SystemsComputerSystemIdActionsComputerSystemResetJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsComputerSystemResetJSONRequestBody = ComputerSystemResetRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody = ComputerSystemOemIntelAmtCancelKVMConsentRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody = ComputerSystemOemIntelAmtGenerateRedirectionTokenRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody = ComputerSystemOemIntelAmtRequestKVMConsentRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody = ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody
+
+// Getter for additional properties for ComputerSystemOemActions. Returns the specified
+// element and whether it was found
+func (a ComputerSystemOemActions) Get(fieldName string) (value interface{}, found bool) {
+	if a.AdditionalProperties != nil {
+		value, found = a.AdditionalProperties[fieldName]
+	}
+	return
+}
+
+// Setter for additional properties for ComputerSystemOemActions
+func (a *ComputerSystemOemActions) Set(fieldName string, value interface{}) {
+	if a.AdditionalProperties == nil {
+		a.AdditionalProperties = make(map[string]interface{})
+	}
+	a.AdditionalProperties[fieldName] = value
+}
+
+// Override default JSON handling for ComputerSystemOemActions to handle AdditionalProperties
+func (a *ComputerSystemOemActions) UnmarshalJSON(b []byte) error {
+	object := make(map[string]json.RawMessage)
+	err := json.Unmarshal(b, &object)
+	if err != nil {
+		return err
+	}
+
+	if raw, found := object["#Oem.Intel.AMT.CancelKVMConsent"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTCancelKVMConsent)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.CancelKVMConsent': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.CancelKVMConsent")
+	}
+
+	if raw, found := object["#Oem.Intel.AMT.GenerateRedirectionToken"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTGenerateRedirectionToken)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.GenerateRedirectionToken': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.GenerateRedirectionToken")
+	}
+
+	if raw, found := object["#Oem.Intel.AMT.RequestKVMConsent"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTRequestKVMConsent)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.RequestKVMConsent': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.RequestKVMConsent")
+	}
+
+	if raw, found := object["#Oem.Intel.AMT.SubmitKVMConsentCode"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTSubmitKVMConsentCode)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.SubmitKVMConsentCode': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.SubmitKVMConsentCode")
+	}
+
+	if len(object) != 0 {
+		a.AdditionalProperties = make(map[string]interface{})
+		for fieldName, fieldBuf := range object {
+			var fieldVal interface{}
+			err := json.Unmarshal(fieldBuf, &fieldVal)
+			if err != nil {
+				return fmt.Errorf("error unmarshaling field %s: %w", fieldName, err)
+			}
+			a.AdditionalProperties[fieldName] = fieldVal
+		}
+	}
+	return nil
+}
+
+// Override default JSON handling for ComputerSystemOemActions to handle AdditionalProperties
+func (a ComputerSystemOemActions) MarshalJSON() ([]byte, error) {
+	var err error
+	object := make(map[string]json.RawMessage)
+
+	if a.HashOemIntelAMTCancelKVMConsent != nil {
+		object["#Oem.Intel.AMT.CancelKVMConsent"], err = json.Marshal(a.HashOemIntelAMTCancelKVMConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.CancelKVMConsent': %w", err)
+		}
+	}
+
+	if a.HashOemIntelAMTGenerateRedirectionToken != nil {
+		object["#Oem.Intel.AMT.GenerateRedirectionToken"], err = json.Marshal(a.HashOemIntelAMTGenerateRedirectionToken)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.GenerateRedirectionToken': %w", err)
+		}
+	}
+
+	if a.HashOemIntelAMTRequestKVMConsent != nil {
+		object["#Oem.Intel.AMT.RequestKVMConsent"], err = json.Marshal(a.HashOemIntelAMTRequestKVMConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.RequestKVMConsent': %w", err)
+		}
+	}
+
+	if a.HashOemIntelAMTSubmitKVMConsentCode != nil {
+		object["#Oem.Intel.AMT.SubmitKVMConsentCode"], err = json.Marshal(a.HashOemIntelAMTSubmitKVMConsentCode)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.SubmitKVMConsentCode': %w", err)
+		}
+	}
+
+	for fieldName, field := range a.AdditionalProperties {
+		object[fieldName], err = json.Marshal(field)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '%s': %w", fieldName, err)
+		}
+	}
+	return json.Marshal(object)
+}
 
 // AsActionInfoParameterTypes returns the union data inside the ActionInfoParameters_DataType as a ActionInfoParameterTypes
 func (t ActionInfoParameters_DataType) AsActionInfoParameterTypes() (ActionInfoParameterTypes, error) {
@@ -1849,6 +2165,192 @@ func (t ComputerSystemMemorySummary_MemoryMirroring) MarshalJSON() ([]byte, erro
 }
 
 func (t *ComputerSystemMemorySummary_MemoryMirroring) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsComputerSystemOemIntelAMTControlMode returns the union data inside the ComputerSystemOemIntelAMTGraphicalConsole_ControlMode as a ComputerSystemOemIntelAMTControlMode
+func (t ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) AsComputerSystemOemIntelAMTControlMode() (ComputerSystemOemIntelAMTControlMode, error) {
+	var body ComputerSystemOemIntelAMTControlMode
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTControlMode overwrites any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_ControlMode as the provided ComputerSystemOemIntelAMTControlMode
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) FromComputerSystemOemIntelAMTControlMode(v ComputerSystemOemIntelAMTControlMode) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTControlMode performs a merge with any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_ControlMode, using the provided ComputerSystemOemIntelAMTControlMode
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) MergeComputerSystemOemIntelAMTControlMode(v ComputerSystemOemIntelAMTControlMode) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComputerSystemOemIntelAMTGraphicalConsoleControlMode1 returns the union data inside the ComputerSystemOemIntelAMTGraphicalConsole_ControlMode as a ComputerSystemOemIntelAMTGraphicalConsoleControlMode1
+func (t ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) AsComputerSystemOemIntelAMTGraphicalConsoleControlMode1() (ComputerSystemOemIntelAMTGraphicalConsoleControlMode1, error) {
+	var body ComputerSystemOemIntelAMTGraphicalConsoleControlMode1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTGraphicalConsoleControlMode1 overwrites any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_ControlMode as the provided ComputerSystemOemIntelAMTGraphicalConsoleControlMode1
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) FromComputerSystemOemIntelAMTGraphicalConsoleControlMode1(v ComputerSystemOemIntelAMTGraphicalConsoleControlMode1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTGraphicalConsoleControlMode1 performs a merge with any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_ControlMode, using the provided ComputerSystemOemIntelAMTGraphicalConsoleControlMode1
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) MergeComputerSystemOemIntelAMTGraphicalConsoleControlMode1(v ComputerSystemOemIntelAMTGraphicalConsoleControlMode1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_ControlMode) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsComputerSystemOemIntelAMTKVMStatus returns the union data inside the ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus as a ComputerSystemOemIntelAMTKVMStatus
+func (t ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) AsComputerSystemOemIntelAMTKVMStatus() (ComputerSystemOemIntelAMTKVMStatus, error) {
+	var body ComputerSystemOemIntelAMTKVMStatus
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTKVMStatus overwrites any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus as the provided ComputerSystemOemIntelAMTKVMStatus
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) FromComputerSystemOemIntelAMTKVMStatus(v ComputerSystemOemIntelAMTKVMStatus) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTKVMStatus performs a merge with any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus, using the provided ComputerSystemOemIntelAMTKVMStatus
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) MergeComputerSystemOemIntelAMTKVMStatus(v ComputerSystemOemIntelAMTKVMStatus) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1 returns the union data inside the ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus as a ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1
+func (t ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) AsComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1() (ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1, error) {
+	var body ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1 overwrites any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus as the provided ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) FromComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1(v ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1 performs a merge with any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus, using the provided ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) MergeComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1(v ComputerSystemOemIntelAMTGraphicalConsoleKVMStatus1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_KVMStatus) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsComputerSystemOemIntelAMTUserConsentStatus returns the union data inside the ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus as a ComputerSystemOemIntelAMTUserConsentStatus
+func (t ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) AsComputerSystemOemIntelAMTUserConsentStatus() (ComputerSystemOemIntelAMTUserConsentStatus, error) {
+	var body ComputerSystemOemIntelAMTUserConsentStatus
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTUserConsentStatus overwrites any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus as the provided ComputerSystemOemIntelAMTUserConsentStatus
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) FromComputerSystemOemIntelAMTUserConsentStatus(v ComputerSystemOemIntelAMTUserConsentStatus) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTUserConsentStatus performs a merge with any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus, using the provided ComputerSystemOemIntelAMTUserConsentStatus
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) MergeComputerSystemOemIntelAMTUserConsentStatus(v ComputerSystemOemIntelAMTUserConsentStatus) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1 returns the union data inside the ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus as a ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1
+func (t ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) AsComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1() (ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1, error) {
+	var body ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1 overwrites any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus as the provided ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) FromComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1(v ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1 performs a merge with any union data inside the ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus, using the provided ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) MergeComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1(v ComputerSystemOemIntelAMTGraphicalConsoleUserConsentStatus1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }

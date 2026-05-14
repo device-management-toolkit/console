@@ -102,3 +102,59 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 	c.Header(headerLocation, taskServiceTasks+taskID)
 	c.JSON(http.StatusAccepted, task)
 }
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent handles canceling KVM consent for a computer system.
+// This is a stub implementation.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	MethodNotAllowedError(c)
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken handles generating a redirection token for a computer system.
+// This is a stub implementation.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	MethodNotAllowedError(c)
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent handles requesting KVM consent for a computer system.
+// This is a stub implementation.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	MethodNotAllowedError(c)
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode handles submitting a KVM consent code for a computer system.
+// This is a stub implementation.
+//
+//nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
+func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(c *gin.Context, computerSystemID string) {
+	if err := validateSystemID(computerSystemID); err != nil {
+		BadRequestError(c, fmt.Sprintf("Invalid system ID: %s", err.Error()))
+
+		return
+	}
+
+	MethodNotAllowedError(c)
+}

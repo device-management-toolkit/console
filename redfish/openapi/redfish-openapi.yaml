@@ -329,6 +329,128 @@ paths:
           description: Error condition
       security:
       - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.CancelKVMConsent:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtCancelKVMConsentRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: The response contains the results of the CancelKVMConsent action
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.RequestKVMConsent:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtRequestKVMConsentRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: The response contains the results of the RequestKVMConsent
+            action
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtSubmitKVMConsentCodeRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: The response contains the results of the SubmitKVMConsentCode
+            action
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtGenerateRedirectionTokenRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ComputerSystem_OemIntelAmtGenerateRedirectionTokenResponse'
+          description: The response contains a generated redirection token
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
   /redfish/v1/odata:
     get:
       responses:
@@ -664,6 +786,14 @@ components:
       properties:
         '#ComputerSystem.Reset':
           $ref: '#/components/schemas/ComputerSystem_Reset'
+        Oem:
+          $ref: '#/components/schemas/ComputerSystem_OemActions'
+          description: The OEM extensions for the graphical console, including Intel
+            AMT-specific KVM options.
+          x-longDescription: This property shall contain OEM extensions for the graphical
+            console service. Intel AMT implementations shall populate the `Intel.AMT`
+            nested object with `ControlMode`, `KVMStatus`, and `UserConsentStatus`
+            properties, all of which are writable via PATCH.
       type: object
       x-longDescription: This type shall contain the available actions for this resource.
       x-patternProperties:
@@ -1003,6 +1133,13 @@ components:
           - enum:
             - null
           readOnly: true
+        GraphicalConsole:
+          $ref: '#/components/schemas/ComputerSystem_HostGraphicalConsole'
+          description: The information about the graphical console (KVM-IP) service
+            of this system.
+          x-longDescription: This property shall contain the information about the
+            graphical console (KVM-IP) service of this system.
+          x-versionAdded: v1_13_0
         HostName:
           description: The DNS host name, without any domain information.
           nullable: true
@@ -1085,6 +1222,71 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_GraphicalConnectTypesSupported:
+      enum:
+      - KVMIP
+      - OEM
+      type: string
+      x-enumDescriptions:
+        KVMIP: The controller supports a graphical console connection through a KVM-IP
+          (redirection of Keyboard, Video, Mouse over IP) protocol.
+        OEM: The controller supports a graphical console connection through an OEM-specific
+          protocol.
+    ComputerSystem_HostGraphicalConsole:
+      additionalProperties: false
+      description: The information about a graphical console service for this system.
+      properties:
+        ConnectTypesSupported:
+          description: This property enumerates the graphical console connection types
+            that the implementation allows.
+          items:
+            $ref: '#/components/schemas/ComputerSystem_GraphicalConnectTypesSupported'
+          readOnly: true
+          type: array
+          x-longDescription: This property shall contain an array of the enumerations.  `KVMIP`
+            shall be included if a vendor-defined KVM-IP protocol is supported.
+          x-versionAdded: v1_13_0
+        MaxConcurrentSessions:
+          description: The maximum number of service sessions, regardless of protocol,
+            that this system can support.
+          format: int64
+          minimum: 0
+          readOnly: true
+          type: integer
+          x-longDescription: This property shall contain the maximum number of concurrent
+            service sessions that this implementation supports.
+          x-versionAdded: v1_13_0
+        Oem:
+          $ref: '#/components/schemas/ComputerSystem_OemGraphicalConsole'
+          description: The OEM extensions for the graphical console, including Intel
+            AMT-specific KVM options.
+          x-longDescription: This property shall contain OEM extensions for the graphical
+            console service.  Intel AMT implementations shall populate the `Intel.AMT`
+            nested object with `ControlMode`, `KVMStatus`, and `UserConsentStatus`
+            properties, all of which are writable via PATCH.
+        Port:
+          description: The protocol port.
+          format: int64
+          minimum: 0
+          nullable: true
+          readOnly: false
+          type: integer
+          x-longDescription: This property shall contain the port assigned to the
+            service.
+          x-versionAdded: v1_13_0
+        ServiceEnabled:
+          description: An indication of whether the service is enabled for this system.
+          readOnly: false
+          type: boolean
+          x-longDescription: This property shall indicate whether the protocol for
+            the service is enabled.
+          x-versionAdded: v1_13_0
+      type: object
+      x-longDescription: This type shall describe a graphical console service for
+        a computer system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     ComputerSystem_MemoryMirroring:
       enum:
       - System
@@ -1146,6 +1348,307 @@ components:
       type: object
       x-longDescription: This type shall contain properties that describe the central
         memory for a system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemActions:
+      additionalProperties: true
+      description: The available OEM-specific actions for this resource.
+      properties:
+        '#Oem.Intel.AMT.CancelKVMConsent':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtCancelKVMConsent'
+        '#Oem.Intel.AMT.RequestKVMConsent':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtRequestKVMConsent'
+        '#Oem.Intel.AMT.SubmitKVMConsentCode':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtSubmitKVMConsentCode'
+        '#Oem.Intel.AMT.GenerateRedirectionToken':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtGenerateRedirectionToken'
+      type: object
+      x-longDescription: This type shall contain the available OEM-specific actions
+        for this resource.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemGraphicalConsole:
+      additionalProperties: false
+      description: OEM extensions for the graphical console service.
+      properties:
+        Intel:
+          $ref: '#/components/schemas/ComputerSystem_OemIntelGraphicalConsole'
+          description: Intel OEM extensions for the graphical console.
+          x-longDescription: This property shall contain Intel-specific OEM extensions
+            for the graphical console service.
+      type: object
+      x-longDescription: This type shall contain OEM extensions for the graphical
+        console service of a computer system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAMTControlMode:
+      description: The Intel AMT provisioning control mode of the device.
+      enum:
+      - ACM
+      - CCM
+      type: string
+      x-enumDescriptions:
+        ACM: Admin Control Mode provides full administrative KVM access without user
+          consent.
+        CCM: Client Control Mode requires explicit user consent on the target device
+          before KVM access is granted.
+      x-enumLongDescriptions:
+        ACM: This value shall indicate that the device is provisioned in Admin Control
+          Mode, which allows KVM access without requiring user consent on the target
+          device.
+        CCM: This value shall indicate that the device is provisioned in Client Control
+          Mode, which requires explicit user acceptance on the target device before
+          KVM access is granted.
+    ComputerSystem_OemIntelAMTGraphicalConsole:
+      additionalProperties: false
+      description: Intel AMT-specific KVM options for the graphical console service.
+      properties:
+        ControlMode:
+          description: The Intel AMT provisioning control mode of the device.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_OemIntelAMTControlMode'
+          - enum:
+            - null
+          readOnly: true
+          x-longDescription: This property shall contain the Intel AMT provisioning
+            control mode of the device.  This value is determined during AMT device
+            provisioning and cannot be changed through this interface.
+        KVMStatus:
+          description: The current operational status of the KVM redirection service.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_OemIntelAMTKVMStatus'
+          - enum:
+            - null
+          readOnly: true
+          x-longDescription: This property shall contain the current operational status
+            of the KVM redirection service on the AMT device, derived from WS-Man
+            queries to `AMT_RedirectionService` and `CIM_KVMRedirectionSAP`.  To enable
+            or disable the KVM service, use the `ServiceEnabled` property in `GraphicalConsole`.
+        UserConsentStatus:
+          description: The current user consent status for KVM access.
+          oneOf:
+          - $ref: '#/components/schemas/ComputerSystem_OemIntelAMTUserConsentStatus'
+          - enum:
+            - null
+          readOnly: true
+          x-longDescription: This property shall contain the current user consent
+            status for KVM access on the AMT device.  This value is managed exclusively
+            through the `#Oem.Intel.AMT.RequestKVMConsent`, `#Oem.Intel.AMT.SubmitKVMConsentCode`,
+            and `#Oem.Intel.AMT.CancelKVMConsent` actions.
+      type: object
+      x-longDescription: This type shall contain Intel AMT-specific KVM options for
+        the graphical console service.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAMTKVMStatus:
+      description: The current operational status of the KVM redirection service on
+        the Intel AMT device.
+      enum:
+      - Disabled
+      - Enabled
+      - Active
+      - PendingConsent
+      - Error
+      type: string
+      x-enumDescriptions:
+        Active: A KVM redirection session is currently active and streaming.
+        Disabled: The KVM redirection service is disabled on the AMT device.
+        Enabled: The KVM redirection service is enabled and ready to accept connections.
+        Error: The KVM service is in an error state.
+        PendingConsent: The KVM session is waiting for explicit user consent on the
+          target device.
+      x-enumLongDescriptions:
+        Active: This value shall indicate that a KVM redirection session is currently
+          active between a remote client and the AMT device.
+        Disabled: This value shall indicate that the KVM redirection service and the
+          KVM SAP are not enabled on the AMT device.
+        Enabled: This value shall indicate that the KVM redirection service is enabled
+          and ready to accept connections, but no session is currently active.
+        Error: This value shall indicate that the KVM service encountered an error
+          and is not operational.
+        PendingConsent: This value shall indicate that a KVM redirection request has
+          been issued and the service is awaiting explicit acceptance from the local
+          user on the target device.
+    ComputerSystem_OemIntelAMTUserConsentStatus:
+      description: The current user consent status for KVM access on the Intel AMT
+        device.
+      enum:
+      - NotRequired
+      - Requested
+      - Granted
+      - Denied
+      - Timeout
+      type: string
+      x-enumDescriptions:
+        Denied: The local user rejected the KVM redirection request.
+        Granted: The local user accepted the KVM redirection request.
+        NotRequired: User consent is not required for KVM access.
+        Requested: A KVM consent prompt has been displayed and is awaiting the local
+          user response.
+        Timeout: The consent prompt expired before the user responded.
+      x-enumLongDescriptions:
+        Denied: This value shall indicate that the local user has rejected the KVM
+          redirection request on the target device.
+        Granted: This value shall indicate that the local user has accepted the KVM
+          redirection request on the target device.
+        NotRequired: This value shall indicate that user consent is not required,
+          typically when the device is in ACM mode.
+        Requested: This value shall indicate that a KVM consent prompt has been sent
+          to the device and is awaiting the local user response.
+        Timeout: This value shall indicate that the consent prompt was displayed but
+          the user did not respond within the configured timeout period.
+    ComputerSystem_OemIntelAmtCancelKVMConsent:
+      additionalProperties: false
+      description: This action cancels a pending user consent request for KVM redirection.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall cancel a pending user consent request for
+        KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtCancelKVMConsentRequestBody:
+      additionalProperties: false
+      description: This action cancels a pending user consent request for KVM redirection.
+      properties: {}
+      type: object
+      x-longDescription: This action shall cancel a pending user consent request for
+        KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtGenerateRedirectionToken:
+      additionalProperties: false
+      description: This action generates a short-lived redirection token.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall generate a short-lived redirection token.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtGenerateRedirectionTokenRequestBody:
+      additionalProperties: false
+      description: This action generates a short-lived redirection token.
+      properties: {}
+      type: object
+      x-longDescription: This action shall generate a short-lived redirection token.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtGenerateRedirectionTokenResponse:
+      additionalProperties: false
+      description: The response payload containing a short-lived redirection token.
+      properties:
+        ExpirationTime:
+          description: The token expiration time in RFC3339 format.
+          format: date-time
+          readOnly: true
+          type: string
+          x-longDescription: This property shall contain the expiration time of the
+            redirection token.
+        RedirectionToken:
+          description: A short-lived token used for WebSocket redirection authentication.
+          readOnly: true
+          type: string
+          x-longDescription: This property shall contain a short-lived JWT token for
+            KVM console redirection.
+      required:
+      - RedirectionToken
+      - ExpirationTime
+      type: object
+      x-longDescription: This type shall contain the response payload for the GenerateRedirectionToken
+        action.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtRequestKVMConsent:
+      additionalProperties: false
+      description: This action requests user consent for KVM redirection.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall request user consent for KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtRequestKVMConsentRequestBody:
+      additionalProperties: false
+      description: This action requests user consent for KVM redirection.
+      properties: {}
+      type: object
+      x-longDescription: This action shall request user consent for KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtSubmitKVMConsentCode:
+      additionalProperties: false
+      description: This action submits a user consent code for KVM redirection.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall submit a user consent code for KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtSubmitKVMConsentCodeRequestBody:
+      additionalProperties: false
+      description: This action submits a user consent code for KVM redirection.
+      properties:
+        ConsentCode:
+          description: The user consent code.
+          pattern: ^[0-9]{6}$
+          type: string
+          x-longDescription: This parameter shall contain the user consent code for
+            KVM redirection.
+      required:
+      - ConsentCode
+      type: object
+      x-longDescription: This action shall submit a user consent code for KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelGraphicalConsole:
+      additionalProperties: false
+      description: Intel-specific OEM extensions for the graphical console service.
+      properties:
+        AMT:
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAMTGraphicalConsole'
+          description: Intel AMT-specific KVM options for the graphical console.
+          x-longDescription: This property shall contain Intel AMT-specific KVM options
+            for the graphical console service.
+      type: object
+      x-longDescription: This type shall contain Intel-specific OEM extensions for
+        the graphical console service of a computer system.
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
