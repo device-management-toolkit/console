@@ -231,11 +231,10 @@ func fuzzJSONAndValidate[T any](t *testing.T, payload string, newValue func() *T
 }
 
 func newProfileValidatorForFuzz() *validator.Validate {
-	v := validator.New()
-	v.SetTagName("binding")
-	_ = v.RegisterValidation("genpasswordwone", ValidateAMTPassOrGenRan)
-	_ = v.RegisterValidation("ciraortls", ValidateCIRAOrTLS)
-	_ = v.RegisterValidation("wifidhcp", ValidateWiFiDHCP)
+	v, err := NewValidator()
+	if err != nil {
+		panic(err)
+	}
 
 	return v
 }

@@ -128,3 +128,38 @@ type ProfileExportResponse struct {
 	Filename string `json:"filename"`
 	Key      string `json:"key"`
 }
+
+// NewValidator creates a validator configured for DTO binding tags.
+func NewValidator() (*validator.Validate, error) {
+	v := validator.New()
+	v.SetTagName("binding")
+
+	if err := RegisterCustomValidations(v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+// RegisterCustomValidations registers all custom validation tags used by DTOs.
+func RegisterCustomValidations(v *validator.Validate) error {
+	custom := map[string]validator.Func{
+		"profilename":              ValidateProfileName,
+		"amtpasswordcomplexity":    ValidateAMTPasswordComplexity,
+		"genpasswordwone":          ValidateAMTPassOrGenRan,
+		"ciraortls":                ValidateCIRAOrTLS,
+		"wifidhcp":                 ValidateWiFiDHCP,
+		"userconsent":              ValidateUserConsent,
+		"alphanumhyphenunderscore": ValidateAlphaNumHyphenUnderscore,
+		"authforieee8021x":         ValidateAuthandIEEE,
+		"authProtocolValidator":    AuthProtocolValidator,
+	}
+
+	for name, fn := range custom {
+		if err := v.RegisterValidation(name, fn); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
