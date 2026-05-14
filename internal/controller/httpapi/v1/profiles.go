@@ -135,14 +135,22 @@ func (r *profileRoutes) insert(c *gin.Context) {
 
 func (r *profileRoutes) update(c *gin.Context) {
 	var profile dto.Profile
-	if err := c.ShouldBindJSON(&profile); err != nil {
-		validationErr := ErrValidationProfile.Wrap("update", "ShouldBindJSON", err)
+	if err := c.ShouldBindBodyWithJSON(&profile); err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "ShouldBindBodyWithJSON", err)
 		ErrorResponse(c, validationErr)
 
 		return
 	}
 
-	updatedProfile, err := r.t.Update(c.Request.Context(), &profile)
+	fields, err := providedJSONFields(c)
+	if err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "providedJSONFields", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	updatedProfile, err := r.t.Update(c.Request.Context(), &profile, fields)
 	if err != nil {
 		r.l.Error(err, "http - v1 - update")
 		ErrorResponse(c, err)
