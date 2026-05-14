@@ -261,3 +261,141 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset_EmptyRes
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+// Stub implementation tests for KVM actions
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.CancelKVMConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/../invalid/Actions/Oem/IntelComputerSystem.CancelKVMConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "../invalid"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(ctx, "../invalid")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/invalid;/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "invalid;"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(ctx, "invalid;")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.RequestKVMConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/test%00null/Actions/Oem/IntelComputerSystem.RequestKVMConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "test\x00null"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(ctx, "test\x00null")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/<script>/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "<script>"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(ctx, "<script>")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
