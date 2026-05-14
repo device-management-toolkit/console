@@ -3,15 +3,13 @@ package dto
 import (
 	"testing"
 
-	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/assert"
 )
 
 func TestValidateWiFiDHCP(t *testing.T) {
 	t.Parallel()
 
-	validate := validator.New()
-	err := validate.RegisterValidation("wifidhcp", ValidateWiFiDHCP)
+	validate, err := NewValidator()
 	assert.NoError(t, err)
 
 	tests := []struct {
@@ -103,8 +101,8 @@ func TestValidateWiFiDHCP(t *testing.T) {
 			t.Parallel()
 
 			type testStruct struct {
-				DHCPEnabled bool                 `validate:"omitempty"`
-				WiFiConfigs []ProfileWiFiConfigs `validate:"wifidhcp"`
+				DHCPEnabled bool                 `binding:"omitempty"`
+				WiFiConfigs []ProfileWiFiConfigs `binding:"wifidhcp"`
 			}
 
 			s := testStruct{

@@ -1,6 +1,7 @@
 services:
   vault:
-    image: hashicorp/vault
+    image: hashicorp/vault:1.21
+    command: server -dev
     networks:
       - dmtnetwork1
     ports:
@@ -23,6 +24,38 @@ services:
       POSTGRES_DB: "rpsdb"
     ports:
       - 5432:5432
+  mongo:
+    container_name: mongo
+    image: mongo:7
+    profiles:
+      - mongo
+    networks:
+      - dmtnetwork1
+    volumes:
+      - mongo-data:/data/db
+    environment:
+      MONGO_INITDB_DATABASE: consoledb
+      MONGO_INITDB_ROOT_USERNAME: "mongoadmin"
+      MONGO_INITDB_ROOT_PASSWORD: "admin123"
+    ports:
+      - "127.0.0.1:27017:27017"
+    healthcheck:
+      test:
+        - CMD
+        - mongosh
+        - --quiet
+        - -u
+        - "mongoadmin"
+        - -p
+        - "admin123"
+        - --authenticationDatabase
+        - admin
+        - --eval
+        - db.adminCommand('ping').ok
+      interval: 5s
+      timeout: 5s
+      retries: 12
+      start_period: 10s
   app:
     build: .
     container_name: app
@@ -32,26 +65,25 @@ services:
     env_file:
       - .env
     environment:
-      APP_ENCRYPTION_KEY: "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL" # This is a test encryption key for the app
+      APP_ENCRYPTION_KEY: "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL" # test-only
       HTTP_HOST: ""
       HTTP_TLS_ENABLED: "false"
       GIN_MODE: "debug"
-      DB_URL: "postgres://postgresadmin:admin123@postgres:5432/rpsdb"
+      DB_PROVIDER: "${DB_PROVIDER:-postgres}"
+      DB_URL: "${DB_URL:-postgres://postgresadmin:admin123@postgres:5432/rpsdb}"
       AUTH_DISABLED: true
     ports:
       - 8181:8181
     depends_on:
-      - postgres
-  # integration:
-  #   build:
-  #     context: .
-  #     dockerfile: integration-test/Dockerfile
-  #   container_name: integration
-  #   image: integration
-  #   depends_on:
-  #     - app
+      postgres:
+        condition: service_started
+        required: false
+      mongo:
+        condition: service_healthy
+        required: false
 volumes:
   pg-data:
+  mongo-data:
 networks:
   dmtnetwork1:
     driver: "bridge"

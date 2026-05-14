@@ -1,20 +1,29 @@
 package dto
 
 import (
+	"regexp"
 	"strings"
 
 	"github.com/go-playground/validator/v10"
 )
 
+const amtRequiredSpecialChars = `!@#$%^&*`
+
+// profileNameDisallowedChars are chars that break the ":name" path-segment routes.
+const profileNameDisallowedChars = `/?#%`
+
+// &-_ is a literal U+0026-U+005F range (not three chars).
+var amtPasswordCharsRegex = regexp.MustCompile(`^[a-zA-Z0-9$@!%*#?&-_~^]+$`) //nolint:gocritic // badRegexp: matches RPS amtProfileValidator
+
 type Profile struct {
-	ProfileName                string               `json:"profileName,omitempty" binding:"required" example:"My Profile"`
-	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_if=GenerateRandomPassword false,omitempty,len=0|min=8,max=32,containsany=$@$!%*#?&-_~^" example:"my_password"`
+	ProfileName                string               `json:"profileName,omitempty" binding:"required,profilename" example:"My_Profile"`
+	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_if=GenerateRandomPassword false,omitempty,len=0|min=8,max=32,amtpasswordcomplexity" example:"P@ssw0rd"`
 	CreationDate               string               `json:"creationDate,omitempty" example:"2021-07-01T00:00:00Z"`
 	CreatedBy                  string               `json:"created_by,omitempty" example:"admin"`
 	GenerateRandomPassword     bool                 `json:"generateRandomPassword" binding:"omitempty,genpasswordwone" example:"true"`
 	CIRAConfigName             *string              `json:"ciraConfigName,omitempty" example:"My CIRA Config"`
 	Activation                 string               `json:"activation" binding:"required,oneof=ccmactivate acmactivate" example:"activate"`
-	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false,omitempty,len=0|min=8,max=32,containsany=$@$!%*#?&-_~^" example:"my_password"`
+	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false,omitempty,len=0|min=8,max=32,amtpasswordcomplexity" example:"P@ssw0rd"`
 	GenerateRandomMEBxPassword bool                 `json:"generateRandomMEBxPassword" example:"true"`
 	CIRAConfigObject           *CIRAConfig          `json:"ciraConfigObject,omitempty"`
 	Tags                       []string             `json:"tags,omitempty"`
@@ -23,7 +32,7 @@ type Profile struct {
 	LocalWiFiSyncEnabled       bool                 `json:"localWifiSyncEnabled" example:"true"`
 	WiFiConfigs                []ProfileWiFiConfigs `json:"wifiConfigs,omitempty" binding:"wifidhcp,dive"`
 	TenantID                   string               `json:"tenantId" example:"abc123"`
-	TLSMode                    int                  `json:"tlsMode,omitempty" binding:"omitempty,min=1,max=4,ciraortls" example:"1"`
+	TLSMode                    int                  `json:"tlsMode" binding:"omitempty,min=1,max=4,ciraortls" example:"1"` // not omitempty: 0 ("TLS off") is meaningful and the web UI relies on it being present
 	TLSCerts                   *TLSCerts            `json:"tlsCerts,omitempty"`
 	TLSSigningAuthority        string               `json:"tlsSigningAuthority,omitempty" binding:"omitempty,oneof=SelfSigned MicrosoftCA" example:"SelfSigned"`
 	UserConsent                string               `json:"userConsent,omitempty" binding:"omitempty" default:"All" example:"All"`
@@ -34,6 +43,36 @@ type Profile struct {
 	IEEE8021xProfile           *IEEE8021xConfig     `json:"ieee8021xProfile,omitempty"`
 	Version                    string               `json:"version,omitempty" example:"1.0.0"`
 	UEFIWiFiSyncEnabled        bool                 `json:"uefiWifiSyncEnabled" example:"true"`
+}
+
+// ValidateProfileName rejects only the characters that break the ":name" routes (profileNameDisallowedChars).
+var ValidateProfileName validator.Func = func(fl validator.FieldLevel) bool {
+	return !strings.ContainsAny(fl.Field().String(), profileNameDisallowedChars)
+}
+
+// ValidateAMTPasswordComplexity enforces RPS's password rules: allowed char class plus lower+upper+digit+special.
+var ValidateAMTPasswordComplexity validator.Func = func(fl validator.FieldLevel) bool {
+	password := fl.Field().String()
+	if !amtPasswordCharsRegex.MatchString(password) {
+		return false
+	}
+
+	var hasLower, hasUpper, hasDigit, hasSpecial bool
+
+	for _, r := range password {
+		switch {
+		case r >= 'a' && r <= 'z':
+			hasLower = true
+		case r >= 'A' && r <= 'Z':
+			hasUpper = true
+		case r >= '0' && r <= '9':
+			hasDigit = true
+		case strings.ContainsRune(amtRequiredSpecialChars, r):
+			hasSpecial = true
+		}
+	}
+
+	return hasLower && hasUpper && hasDigit && hasSpecial
 }
 
 var ValidateCIRAOrTLS validator.Func = func(fl validator.FieldLevel) bool {
@@ -88,4 +127,39 @@ type ProfileExportResponse struct {
 	Content  string `json:"content"`
 	Filename string `json:"filename"`
 	Key      string `json:"key"`
+}
+
+// NewValidator creates a validator configured for DTO binding tags.
+func NewValidator() (*validator.Validate, error) {
+	v := validator.New()
+	v.SetTagName("binding")
+
+	if err := RegisterCustomValidations(v); err != nil {
+		return nil, err
+	}
+
+	return v, nil
+}
+
+// RegisterCustomValidations registers all custom validation tags used by DTOs.
+func RegisterCustomValidations(v *validator.Validate) error {
+	custom := map[string]validator.Func{
+		"profilename":              ValidateProfileName,
+		"amtpasswordcomplexity":    ValidateAMTPasswordComplexity,
+		"genpasswordwone":          ValidateAMTPassOrGenRan,
+		"ciraortls":                ValidateCIRAOrTLS,
+		"wifidhcp":                 ValidateWiFiDHCP,
+		"userconsent":              ValidateUserConsent,
+		"alphanumhyphenunderscore": ValidateAlphaNumHyphenUnderscore,
+		"authforieee8021x":         ValidateAuthandIEEE,
+		"authProtocolValidator":    AuthProtocolValidator,
+	}
+
+	for name, fn := range custom {
+		if err := v.RegisterValidation(name, fn); err != nil {
+			return err
+		}
+	}
+
+	return nil
 }

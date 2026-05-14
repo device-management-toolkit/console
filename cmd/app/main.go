@@ -34,6 +34,12 @@ var (
 )
 
 func main() {
+	if len(os.Args) > 1 && os.Args[1] == "healthcheck" {
+		runHealthCheck()
+
+		return
+	}
+
 	cfg, err := initializeConfigFunc()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)

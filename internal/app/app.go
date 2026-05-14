@@ -2,8 +2,8 @@
 package app
 
 import (
-	"database/sql"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"os/signal"
@@ -21,7 +21,6 @@ import (
 	"github.com/device-management-toolkit/console/internal/controller/tcp/cira"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
-	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/httpserver"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -38,20 +37,24 @@ func Run(cfg *config.Config, log logger.Interface) {
 	// route standard and Gin logs through our JSON logger
 	logger.SetupStdLog(log)
 	logger.SetupGin(log)
-	// Repository
-	database, err := db.New(cfg.DB.URL, sql.Open, db.MaxPoolSize(cfg.PoolMax), db.EnableForeignKeys(true))
+	// Repositories — provider (postgres/sqlite/mongo) chosen by config.
+	repos, err := buildRepos(cfg, log)
 	if err != nil {
-		log.Fatal(fmt.Errorf("app - Run - db.New: %w", err))
+		log.Fatal(fmt.Errorf("app - Run - buildRepos: %w", err))
 	}
 
-	defer database.Close()
+	defer func() {
+		if cerr := repos.Closer.Close(); cerr != nil {
+			log.Error(fmt.Errorf("app - Run - repos.Closer.Close: %w", cerr))
+		}
+	}()
 
 	// Use case
-	usecases := usecase.NewUseCases(database, log, CertStore)
+	usecases := usecase.NewUseCases(repos, log, CertStore)
 
-	handler := setupHTTPHandler(cfg, log, usecases, database)
+	handler := setupHTTPHandler(cfg, log, usecases)
 
-	ciraServer := setupCIRAServer(cfg, log, database, usecases)
+	ciraServer := setupCIRAServer(cfg, log, repos.Closer, usecases)
 
 	httpServer := httpserver.New(
 		handler,
@@ -64,7 +67,7 @@ func Run(cfg *config.Config, log logger.Interface) {
 	shutdownServers(log, httpServer, ciraServer)
 }
 
-func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases, database *db.SQL) *gin.Engine {
+func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases) *gin.Engine {
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -76,7 +79,7 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	defaultConfig.AllowHeaders = cfg.AllowedHeaders
 
 	handler.Use(cors.New(defaultConfig))
-	httpapi.NewRouter(handler, log, *usecases, cfg, database)
+	httpapi.NewRouter(handler, log, *usecases, cfg, nil)
 
 	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
 	if os.Getenv("ENABLE_PPROF") == "true" {
@@ -97,7 +100,7 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	return handler
 }
 
-func setupCIRAServer(cfg *config.Config, log logger.Interface, database *db.SQL, usecases *usecase.Usecases) *cira.Server {
+func setupCIRAServer(cfg *config.Config, log logger.Interface, closer io.Closer, usecases *usecase.Usecases) *cira.Server {
 	if cfg.DisableCIRA {
 		return nil
 	}
@@ -107,7 +110,8 @@ func setupCIRAServer(cfg *config.Config, log logger.Interface, database *db.SQL,
 
 	ciraServer, err := cira.NewServer(ciraCertFile, ciraKeyFile, usecases.Devices, log)
 	if err != nil {
-		database.Close()
+		_ = closer.Close()
+
 		log.Fatal("CIRA Server failed: %v", err)
 	}
 
