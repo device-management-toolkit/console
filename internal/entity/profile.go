@@ -1,40 +1,40 @@
 package entity
 
 type Profile struct {
-	ProfileName                string
-	AMTPassword                string
-	CreationDate               string
-	CreatedBy                  string
-	GenerateRandomPassword     bool
-	CIRAConfigName             *string
-	Activation                 string
-	MEBXPassword               string
-	GenerateRandomMEBxPassword bool
-	Tags                       string
-	DHCPEnabled                bool
-	IPSyncEnabled              bool
-	LocalWiFiSyncEnabled       bool
-	TenantID                   string
-	TLSMode                    int
-	TLSSigningAuthority        string
-	UserConsent                string
-	IDEREnabled                bool
-	KVMEnabled                 bool
-	SOLEnabled                 bool
-	IEEE8021xProfileName       *string
-	UEFIWiFiSyncEnabled        bool
+	ProfileName                string  `bson:"profilename"`
+	AMTPassword                string  `bson:"amtpassword"`
+	CreationDate               string  `bson:"creationdate,omitempty"`
+	CreatedBy                  string  `bson:"createdby,omitempty"`
+	GenerateRandomPassword     bool    `bson:"generaterandompassword"`
+	CIRAConfigName             *string `bson:"ciraconfigname"`
+	Activation                 string  `bson:"activation"`
+	MEBXPassword               string  `bson:"mebxpassword"`
+	GenerateRandomMEBxPassword bool    `bson:"generaterandommebxpassword"`
+	Tags                       string  `bson:"tags"`
+	DHCPEnabled                bool    `bson:"dhcpenabled"`
+	IPSyncEnabled              bool    `bson:"ipsyncenabled"`
+	LocalWiFiSyncEnabled       bool    `bson:"localwifisyncenabled"`
+	TenantID                   string  `bson:"tenantid"`
+	TLSMode                    int     `bson:"tlsmode"`
+	TLSSigningAuthority        string  `bson:"tlssigningauthority"`
+	UserConsent                string  `bson:"userconsent"`
+	IDEREnabled                bool    `bson:"iderenabled"`
+	KVMEnabled                 bool    `bson:"kvmenabled"`
+	SOLEnabled                 bool    `bson:"solenabled"`
+	IEEE8021xProfileName       *string `bson:"ieee8021xprofilename"`
+	UEFIWiFiSyncEnabled        bool    `bson:"uefiwifisyncenabled"`
 
-	// columns to populate from join query
-	Version                string
-	AuthenticationProtocol *int
-	ServerName             string
-	Domain                 string
-	Username               string
-	Password               string
-	RoamingIdentity        string
-	ActiveInS0             bool
-	PXETimeout             *int
-	WiredInterface         *bool
+	// columns to populate from join query — never persisted (bson:"-").
+	Version                string `bson:"-"`
+	AuthenticationProtocol *int   `bson:"-"`
+	ServerName             string `bson:"-"`
+	Domain                 string `bson:"-"`
+	Username               string `bson:"-"`
+	Password               string `bson:"-"`
+	RoamingIdentity        string `bson:"-"`
+	ActiveInS0             bool   `bson:"-"`
+	PXETimeout             *int   `bson:"-"`
+	WiredInterface         *bool  `bson:"-"`
 }
 
 const (

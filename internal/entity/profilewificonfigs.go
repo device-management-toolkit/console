@@ -1,8 +1,8 @@
 package entity
 
 type ProfileWiFiConfigs struct {
-	Priority            int
-	ProfileName         string
-	WirelessProfileName string
-	TenantID            string
+	Priority            int    `bson:"priority"`
+	ProfileName         string `bson:"profilename"`
+	WirelessProfileName string `bson:"wirelessprofilename"`
+	TenantID            string `bson:"tenantid"`
 }

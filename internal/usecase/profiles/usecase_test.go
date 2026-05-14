@@ -401,7 +401,7 @@ func TestUpdate(t *testing.T) {
 
 			tc.mock(repo, wifiFeat, pwfFeat)
 
-			result, err := useCase.Update(context.Background(), profileDTO)
+			result, err := useCase.Update(context.Background(), profileDTO, nil)
 
 			require.Equal(t, tc.res, result)
 			require.IsType(t, err, tc.err)

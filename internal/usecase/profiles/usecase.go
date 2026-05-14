@@ -486,7 +486,7 @@ func (uc *UseCase) isWifiProfileExists(ctx context.Context, d *dto.Profile, acti
 	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
+func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, _ map[string]bool) (*dto.Profile, error) {
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
