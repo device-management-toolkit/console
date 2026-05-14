@@ -497,6 +497,9 @@ type ComputerSystemComputerSystem struct {
 	// ProcessorSummary The central processors of the system in general detail.
 	ProcessorSummary *ComputerSystemProcessorSummary `json:"ProcessorSummary,omitempty"`
 
+	// SerialConsole The information about the serial console services that this system provides.
+	SerialConsole *ComputerSystemHostSerialConsole `json:"SerialConsole,omitempty"`
+
 	// SerialNumber The serial number for this system.
 	SerialNumber *string `json:"SerialNumber"`
 
@@ -542,6 +545,24 @@ type ComputerSystemHostGraphicalConsole struct {
 	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
 }
 
+// ComputerSystemHostSerialConsole The information about the serial console services that this system provides.
+type ComputerSystemHostSerialConsole struct {
+	// IPMI The information about a serial console service that this system provides.
+	IPMI *ComputerSystemSerialConsoleProtocol `json:"IPMI,omitempty"`
+
+	// MaxConcurrentSessions The maximum number of service sessions, regardless of protocol, that this system can support.
+	MaxConcurrentSessions *int64 `json:"MaxConcurrentSessions,omitempty"`
+
+	// SSH The information about a serial console service that this system provides.
+	SSH *ComputerSystemSerialConsoleProtocol `json:"SSH,omitempty"`
+
+	// Telnet The information about a serial console service that this system provides.
+	Telnet *ComputerSystemSerialConsoleProtocol `json:"Telnet,omitempty"`
+
+	// WebSocket The information about a WebSocket serial console service that this system provides.
+	WebSocket *ComputerSystemWebSocketConsole `json:"WebSocket,omitempty"`
+}
+
 // ComputerSystemMemoryMirroring defines model for ComputerSystem_MemoryMirroring.
 type ComputerSystemMemoryMirroring string
 
@@ -573,14 +594,23 @@ type ComputerSystemOemActions struct {
 	// HashOemIntelAMTCancelKVMConsent This action cancels a pending user consent request for KVM redirection.
 	HashOemIntelAMTCancelKVMConsent *ComputerSystemOemIntelAmtCancelKVMConsent `json:"#Oem.Intel.AMT.CancelKVMConsent,omitempty"`
 
+	// HashOemIntelAMTCancelSOLConsent This action cancels a pending user consent request for Serial-over-LAN redirection.
+	HashOemIntelAMTCancelSOLConsent *ComputerSystemOemIntelAmtCancelSOLConsent `json:"#Oem.Intel.AMT.CancelSOLConsent,omitempty"`
+
 	// HashOemIntelAMTGenerateRedirectionToken This action generates a short-lived redirection token.
 	HashOemIntelAMTGenerateRedirectionToken *ComputerSystemOemIntelAmtGenerateRedirectionToken `json:"#Oem.Intel.AMT.GenerateRedirectionToken,omitempty"`
 
 	// HashOemIntelAMTRequestKVMConsent This action requests user consent for KVM redirection.
 	HashOemIntelAMTRequestKVMConsent *ComputerSystemOemIntelAmtRequestKVMConsent `json:"#Oem.Intel.AMT.RequestKVMConsent,omitempty"`
 
+	// HashOemIntelAMTRequestSOLConsent This action requests user consent for Serial-over-LAN redirection.
+	HashOemIntelAMTRequestSOLConsent *ComputerSystemOemIntelAmtRequestSOLConsent `json:"#Oem.Intel.AMT.RequestSOLConsent,omitempty"`
+
 	// HashOemIntelAMTSubmitKVMConsentCode This action submits a user consent code for KVM redirection.
 	HashOemIntelAMTSubmitKVMConsentCode *ComputerSystemOemIntelAmtSubmitKVMConsentCode `json:"#Oem.Intel.AMT.SubmitKVMConsentCode,omitempty"`
+
+	// HashOemIntelAMTSubmitSOLConsentCode This action submits a user consent code for Serial-over-LAN redirection.
+	HashOemIntelAMTSubmitSOLConsentCode *ComputerSystemOemIntelAmtSubmitSOLConsentCode `json:"#Oem.Intel.AMT.SubmitSOLConsentCode,omitempty"`
 	AdditionalProperties                map[string]interface{}                         `json:"-"`
 }
 
@@ -647,6 +677,18 @@ type ComputerSystemOemIntelAmtCancelKVMConsent struct {
 // ComputerSystemOemIntelAmtCancelKVMConsentRequestBody This action cancels a pending user consent request for KVM redirection.
 type ComputerSystemOemIntelAmtCancelKVMConsentRequestBody = map[string]interface{}
 
+// ComputerSystemOemIntelAmtCancelSOLConsent This action cancels a pending user consent request for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtCancelSOLConsent struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtCancelSOLConsentRequestBody This action cancels a pending user consent request for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtCancelSOLConsentRequestBody = map[string]interface{}
+
 // ComputerSystemOemIntelAmtGenerateRedirectionToken This action generates a short-lived redirection token.
 type ComputerSystemOemIntelAmtGenerateRedirectionToken struct {
 	// Target Link to invoke action
@@ -680,6 +722,18 @@ type ComputerSystemOemIntelAmtRequestKVMConsent struct {
 // ComputerSystemOemIntelAmtRequestKVMConsentRequestBody This action requests user consent for KVM redirection.
 type ComputerSystemOemIntelAmtRequestKVMConsentRequestBody = map[string]interface{}
 
+// ComputerSystemOemIntelAmtRequestSOLConsent This action requests user consent for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtRequestSOLConsent struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtRequestSOLConsentRequestBody This action requests user consent for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtRequestSOLConsentRequestBody = map[string]interface{}
+
 // ComputerSystemOemIntelAmtSubmitKVMConsentCode This action submits a user consent code for KVM redirection.
 type ComputerSystemOemIntelAmtSubmitKVMConsentCode struct {
 	// Target Link to invoke action
@@ -692,6 +746,21 @@ type ComputerSystemOemIntelAmtSubmitKVMConsentCode struct {
 // ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody This action submits a user consent code for KVM redirection.
 type ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody struct {
 	// ConsentCode The user consent code.
+	ConsentCode string `json:"ConsentCode"`
+}
+
+// ComputerSystemOemIntelAmtSubmitSOLConsentCode This action submits a user consent code for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtSubmitSOLConsentCode struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtSubmitSOLConsentCodeRequestBody This action submits a user consent code for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtSubmitSOLConsentCodeRequestBody struct {
+	// ConsentCode The user consent code (6-digit code displayed on device screen).
 	ConsentCode string `json:"ConsentCode"`
 }
 
@@ -739,6 +808,24 @@ type ComputerSystemResetRequestBody struct {
 	ResetType *ResourceResetType `json:"ResetType,omitempty"`
 }
 
+// ComputerSystemSerialConsoleProtocol The information about a serial console service that this system provides.
+type ComputerSystemSerialConsoleProtocol struct {
+	// ConsoleEntryCommand The command string passed to the service to select or enter the system's serial console.
+	ConsoleEntryCommand *string `json:"ConsoleEntryCommand"`
+
+	// HotKeySequenceDisplay The hotkey sequence available for the user to exit the serial console session.
+	HotKeySequenceDisplay *string `json:"HotKeySequenceDisplay"`
+
+	// Port The protocol port.
+	Port *int64 `json:"Port"`
+
+	// ServiceEnabled An indication of whether the service is enabled for this system.
+	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
+
+	// SharedWithManagerCLI Indicates whether the serial console service is shared with access to the manager's command-line interface (CLI).
+	SharedWithManagerCLI *bool `json:"SharedWithManagerCLI,omitempty"`
+}
+
 // ComputerSystemStopBootOnFault defines model for ComputerSystem_StopBootOnFault.
 type ComputerSystemStopBootOnFault string
 
@@ -747,6 +834,18 @@ type ComputerSystemSystemType string
 
 // ComputerSystemTrustedModuleRequiredToBoot defines model for ComputerSystem_TrustedModuleRequiredToBoot.
 type ComputerSystemTrustedModuleRequiredToBoot string
+
+// ComputerSystemWebSocketConsole The information about a WebSocket serial console service that this system provides.
+type ComputerSystemWebSocketConsole struct {
+	// ConsoleURI The URI at which to access the WebSocket serial console.
+	ConsoleURI *string `json:"ConsoleURI,omitempty"`
+
+	// Interactive Indicates if the WebSocket serial console allows interactive input.
+	Interactive *bool `json:"Interactive,omitempty"`
+
+	// ServiceEnabled An indication of whether the service is enabled for this system.
+	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
+}
 
 // MessageMessage The message that the Redfish service returns.
 type MessageMessage struct {
@@ -1241,14 +1340,23 @@ type PostRedfishV1SystemsComputerSystemIdActionsComputerSystemResetJSONRequestBo
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody = ComputerSystemOemIntelAmtCancelKVMConsentRequestBody
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentJSONRequestBody = ComputerSystemOemIntelAmtCancelSOLConsentRequestBody
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody = ComputerSystemOemIntelAmtGenerateRedirectionTokenRequestBody
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody = ComputerSystemOemIntelAmtRequestKVMConsentRequestBody
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentJSONRequestBody = ComputerSystemOemIntelAmtRequestSOLConsentRequestBody
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody = ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeJSONRequestBody = ComputerSystemOemIntelAmtSubmitSOLConsentCodeRequestBody
 
 // Getter for additional properties for ComputerSystemOemActions. Returns the specified
 // element and whether it was found
@@ -1283,6 +1391,14 @@ func (a *ComputerSystemOemActions) UnmarshalJSON(b []byte) error {
 		delete(object, "#Oem.Intel.AMT.CancelKVMConsent")
 	}
 
+	if raw, found := object["#Oem.Intel.AMT.CancelSOLConsent"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTCancelSOLConsent)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.CancelSOLConsent': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.CancelSOLConsent")
+	}
+
 	if raw, found := object["#Oem.Intel.AMT.GenerateRedirectionToken"]; found {
 		err = json.Unmarshal(raw, &a.HashOemIntelAMTGenerateRedirectionToken)
 		if err != nil {
@@ -1299,12 +1415,28 @@ func (a *ComputerSystemOemActions) UnmarshalJSON(b []byte) error {
 		delete(object, "#Oem.Intel.AMT.RequestKVMConsent")
 	}
 
+	if raw, found := object["#Oem.Intel.AMT.RequestSOLConsent"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTRequestSOLConsent)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.RequestSOLConsent': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.RequestSOLConsent")
+	}
+
 	if raw, found := object["#Oem.Intel.AMT.SubmitKVMConsentCode"]; found {
 		err = json.Unmarshal(raw, &a.HashOemIntelAMTSubmitKVMConsentCode)
 		if err != nil {
 			return fmt.Errorf("error reading '#Oem.Intel.AMT.SubmitKVMConsentCode': %w", err)
 		}
 		delete(object, "#Oem.Intel.AMT.SubmitKVMConsentCode")
+	}
+
+	if raw, found := object["#Oem.Intel.AMT.SubmitSOLConsentCode"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTSubmitSOLConsentCode)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.SubmitSOLConsentCode': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.SubmitSOLConsentCode")
 	}
 
 	if len(object) != 0 {
@@ -1333,6 +1465,13 @@ func (a ComputerSystemOemActions) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.HashOemIntelAMTCancelSOLConsent != nil {
+		object["#Oem.Intel.AMT.CancelSOLConsent"], err = json.Marshal(a.HashOemIntelAMTCancelSOLConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.CancelSOLConsent': %w", err)
+		}
+	}
+
 	if a.HashOemIntelAMTGenerateRedirectionToken != nil {
 		object["#Oem.Intel.AMT.GenerateRedirectionToken"], err = json.Marshal(a.HashOemIntelAMTGenerateRedirectionToken)
 		if err != nil {
@@ -1347,10 +1486,24 @@ func (a ComputerSystemOemActions) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.HashOemIntelAMTRequestSOLConsent != nil {
+		object["#Oem.Intel.AMT.RequestSOLConsent"], err = json.Marshal(a.HashOemIntelAMTRequestSOLConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.RequestSOLConsent': %w", err)
+		}
+	}
+
 	if a.HashOemIntelAMTSubmitKVMConsentCode != nil {
 		object["#Oem.Intel.AMT.SubmitKVMConsentCode"], err = json.Marshal(a.HashOemIntelAMTSubmitKVMConsentCode)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.SubmitKVMConsentCode': %w", err)
+		}
+	}
+
+	if a.HashOemIntelAMTSubmitSOLConsentCode != nil {
+		object["#Oem.Intel.AMT.SubmitSOLConsentCode"], err = json.Marshal(a.HashOemIntelAMTSubmitSOLConsentCode)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.SubmitSOLConsentCode': %w", err)
 		}
 	}
 

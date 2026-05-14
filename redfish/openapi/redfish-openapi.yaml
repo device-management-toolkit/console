@@ -451,6 +451,98 @@ paths:
           description: Error condition
       security:
       - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.CancelSOLConsent:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtCancelSOLConsentRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: The response contains the results of the CancelSOLConsent action
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.RequestSOLConsent:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtRequestSOLConsentRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: The response contains the results of the RequestSOLConsent
+            action
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
+  /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.SubmitSOLConsentCode:
+    parameters:
+    - description: The value of the Id property of the ComputerSystem resource
+      in: path
+      name: ComputerSystemId
+      required: true
+      schema:
+        type: string
+    post:
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ComputerSystem_OemIntelAmtSubmitSOLConsentCodeRequestBody'
+        required: true
+      responses:
+        '200':
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: The response contains the results of the SubmitSOLConsentCode
+            action
+        default:
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RedfishError'
+          description: Error condition
+      security:
+      - BasicAuth: []
   /redfish/v1/odata:
     get:
       responses:
@@ -1140,6 +1232,12 @@ components:
           x-longDescription: This property shall contain the information about the
             graphical console (KVM-IP) service of this system.
           x-versionAdded: v1_13_0
+        SerialConsole:
+          $ref: '#/components/schemas/ComputerSystem_HostSerialConsole'
+          description: The serial console services that this system provides.
+          x-longDescription: This property shall contain information about the serial
+            console services of this system.
+          x-versionAdded: v1_13_0
         HostName:
           description: The DNS host name, without any domain information.
           nullable: true
@@ -1287,6 +1385,53 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_HostSerialConsole:
+      additionalProperties: false
+      description: The information about the serial console services that this system
+        provides.
+      properties:
+        IPMI:
+          $ref: '#/components/schemas/ComputerSystem_SerialConsoleProtocol'
+          description: The connection details for an IPMI Serial-over-LAN service.
+          x-longDescription: This property shall contain connection details for a
+            serial console service that uses the IPMI Serial-over-LAN (SOL) protocol.
+          x-versionAdded: v1_13_0
+        MaxConcurrentSessions:
+          description: The maximum number of service sessions, regardless of protocol,
+            that this system can support.
+          format: int64
+          minimum: 0
+          readOnly: true
+          type: integer
+          x-longDescription: This property shall contain the maximum number of concurrent
+            service sessions that this implementation supports.
+          x-versionAdded: v1_13_0
+        SSH:
+          $ref: '#/components/schemas/ComputerSystem_SerialConsoleProtocol'
+          description: The connection details for an SSH serial console service.
+          x-longDescription: This property shall contain connection details for a
+            serial console service that uses the Secure Shell (SSH) protocol.
+          x-versionAdded: v1_13_0
+        Telnet:
+          $ref: '#/components/schemas/ComputerSystem_SerialConsoleProtocol'
+          description: The connection details for a Telnet serial console service.
+          x-longDescription: This property shall contain connection details for a
+            serial console service that uses the Telnet protocol.
+          x-versionAdded: v1_13_0
+        WebSocket:
+          $ref: '#/components/schemas/ComputerSystem_WebSocketConsole'
+          description: The connection details for a WebSocket serial console service.
+          x-longDescription: This property shall contain connection details for a
+            serial console service that uses WebSockets as defined by the 'WebSocket
+            inbound access' clause of the Redfish Specification.  Services shall send
+            WebSocket packetized bytes in a manner that emulates a pty (pseudoterminal).
+          x-versionAdded: v1_26_0
+      type: object
+      x-longDescription: This type shall describe the serial console services for
+        a computer system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     ComputerSystem_MemoryMirroring:
       enum:
       - System
@@ -1363,6 +1508,12 @@ components:
           $ref: '#/components/schemas/ComputerSystem_OemIntelAmtSubmitKVMConsentCode'
         '#Oem.Intel.AMT.GenerateRedirectionToken':
           $ref: '#/components/schemas/ComputerSystem_OemIntelAmtGenerateRedirectionToken'
+        '#Oem.Intel.AMT.CancelSOLConsent':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtCancelSOLConsent'
+        '#Oem.Intel.AMT.RequestSOLConsent':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtRequestSOLConsent'
+        '#Oem.Intel.AMT.SubmitSOLConsentCode':
+          $ref: '#/components/schemas/ComputerSystem_OemIntelAmtSubmitSOLConsentCode'
       type: object
       x-longDescription: This type shall contain the available OEM-specific actions
         for this resource.
@@ -1528,6 +1679,35 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtCancelSOLConsent:
+      additionalProperties: false
+      description: This action cancels a pending user consent request for Serial-over-LAN
+        redirection.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall cancel a pending user consent request for
+        Serial-over-LAN redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtCancelSOLConsentRequestBody:
+      additionalProperties: false
+      description: This action cancels a pending user consent request for Serial-over-LAN
+        redirection.
+      properties: {}
+      type: object
+      x-longDescription: This action shall cancel a pending user consent request for
+        Serial-over-LAN redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     ComputerSystem_OemIntelAmtGenerateRedirectionToken:
       additionalProperties: false
       description: This action generates a short-lived redirection token.
@@ -1604,6 +1784,33 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtRequestSOLConsent:
+      additionalProperties: false
+      description: This action requests user consent for Serial-over-LAN redirection.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall request user consent for Serial-over-LAN
+        redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtRequestSOLConsentRequestBody:
+      additionalProperties: false
+      description: This action requests user consent for Serial-over-LAN redirection.
+      properties: {}
+      type: object
+      x-longDescription: This action shall request user consent for Serial-over-LAN
+        redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     ComputerSystem_OemIntelAmtSubmitKVMConsentCode:
       additionalProperties: false
       description: This action submits a user consent code for KVM redirection.
@@ -1634,6 +1841,42 @@ components:
       - ConsentCode
       type: object
       x-longDescription: This action shall submit a user consent code for KVM redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtSubmitSOLConsentCode:
+      additionalProperties: false
+      description: This action submits a user consent code for Serial-over-LAN redirection.
+      properties:
+        target:
+          description: Link to invoke action
+          format: uri-reference
+          type: string
+        title:
+          description: Friendly action name
+          type: string
+      type: object
+      x-longDescription: This action shall submit a user consent code for Serial-over-LAN
+        redirection.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_OemIntelAmtSubmitSOLConsentCodeRequestBody:
+      additionalProperties: false
+      description: This action submits a user consent code for Serial-over-LAN redirection.
+      properties:
+        ConsentCode:
+          description: The user consent code (6-digit code displayed on device screen).
+          pattern: ^[0-9]{6}$
+          type: string
+          x-longDescription: This parameter shall contain the user consent code for
+            Serial-over-LAN redirection. The code shall be a 6-digit number between
+            100000 and 999999.
+      required:
+      - ConsentCode
+      type: object
+      x-longDescription: This action shall submit a user consent code for Serial-over-LAN
+        redirection.
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
@@ -1771,6 +2014,63 @@ components:
       x-patternProperties:
         ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
           description: This property shall specify a valid odata or Redfish property.
+    ComputerSystem_SerialConsoleProtocol:
+      additionalProperties: false
+      description: The information about a serial console service that this system
+        provides.
+      properties:
+        ConsoleEntryCommand:
+          description: The command string passed to the service to select or enter
+            the system's serial console.
+          nullable: true
+          readOnly: true
+          type: string
+          x-longDescription: This property shall contain a command string that can
+            be provided by a client to select or enter the system's serial console,
+            when the console is shared among several systems or a manager CLI.
+          x-versionAdded: v1_13_0
+        HotKeySequenceDisplay:
+          description: The hotkey sequence available for the user to exit the serial
+            console session.
+          nullable: true
+          readOnly: true
+          type: string
+          x-longDescription: This property shall contain a string that can be provided
+            to a user to describe the hotkey sequence used to exit the serial console
+            session, or, if shared with a manager CLI, to return to the CLI.
+          x-versionAdded: v1_13_0
+        Port:
+          description: The protocol port.
+          format: int64
+          minimum: 0
+          nullable: true
+          readOnly: false
+          type: integer
+          x-longDescription: This property shall contain the port assigned to the
+            protocol.
+          x-versionAdded: v1_13_0
+        ServiceEnabled:
+          description: An indication of whether the service is enabled for this system.
+          readOnly: false
+          type: boolean
+          x-longDescription: This property shall indicate whether the protocol for
+            the service is enabled.
+          x-versionAdded: v1_13_0
+        SharedWithManagerCLI:
+          description: Indicates whether the serial console service is shared with
+            access to the manager's command-line interface (CLI).
+          readOnly: true
+          type: boolean
+          x-longDescription: This property shall indicate whether the serial console
+            service is shared with access to the manager's command-line interface
+            (CLI).
+          x-versionAdded: v1_13_0
+      type: object
+      x-longDescription: This type shall describe a serial console service for a computer
+        system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     ComputerSystem_StopBootOnFault:
       enum:
       - Never
@@ -1846,6 +2146,42 @@ components:
         Disabled: This value shall indicate a Trusted Module is not required to boot.
         Required: This value shall indicate a functioning Trusted Module is required
           to boot.
+    ComputerSystem_WebSocketConsole:
+      additionalProperties: false
+      description: The information about a WebSocket serial console service that this
+        system provides.
+      properties:
+        ConsoleURI:
+          description: The URI at which to access the WebSocket serial console.
+          format: uri-reference
+          readOnly: true
+          type: string
+          x-longDescription: This property shall contain the URI at which to access
+            the WebSocket serial console, using the Redfish protocol and authentication
+            methods.  See the 'WebSocket inbound access' clause in the Redfish Specification.
+          x-versionAdded: v1_26_0
+        Interactive:
+          description: Indicates if the WebSocket serial console allows interactive
+            input.
+          readOnly: true
+          type: boolean
+          x-longDescription: This property shall indicate if the WebSocket serial
+            console allows interactive input.  If `true`, the WebSocket is bidirectional.  If
+            `false`, the WebSocket only allows console output from the service.
+          x-versionAdded: v1_26_0
+        ServiceEnabled:
+          description: An indication of whether the service is enabled for this system.
+          readOnly: false
+          type: boolean
+          x-longDescription: This property shall indicate whether the protocol for
+            the service is enabled.
+          x-versionAdded: v1_26_0
+      type: object
+      x-longDescription: This type shall describe a WebSocket serial console service
+        for a computer system.
+      x-patternProperties:
+        ^([a-zA-Z_][a-zA-Z0-9_]*)?@(odata|Redfish|Message)\.[a-zA-Z_][a-zA-Z0-9_]*$:
+          description: This property shall specify a valid odata or Redfish property.
     Message_Message:
       additionalProperties: false
       description: The message that the Redfish service returns.

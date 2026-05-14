@@ -66,14 +66,23 @@ type ServerInterface interface {
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.CancelKVMConsent)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(c *gin.Context, computerSystemId string)
 
+	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.CancelSOLConsent)
+	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent(c *gin.Context, computerSystemId string)
+
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(c *gin.Context, computerSystemId string)
 
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.RequestKVMConsent)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(c *gin.Context, computerSystemId string)
 
+	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.RequestSOLConsent)
+	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent(c *gin.Context, computerSystemId string)
+
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(c *gin.Context, computerSystemId string)
+
+	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.SubmitSOLConsentCode)
+	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode(c *gin.Context, computerSystemId string)
 
 	// (GET /redfish/v1/odata)
 	GetRedfishV1Odata(c *gin.Context)
@@ -384,6 +393,32 @@ func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOe
 	siw.Handler.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(c, computerSystemId)
 }
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent operation middleware
+func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ComputerSystemId" -------------
+	var computerSystemId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ComputerSystemId", c.Param("ComputerSystemId"), &computerSystemId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ComputerSystemId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BasicAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent(c, computerSystemId)
+}
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken operation middleware
 func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(c *gin.Context) {
 
@@ -436,6 +471,32 @@ func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOe
 	siw.Handler.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(c, computerSystemId)
 }
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent operation middleware
+func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ComputerSystemId" -------------
+	var computerSystemId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ComputerSystemId", c.Param("ComputerSystemId"), &computerSystemId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ComputerSystemId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BasicAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent(c, computerSystemId)
+}
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode operation middleware
 func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(c *gin.Context) {
 
@@ -460,6 +521,32 @@ func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOe
 	}
 
 	siw.Handler.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(c, computerSystemId)
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode operation middleware
+func (siw *ServerInterfaceWrapper) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode(c *gin.Context) {
+
+	var err error
+
+	// ------------- Path parameter "ComputerSystemId" -------------
+	var computerSystemId string
+
+	err = runtime.BindStyledParameterWithOptions("simple", "ComputerSystemId", c.Param("ComputerSystemId"), &computerSystemId, runtime.BindStyledParameterOptions{Explode: false, Required: true})
+	if err != nil {
+		siw.ErrorHandler(c, fmt.Errorf("Invalid format for parameter ComputerSystemId: %w", err), http.StatusBadRequest)
+		return
+	}
+
+	c.Set(BasicAuthScopes, []string{})
+
+	for _, middleware := range siw.HandlerMiddlewares {
+		middleware(c)
+		if c.IsAborted() {
+			return
+		}
+	}
+
+	siw.Handler.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode(c, computerSystemId)
 }
 
 // GetRedfishV1Odata operation middleware
@@ -518,9 +605,12 @@ func RegisterHandlersWithOptions(router gin.IRouter, si ServerInterface, options
 	router.PATCH(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId", wrapper.PatchRedfishV1SystemsComputerSystemId)
 	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/ComputerSystem.Reset", wrapper.PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset)
 	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.CancelKVMConsent", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent)
+	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.CancelSOLConsent", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent)
 	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken)
 	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.RequestKVMConsent", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent)
+	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.RequestSOLConsent", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent)
 	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode)
+	router.POST(options.BaseURL+"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.SubmitSOLConsentCode", wrapper.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode)
 	router.GET(options.BaseURL+"/redfish/v1/odata", wrapper.GetRedfishV1Odata)
 }
 
@@ -1043,6 +1133,36 @@ func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystem
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentRequestObject struct {
+	ComputerSystemId string `json:"ComputerSystemId"`
+	Body             *PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentJSONRequestBody
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponseObject interface {
+	VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponse(w http.ResponseWriter) error
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent200JSONResponse RedfishError
+
+func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent200JSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentdefaultJSONResponse struct {
+	Body       RedfishError
+	StatusCode int
+}
+
+func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentdefaultJSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenRequestObject struct {
 	ComputerSystemId string `json:"ComputerSystemId"`
 	Body             *PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody
@@ -1103,6 +1223,36 @@ func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystem
 	return json.NewEncoder(w).Encode(response.Body)
 }
 
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentRequestObject struct {
+	ComputerSystemId string `json:"ComputerSystemId"`
+	Body             *PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentJSONRequestBody
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponseObject interface {
+	VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponse(w http.ResponseWriter) error
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent200JSONResponse RedfishError
+
+func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent200JSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentdefaultJSONResponse struct {
+	Body       RedfishError
+	StatusCode int
+}
+
+func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentdefaultJSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeRequestObject struct {
 	ComputerSystemId string `json:"ComputerSystemId"`
 	Body             *PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody
@@ -1127,6 +1277,36 @@ type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMC
 }
 
 func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodedefaultJSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(response.StatusCode)
+
+	return json.NewEncoder(w).Encode(response.Body)
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeRequestObject struct {
+	ComputerSystemId string `json:"ComputerSystemId"`
+	Body             *PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeJSONRequestBody
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponseObject interface {
+	VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponse(w http.ResponseWriter) error
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode200JSONResponse RedfishError
+
+func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode200JSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponse(w http.ResponseWriter) error {
+	w.Header().Set("Content-Type", "application/json")
+	w.WriteHeader(200)
+
+	return json.NewEncoder(w).Encode(response)
+}
+
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodedefaultJSONResponse struct {
+	Body       RedfishError
+	StatusCode int
+}
+
+func (response PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodedefaultJSONResponse) VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponse(w http.ResponseWriter) error {
 	w.Header().Set("Content-Type", "application/json")
 	w.WriteHeader(response.StatusCode)
 
@@ -1227,14 +1407,23 @@ type StrictServerInterface interface {
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.CancelKVMConsent)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentResponseObject, error)
 
+	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.CancelSOLConsent)
+	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponseObject, error)
+
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenResponseObject, error)
 
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.RequestKVMConsent)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentResponseObject, error)
 
+	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.RequestSOLConsent)
+	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponseObject, error)
+
 	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode)
 	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeResponseObject, error)
+
+	// (POST /redfish/v1/Systems/{ComputerSystemId}/Actions/Oem/IntelComputerSystem.SubmitSOLConsentCode)
+	PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode(ctx context.Context, request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeRequestObject) (PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponseObject, error)
 
 	// (GET /redfish/v1/odata)
 	GetRedfishV1Odata(ctx context.Context, request GetRedfishV1OdataRequestObject) (GetRedfishV1OdataResponseObject, error)
@@ -1720,6 +1909,41 @@ func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComp
 	}
 }
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent operation middleware
+func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent(ctx *gin.Context, computerSystemId string) {
+	var request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentRequestObject
+
+	request.ComputerSystemId = computerSystemId
+
+	var body PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent(ctx, request.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponseObject); ok {
+		if err := validResponse.VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSOLConsentResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken operation middleware
 func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(ctx *gin.Context, computerSystemId string) {
 	var request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenRequestObject
@@ -1790,6 +2014,41 @@ func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComp
 	}
 }
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent operation middleware
+func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent(ctx *gin.Context, computerSystemId string) {
+	var request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentRequestObject
+
+	request.ComputerSystemId = computerSystemId
+
+	var body PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent(ctx, request.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsent")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponseObject); ok {
+		if err := validResponse.VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSOLConsentResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode operation middleware
 func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(ctx *gin.Context, computerSystemId string) {
 	var request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeRequestObject
@@ -1818,6 +2077,41 @@ func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComp
 		ctx.Status(http.StatusInternalServerError)
 	} else if validResponse, ok := response.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeResponseObject); ok {
 		if err := validResponse.VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeResponse(ctx.Writer); err != nil {
+			ctx.Error(err)
+		}
+	} else if response != nil {
+		ctx.Error(fmt.Errorf("unexpected response type: %T", response))
+	}
+}
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode operation middleware
+func (sh *strictHandler) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode(ctx *gin.Context, computerSystemId string) {
+	var request PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeRequestObject
+
+	request.ComputerSystemId = computerSystemId
+
+	var body PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeJSONRequestBody
+	if err := ctx.ShouldBindJSON(&body); err != nil {
+		ctx.Status(http.StatusBadRequest)
+		ctx.Error(err)
+		return
+	}
+	request.Body = &body
+
+	handler := func(ctx *gin.Context, request interface{}) (interface{}, error) {
+		return sh.ssi.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode(ctx, request.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeRequestObject))
+	}
+	for _, middleware := range sh.middlewares {
+		handler = middleware(handler, "PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCode")
+	}
+
+	response, err := handler(ctx, request)
+
+	if err != nil {
+		ctx.Error(err)
+		ctx.Status(http.StatusInternalServerError)
+	} else if validResponse, ok := response.(PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponseObject); ok {
+		if err := validResponse.VisitPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSOLConsentCodeResponse(ctx.Writer); err != nil {
 			ctx.Error(err)
 		}
 	} else if response != nil {
