@@ -238,18 +238,18 @@ func (mr *MockRedirectionMockRecorder) RedirectSend(ctx, deviceConnection, messa
 }
 
 // SetupWsmanClient mocks base method.
-func (m *MockRedirection) SetupWsmanClient(device entity.Device, isRedirection, logMessages bool) (wsman0.Messages, error) {
+func (m *MockRedirection) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsman0.Messages, error) {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetupWsmanClient", device, isRedirection, logMessages)
+	ret := m.ctrl.Call(m, "SetupWsmanClient", ctx, device, isRedirection, logMessages)
 	ret0, _ := ret[0].(wsman0.Messages)
 	ret1, _ := ret[1].(error)
 	return ret0, ret1
 }
 
 // SetupWsmanClient indicates an expected call of SetupWsmanClient.
-func (mr *MockRedirectionMockRecorder) SetupWsmanClient(device, isRedirection, logMessages any) *gomock.Call {
+func (mr *MockRedirectionMockRecorder) SetupWsmanClient(ctx, device, isRedirection, logMessages any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupWsmanClient", reflect.TypeOf((*MockRedirection)(nil).SetupWsmanClient), device, isRedirection, logMessages)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupWsmanClient", reflect.TypeOf((*MockRedirection)(nil).SetupWsmanClient), ctx, device, isRedirection, logMessages)
 }
 
 // MockDeviceManagementRepository is a mock of Repository interface.
@@ -593,6 +593,21 @@ func (m *MockDeviceManagementFeature) GetAuditLog(ctx context.Context, startInde
 func (mr *MockDeviceManagementFeatureMockRecorder) GetAuditLog(ctx, startIndex, guid any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetAuditLog), ctx, startIndex, guid)
+}
+
+// GetRemoteEraseCapabilities mocks base method.
+func (m *MockDeviceManagementFeature) GetRemoteEraseCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRemoteEraseCapabilities", ctx, guid)
+	ret0, _ := ret[0].(dto.BootCapabilities)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRemoteEraseCapabilities indicates an expected call of GetRemoteEraseCapabilities.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetRemoteEraseCapabilities(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRemoteEraseCapabilities", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetRemoteEraseCapabilities), ctx, guid)
 }
 
 // GetBootSourceSetting mocks base method.
@@ -984,6 +999,20 @@ func (m *MockDeviceManagementFeature) SendPowerAction(ctx context.Context, guid 
 func (mr *MockDeviceManagementFeatureMockRecorder) SendPowerAction(ctx, guid, action any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendPowerAction", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SendPowerAction), ctx, guid, action)
+}
+
+// SetRemoteEraseOptions mocks base method.
+func (m *MockDeviceManagementFeature) SetRemoteEraseOptions(ctx context.Context, guid string, req dto.RemoteEraseRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", ctx, guid, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
+func (mr *MockDeviceManagementFeatureMockRecorder) SetRemoteEraseOptions(ctx, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockDeviceManagementFeature)(nil).SetRemoteEraseOptions), ctx, guid, req)
 }
 
 // SetBootOptions mocks base method.

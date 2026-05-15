@@ -256,6 +256,35 @@ func (mr *MockFeatureMockRecorder) GetAuditLog(ctx, startIndex, guid any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetRemoteEraseCapabilities mocks base method.
+func (m *MockFeature) GetRemoteEraseCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRemoteEraseCapabilities", ctx, guid)
+	ret0, _ := ret[0].(dto.BootCapabilities)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRemoteEraseCapabilities indicates an expected call of GetRemoteEraseCapabilities.
+func (mr *MockFeatureMockRecorder) GetRemoteEraseCapabilities(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRemoteEraseCapabilities", reflect.TypeOf((*MockFeature)(nil).GetRemoteEraseCapabilities), ctx, guid)
+}
+
+// SetRemoteEraseOptions mocks base method.
+func (m *MockFeature) SetRemoteEraseOptions(ctx context.Context, guid string, req dto.RemoteEraseRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", ctx, guid, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
+func (mr *MockFeatureMockRecorder) SetRemoteEraseOptions(ctx, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockFeature)(nil).SetRemoteEraseOptions), ctx, guid, req)
+}
+
 // GetBootSourceSetting mocks base method.
 func (m *MockFeature) GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error) {
 	m.ctrl.T.Helper()

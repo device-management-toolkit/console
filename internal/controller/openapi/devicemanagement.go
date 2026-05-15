@@ -220,6 +220,20 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		fuego.OptionPath("guid", "Device GUID"),
 		protectedRouteOptions(),
 	)
+
+	fuego.Get(f.server, "/api/v1/amt/boot/capabilities/{guid}", f.getBootCapabilities,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Boot Capabilities"),
+		fuego.OptionDescription("Read AMT_BootCapabilities.PlatformErase to determine Remote Platform Erase (RPE) support in the BIOS"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
+
+	fuego.Get(f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Remote Erase Capabilities"),
+		fuego.OptionDescription("Retrieve Remote Platform Erase capabilities for a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+	)
 }
 
 func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
@@ -452,6 +466,14 @@ func (f *FuegoAdapter) getBootSources(_ fuego.ContextNoBody) ([]dto.BootSources,
 
 func (f *FuegoAdapter) getPowerCapabilities(_ fuego.ContextNoBody) (dto.PowerCapabilities, error) {
 	return dto.PowerCapabilities{}, nil
+}
+
+func (f *FuegoAdapter) getBootCapabilities(_ fuego.ContextNoBody) (dto.BootCapabilities, error) {
+	return dto.BootCapabilities{}, nil
+}
+
+func (f *FuegoAdapter) getRemoteEraseCapabilities(_ fuego.ContextNoBody) (dto.BootCapabilities, error) {
+	return dto.BootCapabilities{}, nil
 }
 
 func (f *FuegoAdapter) getAlarmOccurrences(_ fuego.ContextNoBody) ([]dto.AlarmClockOccurrence, error) {

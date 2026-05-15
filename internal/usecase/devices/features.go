@@ -20,12 +20,12 @@ import (
 
 var ErrOCRNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("One Click Recovery Unsupported")}
 
-// AMT BootService EnabledState constants.
+// AMT BootService EnabledState constants (CIM_BootService.RequestStateChange ValueMap).
 const (
-	// EnabledState values.
-	enabledStateEnabled           = 32769
-	enabledStateEnabledButOffline = 32771
-	enabledStateDisabled          = 32768
+	enabledStateOCRAndRPEDisabled = 32768 // OCR disabled, RPE disabled
+	enabledStateOCREnabled        = 32769 // OCR enabled,  RPE disabled
+	enabledStateRPEEnabled        = 32770 // OCR disabled, RPE enabled
+	enabledStateOCRAndRPEEnabled  = 32771 // OCR enabled,  RPE enabled
 )
 
 // User consent option string values.
@@ -38,7 +38,16 @@ const (
 	targetsPBAWinREInstanceID = "Intel(r) AMT: Force OCR UEFI Boot Option"
 )
 
-type OCRData struct {
+// PlatformErase capability bitmask bits (AMT_BootCapabilities.PlatformErase).
+const (
+	platformEraseRPESupport      = 0x01      // Bit 0: RPE overall support
+	platformEraseSecureErase     = 0x04      // Bit 2: Secure Erase All SSDs
+	platformEraseTPMClear        = 0x40      // Bit 6: TPM Clear
+	platformEraseCSMEUnconfigure = 0x10000   // Bit 16: CSME Unconfigure (UI sentinel)
+	platformEraseBIOSReload      = 0x4000000 // Bit 26: BIOS Reload of Golden Configuration
+)
+
+type BootConfiguration struct {
 	bootService        cimBoot.BootService
 	bootSourceSettings []cimBoot.BootSourceSetting
 	capabilities       boot.BootCapabilitiesResponse
@@ -92,46 +101,58 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.KVMAvailable = settingsResultsV2.KVMAvailable
 
 	// Get boot service related settings
-	err = getOneClickRecoverySettings(&settingsResultsV2, device)
-	if err != nil {
-		return dto.Features{}, dtov2.Features{}, err
-	}
+	getBootConfigurationSettings(&settingsResultsV2, device)
 
 	settingsResults.OCR = settingsResultsV2.OCR
+	settingsResults.RPE = settingsResultsV2.RPE
 	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
+	settingsResults.RPESupported = settingsResultsV2.RPESupported
+
+	uc.log.Debug("GetFeatures: RemoteErase (PlatformErase) support guid=%s RPESupported=%v RPE=%v", guid, settingsResultsV2.RPESupported, settingsResultsV2.RPE)
 
 	return settingsResults, settingsResultsV2, nil
 }
 
-func getOCRData(device wsman.Management) (OCRData, error) {
-	bootService, err := device.GetBootService()
-	if err != nil {
-		return OCRData{}, err
-	}
+func getBootConfiguration(device wsman.Management) BootConfiguration {
+	// These are non-fatal: if unavailable, OCR/RPE state and boot settings default to zero values
+	bootService, _ := device.GetBootService()
 
-	bootSourceSettings, err := device.GetCIMBootSourceSetting()
-	if err != nil {
-		return OCRData{}, err
-	}
+	var bootSourceSettings cimBoot.Response
 
-	capabilities, err := device.GetPowerCapabilities()
-	if err != nil {
-		return OCRData{}, err
-	}
+	bootSourceSettings, _ = device.GetCIMBootSourceSetting()
 
-	bootData, err := device.GetBootData()
-	if err != nil {
-		return OCRData{}, err
-	}
+	// Non-fatal: older devices that do not support OCR/RPE will return an error here;
+	// all capability-derived fields will default to false/zero.
+	capabilities, _ := device.GetBootCapabilities()
 
-	return OCRData{
+	bootData, _ := device.GetBootData()
+
+	return BootConfiguration{
 		bootService:        bootService,
 		bootSourceSettings: bootSourceSettings.Body.PullResponse.BootSourceSettingItems,
 		capabilities:       capabilities,
 		bootData:           bootData,
-	}, nil
+	}
+}
+
+func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsman.Management) {
+	bootConfig := getBootConfiguration(device)
+
+	isOCR := bootConfig.bootService.EnabledState == enabledStateOCREnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
+	isRPE := bootConfig.bootService.EnabledState == enabledStateRPEEnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
+
+	result := FindBootSettingInstances(bootConfig.bootSourceSettings)
+
+	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
+	// So, these cannot be updated
+	settingsResultsV2.OCR = isOCR
+	settingsResultsV2.RPE = isRPE
+	settingsResultsV2.HTTPSBootSupported = result.IsHTTPSBootExists && bootConfig.capabilities.ForceUEFIHTTPSBoot && bootConfig.bootData.UEFIHTTPSBootEnabled
+	settingsResultsV2.WinREBootSupported = result.IsWinREExists && bootConfig.bootData.WinREBootEnabled && bootConfig.capabilities.ForceWinREBoot
+	settingsResultsV2.LocalPBABootSupported = result.IsPBAExists && bootConfig.bootData.UEFILocalPBABootEnabled && bootConfig.capabilities.ForceUEFILocalPBABoot
+	settingsResultsV2.RPESupported = bootConfig.capabilities.PlatformErase&platformEraseRPESupport != 0
 }
 
 func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dtov2.BootSettings {
@@ -159,32 +180,6 @@ func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dt
 	}
 
 	return result
-}
-
-func getOneClickRecoverySettings(settingsResultsV2 *dtov2.Features, device wsman.Management) error {
-	ocrData, err := getOCRData(device)
-	if err != nil {
-		return err
-	}
-
-	isOCR := ocrData.bootService.EnabledState == enabledStateEnabled || ocrData.bootService.EnabledState == enabledStateEnabledButOffline
-
-	result := FindBootSettingInstances(ocrData.bootSourceSettings)
-
-	// AMT_BootSettingData.UEFIHTTPSBootEnabled is read-only. AMT_BootCapabilities instance is read-only.
-	// So, these cannot be updated
-	isHTTPSBootSupported := result.IsHTTPSBootExists && ocrData.capabilities.ForceUEFIHTTPSBoot && ocrData.bootData.UEFIHTTPSBootEnabled
-
-	isWinREBootSupported := result.IsWinREExists && ocrData.bootData.WinREBootEnabled && ocrData.capabilities.ForceWinREBoot
-
-	isLocalPBABootSupported := result.IsPBAExists && ocrData.bootData.UEFILocalPBABootEnabled && ocrData.capabilities.ForceUEFILocalPBABoot
-
-	settingsResultsV2.OCR = isOCR
-	settingsResultsV2.HTTPSBootSupported = isHTTPSBootSupported
-	settingsResultsV2.WinREBootSupported = isWinREBootSupported
-	settingsResultsV2.LocalPBABootSupported = isLocalPBABootSupported
-
-	return nil
 }
 
 func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Features) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
@@ -240,22 +235,22 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	settingsResults.UserConsent = features.UserConsent
 	settingsResultsV2.UserConsent = features.UserConsent
 
-	// Configure OCR settings
-	requestedState := 0
-	if features.OCR {
-		requestedState = enabledStateEnabled
-	} else {
-		requestedState = enabledStateDisabled
+	// RPE: must run before BootServiceStateChange (OCR state change blocks the PUT)
+	if err := setRPE(features.RPE, &settingsResultsV2, device); err != nil {
+		return settingsResults, settingsResultsV2, err
 	}
+
+	// Remote Platform Erase (RPE) support and capabilities may be affected by the state change, so we need to get the settings again to return the correct values.
+	syncRPEResults(&settingsResultsV2, &settingsResults)
+
+	// Configure OCR/RPE boot service state
+	// 32768 = both disabled, 32769 = OCR only, 32770 = RPE only, 32771 = both enabled
+	requestedState := ocrBootState(features.OCR, features.RPE)
 
 	_, err = device.BootServiceStateChange(requestedState)
 	if err == nil {
 		// Get OCR settings
-		err = getOneClickRecoverySettings(&settingsResultsV2, device)
-		if err != nil {
-			return dto.Features{}, dtov2.Features{}, err
-		}
-
+		getBootConfigurationSettings(&settingsResultsV2, device)
 		settingsResults.OCR = settingsResultsV2.OCR
 		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
@@ -265,6 +260,36 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	}
 
 	return settingsResults, settingsResultsV2, nil
+}
+
+func syncRPEResults(src *dtov2.Features, dst *dto.Features) {
+	dst.RPE = src.RPE
+	dst.RPESupported = src.RPESupported
+}
+
+func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
+	bootCapabilities, err := device.GetBootCapabilities()
+	if err != nil {
+		return err
+	}
+
+	settingsResultsV2.RPE = enableRemoteErase
+	settingsResultsV2.RPESupported = bootCapabilities.PlatformErase&platformEraseRPESupport != 0 // Bit 0: RPE overall support
+
+	return nil
+}
+
+func ocrBootState(ocr, rpe bool) int {
+	switch {
+	case ocr && rpe:
+		return enabledStateOCRAndRPEEnabled
+	case ocr:
+		return enabledStateOCREnabled
+	case rpe:
+		return enabledStateRPEEnabled
+	default:
+		return enabledStateOCRAndRPEDisabled
+	}
 }
 
 func handleAMTKVMError(err error, results *dtov2.Features) bool {

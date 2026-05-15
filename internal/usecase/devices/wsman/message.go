@@ -635,7 +635,7 @@ func (c *ConnectionEntry) RequestOSPowerSavingStateChange(newOSPowerStavingState
 	return response.Body.RequestOSPowerSavingStateChangeResponse, nil
 }
 
-func (c *ConnectionEntry) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {
+func (c *ConnectionEntry) GetBootCapabilities() (boot.BootCapabilitiesResponse, error) {
 	response, err := c.WsmanMessages.AMT.BootCapabilities.Get()
 	if err != nil {
 		return boot.BootCapabilitiesResponse{}, err

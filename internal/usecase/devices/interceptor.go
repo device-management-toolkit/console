@@ -125,7 +125,7 @@ func (uc *UseCase) getOrCreateConnection(c context.Context, conn *websocket.Conn
 }
 
 func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
-	wsmanConnection, err := uc.redirection.SetupWsmanClient(*device, true, true)
+	wsmanConnection, err := uc.redirection.SetupWsmanClient(c, *device, true, true)
 	if err != nil {
 		return nil, err
 	}

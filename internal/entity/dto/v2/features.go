@@ -24,5 +24,6 @@ type Features struct {
 	HTTPSBootSupported    bool   `json:"httpBootSupported,omitempty" example:"true"`
 	WinREBootSupported    bool   `json:"winREBootSupported,omitempty" example:"true"`
 	LocalPBABootSupported bool   `json:"localPBABootSupported,omitempty" example:"true"`
-	RemoteErase           bool   `json:"remoteErase" example:"true"`
+	RPE                   bool   `json:"rpe" example:"true"`
+	RPESupported          bool   `json:"rpeSupported" example:"true"`
 }
