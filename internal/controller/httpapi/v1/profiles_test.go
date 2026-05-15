@@ -347,10 +347,8 @@ func TestProfilesUpdatePartialPatch(t *testing.T) {
 }
 
 // gin's :name route parameter matches a single path segment, so a profile whose
-// name contains '/' (currently accepted by the profilename validator via RPS's
-// &-_ character range) cannot be addressed by the get/delete/export routes — the
-// router 404s before the handler runs. If this ever stops being true (e.g. the
-// routes switch to *name), revisit the profilename validator.
+// name contains '/' cannot be addressed by the get/delete/export routes — the
+// router 404s before the handler runs.
 func TestProfilesNameWithSlashIsUnreachable(t *testing.T) {
 	t.Parallel()
 
@@ -380,6 +378,80 @@ func TestProfilesNameWithSlashIsUnreachable(t *testing.T) {
 			engine.ServeHTTP(w, req)
 
 			require.Equal(t, http.StatusNotFound, w.Code, "%s %s should 404 (gin :name does not span '/')", tc.method, tc.url)
+		})
+	}
+}
+
+func TestProfilesUpdatePatchWithoutPasswords(t *testing.T) {
+	t.Parallel()
+
+	incoming := &dto.Profile{
+		ProfileName: "newprofile",
+		Activation:  "acmactivate",
+		KVMEnabled:  true,
+	}
+
+	expectedFields := map[string]bool{
+		"profilename": true,
+		"activation":  true,
+		"kvmenabled":  true,
+	}
+
+	profileFeature, engine := profilesTest(t)
+
+	profileFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"profileName":"newprofile","activation":"acmactivate","kvmEnabled":true}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/admin/profiles", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestProfilesInsertWithoutPasswordFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		body    string
+		wantErr error
+	}{
+		{
+			name:    "ccm activation, no amtPassword",
+			body:    `{"profileName":"newprofile","activation":"ccmactivate","generateRandomPassword":false}`,
+			wantErr: profiles.ErrAMTPasswordRequired,
+		},
+		{
+			name:    "acm activation, no mebxPassword",
+			body:    `{"profileName":"newprofile","activation":"acmactivate","amtPassword":"P@ssw0rd","generateRandomMEBxPassword":false}`,
+			wantErr: profiles.ErrMEBXPasswordRequired,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			profileFeature, engine := profilesTest(t)
+
+			profileFeature.EXPECT().
+				Insert(gomock.Any(), gomock.Any()).
+				Return(nil, profiles.ErrNotValid.Wrap("Insert", "validateProfileCreate", tc.wantErr))
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBuffer([]byte(tc.body)))
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
 		})
 	}
 }
