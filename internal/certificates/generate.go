@@ -28,6 +28,10 @@ const (
 const (
 	pemTypeCertificate = "CERTIFICATE"
 	pemTypeRSAKey      = "RSA PRIVATE KEY"
+
+	// Map keys for certificate storage.
+	certField = "cert"
+	keyField  = "key"
 )
 
 // Sentinel errors for certificate operations.
@@ -58,12 +62,12 @@ func LoadCertificateFromStore(store security.Storager, name string) (*x509.Certi
 			return nil, nil, err
 		}
 
-		certPEM, ok := data["cert"]
+		certPEM, ok := data[certField]
 		if !ok {
 			return nil, nil, ErrCertFieldNotFound
 		}
 
-		keyPEM, ok := data["key"]
+		keyPEM, ok := data[keyField]
 		if !ok {
 			return nil, nil, ErrKeyFieldNotFound
 		}
@@ -85,8 +89,8 @@ func SaveCertificateToStore(store security.Storager, name string, cert *x509.Cer
 	// Try object storage first (stores cert/key as proper fields)
 	if objStore, ok := store.(ObjectStorager); ok {
 		return objStore.SetObject("certs/"+name, map[string]string{
-			"cert": certPEM,
-			"key":  keyPEM,
+			certField: certPEM,
+			keyField:  keyPEM,
 		})
 	}
 
@@ -199,7 +203,7 @@ func LoadOrGenerateRootCertificateWithVault(store security.Storager, addThumbPri
 			return cert, key, nil
 		}
 
-		log.Printf("Certificate not found in Vault: %v. Checking local files...", err)
+		log.Printf("Could not load root certificate from Vault: %v. Checking local files...", err)
 	}
 
 	// Try local files as fallback
@@ -302,10 +306,15 @@ func LoadOrGenerateWebServerCertificateWithVault(store security.Storager, rootCe
 		if err == nil {
 			log.Println("Web server certificate loaded from Vault")
 
+			// CIRA reads the cert/key from disk; make sure local files exist.
+			if saveErr := saveCertAndKeyToFiles(commonName, cert.Raw, key); saveErr != nil {
+				return nil, nil, fmt.Errorf("write web server certificate files: %w", saveErr)
+			}
+
 			return cert, key, nil
 		}
 
-		log.Printf("Web server certificate not found in Vault: %v. Checking local files...", err)
+		log.Printf("Could not load web server certificate from Vault: %v. Checking local files...", err)
 	}
 
 	// Try local files as fallback
@@ -366,6 +375,7 @@ func generateAndStoreWebServerCert(store security.Storager, rootCert CertAndKeyT
 		}
 	}
 
+	// IssueWebServerCertificate already wrote the cert/key files to disk.
 	return cert, key, nil
 }
 
@@ -455,7 +465,12 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 
 	keyOut.Close()
 
-	return &template, privateKey, nil
+	parsedCert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return parsedCert, privateKey, nil
 }
 
 type CertAndKeyType struct {
@@ -534,7 +549,12 @@ func IssueWebServerCertificate(rootCert CertAndKeyType, addThumbPrintToName bool
 		return nil, nil, err
 	}
 
-	return &template, keys, nil
+	parsedCert, err := x509.ParseCertificate(certBytes)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	return parsedCert, keys, nil
 }
 
 // saveCertAndKeyToFiles saves a certificate and private key to PEM files.
