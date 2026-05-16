@@ -6,11 +6,15 @@ import (
 	"errors"
 	"fmt"
 	"reflect"
+	"strconv"
 
 	amtBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
+	wsmanClient "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
-	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
@@ -33,6 +37,10 @@ const (
 
 	// maxSystemsList is the maximum number of systems to retrieve in a single request.
 	maxSystemsList = 100
+
+	// KVM connect type and status constants.
+	kvmConnectTypeKVMIP = "KVMIP"
+	kvmStatusActive     = "Active"
 
 	// Health state constants.
 	healthStateOK       = "OK"
@@ -874,7 +882,95 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 	// Build and return the complete ComputerSystem using CIM data and hardware info
 	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, hwInfo)
 
+	// Fetch GraphicalConsole data best-effort, but avoid returning guessed values
+	// when feature retrieval fails.
+	_, featuresV2, err := r.usecase.GetFeatures(ctx, systemID)
+	if err != nil {
+		r.log.Warn("Failed to retrieve KVM features for GraphicalConsole", "systemID", systemID, "error", err)
+
+		return system, nil
+	}
+
+	system.GraphicalConsole = r.buildGraphicalConsole(device.UseTLS, featuresV2)
+
 	return system, nil
+}
+
+func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 dtov2.Features) *redfishv1.ComputerSystemHostGraphicalConsole {
+	serviceEnabled := featuresV2.EnableKVM
+
+	var connectTypes []string
+
+	var port *int64
+
+	if featuresV2.KVMAvailable {
+		connectTypes = []string{kvmConnectTypeKVMIP}
+
+		redirectionPort := wsmanClient.RedirectionNonTLSPort
+		if useTLS {
+			redirectionPort = wsmanClient.RedirectionTLSPort
+		}
+
+		parsedPort, parseErr := strconv.ParseInt(redirectionPort, 10, 64)
+		if parseErr == nil {
+			port = &parsedPort
+		}
+	}
+
+	kvmStatus := determineKVMStatus(featuresV2.EnableKVM, featuresV2.KVMAvailable, featuresV2.UserConsent, featuresV2.OptInState)
+
+	// Build OEM extensions with Intel AMT status
+	oemExt := &redfishv1.ComputerSystemHostGraphicalConsoleOEM{
+		Intel: &redfishv1.ComputerSystemHostGraphicalConsoleIntel{
+			AMT: &redfishv1.ComputerSystemHostGraphicalConsoleAMT{
+				// Planned follow-up: query AMT_GeneralSettings from WS-Man to get actual control mode.
+				ControlMode: "ACM",
+				KVMStatus:   kvmStatus,
+				// Planned follow-up: query CIM_KVMRedirectionSAP and IPS_OptInService for actual user consent status.
+				UserConsentStatus: "NotRequired",
+			},
+		},
+	}
+
+	return &redfishv1.ComputerSystemHostGraphicalConsole{
+		ConnectTypesSupported: connectTypes,
+		OEM:                   oemExt,
+		Port:                  port,
+		ServiceEnabled:        &serviceEnabled,
+	}
+}
+
+// determineKVMStatus returns Intel AMT KVMStatus using KVM availability, enablement,
+// and user consent runtime state from IPS_OptInService.
+func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInState int) string {
+	const (
+		userConsentKVM = "kvm"
+		userConsentAll = "all"
+	)
+
+	if !kvmAvailable {
+		return StateDisabled
+	}
+
+	if !enableKVM {
+		return StateDisabled
+	}
+
+	consentRequired := userConsent == userConsentKVM || userConsent == userConsentAll
+	if consentRequired {
+		switch optin.OptInState(optInState) {
+		case optin.InSession:
+			return kvmStatusActive
+		case optin.NotStarted, optin.Requested, optin.Displayed:
+			return "PendingConsent"
+		case optin.Received:
+			return StateEnabled
+		default:
+			return "Error"
+		}
+	}
+
+	return StateEnabled
 }
 
 // UpdatePowerState sends a power action command to the specified system via WSMAN.
