@@ -5,6 +5,8 @@ import (
 
 	"github.com/go-fuego/fuego"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
+
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
@@ -115,6 +117,42 @@ func (f *FuegoAdapter) registerNetworkAndFeatureRoutes() {
 		fuego.OptionSummary("Request Wireless State Change"),
 		fuego.OptionDescription("Request a wireless state change for a device"),
 		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Get(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.getWirelessProfiles,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Wireless Profiles"),
+		fuego.OptionDescription("Retrieve configured wireless profiles for a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Post(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.addWirelessProfile,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Create Wireless Profile"),
+		fuego.OptionDescription("Create a wireless profile on a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
+		protectedRouteOptions(),
+	)
+
+	fuego.Patch(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.updateWirelessProfile,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Update Wireless Profile"),
+		fuego.OptionDescription("Update a wireless profile on a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
+		protectedRouteOptions(),
+	)
+
+	fuego.Delete(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}/{profileName}", f.deleteWirelessProfile,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Delete Wireless Profile"),
+		fuego.OptionDescription("Delete a wireless profile from a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		fuego.OptionPath("profileName", "Wireless profile name"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
 	)
 
@@ -411,6 +449,39 @@ func (f *FuegoAdapter) requestWirelessStateChange(c fuego.ContextWithBody[dto.Wi
 	}
 
 	return dto.WirelessStateResponse(req), nil
+}
+
+func (f *FuegoAdapter) getWirelessProfiles(_ fuego.ContextNoBody) ([]config.WirelessProfile, error) {
+	return []config.WirelessProfile{{
+		ProfileName:          "OfficeWiFi",
+		SSID:                 "OfficeSSID",
+		Priority:             1,
+		AuthenticationMethod: "WPA2PSK",
+		EncryptionMethod:     "CCMP",
+		Password:             "password123",
+	}}, nil
+}
+
+func (f *FuegoAdapter) addWirelessProfile(c fuego.ContextWithBody[config.WirelessProfile]) (NoContentResponse, error) {
+	_, err := c.Body()
+	if err != nil {
+		return NoContentResponse{}, err
+	}
+
+	return NoContentResponse{}, nil
+}
+
+func (f *FuegoAdapter) updateWirelessProfile(c fuego.ContextWithBody[config.WirelessProfile]) (NoContentResponse, error) {
+	_, err := c.Body()
+	if err != nil {
+		return NoContentResponse{}, err
+	}
+
+	return NoContentResponse{}, nil
+}
+
+func (f *FuegoAdapter) deleteWirelessProfile(_ fuego.ContextNoBody) (NoContentResponse, error) {
+	return NoContentResponse{}, nil
 }
 
 func (f *FuegoAdapter) setLinkPreference(c fuego.ContextWithBody[dto.LinkPreferenceRequest]) (dto.LinkPreferenceResponse, error) {

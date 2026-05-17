@@ -987,6 +987,10 @@ func (c *ConnectionEntry) AddWiFiSettings(wifiEndpointSettings wifi.WiFiEndpoint
 	return c.WsmanMessages.AMT.WiFiPortConfigurationService.AddWiFiSettings(wifiEndpointSettings, ieee8021xSettings, wifiEndpoint, clientCredential, caCredential)
 }
 
+func (c *ConnectionEntry) UpdateWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, clientCredential, caCredential string) (response wifiportconfiguration.Response, err error) {
+	return c.WsmanMessages.AMT.WiFiPortConfigurationService.UpdateWiFiSettings(wifiEndpointSettings, ieee8021xSettings, clientCredential, caCredential)
+}
+
 func (c *ConnectionEntry) PUTTLSSettings(instanceID string, tlsSettingData tls.SettingDataRequest) (response tls.Response, err error) {
 	return c.WsmanMessages.AMT.TLSSettingData.Put(instanceID, tlsSettingData)
 }

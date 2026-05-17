@@ -22,10 +22,13 @@ import (
 	redirection "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
 	setupandconfiguration "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	tls0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/tls"
+	wifiportconfiguration "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/wifiportconfiguration"
 	boot0 "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	concrete "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/concrete"
 	credential "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/credential"
+	ieee8021x "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/ieee8021x"
 	kvm "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	models "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
 	power "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	service "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	software "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
@@ -77,6 +80,21 @@ func (mr *MockManagementMockRecorder) AddClientCert(clientCert any) *gomock.Call
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddClientCert", reflect.TypeOf((*MockManagement)(nil).AddClientCert), clientCert)
 }
 
+// AddPrivateKey mocks base method.
+func (m *MockManagement) AddPrivateKey(privateKey string) (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddPrivateKey", privateKey)
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddPrivateKey indicates an expected call of AddPrivateKey.
+func (mr *MockManagementMockRecorder) AddPrivateKey(privateKey any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddPrivateKey", reflect.TypeOf((*MockManagement)(nil).AddPrivateKey), privateKey)
+}
+
 // AddTrustedRootCert mocks base method.
 func (m *MockManagement) AddTrustedRootCert(caCert string) (string, error) {
 	m.ctrl.T.Helper()
@@ -90,6 +108,21 @@ func (m *MockManagement) AddTrustedRootCert(caCert string) (string, error) {
 func (mr *MockManagementMockRecorder) AddTrustedRootCert(caCert any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddTrustedRootCert", reflect.TypeOf((*MockManagement)(nil).AddTrustedRootCert), caCert)
+}
+
+// AddWiFiSettings mocks base method.
+func (m *MockManagement) AddWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, wifiEndpoint, clientCredential, caCredential string) (wifiportconfiguration.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "AddWiFiSettings", wifiEndpointSettings, ieee8021xSettings, wifiEndpoint, clientCredential, caCredential)
+	ret0, _ := ret[0].(wifiportconfiguration.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// AddWiFiSettings indicates an expected call of AddWiFiSettings.
+func (mr *MockManagementMockRecorder) AddWiFiSettings(wifiEndpointSettings, ieee8021xSettings, wifiEndpoint, clientCredential, caCredential any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddWiFiSettings", reflect.TypeOf((*MockManagement)(nil).AddWiFiSettings), wifiEndpointSettings, ieee8021xSettings, wifiEndpoint, clientCredential, caCredential)
 }
 
 // BootServiceStateChange mocks base method.
@@ -178,6 +211,20 @@ func (m *MockManagement) DeleteCertificate(instanceID string) error {
 func (mr *MockManagementMockRecorder) DeleteCertificate(instanceID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteCertificate", reflect.TypeOf((*MockManagement)(nil).DeleteCertificate), instanceID)
+}
+
+// DeleteWiFiSetting mocks base method.
+func (m *MockManagement) DeleteWiFiSetting(instanceID string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "DeleteWiFiSetting", instanceID)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// DeleteWiFiSetting indicates an expected call of DeleteWiFiSetting.
+func (mr *MockManagementMockRecorder) DeleteWiFiSetting(instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "DeleteWiFiSetting", reflect.TypeOf((*MockManagement)(nil).DeleteWiFiSetting), instanceID)
 }
 
 // EnumerateWiFiPort mocks base method.
@@ -298,6 +345,21 @@ func (m *MockManagement) GetCIMBootSourceSetting() (boot0.Response, error) {
 func (mr *MockManagementMockRecorder) GetCIMBootSourceSetting() *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCIMBootSourceSetting", reflect.TypeOf((*MockManagement)(nil).GetCIMBootSourceSetting))
+}
+
+// GetCIMIEEE8021xSettings mocks base method.
+func (m *MockManagement) GetCIMIEEE8021xSettings() (ieee8021x.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetCIMIEEE8021xSettings")
+	ret0, _ := ret[0].(ieee8021x.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetCIMIEEE8021xSettings indicates an expected call of GetCIMIEEE8021xSettings.
+func (mr *MockManagementMockRecorder) GetCIMIEEE8021xSettings() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCIMIEEE8021xSettings", reflect.TypeOf((*MockManagement)(nil).GetCIMIEEE8021xSettings))
 }
 
 // GetCertificates mocks base method.
@@ -600,6 +662,21 @@ func (mr *MockManagementMockRecorder) GetUserConsentCode() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserConsentCode", reflect.TypeOf((*MockManagement)(nil).GetUserConsentCode))
 }
 
+// GetWiFiSettings mocks base method.
+func (m *MockManagement) GetWiFiSettings() ([]wifi.WiFiEndpointSettingsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWiFiSettings")
+	ret0, _ := ret[0].([]wifi.WiFiEndpointSettingsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWiFiSettings indicates an expected call of GetWiFiSettings.
+func (mr *MockManagementMockRecorder) GetWiFiSettings() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWiFiSettings", reflect.TypeOf((*MockManagement)(nil).GetWiFiSettings))
+}
+
 // PullWiFiPort mocks base method.
 func (m *MockManagement) PullWiFiPort(enumerationContext string) (wifi.Response, error) {
 	m.ctrl.T.Helper()
@@ -778,6 +855,21 @@ func (m *MockManagement) SetLinkPreference(linkPreference, timeout uint32) (int,
 func (mr *MockManagementMockRecorder) SetLinkPreference(linkPreference, timeout any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockManagement)(nil).SetLinkPreference), linkPreference, timeout)
+}
+
+// UpdateWiFiSettings mocks base method.
+func (m *MockManagement) UpdateWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, clientCredential, caCredential string) (wifiportconfiguration.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "UpdateWiFiSettings", wifiEndpointSettings, ieee8021xSettings, clientCredential, caCredential)
+	ret0, _ := ret[0].(wifiportconfiguration.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// UpdateWiFiSettings indicates an expected call of UpdateWiFiSettings.
+func (mr *MockManagementMockRecorder) UpdateWiFiSettings(wifiEndpointSettings, ieee8021xSettings, clientCredential, caCredential any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "UpdateWiFiSettings", reflect.TypeOf((*MockManagement)(nil).UpdateWiFiSettings), wifiEndpointSettings, ieee8021xSettings, clientCredential, caCredential)
 }
 
 // WiFiRequestStateChange mocks base method.

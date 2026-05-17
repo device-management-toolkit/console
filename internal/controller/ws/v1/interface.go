@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 
@@ -61,6 +62,10 @@ type Feature interface {
 	GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
 	RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
 	GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
+	GetWirelessProfiles(c context.Context, guid string) ([]config.WirelessProfile, error)
+	AddWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
+	DeleteWirelessProfile(c context.Context, guid, profileName string) error
+	UpdateWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
 	GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)
 	GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
 	GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)
