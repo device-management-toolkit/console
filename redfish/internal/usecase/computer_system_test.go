@@ -251,30 +251,35 @@ func TestConvertStateToGenerated(t *testing.T) {
 		tt := tt
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
-
-			result := uc.convertStateToGenerated(tt.state)
-
-			if tt.wantNil {
-				if result != nil {
-					t.Fatalf("convertStateToGenerated(%q) expected nil, got %v", tt.state, result)
-				}
-
-				return
-			}
-
-			if result == nil {
-				t.Fatalf("convertStateToGenerated(%q) expected non-nil result", tt.state)
-			}
-
-			// Verify we can convert back to check the value matches
-			got, err := result.AsResourceState()
-			if err != nil {
-				t.Fatalf("Failed to convert result back to ResourceState: %v", err)
-			}
-
-			if got != tt.wantState {
-				t.Errorf("convertStateToGenerated(%q) got %v, want %v", tt.state, got, tt.wantState)
-			}
+			validateConvertStateResult(t, uc, tt.state, tt.wantNil, tt.wantState)
 		})
+	}
+}
+
+// validateConvertStateResult validates the result of convertStateToGenerated.
+func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state string, wantNil bool, wantState generated.ResourceState) {
+	t.Helper()
+
+	result := uc.convertStateToGenerated(state)
+
+	if wantNil {
+		if result != nil {
+			t.Fatalf("convertStateToGenerated(%q) expected nil, got %v", state, result)
+		}
+
+		return
+	}
+
+	if result == nil {
+		t.Fatalf("convertStateToGenerated(%q) expected non-nil result", state)
+	}
+
+	got, err := result.AsResourceState()
+	if err != nil {
+		t.Fatalf("Failed to convert result back to ResourceState: %v", err)
+	}
+
+	if got != wantState {
+		t.Errorf("convertStateToGenerated(%q) got %v, want %v", state, got, wantState)
 	}
 }
