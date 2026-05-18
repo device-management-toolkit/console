@@ -558,29 +558,29 @@ func (uc *ComputerSystemUseCase) convertStateToGenerated(state string) *generate
 
 	switch state {
 	case StateEnabled:
-		stateEnum = generated.Enabled
+		stateEnum = generated.ResourceStateEnabled
 	case StateDisabled:
-		stateEnum = generated.Disabled
+		stateEnum = generated.ResourceStateDisabled
 	case StateStandbyOffline:
-		stateEnum = generated.StandbyOffline
+		stateEnum = generated.ResourceStateStandbyOffline
 	case StateStandbySpare:
-		stateEnum = generated.StandbySpare
+		stateEnum = generated.ResourceStateStandbySpare
 	case StateInTest:
-		stateEnum = generated.InTest
+		stateEnum = generated.ResourceStateInTest
 	case StateStarting:
-		stateEnum = generated.Starting
+		stateEnum = generated.ResourceStateStarting
 	case StateAbsent:
-		stateEnum = generated.Absent
+		stateEnum = generated.ResourceStateAbsent
 	case StateUnavailableOffline:
-		stateEnum = generated.UnavailableOffline
+		stateEnum = generated.ResourceStateUnavailableOffline
 	case StateDeferring:
-		stateEnum = generated.Deferring
+		stateEnum = generated.ResourceStateDeferring
 	case StateQuiesced:
-		stateEnum = generated.Quiesced
+		stateEnum = generated.ResourceStateQuiesced
 	case StateUpdating:
-		stateEnum = generated.Updating
+		stateEnum = generated.ResourceStateUpdating
 	case StateDegraded:
-		stateEnum = generated.Degraded
+		stateEnum = generated.ResourceStateDegraded
 	default:
 		return nil // Don't create state if unknown value
 	}

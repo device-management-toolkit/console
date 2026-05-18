@@ -151,3 +151,135 @@ func TestGetComputerSystemGraphicalConsoleDropsUnsupportedConnectTypes(t *testin
 		t.Fatalf("expected unsupported connect types to be omitted, got %#v", result.GraphicalConsole.ConnectTypesSupported)
 	}
 }
+
+func TestConvertStateToGenerated(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		state     string
+		wantNil   bool
+		wantState generated.ResourceState
+	}{
+		{
+			name:      "StateEnabled",
+			state:     StateEnabled,
+			wantNil:   false,
+			wantState: generated.ResourceStateEnabled,
+		},
+		{
+			name:      "StateDisabled",
+			state:     StateDisabled,
+			wantNil:   false,
+			wantState: generated.ResourceStateDisabled,
+		},
+		{
+			name:      "StateStandbyOffline",
+			state:     StateStandbyOffline,
+			wantNil:   false,
+			wantState: generated.ResourceStateStandbyOffline,
+		},
+		{
+			name:      "StateStandbySpare",
+			state:     StateStandbySpare,
+			wantNil:   false,
+			wantState: generated.ResourceStateStandbySpare,
+		},
+		{
+			name:      "StateInTest",
+			state:     StateInTest,
+			wantNil:   false,
+			wantState: generated.ResourceStateInTest,
+		},
+		{
+			name:      "StateStarting",
+			state:     StateStarting,
+			wantNil:   false,
+			wantState: generated.ResourceStateStarting,
+		},
+		{
+			name:      "StateAbsent",
+			state:     StateAbsent,
+			wantNil:   false,
+			wantState: generated.ResourceStateAbsent,
+		},
+		{
+			name:      "StateUnavailableOffline",
+			state:     StateUnavailableOffline,
+			wantNil:   false,
+			wantState: generated.ResourceStateUnavailableOffline,
+		},
+		{
+			name:      "StateDeferring",
+			state:     StateDeferring,
+			wantNil:   false,
+			wantState: generated.ResourceStateDeferring,
+		},
+		{
+			name:      "StateQuiesced",
+			state:     StateQuiesced,
+			wantNil:   false,
+			wantState: generated.ResourceStateQuiesced,
+		},
+		{
+			name:      "StateUpdating",
+			state:     StateUpdating,
+			wantNil:   false,
+			wantState: generated.ResourceStateUpdating,
+		},
+		{
+			name:      "StateDegraded",
+			state:     StateDegraded,
+			wantNil:   false,
+			wantState: generated.ResourceStateDegraded,
+		},
+		{
+			name:    "UnknownState",
+			state:   "UnknownState",
+			wantNil: true,
+		},
+		{
+			name:    "EmptyState",
+			state:   "",
+			wantNil: true,
+		},
+	}
+
+	uc := &ComputerSystemUseCase{}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			validateConvertStateResult(t, uc, tt.state, tt.wantNil, tt.wantState)
+		})
+	}
+}
+
+// validateConvertStateResult validates the result of convertStateToGenerated.
+func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state string, wantNil bool, wantState generated.ResourceState) {
+	t.Helper()
+
+	result := uc.convertStateToGenerated(state)
+
+	if wantNil {
+		if result != nil {
+			t.Fatalf("convertStateToGenerated(%q) expected nil, got %v", state, result)
+		}
+
+		return
+	}
+
+	if result == nil {
+		t.Fatalf("convertStateToGenerated(%q) expected non-nil result", state)
+	}
+
+	got, err := result.AsResourceState()
+	if err != nil {
+		t.Fatalf("Failed to convert result back to ResourceState: %v", err)
+	}
+
+	if got != wantState {
+		t.Errorf("convertStateToGenerated(%q) got %v, want %v", state, got, wantState)
+	}
+}

@@ -101,6 +101,15 @@ const (
 	ComputerSystemOemIntelAMTKVMStatusPendingConsent ComputerSystemOemIntelAMTKVMStatus = "PendingConsent"
 )
 
+// Defines values for ComputerSystemOemIntelAMTSOLStatus.
+const (
+	ComputerSystemOemIntelAMTSOLStatusActive         ComputerSystemOemIntelAMTSOLStatus = "Active"
+	ComputerSystemOemIntelAMTSOLStatusDisabled       ComputerSystemOemIntelAMTSOLStatus = "Disabled"
+	ComputerSystemOemIntelAMTSOLStatusEnabled        ComputerSystemOemIntelAMTSOLStatus = "Enabled"
+	ComputerSystemOemIntelAMTSOLStatusError          ComputerSystemOemIntelAMTSOLStatus = "Error"
+	ComputerSystemOemIntelAMTSOLStatusPendingConsent ComputerSystemOemIntelAMTSOLStatus = "PendingConsent"
+)
+
 // Defines values for ComputerSystemOemIntelAMTUserConsentStatus.
 const (
 	Denied      ComputerSystemOemIntelAMTUserConsentStatus = "Denied"
@@ -187,19 +196,19 @@ const (
 
 // Defines values for ResourceState.
 const (
-	Absent             ResourceState = "Absent"
-	Deferring          ResourceState = "Deferring"
-	Degraded           ResourceState = "Degraded"
-	Disabled           ResourceState = "Disabled"
-	Enabled            ResourceState = "Enabled"
-	InTest             ResourceState = "InTest"
-	Qualified          ResourceState = "Qualified"
-	Quiesced           ResourceState = "Quiesced"
-	StandbyOffline     ResourceState = "StandbyOffline"
-	StandbySpare       ResourceState = "StandbySpare"
-	Starting           ResourceState = "Starting"
-	UnavailableOffline ResourceState = "UnavailableOffline"
-	Updating           ResourceState = "Updating"
+	ResourceStateAbsent             ResourceState = "Absent"
+	ResourceStateDeferring          ResourceState = "Deferring"
+	ResourceStateDegraded           ResourceState = "Degraded"
+	ResourceStateDisabled           ResourceState = "Disabled"
+	ResourceStateEnabled            ResourceState = "Enabled"
+	ResourceStateInTest             ResourceState = "InTest"
+	ResourceStateQualified          ResourceState = "Qualified"
+	ResourceStateQuiesced           ResourceState = "Quiesced"
+	ResourceStateStandbyOffline     ResourceState = "StandbyOffline"
+	ResourceStateStandbySpare       ResourceState = "StandbySpare"
+	ResourceStateStarting           ResourceState = "Starting"
+	ResourceStateUnavailableOffline ResourceState = "UnavailableOffline"
+	ResourceStateUpdating           ResourceState = "Updating"
 )
 
 // Defines values for SessionSessionTypes.
@@ -497,6 +506,9 @@ type ComputerSystemComputerSystem struct {
 	// ProcessorSummary The central processors of the system in general detail.
 	ProcessorSummary *ComputerSystemProcessorSummary `json:"ProcessorSummary,omitempty"`
 
+	// SerialConsole The information about the serial console services that this system provides.
+	SerialConsole *ComputerSystemHostSerialConsole `json:"SerialConsole,omitempty"`
+
 	// SerialNumber The serial number for this system.
 	SerialNumber *string `json:"SerialNumber"`
 
@@ -542,6 +554,27 @@ type ComputerSystemHostGraphicalConsole struct {
 	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
 }
 
+// ComputerSystemHostSerialConsole The information about the serial console services that this system provides.
+type ComputerSystemHostSerialConsole struct {
+	// IPMI The information about a serial console service that this system provides.
+	IPMI *ComputerSystemSerialConsoleProtocol `json:"IPMI,omitempty"`
+
+	// MaxConcurrentSessions The maximum number of service sessions, regardless of protocol, that this system can support.
+	MaxConcurrentSessions *int64 `json:"MaxConcurrentSessions,omitempty"`
+
+	// Oem OEM extensions for the serial console service.
+	Oem *ComputerSystemOemSerialConsole `json:"Oem,omitempty"`
+
+	// SSH The information about a serial console service that this system provides.
+	SSH *ComputerSystemSerialConsoleProtocol `json:"SSH,omitempty"`
+
+	// Telnet The information about a serial console service that this system provides.
+	Telnet *ComputerSystemSerialConsoleProtocol `json:"Telnet,omitempty"`
+
+	// WebSocket The information about a WebSocket serial console service that this system provides.
+	WebSocket *ComputerSystemWebSocketConsole `json:"WebSocket,omitempty"`
+}
+
 // ComputerSystemMemoryMirroring defines model for ComputerSystem_MemoryMirroring.
 type ComputerSystemMemoryMirroring string
 
@@ -573,14 +606,23 @@ type ComputerSystemOemActions struct {
 	// HashOemIntelAMTCancelKVMConsent This action cancels a pending user consent request for KVM redirection.
 	HashOemIntelAMTCancelKVMConsent *ComputerSystemOemIntelAmtCancelKVMConsent `json:"#Oem.Intel.AMT.CancelKVMConsent,omitempty"`
 
+	// HashOemIntelAMTCancelSolConsent This action cancels a pending user consent request for Serial-over-LAN redirection.
+	HashOemIntelAMTCancelSolConsent *ComputerSystemOemIntelAmtCancelSolConsent `json:"#Oem.Intel.AMT.CancelSolConsent,omitempty"`
+
 	// HashOemIntelAMTGenerateRedirectionToken This action generates a short-lived redirection token.
 	HashOemIntelAMTGenerateRedirectionToken *ComputerSystemOemIntelAmtGenerateRedirectionToken `json:"#Oem.Intel.AMT.GenerateRedirectionToken,omitempty"`
 
 	// HashOemIntelAMTRequestKVMConsent This action requests user consent for KVM redirection.
 	HashOemIntelAMTRequestKVMConsent *ComputerSystemOemIntelAmtRequestKVMConsent `json:"#Oem.Intel.AMT.RequestKVMConsent,omitempty"`
 
+	// HashOemIntelAMTRequestSolConsent This action requests user consent for Serial-over-LAN redirection.
+	HashOemIntelAMTRequestSolConsent *ComputerSystemOemIntelAmtRequestSolConsent `json:"#Oem.Intel.AMT.RequestSolConsent,omitempty"`
+
 	// HashOemIntelAMTSubmitKVMConsentCode This action submits a user consent code for KVM redirection.
 	HashOemIntelAMTSubmitKVMConsentCode *ComputerSystemOemIntelAmtSubmitKVMConsentCode `json:"#Oem.Intel.AMT.SubmitKVMConsentCode,omitempty"`
+
+	// HashOemIntelAMTSubmitSolConsentCode This action submits a user consent code for Serial-over-LAN redirection.
+	HashOemIntelAMTSubmitSolConsentCode *ComputerSystemOemIntelAmtSubmitSolConsentCode `json:"#Oem.Intel.AMT.SubmitSolConsentCode,omitempty"`
 	AdditionalProperties                map[string]interface{}                         `json:"-"`
 }
 
@@ -632,6 +674,45 @@ type ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus struct {
 // ComputerSystemOemIntelAMTKVMStatus The current operational status of the KVM redirection service on the Intel AMT device.
 type ComputerSystemOemIntelAMTKVMStatus string
 
+// ComputerSystemOemIntelAMTSOLStatus The current operational status of the SOL redirection service on the Intel AMT device.
+type ComputerSystemOemIntelAMTSOLStatus string
+
+// ComputerSystemOemIntelAMTSerialConsole Intel AMT-specific SOL options for the serial console service.
+type ComputerSystemOemIntelAMTSerialConsole struct {
+	// ControlMode The Intel AMT provisioning control mode of the device.
+	ControlMode *ComputerSystemOemIntelAMTSerialConsole_ControlMode `json:"ControlMode,omitempty"`
+
+	// SOLStatus The current operational status of the SOL redirection service.
+	SOLStatus *ComputerSystemOemIntelAMTSerialConsole_SOLStatus `json:"SOLStatus,omitempty"`
+
+	// UserConsentStatus The current user consent status for SOL access.
+	UserConsentStatus *ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus `json:"UserConsentStatus,omitempty"`
+}
+
+// ComputerSystemOemIntelAMTSerialConsoleControlMode1 defines model for .
+type ComputerSystemOemIntelAMTSerialConsoleControlMode1 = interface{}
+
+// ComputerSystemOemIntelAMTSerialConsole_ControlMode The Intel AMT provisioning control mode of the device.
+type ComputerSystemOemIntelAMTSerialConsole_ControlMode struct {
+	union json.RawMessage
+}
+
+// ComputerSystemOemIntelAMTSerialConsoleSOLStatus1 defines model for .
+type ComputerSystemOemIntelAMTSerialConsoleSOLStatus1 = interface{}
+
+// ComputerSystemOemIntelAMTSerialConsole_SOLStatus The current operational status of the SOL redirection service.
+type ComputerSystemOemIntelAMTSerialConsole_SOLStatus struct {
+	union json.RawMessage
+}
+
+// ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1 defines model for .
+type ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1 = interface{}
+
+// ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus The current user consent status for SOL access.
+type ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus struct {
+	union json.RawMessage
+}
+
 // ComputerSystemOemIntelAMTUserConsentStatus The current user consent status for KVM access on the Intel AMT device.
 type ComputerSystemOemIntelAMTUserConsentStatus string
 
@@ -646,6 +727,18 @@ type ComputerSystemOemIntelAmtCancelKVMConsent struct {
 
 // ComputerSystemOemIntelAmtCancelKVMConsentRequestBody This action cancels a pending user consent request for KVM redirection.
 type ComputerSystemOemIntelAmtCancelKVMConsentRequestBody = map[string]interface{}
+
+// ComputerSystemOemIntelAmtCancelSolConsent This action cancels a pending user consent request for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtCancelSolConsent struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtCancelSolConsentRequestBody This action cancels a pending user consent request for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtCancelSolConsentRequestBody = map[string]interface{}
 
 // ComputerSystemOemIntelAmtGenerateRedirectionToken This action generates a short-lived redirection token.
 type ComputerSystemOemIntelAmtGenerateRedirectionToken struct {
@@ -680,6 +773,18 @@ type ComputerSystemOemIntelAmtRequestKVMConsent struct {
 // ComputerSystemOemIntelAmtRequestKVMConsentRequestBody This action requests user consent for KVM redirection.
 type ComputerSystemOemIntelAmtRequestKVMConsentRequestBody = map[string]interface{}
 
+// ComputerSystemOemIntelAmtRequestSolConsent This action requests user consent for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtRequestSolConsent struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtRequestSolConsentRequestBody This action requests user consent for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtRequestSolConsentRequestBody = map[string]interface{}
+
 // ComputerSystemOemIntelAmtSubmitKVMConsentCode This action submits a user consent code for KVM redirection.
 type ComputerSystemOemIntelAmtSubmitKVMConsentCode struct {
 	// Target Link to invoke action
@@ -695,10 +800,37 @@ type ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody struct {
 	ConsentCode string `json:"ConsentCode"`
 }
 
+// ComputerSystemOemIntelAmtSubmitSolConsentCode This action submits a user consent code for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtSubmitSolConsentCode struct {
+	// Target Link to invoke action
+	Target *string `json:"target,omitempty"`
+
+	// Title Friendly action name
+	Title *string `json:"title,omitempty"`
+}
+
+// ComputerSystemOemIntelAmtSubmitSolConsentCodeRequestBody This action submits a user consent code for Serial-over-LAN redirection.
+type ComputerSystemOemIntelAmtSubmitSolConsentCodeRequestBody struct {
+	// ConsentCode The user consent code (6-digit code displayed on device screen).
+	ConsentCode string `json:"ConsentCode"`
+}
+
 // ComputerSystemOemIntelGraphicalConsole Intel-specific OEM extensions for the graphical console service.
 type ComputerSystemOemIntelGraphicalConsole struct {
 	// AMT Intel AMT-specific KVM options for the graphical console service.
 	AMT *ComputerSystemOemIntelAMTGraphicalConsole `json:"AMT,omitempty"`
+}
+
+// ComputerSystemOemIntelSerialConsole Intel-specific OEM extensions for the serial console service.
+type ComputerSystemOemIntelSerialConsole struct {
+	// AMT Intel AMT-specific SOL options for the serial console service.
+	AMT *ComputerSystemOemIntelAMTSerialConsole `json:"AMT,omitempty"`
+}
+
+// ComputerSystemOemSerialConsole OEM extensions for the serial console service.
+type ComputerSystemOemSerialConsole struct {
+	// Intel Intel-specific OEM extensions for the serial console service.
+	Intel *ComputerSystemOemIntelSerialConsole `json:"Intel,omitempty"`
 }
 
 // ComputerSystemProcessorSummary The central processors of the system in general detail.
@@ -739,6 +871,24 @@ type ComputerSystemResetRequestBody struct {
 	ResetType *ResourceResetType `json:"ResetType,omitempty"`
 }
 
+// ComputerSystemSerialConsoleProtocol The information about a serial console service that this system provides.
+type ComputerSystemSerialConsoleProtocol struct {
+	// ConsoleEntryCommand The command string passed to the service to select or enter the system's serial console.
+	ConsoleEntryCommand *string `json:"ConsoleEntryCommand"`
+
+	// HotKeySequenceDisplay The hotkey sequence available for the user to exit the serial console session.
+	HotKeySequenceDisplay *string `json:"HotKeySequenceDisplay"`
+
+	// Port The protocol port.
+	Port *int64 `json:"Port"`
+
+	// ServiceEnabled An indication of whether the service is enabled for this system.
+	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
+
+	// SharedWithManagerCLI Indicates whether the serial console service is shared with access to the manager's command-line interface (CLI).
+	SharedWithManagerCLI *bool `json:"SharedWithManagerCLI,omitempty"`
+}
+
 // ComputerSystemStopBootOnFault defines model for ComputerSystem_StopBootOnFault.
 type ComputerSystemStopBootOnFault string
 
@@ -747,6 +897,18 @@ type ComputerSystemSystemType string
 
 // ComputerSystemTrustedModuleRequiredToBoot defines model for ComputerSystem_TrustedModuleRequiredToBoot.
 type ComputerSystemTrustedModuleRequiredToBoot string
+
+// ComputerSystemWebSocketConsole The information about a WebSocket serial console service that this system provides.
+type ComputerSystemWebSocketConsole struct {
+	// ConsoleURI The URI at which to access the WebSocket serial console.
+	ConsoleURI *string `json:"ConsoleURI,omitempty"`
+
+	// Interactive Indicates if the WebSocket serial console allows interactive input.
+	Interactive *bool `json:"Interactive,omitempty"`
+
+	// ServiceEnabled An indication of whether the service is enabled for this system.
+	ServiceEnabled *bool `json:"ServiceEnabled,omitempty"`
+}
 
 // MessageMessage The message that the Redfish service returns.
 type MessageMessage struct {
@@ -1241,14 +1403,23 @@ type PostRedfishV1SystemsComputerSystemIdActionsComputerSystemResetJSONRequestBo
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody = ComputerSystemOemIntelAmtCancelKVMConsentRequestBody
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsentJSONRequestBody = ComputerSystemOemIntelAmtCancelSolConsentRequestBody
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody = ComputerSystemOemIntelAmtGenerateRedirectionTokenRequestBody
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody = ComputerSystemOemIntelAmtRequestKVMConsentRequestBody
 
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsentJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsentJSONRequestBody = ComputerSystemOemIntelAmtRequestSolConsentRequestBody
+
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode for application/json ContentType.
 type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody = ComputerSystemOemIntelAmtSubmitKVMConsentCodeRequestBody
+
+// PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCodeJSONRequestBody defines body for PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode for application/json ContentType.
+type PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCodeJSONRequestBody = ComputerSystemOemIntelAmtSubmitSolConsentCodeRequestBody
 
 // Getter for additional properties for ComputerSystemOemActions. Returns the specified
 // element and whether it was found
@@ -1283,6 +1454,14 @@ func (a *ComputerSystemOemActions) UnmarshalJSON(b []byte) error {
 		delete(object, "#Oem.Intel.AMT.CancelKVMConsent")
 	}
 
+	if raw, found := object["#Oem.Intel.AMT.CancelSolConsent"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTCancelSolConsent)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.CancelSolConsent': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.CancelSolConsent")
+	}
+
 	if raw, found := object["#Oem.Intel.AMT.GenerateRedirectionToken"]; found {
 		err = json.Unmarshal(raw, &a.HashOemIntelAMTGenerateRedirectionToken)
 		if err != nil {
@@ -1299,12 +1478,28 @@ func (a *ComputerSystemOemActions) UnmarshalJSON(b []byte) error {
 		delete(object, "#Oem.Intel.AMT.RequestKVMConsent")
 	}
 
+	if raw, found := object["#Oem.Intel.AMT.RequestSolConsent"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTRequestSolConsent)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.RequestSolConsent': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.RequestSolConsent")
+	}
+
 	if raw, found := object["#Oem.Intel.AMT.SubmitKVMConsentCode"]; found {
 		err = json.Unmarshal(raw, &a.HashOemIntelAMTSubmitKVMConsentCode)
 		if err != nil {
 			return fmt.Errorf("error reading '#Oem.Intel.AMT.SubmitKVMConsentCode': %w", err)
 		}
 		delete(object, "#Oem.Intel.AMT.SubmitKVMConsentCode")
+	}
+
+	if raw, found := object["#Oem.Intel.AMT.SubmitSolConsentCode"]; found {
+		err = json.Unmarshal(raw, &a.HashOemIntelAMTSubmitSolConsentCode)
+		if err != nil {
+			return fmt.Errorf("error reading '#Oem.Intel.AMT.SubmitSolConsentCode': %w", err)
+		}
+		delete(object, "#Oem.Intel.AMT.SubmitSolConsentCode")
 	}
 
 	if len(object) != 0 {
@@ -1333,6 +1528,13 @@ func (a ComputerSystemOemActions) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.HashOemIntelAMTCancelSolConsent != nil {
+		object["#Oem.Intel.AMT.CancelSolConsent"], err = json.Marshal(a.HashOemIntelAMTCancelSolConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.CancelSolConsent': %w", err)
+		}
+	}
+
 	if a.HashOemIntelAMTGenerateRedirectionToken != nil {
 		object["#Oem.Intel.AMT.GenerateRedirectionToken"], err = json.Marshal(a.HashOemIntelAMTGenerateRedirectionToken)
 		if err != nil {
@@ -1347,10 +1549,24 @@ func (a ComputerSystemOemActions) MarshalJSON() ([]byte, error) {
 		}
 	}
 
+	if a.HashOemIntelAMTRequestSolConsent != nil {
+		object["#Oem.Intel.AMT.RequestSolConsent"], err = json.Marshal(a.HashOemIntelAMTRequestSolConsent)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.RequestSolConsent': %w", err)
+		}
+	}
+
 	if a.HashOemIntelAMTSubmitKVMConsentCode != nil {
 		object["#Oem.Intel.AMT.SubmitKVMConsentCode"], err = json.Marshal(a.HashOemIntelAMTSubmitKVMConsentCode)
 		if err != nil {
 			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.SubmitKVMConsentCode': %w", err)
+		}
+	}
+
+	if a.HashOemIntelAMTSubmitSolConsentCode != nil {
+		object["#Oem.Intel.AMT.SubmitSolConsentCode"], err = json.Marshal(a.HashOemIntelAMTSubmitSolConsentCode)
+		if err != nil {
+			return nil, fmt.Errorf("error marshaling '#Oem.Intel.AMT.SubmitSolConsentCode': %w", err)
 		}
 	}
 
@@ -2351,6 +2567,192 @@ func (t ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) MarshalJSON
 }
 
 func (t *ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsComputerSystemOemIntelAMTControlMode returns the union data inside the ComputerSystemOemIntelAMTSerialConsole_ControlMode as a ComputerSystemOemIntelAMTControlMode
+func (t ComputerSystemOemIntelAMTSerialConsole_ControlMode) AsComputerSystemOemIntelAMTControlMode() (ComputerSystemOemIntelAMTControlMode, error) {
+	var body ComputerSystemOemIntelAMTControlMode
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTControlMode overwrites any union data inside the ComputerSystemOemIntelAMTSerialConsole_ControlMode as the provided ComputerSystemOemIntelAMTControlMode
+func (t *ComputerSystemOemIntelAMTSerialConsole_ControlMode) FromComputerSystemOemIntelAMTControlMode(v ComputerSystemOemIntelAMTControlMode) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTControlMode performs a merge with any union data inside the ComputerSystemOemIntelAMTSerialConsole_ControlMode, using the provided ComputerSystemOemIntelAMTControlMode
+func (t *ComputerSystemOemIntelAMTSerialConsole_ControlMode) MergeComputerSystemOemIntelAMTControlMode(v ComputerSystemOemIntelAMTControlMode) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComputerSystemOemIntelAMTSerialConsoleControlMode1 returns the union data inside the ComputerSystemOemIntelAMTSerialConsole_ControlMode as a ComputerSystemOemIntelAMTSerialConsoleControlMode1
+func (t ComputerSystemOemIntelAMTSerialConsole_ControlMode) AsComputerSystemOemIntelAMTSerialConsoleControlMode1() (ComputerSystemOemIntelAMTSerialConsoleControlMode1, error) {
+	var body ComputerSystemOemIntelAMTSerialConsoleControlMode1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTSerialConsoleControlMode1 overwrites any union data inside the ComputerSystemOemIntelAMTSerialConsole_ControlMode as the provided ComputerSystemOemIntelAMTSerialConsoleControlMode1
+func (t *ComputerSystemOemIntelAMTSerialConsole_ControlMode) FromComputerSystemOemIntelAMTSerialConsoleControlMode1(v ComputerSystemOemIntelAMTSerialConsoleControlMode1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTSerialConsoleControlMode1 performs a merge with any union data inside the ComputerSystemOemIntelAMTSerialConsole_ControlMode, using the provided ComputerSystemOemIntelAMTSerialConsoleControlMode1
+func (t *ComputerSystemOemIntelAMTSerialConsole_ControlMode) MergeComputerSystemOemIntelAMTSerialConsoleControlMode1(v ComputerSystemOemIntelAMTSerialConsoleControlMode1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ComputerSystemOemIntelAMTSerialConsole_ControlMode) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ComputerSystemOemIntelAMTSerialConsole_ControlMode) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsComputerSystemOemIntelAMTSOLStatus returns the union data inside the ComputerSystemOemIntelAMTSerialConsole_SOLStatus as a ComputerSystemOemIntelAMTSOLStatus
+func (t ComputerSystemOemIntelAMTSerialConsole_SOLStatus) AsComputerSystemOemIntelAMTSOLStatus() (ComputerSystemOemIntelAMTSOLStatus, error) {
+	var body ComputerSystemOemIntelAMTSOLStatus
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTSOLStatus overwrites any union data inside the ComputerSystemOemIntelAMTSerialConsole_SOLStatus as the provided ComputerSystemOemIntelAMTSOLStatus
+func (t *ComputerSystemOemIntelAMTSerialConsole_SOLStatus) FromComputerSystemOemIntelAMTSOLStatus(v ComputerSystemOemIntelAMTSOLStatus) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTSOLStatus performs a merge with any union data inside the ComputerSystemOemIntelAMTSerialConsole_SOLStatus, using the provided ComputerSystemOemIntelAMTSOLStatus
+func (t *ComputerSystemOemIntelAMTSerialConsole_SOLStatus) MergeComputerSystemOemIntelAMTSOLStatus(v ComputerSystemOemIntelAMTSOLStatus) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComputerSystemOemIntelAMTSerialConsoleSOLStatus1 returns the union data inside the ComputerSystemOemIntelAMTSerialConsole_SOLStatus as a ComputerSystemOemIntelAMTSerialConsoleSOLStatus1
+func (t ComputerSystemOemIntelAMTSerialConsole_SOLStatus) AsComputerSystemOemIntelAMTSerialConsoleSOLStatus1() (ComputerSystemOemIntelAMTSerialConsoleSOLStatus1, error) {
+	var body ComputerSystemOemIntelAMTSerialConsoleSOLStatus1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTSerialConsoleSOLStatus1 overwrites any union data inside the ComputerSystemOemIntelAMTSerialConsole_SOLStatus as the provided ComputerSystemOemIntelAMTSerialConsoleSOLStatus1
+func (t *ComputerSystemOemIntelAMTSerialConsole_SOLStatus) FromComputerSystemOemIntelAMTSerialConsoleSOLStatus1(v ComputerSystemOemIntelAMTSerialConsoleSOLStatus1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTSerialConsoleSOLStatus1 performs a merge with any union data inside the ComputerSystemOemIntelAMTSerialConsole_SOLStatus, using the provided ComputerSystemOemIntelAMTSerialConsoleSOLStatus1
+func (t *ComputerSystemOemIntelAMTSerialConsole_SOLStatus) MergeComputerSystemOemIntelAMTSerialConsoleSOLStatus1(v ComputerSystemOemIntelAMTSerialConsoleSOLStatus1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ComputerSystemOemIntelAMTSerialConsole_SOLStatus) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ComputerSystemOemIntelAMTSerialConsole_SOLStatus) UnmarshalJSON(b []byte) error {
+	err := t.union.UnmarshalJSON(b)
+	return err
+}
+
+// AsComputerSystemOemIntelAMTUserConsentStatus returns the union data inside the ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus as a ComputerSystemOemIntelAMTUserConsentStatus
+func (t ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) AsComputerSystemOemIntelAMTUserConsentStatus() (ComputerSystemOemIntelAMTUserConsentStatus, error) {
+	var body ComputerSystemOemIntelAMTUserConsentStatus
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTUserConsentStatus overwrites any union data inside the ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus as the provided ComputerSystemOemIntelAMTUserConsentStatus
+func (t *ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) FromComputerSystemOemIntelAMTUserConsentStatus(v ComputerSystemOemIntelAMTUserConsentStatus) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTUserConsentStatus performs a merge with any union data inside the ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus, using the provided ComputerSystemOemIntelAMTUserConsentStatus
+func (t *ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) MergeComputerSystemOemIntelAMTUserConsentStatus(v ComputerSystemOemIntelAMTUserConsentStatus) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+// AsComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1 returns the union data inside the ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus as a ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1
+func (t ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) AsComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1() (ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1, error) {
+	var body ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1
+	err := json.Unmarshal(t.union, &body)
+	return body, err
+}
+
+// FromComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1 overwrites any union data inside the ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus as the provided ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1
+func (t *ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) FromComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1(v ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1) error {
+	b, err := json.Marshal(v)
+	t.union = b
+	return err
+}
+
+// MergeComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1 performs a merge with any union data inside the ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus, using the provided ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1
+func (t *ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) MergeComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1(v ComputerSystemOemIntelAMTSerialConsoleUserConsentStatus1) error {
+	b, err := json.Marshal(v)
+	if err != nil {
+		return err
+	}
+
+	merged, err := runtime.JSONMerge(t.union, b)
+	t.union = merged
+	return err
+}
+
+func (t ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) MarshalJSON() ([]byte, error) {
+	b, err := t.union.MarshalJSON()
+	return b, err
+}
+
+func (t *ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus) UnmarshalJSON(b []byte) error {
 	err := t.union.UnmarshalJSON(b)
 	return err
 }
