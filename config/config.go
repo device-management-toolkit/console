@@ -45,7 +45,7 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Host           string   `env-required:"true" yaml:"host" env:"HTTP_HOST"`
+		Host           string   `yaml:"host" env:"HTTP_HOST"`
 		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
@@ -154,7 +154,7 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:           "localhost",
+			Host:           "",
 			Port:           "8181",
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},

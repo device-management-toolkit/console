@@ -10,12 +10,105 @@ import (
 	"os/exec"
 	"path/filepath"
 	"syscall"
+	"unsafe"
 )
 
 // detachedProcess is the Windows CreationFlag that runs the child without
 // inheriting the parent console. Defined here to avoid pulling in
 // golang.org/x/sys/windows just for the constant.
 const detachedProcess = 0x00000008
+
+// CreateMutexW returns ERROR_ALREADY_EXISTS when another instance holds the named mutex.
+const errorAlreadyExists syscall.Errno = 183
+
+const mutexName = "Local\\DMTConsoleTray"
+
+// synchronize is the minimum DesiredAccess for OpenMutexW.
+const synchronize = 0x00100000
+
+// ensureSingleInstance prevents concurrent tray processes via a named mutex.
+//
+// The mutex handle does not survive process exit and cannot be passed to the
+// re-execed child on Windows, so:
+//   - In the terminal parent (which is about to fork and exit), we probe with
+//     OpenMutexW; if a duplicate is found, surface it and exit, otherwise let
+//     the re-execed child take the persistent hold.
+//   - In the re-execed child or non-terminal launch (GUI/service), we hold
+//     the mutex with CreateMutexW for process lifetime.
+func ensureSingleInstance(url string) {
+	namePtr, err := syscall.UTF16PtrFromString(mutexName)
+	if err != nil {
+		return
+	}
+
+	kernel32 := syscall.NewLazyDLL("kernel32.dll")
+
+	if shouldHoldInstanceMutex() {
+		acquireInstanceMutex(kernel32, namePtr, url)
+
+		return
+	}
+
+	probeInstanceMutex(kernel32, namePtr, url)
+}
+
+// shouldHoldInstanceMutex reports whether this process is the persistent tray
+// process (re-execed child or non-terminal launch). The terminal parent that
+// is about to call relaunchInBackground returns false.
+func shouldHoldInstanceMutex() bool {
+	return os.Getenv("DMT_BACKGROUND") != "" || !isTerminal()
+}
+
+func acquireInstanceMutex(kernel32 *syscall.LazyDLL, namePtr *uint16, url string) {
+	createMutex := kernel32.NewProc("CreateMutexW")
+
+	handle, _, lastErr := createMutex.Call(0, 0, uintptr(unsafe.Pointer(namePtr)))
+	if handle == 0 {
+		return
+	}
+
+	if errno, ok := lastErr.(syscall.Errno); ok && errno == errorAlreadyExists {
+		log.Printf("DMT Console is already running; signalling user at %s", url)
+		surfaceRunningInstance(url)
+		os.Exit(0)
+	}
+}
+
+func probeInstanceMutex(kernel32 *syscall.LazyDLL, namePtr *uint16, url string) {
+	openMutex := kernel32.NewProc("OpenMutexW")
+
+	handle, _, _ := openMutex.Call(synchronize, 0, uintptr(unsafe.Pointer(namePtr)))
+	if handle == 0 {
+		return
+	}
+
+	closeHandle := kernel32.NewProc("CloseHandle")
+	_, _, _ = closeHandle.Call(handle)
+
+	log.Printf("DMT Console is already running; signalling user at %s", url)
+	surfaceRunningInstance(url)
+	os.Exit(0)
+}
+
+func surfaceRunningInstance(url string) {
+	if isHeadlessBuild {
+		user32 := syscall.NewLazyDLL("user32.dll")
+		messageBox := user32.NewProc("MessageBoxW")
+
+		text, _ := syscall.UTF16PtrFromString("DMT Console is already running in the system tray.\nAPI: " + url)
+		caption, _ := syscall.UTF16PtrFromString("DMT Console")
+
+		const mbIconInformation = 0x40
+		messageBox.Call(0, uintptr(unsafe.Pointer(text)), uintptr(unsafe.Pointer(caption)), mbIconInformation)
+
+		return
+	}
+
+	// rundll32 avoids cmd.exe's metacharacter parsing on URLs with querystrings.
+	if err := exec.CommandContext(context.Background(), "rundll32", "url.dll,FileProtocolHandler", url).Start(); err != nil {
+		log.Printf("Failed to open browser: %v", err)
+	}
+}
 
 // logDir returns the Windows-conventional log directory for the app.
 func logDir() string {

@@ -4,8 +4,10 @@ package main
 
 import (
 	"log"
+	"net"
 	"os"
 	"os/signal"
+	"strings"
 	"syscall"
 
 	"github.com/device-management-toolkit/console/config"
@@ -26,28 +28,31 @@ func isTerminal() bool {
 }
 
 func runWithTray(cfg *config.Config, l logger.Interface) {
-	// When launched from a terminal, re-exec in the background so the
-	// user gets their shell back and logs go to a file.
+	urls := listenURLs(cfg)
+	primaryURL := urls[0]
+
+	// Must run before re-exec so the parent surfaces the duplicate, not the soon-to-exit child.
+	ensureSingleInstance(primaryURL)
+
 	if os.Getenv("DMT_BACKGROUND") == "" && isTerminal() {
+		// Print before re-exec; after fork, stderr is the log file.
+		for _, u := range urls {
+			log.Printf("DMT Console running at %s", u)
+		}
+
 		relaunchInBackground()
 	}
 
-	// Build the URL for the web UI
-	scheme := "http"
-	if cfg.TLS.Enabled {
-		scheme = "https"
-	}
-	url := scheme + "://localhost:" + cfg.Port
-
-	// Create tray manager
 	trayManager := tray.New(tray.Config{
 		AppName:  "DMT Console",
-		URL:      url,
+		URL:      primaryURL,
 		Headless: isHeadlessBuild,
 		OnReady: func() {
-			// Start the server in a goroutine
 			go runAppFunc(cfg, l)
-			log.Printf("DMT Console running at %s", url)
+
+			for _, u := range urls {
+				log.Printf("DMT Console running at %s", u)
+			}
 		},
 		OnQuit: func() {
 			log.Println("Shutting down DMT Console...")
@@ -78,4 +83,118 @@ func runWithTray(cfg *config.Config, l logger.Interface) {
 
 	// Run the tray (this blocks until quit)
 	trayManager.Run()
+}
+
+// listenURLs returns reachable URLs; the first entry is the tray's "open in browser" target.
+func listenURLs(cfg *config.Config) []string {
+	scheme := "http"
+	if cfg.TLS.Enabled {
+		scheme = "https"
+	}
+
+	hosts := listenHosts(cfg.Host)
+	urls := make([]string, 0, len(hosts))
+
+	for _, h := range hosts {
+		urls = append(urls, scheme+"://"+net.JoinHostPort(unbracketHost(h), cfg.Port))
+	}
+
+	return urls
+}
+
+// unbracketHost strips a single pair of surrounding brackets from a literal IPv6
+// host so net.JoinHostPort doesn't double-wrap (e.g. "[::1]" → "::1").
+func unbracketHost(host string) string {
+	if len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']' {
+		return host[1 : len(host)-1]
+	}
+
+	return host
+}
+
+// listenHosts always returns at least one entry ("localhost") so listenURLs[0] is safe.
+func listenHosts(cfgHost string) []string {
+	if !isWildcardListenHost(cfgHost) {
+		return []string{cfgHost}
+	}
+
+	hosts := []string{"localhost"}
+
+	ifaces, err := net.Interfaces()
+	if err != nil {
+		return hosts
+	}
+
+	seen := map[string]struct{}{}
+
+	for _, iface := range ifaces {
+		if !isReachableInterface(iface) {
+			continue
+		}
+
+		hosts = appendInterfaceIPv4s(hosts, iface, seen)
+	}
+
+	return hosts
+}
+
+func isReachableInterface(iface net.Interface) bool {
+	if iface.Flags&net.FlagUp == 0 || iface.Flags&net.FlagLoopback != 0 {
+		return false
+	}
+
+	return !isVirtualInterfaceName(iface.Name)
+}
+
+func appendInterfaceIPv4s(hosts []string, iface net.Interface, seen map[string]struct{}) []string {
+	addrs, err := iface.Addrs()
+	if err != nil {
+		return hosts
+	}
+
+	for _, addr := range addrs {
+		ipNet, ok := addr.(*net.IPNet)
+		if !ok {
+			continue
+		}
+
+		if ipNet.IP.IsLoopback() || ipNet.IP.IsLinkLocalUnicast() || ipNet.IP.To4() == nil {
+			continue
+		}
+
+		ip := ipNet.IP.String()
+		if _, dup := seen[ip]; dup {
+			continue
+		}
+
+		seen[ip] = struct{}{}
+		hosts = append(hosts, ip)
+	}
+
+	return hosts
+}
+
+// isVirtualInterfaceName filters out container/VM/VPN bridges that bind addresses
+// the user can't actually reach the tray from. Conservative — we'd rather miss
+// a real NIC than spam the user with a dozen 172.17.x.x docker URLs.
+func isVirtualInterfaceName(name string) bool {
+	prefixes := []string{
+		"docker", "br-", "veth",
+		"tun", "tap", "utun",
+		"virbr", "vmnet", "vboxnet",
+		"awdl", "llw",
+		"zt", "wg",
+	}
+
+	for _, p := range prefixes {
+		if strings.HasPrefix(name, p) {
+			return true
+		}
+	}
+
+	return false
+}
+
+func isWildcardListenHost(host string) bool {
+	return host == "" || host == "0.0.0.0" || host == "::" || host == "[::]"
 }
