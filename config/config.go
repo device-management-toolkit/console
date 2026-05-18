@@ -219,6 +219,13 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return "", err
 	}
 
+	// Resolve symlinks so invocation via a wrapper symlink (e.g. /usr/local/bin/dmt-console
+	// → /usr/local/device-management-toolkit/console) anchors config beside the real binary
+	// rather than beside the symlink.
+	if resolved, evalErr := filepath.EvalSymlinks(ex); evalErr == nil {
+		ex = resolved
+	}
+
 	exPath := filepath.Dir(ex)
 
 	return filepath.Join(exPath, "config", "config.yml"), nil
