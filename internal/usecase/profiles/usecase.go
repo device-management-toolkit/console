@@ -40,7 +40,24 @@ var (
 	ErrDatabase        = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
 	ErrNotFound        = repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
 	ErrNotValid        = dto.NotValidError{Console: consoleerrors.CreateConsoleError("ProfilesUseCase")}
+
+	ErrAMTPasswordRequired  = errors.New("amtPassword is required when generateRandomPassword is false")
+	ErrMEBXPasswordRequired = errors.New("mebxPassword is required when activation is acmactivate and generateRandomMEBxPassword is false")
 )
+
+// validateProfileCreate enforces password-required invariants that only apply on
+// POST: PATCH may omit either password to leave the stored value untouched.
+func validateProfileCreate(d *dto.Profile) error {
+	if !d.GenerateRandomPassword && d.AMTPassword == "" {
+		return ErrAMTPasswordRequired
+	}
+
+	if d.Activation == dto.ActivationACM && !d.GenerateRandomMEBxPassword && d.MEBXPassword == "" {
+		return ErrMEBXPasswordRequired
+	}
+
+	return nil
+}
 
 // New -.
 func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor) *UseCase {
@@ -538,6 +555,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
+	if err := validateProfileCreate(d); err != nil {
+		return nil, ErrNotValid.Wrap("Insert", "validateProfileCreate", err)
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
