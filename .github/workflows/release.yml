@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
-          go-version: ">=1.23.0"
+          go-version: ">=1.26.0"
 
       - name: Install `@semantic-release/exec` plugin
         run: npm install @semantic-release/exec @semantic-release/changelog
@@ -91,7 +91,7 @@ jobs:
 
       - uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
-          go-version: ">=1.23.0"
+          go-version: ">=1.26.0"
 
       - name: Version
         run: echo "The next version is ${{ needs.prepare.outputs.version }}"
@@ -171,10 +171,10 @@ jobs:
           node-version: 22.x
 
       # Pin Go only for license generation
-      - name: Use Go 1.25.1 for license scan
+      - name: Use Go 1.26.3 for license scan
         uses: actions/setup-go@3041bf56c941b39c61721a86cd11f3bb1338122a # v5.2.0
         with:
-          go-version: "1.25.1"
+          go-version: "1.26.3"
           check-latest: true
       - name: Pin toolchain for this step
         run: |
