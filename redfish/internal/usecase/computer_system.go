@@ -162,6 +162,9 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 	// Convert GraphicalConsole if present
 	graphicalConsole := uc.convertGraphicalConsoleToGenerated(system.GraphicalConsole)
 
+	// Convert SerialConsole if present
+	serialConsole := uc.convertSerialConsoleToGenerated(system.SerialConsole)
+
 	result := generated.ComputerSystemComputerSystem{
 		OdataContext:     &odataContext,
 		OdataId:          &odataID,
@@ -171,6 +174,7 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		Description:      descriptionUnion,
 		BiosVersion:      biosVersion,
 		GraphicalConsole: graphicalConsole,
+		SerialConsole:    serialConsole,
 		HostName:         hostName,
 		Manufacturer:     manufacturer,
 		Model:            model,
@@ -332,6 +336,104 @@ func convertUserConsentStatusToGenerated(value string) *generated.ComputerSystem
 	}
 
 	wrapper := &generated.ComputerSystemOemIntelAMTGraphicalConsole_UserConsentStatus{}
+
+	status := generated.ComputerSystemOemIntelAMTUserConsentStatus(value)
+	if err := wrapper.FromComputerSystemOemIntelAMTUserConsentStatus(status); err != nil {
+		return nil
+	}
+
+	return wrapper
+}
+
+func (uc *ComputerSystemUseCase) convertSerialConsoleToGenerated(console *redfishv1.ComputerSystemHostSerialConsole) *generated.ComputerSystemHostSerialConsole {
+	if console == nil {
+		return nil
+	}
+
+	generatedConsole := &generated.ComputerSystemHostSerialConsole{
+		MaxConcurrentSessions: console.MaxConcurrentSessions,
+	}
+
+	if console.WebSocket != nil {
+		generatedConsole.WebSocket = &generated.ComputerSystemWebSocketConsole{
+			ConsoleURI:     console.WebSocket.ConsoleURI,
+			Interactive:    console.WebSocket.Interactive,
+			ServiceEnabled: console.WebSocket.ServiceEnabled,
+		}
+	}
+
+	if console.OEM != nil {
+		generatedConsole.Oem = uc.convertSerialConsoleOEMToGenerated(console.OEM)
+	}
+
+	return generatedConsole
+}
+
+func (uc *ComputerSystemUseCase) convertSerialConsoleOEMToGenerated(oem *redfishv1.ComputerSystemHostSerialConsoleOEM) *generated.ComputerSystemOemSerialConsole {
+	if oem == nil {
+		return nil
+	}
+
+	generatedOEM := &generated.ComputerSystemOemSerialConsole{}
+	if oem.Intel == nil {
+		return generatedOEM
+	}
+
+	generatedIntel := &generated.ComputerSystemOemIntelSerialConsole{}
+	if oem.Intel.AMT != nil {
+		generatedIntel.AMT = convertAMTSerialConsoleToGenerated(oem.Intel.AMT)
+	}
+
+	generatedOEM.Intel = generatedIntel
+
+	return generatedOEM
+}
+
+func convertAMTSerialConsoleToGenerated(amt *redfishv1.ComputerSystemHostSerialConsoleAMT) *generated.ComputerSystemOemIntelAMTSerialConsole {
+	generatedAMT := &generated.ComputerSystemOemIntelAMTSerialConsole{}
+	generatedAMT.ControlMode = convertSerialControlModeToGenerated(amt.ControlMode)
+	generatedAMT.SOLStatus = convertSOLStatusToGenerated(amt.SOLStatus)
+	generatedAMT.UserConsentStatus = convertSerialUserConsentStatusToGenerated(amt.UserConsentStatus)
+
+	return generatedAMT
+}
+
+func convertSerialControlModeToGenerated(value string) *generated.ComputerSystemOemIntelAMTSerialConsole_ControlMode {
+	if value == "" {
+		return nil
+	}
+
+	wrapper := &generated.ComputerSystemOemIntelAMTSerialConsole_ControlMode{}
+
+	controlMode := generated.ComputerSystemOemIntelAMTControlMode(value)
+	if err := wrapper.FromComputerSystemOemIntelAMTControlMode(controlMode); err != nil {
+		return nil
+	}
+
+	return wrapper
+}
+
+func convertSOLStatusToGenerated(value string) *generated.ComputerSystemOemIntelAMTSerialConsole_SOLStatus {
+	if value == "" {
+		return nil
+	}
+
+	wrapper := &generated.ComputerSystemOemIntelAMTSerialConsole_SOLStatus{}
+
+	solStatus := generated.ComputerSystemOemIntelAMTSOLStatus(value)
+	if err := wrapper.FromComputerSystemOemIntelAMTSOLStatus(solStatus); err != nil {
+		return nil
+	}
+
+	return wrapper
+}
+
+func convertSerialUserConsentStatusToGenerated(value string) *generated.ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus {
+	if value == "" {
+		return nil
+	}
+
+	wrapper := &generated.ComputerSystemOemIntelAMTSerialConsole_UserConsentStatus{}
 
 	status := generated.ComputerSystemOemIntelAMTUserConsentStatus(value)
 	if err := wrapper.FromComputerSystemOemIntelAMTUserConsentStatus(status); err != nil {

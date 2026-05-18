@@ -8,6 +8,7 @@ type ComputerSystem struct {
 	Description      string                              `json:"Description,omitempty"`
 	BiosVersion      string                              `json:"BiosVersion,omitempty"`
 	GraphicalConsole *ComputerSystemHostGraphicalConsole `json:"GraphicalConsole,omitempty"`
+	SerialConsole    *ComputerSystemHostSerialConsole    `json:"SerialConsole,omitempty"`
 	HostName         string                              `json:"HostName,omitempty"`
 	SystemType       SystemType                          `json:"SystemType"`
 	Manufacturer     string                              `json:"Manufacturer"`
@@ -44,6 +45,37 @@ type ComputerSystemHostGraphicalConsoleIntel struct {
 type ComputerSystemHostGraphicalConsoleAMT struct {
 	ControlMode       string `json:"ControlMode,omitempty"`
 	KVMStatus         string `json:"KVMStatus,omitempty"`
+	UserConsentStatus string `json:"UserConsentStatus,omitempty"`
+}
+
+// ComputerSystemHostSerialConsole represents serial console (SOL) capabilities for a system.
+type ComputerSystemHostSerialConsole struct {
+	MaxConcurrentSessions *int64                              `json:"MaxConcurrentSessions,omitempty"`
+	OEM                   *ComputerSystemHostSerialConsoleOEM `json:"Oem,omitempty"`
+	WebSocket             *ComputerSystemHostWebSocketConsole `json:"WebSocket,omitempty"`
+}
+
+// ComputerSystemHostWebSocketConsole represents WebSocket settings for SOL.
+type ComputerSystemHostWebSocketConsole struct {
+	ConsoleURI     *string `json:"ConsoleURI,omitempty"`
+	Interactive    *bool   `json:"Interactive,omitempty"`
+	ServiceEnabled *bool   `json:"ServiceEnabled,omitempty"`
+}
+
+// ComputerSystemHostSerialConsoleOEM represents OEM extensions for serial console.
+type ComputerSystemHostSerialConsoleOEM struct {
+	Intel *ComputerSystemHostSerialConsoleIntel `json:"Intel,omitempty"`
+}
+
+// ComputerSystemHostSerialConsoleIntel represents Intel-specific serial console extensions.
+type ComputerSystemHostSerialConsoleIntel struct {
+	AMT *ComputerSystemHostSerialConsoleAMT `json:"AMT,omitempty"`
+}
+
+// ComputerSystemHostSerialConsoleAMT represents Intel AMT serial console status.
+type ComputerSystemHostSerialConsoleAMT struct {
+	ControlMode       string `json:"ControlMode,omitempty"`
+	SOLStatus         string `json:"SOLStatus,omitempty"`
 	UserConsentStatus string `json:"UserConsentStatus,omitempty"`
 }
 
