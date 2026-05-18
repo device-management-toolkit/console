@@ -399,3 +399,107 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmit
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
+
+// Stub implementation tests for SOL actions
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.CancelSolConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/../invalid/Actions/Oem/IntelComputerSystem.CancelSolConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "../invalid"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, "../invalid")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.RequestSolConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/test%00null/Actions/Oem/IntelComputerSystem.RequestSolConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "test%00null"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, "test%00null")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_Stub(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_InvalidSystemID(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/<script>/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: "<script>"}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, "<script>")
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
