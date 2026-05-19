@@ -41,7 +41,13 @@ func (uc *UseCase) Get(ctx context.Context, top, skip int, tenantID string) ([]d
 
 	for i := range data {
 		tmpEntity := data[i] // create a new variable to avoid memory aliasing
-		d1[i] = *uc.entityToDTO(&tmpEntity)
+
+		d, err := uc.entityToDTO(&tmpEntity)
+		if err != nil {
+			return nil, err
+		}
+
+		d1[i] = *d
 	}
 
 	return d1, nil
@@ -58,7 +64,13 @@ func (uc *UseCase) GetByColumn(ctx context.Context, columnName, queryValue, tena
 
 	for i := range data {
 		tmpEntity := data[i] // create a new variable to avoid memory aliasing
-		d1[i] = *uc.entityToDTO(&tmpEntity)
+
+		d, err := uc.entityToDTO(&tmpEntity)
+		if err != nil {
+			return nil, err
+		}
+
+		d1[i] = *d
 	}
 
 	return d1, nil
@@ -74,7 +86,10 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 		return nil, ErrNotFound
 	}
 
-	d2 := uc.entityToDTO(data)
+	d2, err := uc.entityToDTO(data)
+	if err != nil {
+		return nil, err
+	}
 
 	if includeSecrets {
 		if err := uc.decryptSecrets(d2, data); err != nil {
@@ -140,7 +155,13 @@ func (uc *UseCase) GetByTags(ctx context.Context, tags, method string, limit, of
 
 	for i := range data {
 		tmpEntity := data[i] // create a new variable to avoid memory aliasing
-		d1[i] = *uc.entityToDTO(&tmpEntity)
+
+		d, err := uc.entityToDTO(&tmpEntity)
+		if err != nil {
+			return nil, err
+		}
+
+		d1[i] = *d
 	}
 
 	return d1, nil
@@ -209,7 +230,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 		return nil, err
 	}
 
-	d2 := uc.entityToDTO(updateDevice)
+	d2, err := uc.entityToDTO(updateDevice)
+	if err != nil {
+		return nil, err
+	}
 
 	// invalidate connection cache
 	uc.device.DestroyWsmanClient(*d2)
@@ -237,7 +261,11 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 		return nil, err
 	}
 
-	d2 := uc.entityToDTO(newDevice)
+	d2, err := uc.entityToDTO(newDevice)
+	if err != nil {
+		return nil, err
+	}
+
 	if newDevice.Tags == "" {
 		d2.Tags = []string{}
 	}
