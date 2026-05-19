@@ -5,7 +5,9 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"net/url"
 	"regexp"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 
@@ -151,5 +153,52 @@ func (s *RedfishServer) GetRedfishV1SystemsComputerSystemId(c *gin.Context, comp
 		return
 	}
 
+	normalizeSerialConsoleURI(c, system)
+
 	c.JSON(http.StatusOK, system)
+}
+
+func normalizeSerialConsoleURI(c *gin.Context, system *generated.ComputerSystemComputerSystem) {
+	if system == nil || system.SerialConsole == nil || system.SerialConsole.WebSocket == nil || system.SerialConsole.WebSocket.ConsoleURI == nil {
+		return
+	}
+
+	consoleURI := *system.SerialConsole.WebSocket.ConsoleURI
+	if consoleURI == "" {
+		return
+	}
+
+	parsedURI, err := url.Parse(consoleURI)
+	if err != nil || parsedURI.IsAbs() {
+		return
+	}
+
+	host := c.GetHeader("X-Forwarded-Host")
+	if host == "" {
+		host = c.Request.Host
+	}
+	if host == "" {
+		return
+	}
+
+	scheme := webSocketScheme(c)
+	absoluteURI := scheme + "://" + host + consoleURI
+	system.SerialConsole.WebSocket.ConsoleURI = &absoluteURI
+}
+
+func webSocketScheme(c *gin.Context) string {
+	forwardedProto := strings.ToLower(strings.TrimSpace(c.GetHeader("X-Forwarded-Proto")))
+	if forwardedProto == "https" {
+		return "wss"
+	}
+
+	if forwardedProto == "http" {
+		return "ws"
+	}
+
+	if c.Request.TLS != nil {
+		return "wss"
+	}
+
+	return "ws"
 }

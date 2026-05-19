@@ -254,6 +254,54 @@ func validateSingleSystemResponseTest(t *testing.T, w *httptest.ResponseRecorder
 	validateSystemsCollectionResponse(t, w, 1, []string{fmt.Sprintf("%s/%s", systemsEndpointTest, testUUID1)})
 }
 
+func TestGetRedfishV1SystemsComputerSystemId_AbsoluteSerialConsoleURI(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	serviceEnabled := true
+	interactive := true
+	maxSessions := int64(1)
+	consoleURI := "/relay/webrelay.ashx?host=" + testUUID1 + "&mode=sol"
+
+	repo.AddSystem(testUUID1, &redfishv1.ComputerSystem{
+		ID:           testUUID1,
+		Name:         "Test System",
+		Manufacturer: "Test Manufacturer",
+		Model:        "Test Model",
+		SerialNumber: "SN123456",
+		PowerState:   redfishv1.PowerStateOn,
+		SerialConsole: &redfishv1.ComputerSystemHostSerialConsole{
+			MaxConcurrentSessions: &maxSessions,
+			WebSocket: &redfishv1.ComputerSystemHostWebSocketConsole{
+				ConsoleURI:     &consoleURI,
+				Interactive:    &interactive,
+				ServiceEnabled: &serviceEnabled,
+			},
+		},
+	})
+
+	server := &RedfishServer{
+		ComputerSystemUC: &usecase.ComputerSystemUseCase{Repo: repo},
+	}
+
+	router := setupSystemByIDTestRouter(server)
+	req := httptest.NewRequest(http.MethodGet, "/redfish/v1/Systems/"+testUUID1, http.NoBody)
+	req.Host = "console.example.com"
+	req.Header.Set("X-Forwarded-Proto", "https")
+	w := httptest.NewRecorder()
+
+	router.ServeHTTP(w, req)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+
+	var response generated.ComputerSystemComputerSystem
+	unmarshalJSONResponseTest(t, w, &response)
+
+	if assert.NotNil(t, response.SerialConsole) && assert.NotNil(t, response.SerialConsole.WebSocket) && assert.NotNil(t, response.SerialConsole.WebSocket.ConsoleURI) {
+		assert.Equal(t, "wss://console.example.com/relay/webrelay.ashx?host="+testUUID1+"&mode=sol", *response.SerialConsole.WebSocket.ConsoleURI)
+	}
+}
+
 func validateLargeCollectionResponseTest(t *testing.T, w *httptest.ResponseRecorder, _ struct{}) {
 	t.Helper()
 
