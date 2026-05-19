@@ -335,3 +335,179 @@ func assertGeneratedSerialConsoleAMT(t *testing.T, serialConsole *generated.Comp
 		t.Fatalf("expected UserConsentStatus=%q, got %q", generated.NotRequired, gotConsentStatus)
 	}
 }
+
+func TestConvertSerialConsoleToGenerated_WithNilWebSocket(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	maxSessions := int64(1)
+	console := &redfishv1.ComputerSystemHostSerialConsole{
+		MaxConcurrentSessions: &maxSessions,
+		WebSocket:             nil,
+		OEM:                   nil,
+	}
+
+	got := uc.convertSerialConsoleToGenerated(console)
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if got.MaxConcurrentSessions == nil || *got.MaxConcurrentSessions != 1 {
+		t.Fatalf("expected MaxConcurrentSessions=1, got %#v", got.MaxConcurrentSessions)
+	}
+
+	if got.WebSocket != nil {
+		t.Fatalf("expected WebSocket to be nil, got %#v", got.WebSocket)
+	}
+
+	if got.Oem != nil {
+		t.Fatalf("expected Oem to be nil, got %#v", got.Oem)
+	}
+}
+
+func TestConvertSerialConsoleOEMToGenerated_WithNilIntel(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	oem := &redfishv1.ComputerSystemHostSerialConsoleOEM{
+		Intel: nil,
+	}
+
+	got := uc.convertSerialConsoleOEMToGenerated(oem)
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if got.Intel != nil {
+		t.Fatalf("expected Intel to be nil when input Intel is nil, got %#v", got.Intel)
+	}
+}
+
+func TestConvertSerialConsoleOEMToGenerated_WithNilAMT(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	oem := &redfishv1.ComputerSystemHostSerialConsoleOEM{
+		Intel: &redfishv1.ComputerSystemHostSerialConsoleIntel{
+			AMT: nil,
+		},
+	}
+
+	got := uc.convertSerialConsoleOEMToGenerated(oem)
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if got.Intel == nil {
+		t.Fatal("expected Intel to be non-nil")
+	}
+
+	if got.Intel.AMT != nil {
+		t.Fatalf("expected Intel.AMT to be nil, got %#v", got.Intel.AMT)
+	}
+}
+
+func TestConvertSerialConsoleOEMToGenerated_Nil(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	got := uc.convertSerialConsoleOEMToGenerated(nil)
+
+	if got != nil {
+		t.Fatalf("expected nil, got %#v", got)
+	}
+}
+
+func TestConvertSerialControlModeToGenerated_EmptyValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialControlModeToGenerated("")
+
+	if got != nil {
+		t.Fatalf("expected nil for empty value, got %#v", got)
+	}
+}
+
+func TestConvertSOLStatusToGenerated_EmptyValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSOLStatusToGenerated("")
+
+	if got != nil {
+		t.Fatalf("expected nil for empty value, got %#v", got)
+	}
+}
+
+func TestConvertSerialUserConsentStatusToGenerated_EmptyValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialUserConsentStatusToGenerated("")
+
+	if got != nil {
+		t.Fatalf("expected nil for empty value, got %#v", got)
+	}
+}
+
+func TestConvertSerialControlModeToGenerated_ValidValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialControlModeToGenerated("ACM")
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	mode, err := got.AsComputerSystemOemIntelAMTControlMode()
+	if err != nil {
+		t.Fatalf("failed to decode ControlMode: %v", err)
+	}
+
+	if mode != generated.ACM {
+		t.Fatalf("expected ACM, got %q", mode)
+	}
+}
+
+func TestConvertSOLStatusToGenerated_ValidValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSOLStatusToGenerated("Enabled")
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	status, err := got.AsComputerSystemOemIntelAMTSOLStatus()
+	if err != nil {
+		t.Fatalf("failed to decode SOLStatus: %v", err)
+	}
+
+	if status != generated.ComputerSystemOemIntelAMTSOLStatusEnabled {
+		t.Fatalf("expected Enabled, got %q", status)
+	}
+}
+
+func TestConvertSerialUserConsentStatusToGenerated_ValidValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialUserConsentStatusToGenerated("NotRequired")
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	consent, err := got.AsComputerSystemOemIntelAMTUserConsentStatus()
+	if err != nil {
+		t.Fatalf("failed to decode UserConsentStatus: %v", err)
+	}
+
+	if consent != generated.NotRequired {
+		t.Fatalf("expected NotRequired, got %q", consent)
+	}
+}
