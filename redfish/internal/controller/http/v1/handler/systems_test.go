@@ -8,11 +8,13 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"sort"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
 
+	"github.com/device-management-toolkit/console/pkg/logger"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 	"github.com/device-management-toolkit/console/redfish/internal/usecase"
@@ -49,15 +51,19 @@ var (
 
 // TestSystemsComputerSystemRepository is a test implementation for systems tests
 type TestSystemsComputerSystemRepository struct {
-	systems        map[string]*redfishv1.ComputerSystem
-	errorOnGetAll  bool
-	errorOnGetByID map[string]error
+	systems           map[string]*redfishv1.ComputerSystem
+	errorOnGetAll     bool
+	errorOnGetByID    map[string]error
+	errorOnUpdateBoot map[string]error
+	errorOnUpdateKVM  map[string]error
 }
 
 func NewTestSystemsComputerSystemRepository() *TestSystemsComputerSystemRepository {
 	return &TestSystemsComputerSystemRepository{
-		systems:        make(map[string]*redfishv1.ComputerSystem),
-		errorOnGetByID: make(map[string]error),
+		systems:           make(map[string]*redfishv1.ComputerSystem),
+		errorOnGetByID:    make(map[string]error),
+		errorOnUpdateBoot: make(map[string]error),
+		errorOnUpdateKVM:  make(map[string]error),
 	}
 }
 
@@ -134,6 +140,22 @@ func (r *TestSystemsComputerSystemRepository) GetBootSettings(_ context.Context,
 }
 
 func (r *TestSystemsComputerSystemRepository) UpdateBootSettings(_ context.Context, systemID string, _ *generated.ComputerSystemBoot) error {
+	if err, exists := r.errorOnUpdateBoot[systemID]; exists {
+		return err
+	}
+
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
+func (r *TestSystemsComputerSystemRepository) UpdateGraphicalConsoleServiceEnabled(_ context.Context, systemID string, _ bool) error {
+	if err, exists := r.errorOnUpdateKVM[systemID]; exists {
+		return err
+	}
+
 	if _, exists := r.systems[systemID]; exists {
 		return nil
 	}
@@ -221,6 +243,18 @@ func setupSystemByIDTestRouter(server *RedfishServer) *gin.Engine {
 	// Add route for empty system ID case (trailing slash)
 	router.GET("/redfish/v1/Systems/", func(c *gin.Context) {
 		server.GetRedfishV1SystemsComputerSystemId(c, "")
+	})
+
+	return router
+}
+
+func setupPatchSystemTestRouter(server *RedfishServer) *gin.Engine {
+	gin.SetMode(gin.TestMode)
+
+	router := gin.New()
+	router.PATCH("/redfish/v1/Systems/:ComputerSystemId", func(c *gin.Context) {
+		computerSystemID := c.Param("ComputerSystemId")
+		server.PatchRedfishV1SystemsComputerSystemId(c, computerSystemID)
 	})
 
 	return router
@@ -1246,6 +1280,114 @@ func TestValidateSystemID(t *testing.T) {
 					t.Errorf("validateSystemID() unexpected error = %v", err)
 				}
 			}
+		})
+	}
+}
+
+func TestPatchSystemGraphicalConsoleAndBoot(t *testing.T) {
+	t.Parallel()
+
+	const patchEndpoint = "/redfish/v1/Systems/:ComputerSystemId"
+
+	kvmEnabled := true
+
+	tests := []struct {
+		name           string
+		systemID       string
+		body           string
+		setupRepo      func(*TestSystemsComputerSystemRepository)
+		withLogger     bool
+		expectedStatus int
+	}{
+		{
+			name:           "invalid system ID",
+			systemID:       "not-a-uuid",
+			body:           `{"GraphicalConsole":{"ServiceEnabled":true}}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "invalid JSON body",
+			systemID:       testUUID1,
+			body:           `{invalid}`,
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "graphical console success",
+			systemID:       testUUID1,
+			body:           `{"GraphicalConsole":{"ServiceEnabled":true}}`,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:     "boot validation error path",
+			systemID: testUUID1,
+			body:     `{"Boot":{"BootSourceOverrideEnabled":"Disabled"}}`,
+			setupRepo: func(repo *TestSystemsComputerSystemRepository) {
+				repo.errorOnUpdateBoot[testUUID1] = usecase.ErrInvalidBootEnabled
+			},
+			expectedStatus: http.StatusBadRequest,
+		},
+		{
+			name:           "graphical console system not found",
+			systemID:       testUUID2,
+			body:           `{"GraphicalConsole":{"ServiceEnabled":false}}`,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
+			name:     "graphical console generic error",
+			systemID: testUUID1,
+			body:     `{"GraphicalConsole":{"ServiceEnabled":false}}`,
+			setupRepo: func(repo *TestSystemsComputerSystemRepository) {
+				repo.errorOnUpdateKVM[testUUID1] = errors.New("amt refused")
+			},
+			withLogger:     true,
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:     "get system after patch fails",
+			systemID: testUUID1,
+			body:     `{"GraphicalConsole":{"ServiceEnabled":true}}`,
+			setupRepo: func(repo *TestSystemsComputerSystemRepository) {
+				repo.errorOnGetByID[testUUID1] = errors.New("read failed")
+			},
+			expectedStatus: http.StatusInternalServerError,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			repo := NewTestSystemsComputerSystemRepository()
+			repo.AddSystem(testUUID1, &redfishv1.ComputerSystem{
+				ID:         testUUID1,
+				Name:       "Test System",
+				PowerState: redfishv1.PowerStateOn,
+				GraphicalConsole: &redfishv1.ComputerSystemHostGraphicalConsole{
+					ServiceEnabled: &kvmEnabled,
+				},
+			})
+
+			if tt.setupRepo != nil {
+				tt.setupRepo(repo)
+			}
+
+			server := &RedfishServer{ComputerSystemUC: &usecase.ComputerSystemUseCase{Repo: repo}}
+			if tt.withLogger {
+				server.Logger = logger.New("error")
+			}
+
+			router := setupPatchSystemTestRouter(server)
+			url := strings.Replace(patchEndpoint, ":ComputerSystemId", tt.systemID, 1)
+			req, _ := http.NewRequestWithContext(context.Background(), http.MethodPatch, url, strings.NewReader(tt.body))
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+
+			router.ServeHTTP(w, req)
+
+			assert.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
 }

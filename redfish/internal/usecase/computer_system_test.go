@@ -12,6 +12,7 @@ import (
 type graphicalConsoleTestRepo struct {
 	system  *redfishv1.ComputerSystem
 	bootErr error
+	kvmErr  error
 }
 
 func (r *graphicalConsoleTestRepo) GetAll(_ context.Context) ([]string, error) {
@@ -42,6 +43,10 @@ func (r *graphicalConsoleTestRepo) GetBootSettings(_ context.Context, _ string) 
 
 func (r *graphicalConsoleTestRepo) UpdateBootSettings(_ context.Context, _ string, _ *generated.ComputerSystemBoot) error {
 	return nil
+}
+
+func (r *graphicalConsoleTestRepo) UpdateGraphicalConsoleServiceEnabled(_ context.Context, _ string, _ bool) error {
+	return r.kvmErr
 }
 
 func TestConvertGraphicalConsoleToGeneratedNil(t *testing.T) {
@@ -281,5 +286,44 @@ func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state s
 
 	if got != wantState {
 		t.Errorf("convertStateToGenerated(%q) got %v, want %v", state, got, wantState)
+	}
+}
+
+func TestUpdateGraphicalConsoleServiceEnabled(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		kvmErr  error
+		enabled bool
+		wantErr error
+	}{
+		{
+			name:    "success",
+			enabled: true,
+		},
+		{
+			name:    "repo error",
+			kvmErr:  errAMT,
+			enabled: false,
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{kvmErr: tt.kvmErr}}
+
+			err := uc.UpdateGraphicalConsoleServiceEnabled(context.Background(), "system-1", tt.enabled)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("UpdateGraphicalConsoleServiceEnabled() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
 	}
 }
