@@ -43,6 +43,15 @@ func (s *RedfishServer) PatchRedfishV1SystemsComputerSystemId(c *gin.Context, co
 		}
 	}
 
+	// Update GraphicalConsole service state if provided
+	if req.GraphicalConsole != nil && req.GraphicalConsole.ServiceEnabled != nil {
+		if err := s.ComputerSystemUC.UpdateGraphicalConsoleServiceEnabled(ctx, computerSystemID, *req.GraphicalConsole.ServiceEnabled); err != nil {
+			s.handlePatchSystemError(c, err, computerSystemID)
+
+			return
+		}
+	}
+
 	// Return updated system
 	updatedSystem, err := s.ComputerSystemUC.GetComputerSystem(ctx, computerSystemID)
 	if err != nil {

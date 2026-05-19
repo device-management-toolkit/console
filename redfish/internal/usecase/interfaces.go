@@ -15,4 +15,5 @@ type ComputerSystemRepository interface {
 	UpdatePowerState(ctx context.Context, systemID string, state redfishv1.PowerState) error
 	GetBootSettings(ctx context.Context, systemID string) (*generated.ComputerSystemBoot, error)
 	UpdateBootSettings(ctx context.Context, systemID string, boot *generated.ComputerSystemBoot) error
+	UpdateGraphicalConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error
 }

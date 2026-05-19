@@ -177,6 +177,7 @@ func normalizeSerialConsoleURI(c *gin.Context, system *generated.ComputerSystemC
 	if host == "" {
 		host = c.Request.Host
 	}
+
 	if host == "" {
 		return
 	}
