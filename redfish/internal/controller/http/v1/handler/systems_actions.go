@@ -132,7 +132,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken handles generating a redirection token for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken(c *gin.Context, computerSystemID string) {
@@ -142,7 +141,28 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionTokenJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	response, err := s.ComputerSystemUC.GenerateRedirectionToken(c.Request.Context(), computerSystemID)
+	if err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	SetRedfishHeaders(c)
+	c.JSON(http.StatusOK, response)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent handles requesting KVM consent for a computer system.
