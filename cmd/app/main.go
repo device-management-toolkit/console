@@ -22,10 +22,6 @@ var (
 	ErrSecretStoreTokenNotConfigured   = errors.New("secret store token not configured")
 )
 
-// ginModeDebug is the value of GIN_MODE that opts into developer-mode
-// behaviors (e.g. auto-launching a browser on startup).
-const ginModeDebug = "debug"
-
 // Function pointers for better testability.
 var (
 	initializeConfigFunc = config.NewConfig
@@ -103,17 +99,9 @@ func handleDebugMode(cfg *config.Config, l logger.Interface) {
 		return
 	}
 
-	if shouldAutoLaunchBrowser() {
+	if os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	}
-}
-
-// shouldAutoLaunchBrowser reports whether the binary should fire a browser
-// launch on startup. Only true when a developer has explicitly opted into
-// debug mode; containers and services run with GIN_MODE=release or unset and
-// fall through without attempting to invoke xdg-open / open / start.
-func shouldAutoLaunchBrowser() bool {
-	return os.Getenv("GIN_MODE") == ginModeDebug
 }
 
 func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
