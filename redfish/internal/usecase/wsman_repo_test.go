@@ -9,17 +9,150 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
+
+func TestMapProvisioningModeToControlMode(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		mode setupandconfiguration.ProvisioningModeValue
+		want string
+	}{
+		{name: "admin mode maps to ACM", mode: setupandconfiguration.AdminControlMode, want: controlModeACM},
+		{name: "client mode maps to CCM", mode: setupandconfiguration.ClientControlMode, want: controlModeCCM},
+		{name: "unknown mode omitted", mode: 999, want: ""},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := mapProvisioningModeToControlMode(tt.mode)
+			if got != tt.want {
+				t.Fatalf("mapProvisioningModeToControlMode() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestMapControlModeFromVersion(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		version dto.Version
+		want    string
+	}{
+		{
+			name:    "admin mode from version",
+			version: dto.Version{AMTSetupAndConfigurationService: dto.SetupAndConfigurationServiceResponses{Response: dto.SetupAndConfigurationServiceResponse{ProvisioningMode: setupandconfiguration.AdminControlMode}}},
+			want:    controlModeACM,
+		},
+		{
+			name:    "client mode from version",
+			version: dto.Version{AMTSetupAndConfigurationService: dto.SetupAndConfigurationServiceResponses{Response: dto.SetupAndConfigurationServiceResponse{ProvisioningMode: setupandconfiguration.ClientControlMode}}},
+			want:    controlModeCCM,
+		},
+		{
+			name:    "unknown mode omitted",
+			version: dto.Version{},
+			want:    "",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := mapControlModeFromVersion(tt.version)
+			if got != tt.want {
+				t.Fatalf("mapControlModeFromVersion() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetAMTControlMode(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	tests := []struct {
+		name     string
+		setup    func(*testing.T, *mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement, *entity.Device)
+		wantMode string
+	}{
+		{
+			name: "client control mode from version",
+			setup: func(t *testing.T, repo *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement, device *entity.Device) {
+				t.Helper()
+
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+				management.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil)
+				management.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.ClientControlMode}}, nil)
+			},
+			wantMode: controlModeCCM,
+		},
+		{
+			name: "failure returns empty control mode",
+			setup: func(t *testing.T, repo *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement, device *entity.Device) {
+				t.Helper()
+
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+				management.EXPECT().GetAMTVersion().Return(nil, errors.New("boom"))
+			},
+			wantMode: "",
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			redirectionMock := mocks.NewMockRedirection(ctrl)
+			management := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, redirectionMock, logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			tt.setup(t, repoMock, wsmanMock, management, device)
+
+			got := repo.getAMTControlMode(context.Background(), device.GUID)
+			if got != tt.wantMode {
+				t.Fatalf("getAMTControlMode() = %q, want %q", got, tt.wantMode)
+			}
+		})
+	}
+}
 
 func TestDetermineKVMStatus(t *testing.T) {
 	t.Parallel()
@@ -228,7 +361,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := repo.buildGraphicalConsole(tt.useTLS, tt.features)
+			got := repo.buildGraphicalConsole(tt.useTLS, tt.features, controlModeACM)
 			assertGraphicalConsole(t, got, tt.wantEnabled, tt.wantConnTypes, tt.wantPort, tt.wantKVMStatus)
 		})
 	}
@@ -674,7 +807,7 @@ func TestBuildSerialConsole(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := repo.buildSerialConsole(tt.systemID, tt.features)
+			got := repo.buildSerialConsole(tt.systemID, tt.features, controlModeACM)
 			assertSerialConsole(t, got, tt.wantEnabled, tt.wantURI, tt.wantSOLStatus)
 		})
 	}

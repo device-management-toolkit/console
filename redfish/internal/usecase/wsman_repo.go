@@ -9,6 +9,7 @@ import (
 	"strconv"
 
 	amtBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	wsmanClient "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
@@ -47,6 +48,7 @@ const (
 	serialConsoleMode       = "sol"
 	redirectionWebSocketURI = "/relay/webrelay.ashx"
 	controlModeACM          = "ACM"
+	controlModeCCM          = "CCM"
 	userConsentNotRequired  = "NotRequired"
 	statusPendingConsent    = "PendingConsent"
 	statusError             = "Error"
@@ -900,13 +902,15 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 		return system, nil
 	}
 
-	system.GraphicalConsole = r.buildGraphicalConsole(device.UseTLS, featuresV2)
-	system.SerialConsole = r.buildSerialConsole(systemID, featuresV2)
+	controlMode := r.getAMTControlMode(ctx, systemID)
+
+	system.GraphicalConsole = r.buildGraphicalConsole(device.UseTLS, featuresV2, controlMode)
+	system.SerialConsole = r.buildSerialConsole(systemID, featuresV2, controlMode)
 
 	return system, nil
 }
 
-func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 dtov2.Features) *redfishv1.ComputerSystemHostGraphicalConsole {
+func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 dtov2.Features, controlMode string) *redfishv1.ComputerSystemHostGraphicalConsole {
 	serviceEnabled := featuresV2.EnableKVM
 
 	var connectTypes []string
@@ -933,8 +937,7 @@ func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 
 	oemExt := &redfishv1.ComputerSystemHostGraphicalConsoleOEM{
 		Intel: &redfishv1.ComputerSystemHostGraphicalConsoleIntel{
 			AMT: &redfishv1.ComputerSystemHostGraphicalConsoleAMT{
-				// Planned follow-up: query AMT_GeneralSettings from WS-Man to get actual control mode.
-				ControlMode: controlModeACM,
+				ControlMode: controlMode,
 				KVMStatus:   kvmStatus,
 				// Planned follow-up: query CIM_KVMRedirectionSAP and IPS_OptInService for actual user consent status.
 				UserConsentStatus: userConsentNotRequired,
@@ -983,7 +986,7 @@ func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInS
 	return StateEnabled
 }
 
-func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2 dtov2.Features) *redfishv1.ComputerSystemHostSerialConsole {
+func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2 dtov2.Features, controlMode string) *redfishv1.ComputerSystemHostSerialConsole {
 	serviceEnabled := featuresV2.EnableSOL
 	maxConcurrentSessions := int64(1)
 	interactive := true
@@ -1001,8 +1004,7 @@ func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2
 	oemExt := &redfishv1.ComputerSystemHostSerialConsoleOEM{
 		Intel: &redfishv1.ComputerSystemHostSerialConsoleIntel{
 			AMT: &redfishv1.ComputerSystemHostSerialConsoleAMT{
-				// Planned follow-up: query AMT_GeneralSettings from WS-Man to get actual control mode.
-				ControlMode: controlModeACM,
+				ControlMode: controlMode,
 				SOLStatus:   solStatus,
 				// Planned follow-up: query AMT_RedirectionService and IPS_OptInService for actual user consent status.
 				UserConsentStatus: userConsentNotRequired,
@@ -1052,6 +1054,32 @@ func determineSOLStatus(enableSOL, solAvailable bool, userConsent string, optInS
 	}
 
 	return StateEnabled
+}
+
+func (r *WsmanComputerSystemRepo) getAMTControlMode(ctx context.Context, systemID string) string {
+	version, _, err := r.usecase.GetVersion(ctx, systemID)
+	if err != nil {
+		r.log.Warn("Failed to retrieve AMT version for control mode", "systemID", systemID, "error", err)
+
+		return ""
+	}
+
+	return mapControlModeFromVersion(version)
+}
+
+func mapControlModeFromVersion(version dto.Version) string {
+	return mapProvisioningModeToControlMode(version.AMTSetupAndConfigurationService.Response.ProvisioningMode)
+}
+
+func mapProvisioningModeToControlMode(mode setupandconfiguration.ProvisioningModeValue) string {
+	switch mode {
+	case setupandconfiguration.ClientControlMode:
+		return controlModeCCM
+	case setupandconfiguration.AdminControlMode:
+		return controlModeACM
+	default:
+		return ""
+	}
 }
 
 // UpdateGraphicalConsoleServiceEnabled updates KVM enabled state through the existing devices feature flow.
