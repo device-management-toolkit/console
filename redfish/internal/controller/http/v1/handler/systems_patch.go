@@ -52,6 +52,15 @@ func (s *RedfishServer) PatchRedfishV1SystemsComputerSystemId(c *gin.Context, co
 		}
 	}
 
+	// Update SerialConsole WebSocket service state if provided
+	if req.SerialConsole != nil && req.SerialConsole.WebSocket != nil && req.SerialConsole.WebSocket.ServiceEnabled != nil {
+		if err := s.ComputerSystemUC.UpdateSerialConsoleServiceEnabled(ctx, computerSystemID, *req.SerialConsole.WebSocket.ServiceEnabled); err != nil {
+			s.handlePatchSystemError(c, err, computerSystemID)
+
+			return
+		}
+	}
+
 	// Return updated system
 	updatedSystem, err := s.ComputerSystemUC.GetComputerSystem(ctx, computerSystemID)
 	if err != nil {

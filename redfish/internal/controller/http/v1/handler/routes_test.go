@@ -100,6 +100,14 @@ func (r *TestComputerSystemRepository) UpdateGraphicalConsoleServiceEnabled(_ co
 	return usecase.ErrSystemNotFound
 }
 
+func (r *TestComputerSystemRepository) UpdateSerialConsoleServiceEnabled(_ context.Context, systemID string, _ bool) error {
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
 // createTestSystemData creates a test system for the repository
 func createTestSystemData(systemID, name, manufacturer, model, serialNumber string) *redfishv1.ComputerSystem {
 	return &redfishv1.ComputerSystem{
