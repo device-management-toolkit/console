@@ -42,6 +42,15 @@ const (
 	kvmConnectTypeKVMIP = "KVMIP"
 	kvmStatusActive     = "Active"
 
+	// SOL route and status constants.
+	solStatusActive         = "Active"
+	serialConsoleMode       = "sol"
+	redirectionWebSocketURI = "/relay/webrelay.ashx"
+	controlModeACM          = "ACM"
+	userConsentNotRequired  = "NotRequired"
+	statusPendingConsent    = "PendingConsent"
+	statusError             = "Error"
+
 	// Health state constants.
 	healthStateOK       = "OK"
 	healthStateWarning  = "Warning"
@@ -892,6 +901,7 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 	}
 
 	system.GraphicalConsole = r.buildGraphicalConsole(device.UseTLS, featuresV2)
+	system.SerialConsole = r.buildSerialConsole(systemID, featuresV2)
 
 	return system, nil
 }
@@ -924,10 +934,10 @@ func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 
 		Intel: &redfishv1.ComputerSystemHostGraphicalConsoleIntel{
 			AMT: &redfishv1.ComputerSystemHostGraphicalConsoleAMT{
 				// Planned follow-up: query AMT_GeneralSettings from WS-Man to get actual control mode.
-				ControlMode: "ACM",
+				ControlMode: controlModeACM,
 				KVMStatus:   kvmStatus,
 				// Planned follow-up: query CIM_KVMRedirectionSAP and IPS_OptInService for actual user consent status.
-				UserConsentStatus: "NotRequired",
+				UserConsentStatus: userConsentNotRequired,
 			},
 		},
 	}
@@ -962,11 +972,82 @@ func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInS
 		case optin.InSession:
 			return kvmStatusActive
 		case optin.NotStarted, optin.Requested, optin.Displayed:
-			return "PendingConsent"
+			return statusPendingConsent
 		case optin.Received:
 			return StateEnabled
 		default:
-			return "Error"
+			return statusError
+		}
+	}
+
+	return StateEnabled
+}
+
+func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2 dtov2.Features) *redfishv1.ComputerSystemHostSerialConsole {
+	serviceEnabled := featuresV2.EnableSOL
+	maxConcurrentSessions := int64(1)
+	interactive := true
+
+	var consoleURI *string
+
+	if featuresV2.Redirection {
+		uri := fmt.Sprintf("%s?host=%s&mode=%s", redirectionWebSocketURI, systemID, serialConsoleMode)
+		consoleURI = &uri
+	}
+
+	solStatus := determineSOLStatus(featuresV2.EnableSOL, featuresV2.Redirection, featuresV2.UserConsent, featuresV2.OptInState)
+
+	// Build OEM extensions with Intel AMT status.
+	oemExt := &redfishv1.ComputerSystemHostSerialConsoleOEM{
+		Intel: &redfishv1.ComputerSystemHostSerialConsoleIntel{
+			AMT: &redfishv1.ComputerSystemHostSerialConsoleAMT{
+				// Planned follow-up: query AMT_GeneralSettings from WS-Man to get actual control mode.
+				ControlMode: controlModeACM,
+				SOLStatus:   solStatus,
+				// Planned follow-up: query AMT_RedirectionService and IPS_OptInService for actual user consent status.
+				UserConsentStatus: userConsentNotRequired,
+			},
+		},
+	}
+
+	return &redfishv1.ComputerSystemHostSerialConsole{
+		MaxConcurrentSessions: &maxConcurrentSessions,
+		OEM:                   oemExt,
+		WebSocket: &redfishv1.ComputerSystemHostWebSocketConsole{
+			ConsoleURI:     consoleURI,
+			Interactive:    &interactive,
+			ServiceEnabled: &serviceEnabled,
+		},
+	}
+}
+
+// determineSOLStatus returns Intel AMT SOLStatus using SOL availability, enablement,
+// and user consent runtime state from IPS_OptInService.
+func determineSOLStatus(enableSOL, solAvailable bool, userConsent string, optInState int) string {
+	const (
+		userConsentSOL = "sol"
+		userConsentAll = "all"
+	)
+
+	if !solAvailable {
+		return StateDisabled
+	}
+
+	if !enableSOL {
+		return StateDisabled
+	}
+
+	consentRequired := userConsent == userConsentSOL || userConsent == userConsentAll
+	if consentRequired {
+		switch optin.OptInState(optInState) {
+		case optin.InSession:
+			return solStatusActive
+		case optin.NotStarted, optin.Requested, optin.Displayed:
+			return statusPendingConsent
+		case optin.Received:
+			return StateEnabled
+		default:
+			return statusError
 		}
 	}
 

@@ -166,88 +166,20 @@ func TestConvertStateToGenerated(t *testing.T) {
 		wantNil   bool
 		wantState generated.ResourceState
 	}{
-		{
-			name:      "StateEnabled",
-			state:     StateEnabled,
-			wantNil:   false,
-			wantState: generated.ResourceStateEnabled,
-		},
-		{
-			name:      "StateDisabled",
-			state:     StateDisabled,
-			wantNil:   false,
-			wantState: generated.ResourceStateDisabled,
-		},
-		{
-			name:      "StateStandbyOffline",
-			state:     StateStandbyOffline,
-			wantNil:   false,
-			wantState: generated.ResourceStateStandbyOffline,
-		},
-		{
-			name:      "StateStandbySpare",
-			state:     StateStandbySpare,
-			wantNil:   false,
-			wantState: generated.ResourceStateStandbySpare,
-		},
-		{
-			name:      "StateInTest",
-			state:     StateInTest,
-			wantNil:   false,
-			wantState: generated.ResourceStateInTest,
-		},
-		{
-			name:      "StateStarting",
-			state:     StateStarting,
-			wantNil:   false,
-			wantState: generated.ResourceStateStarting,
-		},
-		{
-			name:      "StateAbsent",
-			state:     StateAbsent,
-			wantNil:   false,
-			wantState: generated.ResourceStateAbsent,
-		},
-		{
-			name:      "StateUnavailableOffline",
-			state:     StateUnavailableOffline,
-			wantNil:   false,
-			wantState: generated.ResourceStateUnavailableOffline,
-		},
-		{
-			name:      "StateDeferring",
-			state:     StateDeferring,
-			wantNil:   false,
-			wantState: generated.ResourceStateDeferring,
-		},
-		{
-			name:      "StateQuiesced",
-			state:     StateQuiesced,
-			wantNil:   false,
-			wantState: generated.ResourceStateQuiesced,
-		},
-		{
-			name:      "StateUpdating",
-			state:     StateUpdating,
-			wantNil:   false,
-			wantState: generated.ResourceStateUpdating,
-		},
-		{
-			name:      "StateDegraded",
-			state:     StateDegraded,
-			wantNil:   false,
-			wantState: generated.ResourceStateDegraded,
-		},
-		{
-			name:    "UnknownState",
-			state:   "UnknownState",
-			wantNil: true,
-		},
-		{
-			name:    "EmptyState",
-			state:   "",
-			wantNil: true,
-		},
+		{name: "StateEnabled", state: StateEnabled, wantState: generated.ResourceStateEnabled},
+		{name: "StateDisabled", state: StateDisabled, wantState: generated.ResourceStateDisabled},
+		{name: "StateStandbyOffline", state: StateStandbyOffline, wantState: generated.ResourceStateStandbyOffline},
+		{name: "StateStandbySpare", state: StateStandbySpare, wantState: generated.ResourceStateStandbySpare},
+		{name: "StateInTest", state: StateInTest, wantState: generated.ResourceStateInTest},
+		{name: "StateStarting", state: StateStarting, wantState: generated.ResourceStateStarting},
+		{name: "StateAbsent", state: StateAbsent, wantState: generated.ResourceStateAbsent},
+		{name: "StateUnavailableOffline", state: StateUnavailableOffline, wantState: generated.ResourceStateUnavailableOffline},
+		{name: "StateDeferring", state: StateDeferring, wantState: generated.ResourceStateDeferring},
+		{name: "StateQuiesced", state: StateQuiesced, wantState: generated.ResourceStateQuiesced},
+		{name: "StateUpdating", state: StateUpdating, wantState: generated.ResourceStateUpdating},
+		{name: "StateDegraded", state: StateDegraded, wantState: generated.ResourceStateDegraded},
+		{name: "UnknownState", state: "UnknownState", wantNil: true},
+		{name: "EmptyState", state: "", wantNil: true},
 	}
 
 	uc := &ComputerSystemUseCase{}
@@ -261,7 +193,6 @@ func TestConvertStateToGenerated(t *testing.T) {
 	}
 }
 
-// validateConvertStateResult validates the result of convertStateToGenerated.
 func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state string, wantNil bool, wantState generated.ResourceState) {
 	t.Helper()
 
@@ -286,6 +217,303 @@ func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state s
 
 	if got != wantState {
 		t.Errorf("convertStateToGenerated(%q) got %v, want %v", state, got, wantState)
+	}
+}
+
+func TestConvertSerialConsoleToGeneratedNil(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	if got := uc.convertSerialConsoleToGenerated(nil); got != nil {
+		t.Fatalf("expected nil SerialConsole, got %#v", got)
+	}
+}
+
+func TestGetComputerSystemSerialConsoleMapping(t *testing.T) {
+	t.Parallel()
+
+	serviceEnabled := true
+	interactive := true
+	maxSessions := int64(1)
+	consoleURI := "/relay/webrelay.ashx?host=system-1&mode=sol"
+
+	repo := &graphicalConsoleTestRepo{
+		system: &redfishv1.ComputerSystem{
+			ID:         "system-1",
+			Name:       "Test System",
+			SystemType: redfishv1.SystemTypePhysical,
+			PowerState: redfishv1.PowerStateOn,
+			SerialConsole: &redfishv1.ComputerSystemHostSerialConsole{
+				MaxConcurrentSessions: &maxSessions,
+				WebSocket: &redfishv1.ComputerSystemHostWebSocketConsole{
+					ConsoleURI:     &consoleURI,
+					Interactive:    &interactive,
+					ServiceEnabled: &serviceEnabled,
+				},
+				OEM: &redfishv1.ComputerSystemHostSerialConsoleOEM{
+					Intel: &redfishv1.ComputerSystemHostSerialConsoleIntel{
+						AMT: &redfishv1.ComputerSystemHostSerialConsoleAMT{
+							ControlMode:       "ACM",
+							SOLStatus:         "Enabled",
+							UserConsentStatus: "NotRequired",
+						},
+					},
+				},
+			},
+		},
+	}
+
+	uc := &ComputerSystemUseCase{Repo: repo}
+
+	result, err := uc.GetComputerSystem(context.Background(), "system-1")
+	if err != nil {
+		t.Fatalf("GetComputerSystem returned error: %v", err)
+	}
+
+	assertGeneratedSerialConsoleMapping(t, result, consoleURI)
+}
+
+func assertGeneratedSerialConsoleMapping(t *testing.T, result *generated.ComputerSystemComputerSystem, consoleURI string) {
+	t.Helper()
+	serialConsole := assertGeneratedSerialConsoleCore(t, result, consoleURI)
+	assertGeneratedSerialConsoleAMT(t, serialConsole)
+}
+
+func assertGeneratedSerialConsoleCore(t *testing.T, result *generated.ComputerSystemComputerSystem, consoleURI string) *generated.ComputerSystemHostSerialConsole {
+	t.Helper()
+
+	if result.SerialConsole == nil {
+		t.Fatal("expected SerialConsole to be present")
+	}
+
+	if result.SerialConsole.MaxConcurrentSessions == nil || *result.SerialConsole.MaxConcurrentSessions != 1 {
+		t.Fatalf("expected MaxConcurrentSessions=1, got %#v", result.SerialConsole.MaxConcurrentSessions)
+	}
+
+	if result.SerialConsole.WebSocket == nil {
+		t.Fatal("expected WebSocket to be present")
+	}
+
+	if result.SerialConsole.WebSocket.ConsoleURI == nil || *result.SerialConsole.WebSocket.ConsoleURI != consoleURI {
+		t.Fatalf("expected ConsoleURI=%q, got %#v", consoleURI, result.SerialConsole.WebSocket.ConsoleURI)
+	}
+
+	if result.SerialConsole.WebSocket.ServiceEnabled == nil || !*result.SerialConsole.WebSocket.ServiceEnabled {
+		t.Fatalf("expected ServiceEnabled=true, got %#v", result.SerialConsole.WebSocket.ServiceEnabled)
+	}
+
+	return result.SerialConsole
+}
+
+func assertGeneratedSerialConsoleAMT(t *testing.T, serialConsole *generated.ComputerSystemHostSerialConsole) {
+	t.Helper()
+
+	if serialConsole.Oem == nil || serialConsole.Oem.Intel == nil || serialConsole.Oem.Intel.AMT == nil {
+		t.Fatal("expected SerialConsole.Oem.Intel.AMT to be present")
+	}
+
+	gotControlMode, err := serialConsole.Oem.Intel.AMT.ControlMode.AsComputerSystemOemIntelAMTControlMode()
+	if err != nil {
+		t.Fatalf("failed to decode ControlMode: %v", err)
+	}
+
+	if gotControlMode != generated.ACM {
+		t.Fatalf("expected ControlMode=%q, got %q", generated.ACM, gotControlMode)
+	}
+
+	gotSOLStatus, err := serialConsole.Oem.Intel.AMT.SOLStatus.AsComputerSystemOemIntelAMTSOLStatus()
+	if err != nil {
+		t.Fatalf("failed to decode SOLStatus: %v", err)
+	}
+
+	if gotSOLStatus != generated.ComputerSystemOemIntelAMTSOLStatusEnabled {
+		t.Fatalf("expected SOLStatus=%q, got %q", generated.ComputerSystemOemIntelAMTSOLStatusEnabled, gotSOLStatus)
+	}
+
+	gotConsentStatus, err := serialConsole.Oem.Intel.AMT.UserConsentStatus.AsComputerSystemOemIntelAMTUserConsentStatus()
+	if err != nil {
+		t.Fatalf("failed to decode UserConsentStatus: %v", err)
+	}
+
+	if gotConsentStatus != generated.NotRequired {
+		t.Fatalf("expected UserConsentStatus=%q, got %q", generated.NotRequired, gotConsentStatus)
+	}
+}
+
+func TestConvertSerialConsoleToGenerated_WithNilWebSocket(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	maxSessions := int64(1)
+	console := &redfishv1.ComputerSystemHostSerialConsole{
+		MaxConcurrentSessions: &maxSessions,
+		WebSocket:             nil,
+		OEM:                   nil,
+	}
+
+	got := uc.convertSerialConsoleToGenerated(console)
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if got.MaxConcurrentSessions == nil || *got.MaxConcurrentSessions != 1 {
+		t.Fatalf("expected MaxConcurrentSessions=1, got %#v", got.MaxConcurrentSessions)
+	}
+
+	if got.WebSocket != nil {
+		t.Fatalf("expected WebSocket to be nil, got %#v", got.WebSocket)
+	}
+
+	if got.Oem != nil {
+		t.Fatalf("expected Oem to be nil, got %#v", got.Oem)
+	}
+}
+
+func TestConvertSerialConsoleOEMToGenerated_WithNilIntel(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	oem := &redfishv1.ComputerSystemHostSerialConsoleOEM{
+		Intel: nil,
+	}
+
+	got := uc.convertSerialConsoleOEMToGenerated(oem)
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if got.Intel != nil {
+		t.Fatalf("expected Intel to be nil when input Intel is nil, got %#v", got.Intel)
+	}
+}
+
+func TestConvertSerialConsoleOEMToGenerated_WithNilAMT(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	oem := &redfishv1.ComputerSystemHostSerialConsoleOEM{
+		Intel: &redfishv1.ComputerSystemHostSerialConsoleIntel{
+			AMT: nil,
+		},
+	}
+
+	got := uc.convertSerialConsoleOEMToGenerated(oem)
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	if got.Intel == nil {
+		t.Fatal("expected Intel to be non-nil")
+	}
+
+	if got.Intel.AMT != nil {
+		t.Fatalf("expected Intel.AMT to be nil, got %#v", got.Intel.AMT)
+	}
+}
+
+func TestConvertSerialConsoleOEMToGenerated_Nil(t *testing.T) {
+	t.Parallel()
+
+	uc := &ComputerSystemUseCase{}
+
+	got := uc.convertSerialConsoleOEMToGenerated(nil)
+
+	if got != nil {
+		t.Fatalf("expected nil, got %#v", got)
+	}
+}
+
+func TestConvertSerialControlModeToGenerated_EmptyValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialControlModeToGenerated("")
+
+	if got != nil {
+		t.Fatalf("expected nil for empty value, got %#v", got)
+	}
+}
+
+func TestConvertSOLStatusToGenerated_EmptyValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSOLStatusToGenerated("")
+
+	if got != nil {
+		t.Fatalf("expected nil for empty value, got %#v", got)
+	}
+}
+
+func TestConvertSerialUserConsentStatusToGenerated_EmptyValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialUserConsentStatusToGenerated("")
+
+	if got != nil {
+		t.Fatalf("expected nil for empty value, got %#v", got)
+	}
+}
+
+func TestConvertSerialControlModeToGenerated_ValidValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialControlModeToGenerated("ACM")
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	mode, err := got.AsComputerSystemOemIntelAMTControlMode()
+	if err != nil {
+		t.Fatalf("failed to decode ControlMode: %v", err)
+	}
+
+	if mode != generated.ACM {
+		t.Fatalf("expected ACM, got %q", mode)
+	}
+}
+
+func TestConvertSOLStatusToGenerated_ValidValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSOLStatusToGenerated("Enabled")
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	status, err := got.AsComputerSystemOemIntelAMTSOLStatus()
+	if err != nil {
+		t.Fatalf("failed to decode SOLStatus: %v", err)
+	}
+
+	if status != generated.ComputerSystemOemIntelAMTSOLStatusEnabled {
+		t.Fatalf("expected Enabled, got %q", status)
+	}
+}
+
+func TestConvertSerialUserConsentStatusToGenerated_ValidValue(t *testing.T) {
+	t.Parallel()
+
+	got := convertSerialUserConsentStatusToGenerated("NotRequired")
+
+	if got == nil {
+		t.Fatal("expected non-nil result")
+	}
+
+	consent, err := got.AsComputerSystemOemIntelAMTUserConsentStatus()
+	if err != nil {
+		t.Fatalf("failed to decode UserConsentStatus: %v", err)
+	}
+
+	if consent != generated.NotRequired {
+		t.Fatalf("expected NotRequired, got %q", consent)
 	}
 }
 

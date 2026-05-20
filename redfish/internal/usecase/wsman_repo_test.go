@@ -234,6 +234,89 @@ func TestBuildGraphicalConsole(t *testing.T) {
 	}
 }
 
+func TestDetermineSOLStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		enableSOL    bool
+		solAvailable bool
+		userConsent  string
+		optInState   int
+		want         string
+	}{
+		{
+			name:         "disabled when SOL not available",
+			enableSOL:    true,
+			solAvailable: false,
+			userConsent:  "sol",
+			optInState:   int(optin.InSession),
+			want:         StateDisabled,
+		},
+		{
+			name:         "disabled when SOL feature off",
+			enableSOL:    false,
+			solAvailable: true,
+			userConsent:  "sol",
+			optInState:   int(optin.InSession),
+			want:         StateDisabled,
+		},
+		{
+			name:         "active when consent required and in session",
+			enableSOL:    true,
+			solAvailable: true,
+			userConsent:  "sol",
+			optInState:   int(optin.InSession),
+			want:         solStatusActive,
+		},
+		{
+			name:         "pending consent when requested",
+			enableSOL:    true,
+			solAvailable: true,
+			userConsent:  "all",
+			optInState:   int(optin.Requested),
+			want:         "PendingConsent",
+		},
+		{
+			name:         "enabled when consent received",
+			enableSOL:    true,
+			solAvailable: true,
+			userConsent:  "all",
+			optInState:   int(optin.Received),
+			want:         StateEnabled,
+		},
+		{
+			name:         "error when consent required and unknown opt-in state",
+			enableSOL:    true,
+			solAvailable: true,
+			userConsent:  "sol",
+			optInState:   999,
+			want:         "Error",
+		},
+		{
+			name:         "enabled when consent not required",
+			enableSOL:    true,
+			solAvailable: true,
+			userConsent:  "none",
+			optInState:   int(optin.NotStarted),
+			want:         StateEnabled,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := determineSOLStatus(tt.enableSOL, tt.solAvailable, tt.userConsent, tt.optInState)
+			if got != tt.want {
+				t.Fatalf("determineSOLStatus() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func boolToListener(enabled bool) int {
 	if enabled {
 		return 1
@@ -476,6 +559,123 @@ func TestUpdateGraphicalConsoleServiceEnabledRepo(t *testing.T) {
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("UpdateGraphicalConsoleServiceEnabled() error = %v, wantErr %v", err, tt.wantErr)
 			}
+		})
+	}
+}
+
+func assertSerialConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostSerialConsole, wantSOLStatus string) {
+	t.Helper()
+
+	if got.OEM == nil || got.OEM.Intel == nil || got.OEM.Intel.AMT == nil {
+		t.Fatal("OEM.Intel.AMT is nil")
+	}
+
+	amt := got.OEM.Intel.AMT
+
+	if amt.SOLStatus != wantSOLStatus {
+		t.Errorf("SOLStatus = %q, want %q", amt.SOLStatus, wantSOLStatus)
+	}
+
+	if amt.ControlMode != "ACM" {
+		t.Errorf("ControlMode = %q, want %q", amt.ControlMode, "ACM")
+	}
+
+	if amt.UserConsentStatus != "NotRequired" {
+		t.Errorf("UserConsentStatus = %q, want %q", amt.UserConsentStatus, "NotRequired")
+	}
+}
+
+func assertSerialConsole(t *testing.T, got *redfishv1.ComputerSystemHostSerialConsole, wantEnabled bool, wantURI, wantSOLStatus string) {
+	t.Helper()
+
+	if got == nil {
+		t.Fatal("buildSerialConsole() returned nil")
+	}
+
+	if got.MaxConcurrentSessions == nil || *got.MaxConcurrentSessions != 1 {
+		t.Errorf("MaxConcurrentSessions = %v, want 1", got.MaxConcurrentSessions)
+	}
+
+	if got.WebSocket == nil {
+		t.Fatal("WebSocket is nil")
+	}
+
+	if got.WebSocket.ServiceEnabled == nil || *got.WebSocket.ServiceEnabled != wantEnabled {
+		t.Errorf("ServiceEnabled = %v, want %v", got.WebSocket.ServiceEnabled, wantEnabled)
+	}
+
+	if got.WebSocket.Interactive == nil || !*got.WebSocket.Interactive {
+		t.Errorf("Interactive = %v, want true", got.WebSocket.Interactive)
+	}
+
+	if wantURI == "" {
+		if got.WebSocket.ConsoleURI != nil {
+			t.Errorf("ConsoleURI = %v, want nil", got.WebSocket.ConsoleURI)
+		}
+	} else {
+		if got.WebSocket.ConsoleURI == nil || *got.WebSocket.ConsoleURI != wantURI {
+			t.Errorf("ConsoleURI = %v, want %q", got.WebSocket.ConsoleURI, wantURI)
+		}
+	}
+
+	assertSerialConsoleOEM(t, got, wantSOLStatus)
+}
+
+func TestBuildSerialConsole(t *testing.T) {
+	t.Parallel()
+
+	repo := &WsmanComputerSystemRepo{log: logger.New("error")}
+
+	tests := []struct {
+		name          string
+		systemID      string
+		features      dtov2.Features
+		wantEnabled   bool
+		wantURI       string
+		wantSOLStatus string
+	}{
+		{
+			name:          "SOL not available - no URI",
+			systemID:      "system-1",
+			features:      dtov2.Features{EnableSOL: true, Redirection: false, UserConsent: "none"},
+			wantEnabled:   true,
+			wantURI:       "",
+			wantSOLStatus: StateDisabled,
+		},
+		{
+			name:          "SOL available with URI",
+			systemID:      "system-1",
+			features:      dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "none"},
+			wantEnabled:   true,
+			wantURI:       "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus: StateEnabled,
+		},
+		{
+			name:          "SOL disabled",
+			systemID:      "system-1",
+			features:      dtov2.Features{EnableSOL: false, Redirection: true, UserConsent: "none"},
+			wantEnabled:   false,
+			wantURI:       "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus: StateDisabled,
+		},
+		{
+			name:          "consent required and in session - active",
+			systemID:      "system-1",
+			features:      dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "sol", OptInState: int(optin.InSession)},
+			wantEnabled:   true,
+			wantURI:       "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus: solStatusActive,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := repo.buildSerialConsole(tt.systemID, tt.features)
+			assertSerialConsole(t, got, tt.wantEnabled, tt.wantURI, tt.wantSOLStatus)
 		})
 	}
 }
