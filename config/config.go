@@ -99,18 +99,19 @@ type (
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
 		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
+		TLSSkipVerify            bool          `yaml:"tlsSkipVerify" env:"AUTH_TLS_SKIP_VERIFY"`
 		UI                       UIAuthConfig  `yaml:"ui"`
 	}
 
 	// UIAuthConfig -.
 	UIAuthConfig struct {
-		ClientID                          string `yaml:"clientId"`
-		Issuer                            string `yaml:"issuer"`
-		RedirectURI                       string `yaml:"redirectUri"`
-		Scope                             string `yaml:"scope"`
-		ResponseType                      string `yaml:"responseType"`
-		RequireHTTPS                      bool   `yaml:"requireHttps"`
-		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation"`
+		ClientID                          string `yaml:"clientId" env:"AUTH_UI_CLIENT_ID"`
+		Issuer                            string `yaml:"issuer" env:"AUTH_UI_ISSUER"`
+		RedirectURI                       string `yaml:"redirectUri" env:"AUTH_UI_REDIRECT_URI"`
+		Scope                             string `yaml:"scope" env:"AUTH_UI_SCOPE"`
+		ResponseType                      string `yaml:"responseType" env:"AUTH_UI_RESPONSE_TYPE"`
+		RequireHTTPS                      bool   `yaml:"requireHttps" env:"AUTH_UI_REQUIRE_HTTPS"`
+		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation" env:"AUTH_UI_STRICT_DISCOVERY"`
 	}
 
 	// UI -.
