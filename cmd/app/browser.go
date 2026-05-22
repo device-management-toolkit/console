@@ -18,20 +18,7 @@ func launchBrowser(cfg *config.Config) {
 		scheme = "https"
 	}
 
-	host := cfg.Host
-
-	// Strip brackets from bracketed IPv6 literals (e.g. [::1] → ::1) before
-	// the wildcard check so both [::] and [::1] are handled uniformly.
-	if len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']' {
-		host = host[1 : len(host)-1]
-	}
-
-	// Wildcard bind addresses are not directly navigable; normalise them to
-	// localhost. Preserve loopback addresses such as ::1 so net.JoinHostPort
-	// can format them correctly for browser navigation.
-	if host == "" || host == "0.0.0.0" || host == "::" {
-		host = "localhost"
-	}
+	host := navigableHost(cfg.Host)
 
 	url := scheme + "://" + net.JoinHostPort(host, cfg.Port)
 	log.Printf("launchBrowser: opening %s", url)

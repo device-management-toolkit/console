@@ -37,6 +37,10 @@ func expectedOpenBrowserArgs(url string) (cmd string, args []string) {
 
 func TestOpenBrowserWindows(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	mockCmdExecutor.On("Execute", "cmd", []string{windowsCmdFlag, windowsCmdStart, "http://localhost:8080"}).Return(nil)
@@ -48,6 +52,10 @@ func TestOpenBrowserWindows(t *testing.T) { //nolint:paralleltest // cannot have
 
 func TestOpenBrowserDarwin(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	mockCmdExecutor.On("Execute", "open", []string{"http://localhost:8080"}).Return(nil)
@@ -59,6 +67,10 @@ func TestOpenBrowserDarwin(t *testing.T) { //nolint:paralleltest // cannot have 
 
 func TestOpenBrowserLinux(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	mockCmdExecutor.On("Execute", "xdg-open", []string{"http://localhost:8080"}).Return(nil)
@@ -70,6 +82,10 @@ func TestOpenBrowserLinux(t *testing.T) { //nolint:paralleltest // cannot have s
 
 func TestLaunchBrowserEmptyHostDefaultsToLocalhost(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -89,6 +105,10 @@ func TestLaunchBrowserEmptyHostDefaultsToLocalhost(t *testing.T) { //nolint:para
 
 func TestLaunchBrowserExplicitHostUsed(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -108,6 +128,10 @@ func TestLaunchBrowserExplicitHostUsed(t *testing.T) { //nolint:paralleltest // 
 
 func TestLaunchBrowserTLSUsesHTTPS(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -128,6 +152,10 @@ func TestLaunchBrowserTLSUsesHTTPS(t *testing.T) { //nolint:paralleltest // cann
 
 func TestLaunchBrowserTLSAndEmptyHostDefaultsToLocalhost(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -148,6 +176,10 @@ func TestLaunchBrowserTLSAndEmptyHostDefaultsToLocalhost(t *testing.T) { //nolin
 
 func TestLaunchBrowserWildcard0000DefaultsToLocalhost(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -164,6 +196,10 @@ func TestLaunchBrowserWildcard0000DefaultsToLocalhost(t *testing.T) { //nolint:p
 
 func TestLaunchBrowserWildcardIPv6DefaultsToLocalhost(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -180,6 +216,10 @@ func TestLaunchBrowserWildcardIPv6DefaultsToLocalhost(t *testing.T) { //nolint:p
 
 func TestLaunchBrowserWildcardBracketedIPv6DefaultsToLocalhost(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -196,6 +236,10 @@ func TestLaunchBrowserWildcardBracketedIPv6DefaultsToLocalhost(t *testing.T) { /
 
 func TestLaunchBrowserIPv6LoopbackWrappedInBrackets(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
@@ -212,6 +256,10 @@ func TestLaunchBrowserIPv6LoopbackWrappedInBrackets(t *testing.T) { //nolint:par
 
 func TestLaunchBrowserBracketedIPv6LoopbackStrippedThenRewrapped(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
+	original := cmdExecutor
+
+	t.Cleanup(func() { cmdExecutor = original })
+
 	cmdExecutor = mockCmdExecutor
 
 	cfg := &config.Config{
