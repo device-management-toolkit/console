@@ -1103,6 +1103,27 @@ func (r *WsmanComputerSystemRepo) UpdateGraphicalConsoleServiceEnabled(ctx conte
 	return err
 }
 
+// UpdateSerialConsoleServiceEnabled updates SOL enabled state through the existing devices feature flow.
+func (r *WsmanComputerSystemRepo) UpdateSerialConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error {
+	features, _, err := r.usecase.GetFeatures(ctx, systemID)
+	if err != nil {
+		if r.isDeviceNotFoundError(err) {
+			return ErrSystemNotFound
+		}
+
+		return err
+	}
+
+	features.EnableSOL = enabled
+
+	_, _, err = r.usecase.SetFeatures(ctx, systemID, features)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	return err
+}
+
 // UpdatePowerState sends a power action command to the specified system via WSMAN.
 func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID string, resetType redfishv1.PowerState) error {
 	// Get the current power state for logging and validation

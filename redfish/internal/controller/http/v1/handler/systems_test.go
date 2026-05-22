@@ -56,6 +56,7 @@ type TestSystemsComputerSystemRepository struct {
 	errorOnGetByID    map[string]error
 	errorOnUpdateBoot map[string]error
 	errorOnUpdateKVM  map[string]error
+	errorOnUpdateSOL  map[string]error
 }
 
 func NewTestSystemsComputerSystemRepository() *TestSystemsComputerSystemRepository {
@@ -64,6 +65,7 @@ func NewTestSystemsComputerSystemRepository() *TestSystemsComputerSystemReposito
 		errorOnGetByID:    make(map[string]error),
 		errorOnUpdateBoot: make(map[string]error),
 		errorOnUpdateKVM:  make(map[string]error),
+		errorOnUpdateSOL:  make(map[string]error),
 	}
 }
 
@@ -153,6 +155,18 @@ func (r *TestSystemsComputerSystemRepository) UpdateBootSettings(_ context.Conte
 
 func (r *TestSystemsComputerSystemRepository) UpdateGraphicalConsoleServiceEnabled(_ context.Context, systemID string, _ bool) error {
 	if err, exists := r.errorOnUpdateKVM[systemID]; exists {
+		return err
+	}
+
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
+func (r *TestSystemsComputerSystemRepository) UpdateSerialConsoleServiceEnabled(_ context.Context, systemID string, _ bool) error {
+	if err, exists := r.errorOnUpdateSOL[systemID]; exists {
 		return err
 	}
 
@@ -1333,7 +1347,7 @@ func TestValidateSystemID(t *testing.T) {
 	}
 }
 
-func TestPatchSystemGraphicalConsoleAndBoot(t *testing.T) {
+func TestPatchSystemConsoleAndBoot(t *testing.T) {
 	t.Parallel()
 
 	const patchEndpoint = "/redfish/v1/Systems/:ComputerSystemId"
@@ -1367,6 +1381,18 @@ func TestPatchSystemGraphicalConsoleAndBoot(t *testing.T) {
 			expectedStatus: http.StatusOK,
 		},
 		{
+			name:           "serial console success",
+			systemID:       testUUID1,
+			body:           `{"SerialConsole":{"WebSocket":{"ServiceEnabled":true}}}`,
+			expectedStatus: http.StatusOK,
+		},
+		{
+			name:           "serial console disable success",
+			systemID:       testUUID1,
+			body:           `{"SerialConsole":{"WebSocket":{"ServiceEnabled":false}}}`,
+			expectedStatus: http.StatusOK,
+		},
+		{
 			name:     "boot validation error path",
 			systemID: testUUID1,
 			body:     `{"Boot":{"BootSourceOverrideEnabled":"Disabled"}}`,
@@ -1382,11 +1408,27 @@ func TestPatchSystemGraphicalConsoleAndBoot(t *testing.T) {
 			expectedStatus: http.StatusNotFound,
 		},
 		{
+			name:           "serial console system not found",
+			systemID:       testUUID2,
+			body:           `{"SerialConsole":{"WebSocket":{"ServiceEnabled":false}}}`,
+			expectedStatus: http.StatusNotFound,
+		},
+		{
 			name:     "graphical console generic error",
 			systemID: testUUID1,
 			body:     `{"GraphicalConsole":{"ServiceEnabled":false}}`,
 			setupRepo: func(repo *TestSystemsComputerSystemRepository) {
 				repo.errorOnUpdateKVM[testUUID1] = errors.New("amt refused")
+			},
+			withLogger:     true,
+			expectedStatus: http.StatusInternalServerError,
+		},
+		{
+			name:     "serial console generic error",
+			systemID: testUUID1,
+			body:     `{"SerialConsole":{"WebSocket":{"ServiceEnabled":false}}}`,
+			setupRepo: func(repo *TestSystemsComputerSystemRepository) {
+				repo.errorOnUpdateSOL[testUUID1] = errors.New("amt refused")
 			},
 			withLogger:     true,
 			expectedStatus: http.StatusInternalServerError,

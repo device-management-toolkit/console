@@ -225,3 +225,23 @@ func (r *MockComputerSystemRepo) UpdateGraphicalConsoleServiceEnabled(_ context.
 
 	return nil
 }
+
+// UpdateSerialConsoleServiceEnabled updates the mock SOL service enabled state for a system.
+func (r *MockComputerSystemRepo) UpdateSerialConsoleServiceEnabled(_ context.Context, systemID string, enabled bool) error {
+	system, exists := r.systems[systemID]
+	if !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	if system.SerialConsole == nil {
+		system.SerialConsole = &redfishv1.ComputerSystemHostSerialConsole{}
+	}
+
+	if system.SerialConsole.WebSocket == nil {
+		system.SerialConsole.WebSocket = &redfishv1.ComputerSystemHostWebSocketConsole{}
+	}
+
+	system.SerialConsole.WebSocket.ServiceEnabled = &enabled
+
+	return nil
+}

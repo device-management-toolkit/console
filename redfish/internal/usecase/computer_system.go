@@ -500,6 +500,11 @@ func (uc *ComputerSystemUseCase) UpdateGraphicalConsoleServiceEnabled(ctx contex
 	return uc.Repo.UpdateGraphicalConsoleServiceEnabled(ctx, systemID, enabled)
 }
 
+// UpdateSerialConsoleServiceEnabled updates SOL service enabled state for a system.
+func (uc *ComputerSystemUseCase) UpdateSerialConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error {
+	return uc.Repo.UpdateSerialConsoleServiceEnabled(ctx, systemID, enabled)
+}
+
 // GenerateRedirectionToken validates that the target system exists and returns a short-lived redirection token.
 func (uc *ComputerSystemUseCase) GenerateRedirectionToken(ctx context.Context, systemID string) (*generated.ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse, error) {
 	if _, err := uc.Repo.GetByID(ctx, systemID); err != nil {

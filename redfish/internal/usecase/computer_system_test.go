@@ -13,6 +13,7 @@ type graphicalConsoleTestRepo struct {
 	system  *redfishv1.ComputerSystem
 	bootErr error
 	kvmErr  error
+	solErr  error
 }
 
 func (r *graphicalConsoleTestRepo) GetAll(_ context.Context) ([]string, error) {
@@ -47,6 +48,10 @@ func (r *graphicalConsoleTestRepo) UpdateBootSettings(_ context.Context, _ strin
 
 func (r *graphicalConsoleTestRepo) UpdateGraphicalConsoleServiceEnabled(_ context.Context, _ string, _ bool) error {
 	return r.kvmErr
+}
+
+func (r *graphicalConsoleTestRepo) UpdateSerialConsoleServiceEnabled(_ context.Context, _ string, _ bool) error {
+	return r.solErr
 }
 
 func TestConvertGraphicalConsoleToGeneratedNil(t *testing.T) {
@@ -551,6 +556,49 @@ func TestUpdateGraphicalConsoleServiceEnabled(t *testing.T) {
 			err := uc.UpdateGraphicalConsoleServiceEnabled(context.Background(), "system-1", tt.enabled)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("UpdateGraphicalConsoleServiceEnabled() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestUpdateSerialConsoleServiceEnabled(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		solErr  error
+		enabled bool
+		wantErr error
+	}{
+		{
+			name:    "enable success",
+			enabled: true,
+		},
+		{
+			name:    "disable success",
+			enabled: false,
+		},
+		{
+			name:    "repo error",
+			solErr:  errAMT,
+			enabled: false,
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{solErr: tt.solErr}}
+
+			err := uc.UpdateSerialConsoleServiceEnabled(context.Background(), "system-1", tt.enabled)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("UpdateSerialConsoleServiceEnabled() error = %v, wantErr %v", err, tt.wantErr)
 			}
 		})
 	}
