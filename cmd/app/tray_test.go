@@ -8,31 +8,6 @@ import (
 	"github.com/device-management-toolkit/console/config"
 )
 
-func TestIsWildcardListenHost(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]bool{
-		"":          true,
-		"0.0.0.0":   true,
-		"::":        true,
-		"[::]":      true,
-		"localhost": false,
-		"127.0.0.1": false,
-		"10.0.0.1":  false,
-	}
-
-	for host, want := range tests {
-		host, want := host, want
-		t.Run(host, func(t *testing.T) {
-			t.Parallel()
-
-			if got := isWildcardListenHost(host); got != want {
-				t.Errorf("isWildcardListenHost(%q) = %v, want %v", host, got, want)
-			}
-		})
-	}
-}
-
 func TestListenURLsBracketedIPv6(t *testing.T) {
 	t.Parallel()
 
@@ -51,32 +26,6 @@ func TestListenURLsBracketedIPv6(t *testing.T) {
 
 	if want := "https://[::1]:8181"; urls[0] != want {
 		t.Errorf("listenURLs[0] = %q, want %q", urls[0], want)
-	}
-}
-
-func TestUnbracketHost(t *testing.T) {
-	t.Parallel()
-
-	tests := map[string]string{
-		"[::1]":     "::1",
-		"[fe80::1]": "fe80::1",
-		"[]":        "",
-		"::1":       "::1",
-		"localhost": "localhost",
-		"":          "",
-		"[":         "[",
-		"]":         "]",
-	}
-
-	for in, want := range tests {
-		in, want := in, want
-		t.Run(in, func(t *testing.T) {
-			t.Parallel()
-
-			if got := unbracketHost(in); got != want {
-				t.Errorf("unbracketHost(%q) = %q, want %q", in, got, want)
-			}
-		})
 	}
 }
 

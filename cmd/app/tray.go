@@ -102,23 +102,13 @@ func listenURLs(cfg *config.Config) []string {
 	return urls
 }
 
-// unbracketHost strips a single pair of surrounding brackets from a literal IPv6
-// host so net.JoinHostPort doesn't double-wrap (e.g. "[::1]" → "::1").
-func unbracketHost(host string) string {
-	if len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']' {
-		return host[1 : len(host)-1]
-	}
-
-	return host
-}
-
 // listenHosts always returns at least one entry ("localhost") so listenURLs[0] is safe.
 func listenHosts(cfgHost string) []string {
 	if !isWildcardListenHost(cfgHost) {
 		return []string{cfgHost}
 	}
 
-	hosts := []string{"localhost"}
+	hosts := []string{addrLocalhost}
 
 	ifaces, err := net.Interfaces()
 	if err != nil {
@@ -193,8 +183,4 @@ func isVirtualInterfaceName(name string) bool {
 	}
 
 	return false
-}
-
-func isWildcardListenHost(host string) bool {
-	return host == "" || host == "0.0.0.0" || host == "::" || host == "[::]"
 }
