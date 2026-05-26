@@ -4,7 +4,10 @@ package v1
 import (
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
+	"regexp"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -21,6 +24,11 @@ const (
 	odataTypeKey    = "@odata.type"
 	idKey           = "Id"
 	nameKey         = "Name"
+)
+
+var (
+	sixDigitConsentCodeRe = regexp.MustCompile(`^\d{6}$`)
+	amtBadRequestRe       = regexp.MustCompile(`(?i)\b400\s+bad\s+request\b`)
 )
 
 // PostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset handles reset action for a computer system.
@@ -104,7 +112,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent handles canceling KVM consent for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(c *gin.Context, computerSystemID string) {
@@ -114,7 +121,32 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsentJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.CancelKVMConsent(c.Request.Context(), computerSystemID); err != nil {
+		var consentErr *usecase.ConsentFailedError
+
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		case errors.As(err, &consentErr):
+			BadRequestError(c, consentErr.Error())
+		case isAMTBadRequestError(err):
+			BadRequestError(c, err.Error())
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	sendActionSuccessResponse(c)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent handles canceling SOL consent for a computer system.
@@ -166,7 +198,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent handles requesting KVM consent for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent(c *gin.Context, computerSystemID string) {
@@ -176,7 +207,32 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsentJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.RequestKVMConsent(c.Request.Context(), computerSystemID); err != nil {
+		var consentErr *usecase.ConsentFailedError
+
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		case errors.As(err, &consentErr):
+			BadRequestError(c, consentErr.Error())
+		case isAMTBadRequestError(err):
+			BadRequestError(c, err.Error())
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	sendActionSuccessResponse(c)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent handles requesting SOL consent for a computer system.
@@ -194,7 +250,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode handles submitting a KVM consent code for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode(c *gin.Context, computerSystemID string) {
@@ -204,7 +259,45 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	consentCode := strings.TrimSpace(req.ConsentCode)
+	if consentCode == "" {
+		PropertyMissingError(c, "ConsentCode")
+
+		return
+	}
+
+	if !sixDigitConsentCodeRe.MatchString(consentCode) {
+		BadRequestError(c, "Invalid ConsentCode: must be a six-digit numeric value")
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.SubmitKVMConsentCode(c.Request.Context(), computerSystemID, consentCode); err != nil {
+		var consentErr *usecase.ConsentFailedError
+
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		case errors.As(err, &consentErr):
+			BadRequestError(c, consentErr.Error())
+		case isAMTBadRequestError(err):
+			BadRequestError(c, err.Error())
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	sendActionSuccessResponse(c)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode handles submitting a SOL consent code for a computer system.
@@ -219,4 +312,51 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 	}
 
 	MethodNotAllowedError(c)
+}
+
+func sendActionSuccessResponse(c *gin.Context) {
+	sendActionSuccessResponseWithLookup(c, registryMgr.LookupMessage)
+}
+
+func sendActionSuccessResponseWithLookup(c *gin.Context, lookupFn func(string, string) (*RegistryMessage, error)) {
+	SetRedfishHeaders(c)
+
+	successMsg, err := lookupFn("Base", "Success")
+	if err != nil {
+		InternalServerError(c, err)
+
+		return
+	}
+
+	messageID := successMsg.MessageID
+	message := successMsg.Message
+	severity := mapSeverityToResourceHealth(successMsg.Severity)
+	resolution := successMsg.Resolution
+
+	c.JSON(http.StatusOK, generated.RedfishError{
+		Error: struct {
+			MessageExtendedInfo *[]generated.MessageMessage `json:"@Message.ExtendedInfo,omitempty"`
+			Code                *string                     `json:"code,omitempty"`
+			Message             *string                     `json:"message,omitempty"`
+		}{
+			Code:    &messageID,
+			Message: &message,
+			MessageExtendedInfo: &[]generated.MessageMessage{
+				{
+					MessageId:  &messageID,
+					Message:    &message,
+					Severity:   &severity,
+					Resolution: &resolution,
+				},
+			},
+		},
+	})
+}
+
+func isAMTBadRequestError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	return amtBadRequestRe.MatchString(err.Error())
 }

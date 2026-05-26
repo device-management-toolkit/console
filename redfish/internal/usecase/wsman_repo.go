@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"reflect"
 	"strconv"
+	"strings"
 
 	amtBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
@@ -49,9 +50,19 @@ const (
 	redirectionWebSocketURI = "/relay/webrelay.ashx"
 	controlModeACM          = "ACM"
 	controlModeCCM          = "CCM"
+	userConsentKVM          = "kvm"
+	userConsentAll          = "all"
 	userConsentNotRequired  = "NotRequired"
+	userConsentRequested    = "Requested"
+	userConsentGranted      = "Granted"
+	userConsentDenied       = "Denied"
+	userConsentTimeout      = "Timeout"
 	statusPendingConsent    = "PendingConsent"
 	statusError             = "Error"
+
+	// Forward-compatible raw OptInState values for statuses not yet exposed by go-wsman constants.
+	optInStateDeniedRaw  = 5
+	optInStateTimeoutRaw = 6
 
 	// Health state constants.
 	healthStateOK       = "OK"
@@ -95,6 +106,9 @@ const (
 
 	// Maximum items to process in arrays to prevent hangs.
 	maxArrayItems = 10
+
+	// KVM consent code constraints.
+	consentCodeDigits = 6
 )
 
 var (
@@ -109,6 +123,9 @@ var (
 
 	// ErrUnsupportedBootTarget is returned when an unsupported boot target is requested.
 	ErrUnsupportedBootTarget = errors.New("unsupported boot target")
+
+	// ErrInvalidConsentCode is returned when the KVM consent code is not a six-digit numeric value.
+	ErrInvalidConsentCode = errors.New("invalid consent code: must be six-digit numeric value")
 )
 
 // CIMObjectType represents different types of CIM objects.
@@ -931,16 +948,16 @@ func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 
 		}
 	}
 
-	kvmStatus := determineKVMStatus(featuresV2.EnableKVM, featuresV2.KVMAvailable, featuresV2.UserConsent, featuresV2.OptInState)
+	kvmStatus := determineKVMStatus(featuresV2.EnableKVM, featuresV2.KVMAvailable, featuresV2.UserConsent, featuresV2.OptInState, controlMode)
+	userConsentStatus := determineKVMUserConsentStatus(featuresV2.UserConsent, featuresV2.OptInState, controlMode)
 
 	// Build OEM extensions with Intel AMT status
 	oemExt := &redfishv1.ComputerSystemHostGraphicalConsoleOEM{
 		Intel: &redfishv1.ComputerSystemHostGraphicalConsoleIntel{
 			AMT: &redfishv1.ComputerSystemHostGraphicalConsoleAMT{
-				ControlMode: controlMode,
-				KVMStatus:   kvmStatus,
-				// Planned follow-up: query CIM_KVMRedirectionSAP and IPS_OptInService for actual user consent status.
-				UserConsentStatus: userConsentNotRequired,
+				ControlMode:       controlMode,
+				KVMStatus:         kvmStatus,
+				UserConsentStatus: userConsentStatus,
 			},
 		},
 	}
@@ -955,12 +972,7 @@ func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 
 
 // determineKVMStatus returns Intel AMT KVMStatus using KVM availability, enablement,
 // and user consent runtime state from IPS_OptInService.
-func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInState int) string {
-	const (
-		userConsentKVM = "kvm"
-		userConsentAll = "all"
-	)
-
+func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInState int, controlMode string) string {
 	if !kvmAvailable {
 		return StateDisabled
 	}
@@ -969,14 +981,14 @@ func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInS
 		return StateDisabled
 	}
 
-	consentRequired := userConsent == userConsentKVM || userConsent == userConsentAll
-	if consentRequired {
-		switch optin.OptInState(optInState) {
-		case optin.InSession:
+	consentRequired := isKVMConsentRequired(userConsent, controlMode)
+	if consentRequired || optInState != int(optin.NotStarted) {
+		switch optInState {
+		case int(optin.InSession):
 			return kvmStatusActive
-		case optin.NotStarted, optin.Requested, optin.Displayed:
+		case int(optin.NotStarted), int(optin.Requested), int(optin.Displayed):
 			return statusPendingConsent
-		case optin.Received:
+		case int(optin.Received):
 			return StateEnabled
 		default:
 			return statusError
@@ -984,6 +996,37 @@ func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInS
 	}
 
 	return StateEnabled
+}
+
+func determineKVMUserConsentStatus(userConsent string, optInState int, controlMode string) string {
+	consentRequired := isKVMConsentRequired(userConsent, controlMode)
+	if consentRequired || optInState != int(optin.NotStarted) {
+		switch optInState {
+		case int(optin.NotStarted), int(optin.Requested), int(optin.Displayed):
+			return userConsentRequested
+		case int(optin.Received), int(optin.InSession):
+			return userConsentGranted
+		case optInStateDeniedRaw:
+			return userConsentDenied
+		case optInStateTimeoutRaw:
+			return userConsentTimeout
+		default:
+			return userConsentRequested
+		}
+	}
+
+	return userConsentNotRequired
+}
+
+func isKVMConsentRequired(userConsent, controlMode string) bool {
+	consentMode := strings.ToLower(strings.TrimSpace(userConsent))
+	normalizedControlMode := strings.TrimSpace(controlMode)
+
+	if strings.EqualFold(normalizedControlMode, controlModeCCM) {
+		return true
+	}
+
+	return consentMode == userConsentKVM || consentMode == userConsentAll
 }
 
 func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2 dtov2.Features, controlMode string) *redfishv1.ComputerSystemHostSerialConsole {
@@ -1122,6 +1165,78 @@ func (r *WsmanComputerSystemRepo) UpdateSerialConsoleServiceEnabled(ctx context.
 	}
 
 	return err
+}
+
+// RequestKVMConsent starts a user consent request on the target system.
+func (r *WsmanComputerSystemRepo) RequestKVMConsent(ctx context.Context, systemID string) error {
+	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationRequest, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
+}
+
+// SubmitKVMConsentCode submits the six-digit user consent code for KVM.
+func (r *WsmanComputerSystemRepo) SubmitKVMConsentCode(ctx context.Context, systemID, consentCode string) error {
+	if !isSixDigitNumeric(consentCode) {
+		return ErrInvalidConsentCode
+	}
+
+	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationSubmit, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
+}
+
+func isSixDigitNumeric(code string) bool {
+	if len(code) != consentCodeDigits {
+		return false
+	}
+
+	for i := 0; i < len(code); i++ {
+		if code[i] < '0' || code[i] > '9' {
+			return false
+		}
+	}
+
+	return true
+}
+
+// CancelKVMConsent cancels a pending user consent request.
+func (r *WsmanComputerSystemRepo) CancelKVMConsent(ctx context.Context, systemID string) error {
+	resp, err := r.usecase.CancelUserConsent(ctx, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationCancel, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
 }
 
 // UpdatePowerState sends a power action command to the specified system via WSMAN.

@@ -91,6 +91,30 @@ func (r *fuzzMockRepo) UpdateSerialConsoleServiceEnabled(_ context.Context, syst
 	return nil
 }
 
+func (r *fuzzMockRepo) RequestKVMConsent(_ context.Context, systemID string) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
+func (r *fuzzMockRepo) SubmitKVMConsentCode(_ context.Context, systemID, _ string) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
+func (r *fuzzMockRepo) CancelKVMConsent(_ context.Context, systemID string) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
 // newFuzzUseCase returns a ComputerSystemUseCase backed by the inline mock repository.
 func newFuzzUseCase() *ComputerSystemUseCase {
 	return &ComputerSystemUseCase{Repo: newFuzzMockRepo()}

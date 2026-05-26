@@ -505,6 +505,21 @@ func (uc *ComputerSystemUseCase) UpdateSerialConsoleServiceEnabled(ctx context.C
 	return uc.Repo.UpdateSerialConsoleServiceEnabled(ctx, systemID, enabled)
 }
 
+// RequestKVMConsent triggers a user consent request on the target system.
+func (uc *ComputerSystemUseCase) RequestKVMConsent(ctx context.Context, systemID string) error {
+	return uc.Repo.RequestKVMConsent(ctx, systemID)
+}
+
+// SubmitKVMConsentCode submits the user-provided KVM consent code.
+func (uc *ComputerSystemUseCase) SubmitKVMConsentCode(ctx context.Context, systemID, consentCode string) error {
+	return uc.Repo.SubmitKVMConsentCode(ctx, systemID, consentCode)
+}
+
+// CancelKVMConsent cancels a pending user consent request on the target system.
+func (uc *ComputerSystemUseCase) CancelKVMConsent(ctx context.Context, systemID string) error {
+	return uc.Repo.CancelKVMConsent(ctx, systemID)
+}
+
 // GenerateRedirectionToken validates that the target system exists and returns a short-lived redirection token.
 func (uc *ComputerSystemUseCase) GenerateRedirectionToken(ctx context.Context, systemID string) (*generated.ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse, error) {
 	if _, err := uc.Repo.GetByID(ctx, systemID); err != nil {
@@ -747,6 +762,12 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 	title := "Reset"
 	generateTokenTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken", systemID)
 	generateTokenTitle := "Generate Redirection Token"
+	requestConsentTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.RequestKVMConsent", systemID)
+	requestConsentTitle := "Request KVM Consent"
+	submitConsentCodeTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode", systemID)
+	submitConsentCodeTitle := "Submit KVM Consent Code"
+	cancelConsentTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.CancelKVMConsent", systemID)
+	cancelConsentTitle := "Cancel KVM Consent"
 
 	// Create the ComputerSystem.Reset action
 	resetAction := &generated.ComputerSystemReset{
@@ -759,12 +780,27 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 		Target: &generateTokenTarget,
 		Title:  &generateTokenTitle,
 	}
+	requestConsentAction := &generated.ComputerSystemOemIntelAmtRequestKVMConsent{
+		Target: &requestConsentTarget,
+		Title:  &requestConsentTitle,
+	}
+	submitConsentCodeAction := &generated.ComputerSystemOemIntelAmtSubmitKVMConsentCode{
+		Target: &submitConsentCodeTarget,
+		Title:  &submitConsentCodeTitle,
+	}
+	cancelConsentAction := &generated.ComputerSystemOemIntelAmtCancelKVMConsent{
+		Target: &cancelConsentTarget,
+		Title:  &cancelConsentTitle,
+	}
 
 	// Create and return the Actions structure
 	return &generated.ComputerSystemActions{
 		HashComputerSystemReset: resetAction,
 		Oem: &generated.ComputerSystemOemActions{
 			HashOemIntelAMTGenerateRedirectionToken: generateTokenAction,
+			HashOemIntelAMTRequestKVMConsent:        requestConsentAction,
+			HashOemIntelAMTSubmitKVMConsentCode:     submitConsentCodeAction,
+			HashOemIntelAMTCancelKVMConsent:         cancelConsentAction,
 		},
 	}
 }

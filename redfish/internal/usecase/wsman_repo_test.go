@@ -51,6 +51,37 @@ func TestMapProvisioningModeToControlMode(t *testing.T) {
 	}
 }
 
+func TestRequestKVMConsentRepo_ReturnValueFailure(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+	management.EXPECT().GetUserConsentCode().Return(optin.Response{
+		Body: optin.Body{StartOptInResponse: optin.StartOptIn_OUTPUT{ReturnValue: 5}},
+	}, nil)
+
+	err := repo.RequestKVMConsent(context.Background(), device.GUID)
+
+	var consentErr *ConsentFailedError
+	if !errors.As(err, &consentErr) {
+		t.Fatalf("RequestKVMConsent() error type = %T, want *ConsentFailedError", err)
+	}
+}
+
 func TestMapControlModeFromVersion(t *testing.T) {
 	t.Parallel()
 
@@ -87,6 +118,37 @@ func TestMapControlModeFromVersion(t *testing.T) {
 				t.Fatalf("mapControlModeFromVersion() = %q, want %q", got, tt.want)
 			}
 		})
+	}
+}
+
+func TestSubmitKVMConsentCodeRepo_ReturnValueFailure(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+	management.EXPECT().SendConsentCode(123456).Return(optin.Response{
+		Body: optin.Body{SendOptInCodeResponse: optin.SendOptInCode_OUTPUT{ReturnValue: 7}},
+	}, nil)
+
+	err := repo.SubmitKVMConsentCode(context.Background(), device.GUID, "123456")
+
+	var consentErr *ConsentFailedError
+	if !errors.As(err, &consentErr) {
+		t.Fatalf("SubmitKVMConsentCode() error type = %T, want *ConsentFailedError", err)
 	}
 }
 
@@ -154,6 +216,37 @@ func TestGetAMTControlMode(t *testing.T) {
 	}
 }
 
+func TestCancelKVMConsentRepo_ReturnValueFailure(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+	management.EXPECT().CancelUserConsentRequest().Return(optin.Response{
+		Body: optin.Body{CancelOptInResponse: optin.CancelOptIn_OUTPUT{ReturnValue: 9}},
+	}, nil)
+
+	err := repo.CancelKVMConsent(context.Background(), device.GUID)
+
+	var consentErr *ConsentFailedError
+	if !errors.As(err, &consentErr) {
+		t.Fatalf("CancelKVMConsent() error type = %T, want *ConsentFailedError", err)
+	}
+}
+
 func TestDetermineKVMStatus(t *testing.T) {
 	t.Parallel()
 
@@ -163,6 +256,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 		kvmAvailable bool
 		userConsent  string
 		optInState   int
+		controlMode  string
 		want         string
 	}{
 		{
@@ -171,6 +265,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: false,
 			userConsent:  "kvm",
 			optInState:   int(optin.InSession),
+			controlMode:  controlModeACM,
 			want:         StateDisabled,
 		},
 		{
@@ -179,6 +274,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: true,
 			userConsent:  "kvm",
 			optInState:   int(optin.InSession),
+			controlMode:  controlModeACM,
 			want:         StateDisabled,
 		},
 		{
@@ -187,6 +283,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: true,
 			userConsent:  "kvm",
 			optInState:   int(optin.InSession),
+			controlMode:  controlModeACM,
 			want:         "Active",
 		},
 		{
@@ -195,6 +292,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: true,
 			userConsent:  "all",
 			optInState:   int(optin.Requested),
+			controlMode:  controlModeACM,
 			want:         "PendingConsent",
 		},
 		{
@@ -203,6 +301,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: true,
 			userConsent:  "all",
 			optInState:   int(optin.Received),
+			controlMode:  controlModeACM,
 			want:         StateEnabled,
 		},
 		{
@@ -211,6 +310,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: true,
 			userConsent:  "kvm",
 			optInState:   999,
+			controlMode:  controlModeACM,
 			want:         "Error",
 		},
 		{
@@ -219,7 +319,26 @@ func TestDetermineKVMStatus(t *testing.T) {
 			kvmAvailable: true,
 			userConsent:  "none",
 			optInState:   int(optin.NotStarted),
+			controlMode:  controlModeACM,
 			want:         StateEnabled,
+		},
+		{
+			name:         "pending when consent flow is requested even if policy is none",
+			enableKVM:    true,
+			kvmAvailable: true,
+			userConsent:  "none",
+			optInState:   int(optin.Requested),
+			controlMode:  controlModeACM,
+			want:         statusPendingConsent,
+		},
+		{
+			name:         "CCM requires consent even when configured none",
+			enableKVM:    true,
+			kvmAvailable: true,
+			userConsent:  "none",
+			optInState:   int(optin.Requested),
+			controlMode:  controlModeCCM,
+			want:         statusPendingConsent,
 		},
 	}
 
@@ -229,7 +348,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := determineKVMStatus(tt.enableKVM, tt.kvmAvailable, tt.userConsent, tt.optInState)
+			got := determineKVMStatus(tt.enableKVM, tt.kvmAvailable, tt.userConsent, tt.optInState, tt.controlMode)
 			if got != tt.want {
 				t.Fatalf("determineKVMStatus() = %q, want %q", got, tt.want)
 			}
@@ -237,7 +356,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 	}
 }
 
-func assertGraphicalConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostGraphicalConsole, wantKVMStatus string) {
+func assertGraphicalConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostGraphicalConsole, wantKVMStatus, wantUserConsentStatus string) {
 	t.Helper()
 
 	if got.OEM == nil || got.OEM.Intel == nil || got.OEM.Intel.AMT == nil {
@@ -254,12 +373,12 @@ func assertGraphicalConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostGr
 		t.Errorf("ControlMode = %q, want %q", amt.ControlMode, "ACM")
 	}
 
-	if amt.UserConsentStatus != "NotRequired" {
-		t.Errorf("UserConsentStatus = %q, want %q", amt.UserConsentStatus, "NotRequired")
+	if amt.UserConsentStatus != wantUserConsentStatus {
+		t.Errorf("UserConsentStatus = %q, want %q", amt.UserConsentStatus, wantUserConsentStatus)
 	}
 }
 
-func assertGraphicalConsole(t *testing.T, got *redfishv1.ComputerSystemHostGraphicalConsole, wantEnabled bool, wantConnTypes []string, wantPort int64, wantKVMStatus string) {
+func assertGraphicalConsole(t *testing.T, got *redfishv1.ComputerSystemHostGraphicalConsole, wantEnabled bool, wantConnTypes []string, wantPort int64, wantKVMStatus, wantUserConsentStatus string) {
 	t.Helper()
 
 	if got == nil {
@@ -290,7 +409,7 @@ func assertGraphicalConsole(t *testing.T, got *redfishv1.ComputerSystemHostGraph
 		}
 	}
 
-	assertGraphicalConsoleOEM(t, got, wantKVMStatus)
+	assertGraphicalConsoleOEM(t, got, wantKVMStatus, wantUserConsentStatus)
 }
 
 func TestBuildGraphicalConsole(t *testing.T) {
@@ -307,6 +426,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 		wantConnTypes []string
 		wantPort      int64
 		wantKVMStatus string
+		wantConsent   string
 	}{
 		{
 			name:          "KVM not available - no connect types and no port",
@@ -316,6 +436,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantConnTypes: nil,
 			wantPort:      0,
 			wantKVMStatus: StateDisabled,
+			wantConsent:   userConsentNotRequired,
 		},
 		{
 			name:          "KVM available non-TLS port",
@@ -325,6 +446,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantConnTypes: kvmIP,
 			wantPort:      16994,
 			wantKVMStatus: StateEnabled,
+			wantConsent:   userConsentNotRequired,
 		},
 		{
 			name:          "KVM available TLS port",
@@ -334,6 +456,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantConnTypes: kvmIP,
 			wantPort:      16995,
 			wantKVMStatus: StateEnabled,
+			wantConsent:   userConsentNotRequired,
 		},
 		{
 			name:          "KVM disabled",
@@ -343,6 +466,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantConnTypes: kvmIP,
 			wantPort:      16994,
 			wantKVMStatus: StateDisabled,
+			wantConsent:   userConsentNotRequired,
 		},
 		{
 			name:          "consent required and in session - active",
@@ -352,6 +476,27 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantConnTypes: kvmIP,
 			wantPort:      16994,
 			wantKVMStatus: kvmStatusActive,
+			wantConsent:   userConsentGranted,
+		},
+		{
+			name:          "consent requested maps to Requested",
+			useTLS:        false,
+			features:      dtov2.Features{EnableKVM: true, KVMAvailable: true, UserConsent: "kvm", OptInState: int(optin.Requested)},
+			wantEnabled:   true,
+			wantConnTypes: kvmIP,
+			wantPort:      16994,
+			wantKVMStatus: statusPendingConsent,
+			wantConsent:   userConsentRequested,
+		},
+		{
+			name:          "consent flow requested with none policy is pending",
+			useTLS:        false,
+			features:      dtov2.Features{EnableKVM: true, KVMAvailable: true, UserConsent: "none", OptInState: int(optin.Requested)},
+			wantEnabled:   true,
+			wantConnTypes: kvmIP,
+			wantPort:      16994,
+			wantKVMStatus: statusPendingConsent,
+			wantConsent:   userConsentRequested,
 		},
 	}
 
@@ -362,7 +507,48 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			t.Parallel()
 
 			got := repo.buildGraphicalConsole(tt.useTLS, tt.features, controlModeACM)
-			assertGraphicalConsole(t, got, tt.wantEnabled, tt.wantConnTypes, tt.wantPort, tt.wantKVMStatus)
+			assertGraphicalConsole(t, got, tt.wantEnabled, tt.wantConnTypes, tt.wantPort, tt.wantKVMStatus, tt.wantConsent)
+		})
+	}
+}
+
+func TestDetermineKVMUserConsentStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		userConsent string
+		optInState  int
+		controlMode string
+		want        string
+	}{
+		{name: "kvm requested status", userConsent: "kvm", optInState: int(optin.Requested), want: userConsentRequested},
+		{name: "all requested status", userConsent: "all", optInState: int(optin.Displayed), want: userConsentRequested},
+		{name: "kvm uppercase requested status", userConsent: "KVM", optInState: int(optin.NotStarted), want: userConsentRequested},
+		{name: "all with spaces requested status", userConsent: "  all  ", optInState: int(optin.NotStarted), want: userConsentRequested},
+		{name: "received maps to granted", userConsent: "kvm", optInState: int(optin.Received), want: userConsentGranted},
+		{name: "in-session maps to granted", userConsent: "kvm", optInState: int(optin.InSession), want: userConsentGranted},
+		{name: "raw denied state maps to denied", userConsent: "kvm", optInState: optInStateDeniedRaw, want: userConsentDenied},
+		{name: "raw timeout state maps to timeout", userConsent: "kvm", optInState: optInStateTimeoutRaw, want: userConsentTimeout},
+		{name: "unknown required state falls back to requested", userConsent: "kvm", optInState: 999, want: userConsentRequested},
+		{name: "none not required", userConsent: "none", want: userConsentNotRequired},
+		{name: "none with requested flow maps to requested", userConsent: "none", optInState: int(optin.Requested), want: userConsentRequested},
+		{name: "none with received flow maps to granted", userConsent: "none", optInState: int(optin.Received), want: userConsentGranted},
+		{name: "empty not required", userConsent: "", want: userConsentNotRequired},
+		{name: "CCM requires requested when none configured", userConsent: "none", optInState: int(optin.NotStarted), controlMode: controlModeCCM, want: userConsentRequested},
+		{name: "CCM with received maps to granted", userConsent: "none", optInState: int(optin.Received), controlMode: controlModeCCM, want: userConsentGranted},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := determineKVMUserConsentStatus(tt.userConsent, tt.optInState, tt.controlMode)
+			if got != tt.want {
+				t.Fatalf("determineKVMUserConsentStatus() = %q, want %q", got, tt.want)
+			}
 		})
 	}
 }
@@ -891,6 +1077,240 @@ func TestUpdateSerialConsoleServiceEnabledRepo(t *testing.T) {
 			err := repo.UpdateSerialConsoleServiceEnabled(context.Background(), device.GUID, tt.enabled)
 			if !errors.Is(err, tt.wantErr) {
 				t.Fatalf("UpdateSerialConsoleServiceEnabled() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRequestKVMConsentRepo(t *testing.T) {
+	t.Parallel()
+
+	errDeviceNotFound := errors.New(ErrMsgDeviceNotFound)
+	errAMT := errors.New("amt refused")
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	tests := []struct {
+		name    string
+		setup   func(*mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement)
+		wantErr error
+	}{
+		{
+			name: "success",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+				management.EXPECT().GetUserConsentCode().Return(optin.Response{}, nil)
+			},
+		},
+		{
+			name: "device not found",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name: "wsman error",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, errAMT)
+			},
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			management := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			tt.setup(repoMock, wsmanMock, management)
+
+			err := repo.RequestKVMConsent(context.Background(), device.GUID)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("RequestKVMConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSubmitKVMConsentCodeRepo(t *testing.T) {
+	t.Parallel()
+
+	errDeviceNotFound := errors.New(ErrMsgDeviceNotFound)
+	errAMT := errors.New("amt refused")
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	tests := []struct {
+		name    string
+		setup   func(*mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement)
+		wantErr error
+		code    string
+	}{
+		{
+			name: "success",
+			code: "123456",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+				management.EXPECT().SendConsentCode(123456).Return(optin.Response{}, nil)
+			},
+		},
+		{
+			name: "device not found",
+			code: "123456",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name: "wsman error",
+			code: "123456",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, errAMT)
+			},
+			wantErr: errAMT,
+		},
+		{
+			name: "invalid consent code",
+			code: "12ab",
+			setup: func(_ *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+			},
+			wantErr: ErrInvalidConsentCode,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			management := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			tt.setup(repoMock, wsmanMock, management)
+
+			err := repo.SubmitKVMConsentCode(context.Background(), device.GUID, tt.code)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("SubmitKVMConsentCode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCancelKVMConsentRepo(t *testing.T) {
+	t.Parallel()
+
+	errDeviceNotFound := errors.New(ErrMsgDeviceNotFound)
+	errAMT := errors.New("amt refused")
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	tests := []struct {
+		name    string
+		setup   func(*mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement)
+		wantErr error
+	}{
+		{
+			name: "success",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+				management.EXPECT().CancelUserConsentRequest().Return(optin.Response{}, nil)
+			},
+		},
+		{
+			name: "device not found",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name: "wsman error",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, errAMT)
+			},
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			management := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			tt.setup(repoMock, wsmanMock, management)
+
+			err := repo.CancelKVMConsent(context.Background(), device.GUID)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("CancelKVMConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestIsSixDigitNumeric(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		code string
+		want bool
+	}{
+		{name: "valid six digits", code: "123456", want: true},
+		{name: "too short", code: "12345", want: false},
+		{name: "too long", code: "1234567", want: false},
+		{name: "contains non digit", code: "12a456", want: false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := isSixDigitNumeric(tt.code)
+			if got != tt.want {
+				t.Fatalf("isSixDigitNumeric(%q) = %v, want %v", tt.code, got, tt.want)
 			}
 		})
 	}
