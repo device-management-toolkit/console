@@ -291,7 +291,7 @@ func TestGetHardwareInfo(t *testing.T) {
 				CIMChip:           dto.CIMResponse{Responses: []any{}},
 				CIMCard:           dto.CIMResponse{Response: card.PackageResponse{}},
 				CIMBIOSElement:    dto.CIMResponse{Response: bios.BiosElement{}},
-				CIMProcessor:      dto.CIMResponse{Responses: []any{processor.PackageResponse{}}},
+				CIMProcessor:      dto.CIMResponse{Responses: []any{}},
 				CIMPhysicalMemory: dto.CIMResponse{Responses: []any{}},
 			},
 			err: nil,
@@ -322,6 +322,19 @@ func TestGetHardwareInfo(t *testing.T) {
 								},
 							},
 						},
+						ProcessorResult: processor.Response{
+							Body: processor.Body{
+								PullResponse: processor.PullResponse{
+									PackageItems: []processor.PackageResponse{
+										{
+											DeviceID:      "CPU 0",
+											ElementName:   "Managed System CPU",
+											MaxClockSpeed: 4800,
+										},
+									},
+								},
+							},
+						},
 					}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -334,7 +347,11 @@ func TestGetHardwareInfo(t *testing.T) {
 				CIMChip:        dto.CIMResponse{Responses: []any{}},
 				CIMCard:        dto.CIMResponse{Response: card.PackageResponse{}},
 				CIMBIOSElement: dto.CIMResponse{Response: bios.BiosElement{}},
-				CIMProcessor:   dto.CIMResponse{Responses: []any{processor.PackageResponse{}}},
+				CIMProcessor: dto.CIMResponse{Responses: []any{processor.PackageResponse{
+					DeviceID:      "CPU 0",
+					ElementName:   "Managed System CPU",
+					MaxClockSpeed: 4800,
+				}}},
 				CIMPhysicalMemory: dto.CIMResponse{Responses: []any{physical.PhysicalMemory{
 					ElementName:  "Memory 0",
 					Manufacturer: "Samsung",
