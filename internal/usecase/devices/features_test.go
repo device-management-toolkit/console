@@ -1224,6 +1224,7 @@ func TestSetFeatures(t *testing.T) {
 		EnableSOL:             true,
 		EnableIDER:            true,
 		EnableKVM:             true,
+		KVMAvailable:          true,
 		Redirection:           true,
 		OCR:                   false,
 		HTTPSBootSupported:    true,
@@ -1380,6 +1381,7 @@ func TestSetFeatures(t *testing.T) {
 				EnableSOL:             true,
 				EnableIDER:            true,
 				EnableKVM:             true,
+				KVMAvailable:          true,
 				Redirection:           true,
 				OCR:                   true,
 				HTTPSBootSupported:    true,
@@ -1823,11 +1825,12 @@ func TestSetFeatures(t *testing.T) {
 					Return(device, nil)
 			},
 			res: dto.Features{
-				UserConsent: "kvm",
-				EnableSOL:   true,
-				EnableIDER:  true,
-				EnableKVM:   true,
-				Redirection: true,
+				UserConsent:  "kvm",
+				EnableSOL:    true,
+				EnableIDER:   true,
+				EnableKVM:    true,
+				KVMAvailable: true,
+				Redirection:  true,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
