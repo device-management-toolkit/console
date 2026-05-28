@@ -27,7 +27,7 @@ require (
 	go.mongodb.org/mongo-driver/v2 v2.6.0
 	go.uber.org/mock v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.50.1
+	modernc.org/sqlite v1.51.0
 	software.sslmate.com/src/go-pkcs12 v0.7.1
 )
 
