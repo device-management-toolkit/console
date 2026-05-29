@@ -1,6 +1,14 @@
 package packaging
 
-import "testing"
+import (
+	"context"
+	"errors"
+	"net/http"
+	"net/http/httptest"
+	"os"
+	"path/filepath"
+	"testing"
+)
 
 func TestParseAsset(t *testing.T) {
 	t.Parallel()
@@ -23,10 +31,10 @@ func TestParseAsset(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			os, arch, ok := parseAsset(tc.filename)
-			if ok != tc.wantOK || os != tc.wantOS || arch != tc.wantArch {
+			goos, arch, ok := parseAsset(tc.filename)
+			if ok != tc.wantOK || goos != tc.wantOS || arch != tc.wantArch {
 				t.Fatalf("parseAsset(%q) = (%q,%q,%v), want (%q,%q,%v)",
-					tc.filename, os, arch, ok, tc.wantOS, tc.wantArch, tc.wantOK)
+					tc.filename, goos, arch, ok, tc.wantOS, tc.wantArch, tc.wantOK)
 			}
 		})
 	}
@@ -43,5 +51,75 @@ func TestIsV3OrAbove(t *testing.T) {
 		if got := isV3OrAbove(tag); got != want {
 			t.Fatalf("isV3OrAbove(%q) = %v, want %v", tag, got, want)
 		}
+	}
+}
+
+func TestListReleasesFromOnline(t *testing.T) {
+	t.Parallel()
+
+	body := `[
+	  {"tag_name":"v3.0.1","prerelease":false,"assets":[
+	     {"name":"rpc-go_Linux_x86_64.tar.gz","browser_download_url":"http://x/l"},
+	     {"name":"rpc-go_Windows_x86_64.zip","browser_download_url":"http://x/w"}]},
+	  {"tag_name":"v2.9.0","prerelease":false,"assets":[
+	     {"name":"rpc-go_Linux_x86_64.tar.gz","browser_download_url":"http://x/old"}]}
+	]`
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		_, _ = w.Write([]byte(body))
+	}))
+	defer srv.Close()
+
+	rels, err := listReleasesFrom(context.Background(), srv.URL)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rels) != 1 || rels[0].Version != "v3.0.1" || len(rels[0].Assets) != 2 {
+		t.Fatalf("unexpected releases: %+v", rels)
+	}
+}
+
+func TestListLocalReleases(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+
+	verDir := filepath.Join(dir, "v3.0.1")
+
+	if err := os.MkdirAll(verDir, 0o750); err != nil {
+		t.Fatal(err)
+	}
+
+	if err := os.WriteFile(filepath.Join(verDir, "rpc-go_Linux_x86_64.tar.gz"), []byte("x"), 0o600); err != nil {
+		t.Fatal(err)
+	}
+
+	rels, err := listLocalReleases(dir)
+	if err != nil {
+		t.Fatal(err)
+	}
+
+	if len(rels) != 1 || rels[0].Version != "v3.0.1" || len(rels[0].Assets) != 1 ||
+		rels[0].Assets[0].OS != "linux" || rels[0].Assets[0].Arch != "x86_64" {
+		t.Fatalf("unexpected local releases: %+v", rels)
+	}
+}
+
+func TestListReleasesFromHTTPError(t *testing.T) {
+	t.Parallel()
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusInternalServerError)
+	}))
+	defer srv.Close()
+
+	_, err := listReleasesFrom(context.Background(), srv.URL)
+	if err == nil {
+		t.Fatal("expected error on non-200 response, got nil")
+	}
+
+	if !errors.Is(err, ErrFetchReleases) {
+		t.Fatalf("expected error to wrap ErrFetchReleases, got %v", err)
 	}
 }
