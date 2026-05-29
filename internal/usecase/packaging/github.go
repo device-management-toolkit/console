@@ -102,7 +102,7 @@ func getReleases(ctx context.Context, url string) ([]github.Release, error) {
 }
 
 // listReleasesFrom GETs a GitHub releases list URL and returns the v3+ releases.
-func listReleasesFrom(ctx context.Context, url string) ([]dto.RpcRelease, error) {
+func listReleasesFrom(ctx context.Context, url string) ([]dto.RPCRelease, error) {
 	releases, err := getReleases(ctx, url)
 	if err != nil {
 		return nil, err
@@ -130,8 +130,8 @@ func findAsset(releases []github.Release, version, goos, arch string) (url, name
 }
 
 // filterReleases keeps v3+ releases and maps them to the UI DTO shape.
-func filterReleases(releases []github.Release) []dto.RpcRelease {
-	out := make([]dto.RpcRelease, 0, len(releases))
+func filterReleases(releases []github.Release) []dto.RPCRelease {
+	out := make([]dto.RPCRelease, 0, len(releases))
 
 	for i := range releases {
 		r := &releases[i]
@@ -141,26 +141,26 @@ func filterReleases(releases []github.Release) []dto.RpcRelease {
 		}
 
 		internal := toReleaseAssets(r.Assets)
-		assets := make([]dto.RpcAsset, 0, len(internal))
+		assets := make([]dto.RPCAsset, 0, len(internal))
 
 		for _, a := range internal {
-			assets = append(assets, dto.RpcAsset{OS: a.os, Arch: a.arch})
+			assets = append(assets, dto.RPCAsset{OS: a.os, Arch: a.arch})
 		}
 
-		out = append(out, dto.RpcRelease{Version: r.TagName, Assets: assets})
+		out = append(out, dto.RPCRelease{Version: r.TagName, Assets: assets})
 	}
 
 	return out
 }
 
 // listLocalReleases scans an offline directory laid out as <dir>/<version>/<asset files>.
-func listLocalReleases(dir string) ([]dto.RpcRelease, error) {
+func listLocalReleases(dir string) ([]dto.RPCRelease, error) {
 	entries, err := os.ReadDir(dir)
 	if err != nil {
 		return nil, err
 	}
 
-	out := make([]dto.RpcRelease, 0, len(entries))
+	out := make([]dto.RPCRelease, 0, len(entries))
 
 	for _, e := range entries {
 		if !e.IsDir() {
@@ -174,16 +174,16 @@ func listLocalReleases(dir string) ([]dto.RpcRelease, error) {
 			return nil, err
 		}
 
-		assets := make([]dto.RpcAsset, 0, len(files))
+		assets := make([]dto.RPCAsset, 0, len(files))
 
 		for _, f := range files {
 			if assetOS, arch, ok := parseAsset(f.Name()); ok {
-				assets = append(assets, dto.RpcAsset{OS: assetOS, Arch: arch})
+				assets = append(assets, dto.RPCAsset{OS: assetOS, Arch: arch})
 			}
 		}
 
 		if len(assets) > 0 {
-			out = append(out, dto.RpcRelease{Version: version, Assets: assets})
+			out = append(out, dto.RPCRelease{Version: version, Assets: assets})
 		}
 	}
 

@@ -44,7 +44,7 @@ func New(cfg *config.Config, l logger.Interface) *Service {
 // ListVersions returns the available rpc-go releases.
 // If the GitHub fetch fails and a local cache directory is configured, it falls
 // back to scanning the local directory.
-func (s *Service) ListVersions(ctx context.Context) ([]dto.RpcRelease, error) {
+func (s *Service) ListVersions(ctx context.Context) ([]dto.RPCRelease, error) {
 	releases, err := listReleasesFrom(ctx, releasesURL(s.githubBase, s.cfg.RPCRepo))
 	if err == nil {
 		return releases, nil

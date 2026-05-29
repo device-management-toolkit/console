@@ -18,14 +18,14 @@ type PackageRequest struct {
 	Domain  string      `json:"domain"`
 }
 
-// RpcAsset is one downloadable build for a release.
-type RpcAsset struct {
+// RPCAsset is one downloadable build for a release.
+type RPCAsset struct {
 	OS   string `json:"os"`
 	Arch string `json:"arch"`
 }
 
-// RpcRelease is a single rpc-go release returned to the UI.
-type RpcRelease struct {
+// RPCRelease is a single rpc-go release returned to the UI.
+type RPCRelease struct {
 	Version string     `json:"version"`
-	Assets  []RpcAsset `json:"assets"`
+	Assets  []RPCAsset `json:"assets"`
 }

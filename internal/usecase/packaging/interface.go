@@ -9,6 +9,6 @@ import (
 
 // Feature is the public contract for the packaging usecase.
 type Feature interface {
-	ListVersions(ctx context.Context) ([]dto.RpcRelease, error)
+	ListVersions(ctx context.Context) ([]dto.RPCRelease, error)
 	BuildPackage(ctx context.Context, req dto.PackageRequest) (io.Reader, string, error)
 }

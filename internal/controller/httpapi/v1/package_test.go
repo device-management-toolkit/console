@@ -17,12 +17,12 @@ import (
 )
 
 type stubPackaging struct {
-	releases []dto.RpcRelease
+	releases []dto.RPCRelease
 	zip      []byte
 	err      error
 }
 
-func (s *stubPackaging) ListVersions(_ context.Context) ([]dto.RpcRelease, error) {
+func (s *stubPackaging) ListVersions(_ context.Context) ([]dto.RPCRelease, error) {
 	return s.releases, s.err
 }
 
@@ -49,8 +49,8 @@ func TestPackageRoutes(t *testing.T) {
 	t.Run("GET rpc-versions returns 200 with releases", func(t *testing.T) {
 		t.Parallel()
 
-		releases := []dto.RpcRelease{
-			{Version: "v1.2.3", Assets: []dto.RpcAsset{{OS: "linux", Arch: "x86_64"}}},
+		releases := []dto.RPCRelease{
+			{Version: "v1.2.3", Assets: []dto.RPCAsset{{OS: "linux", Arch: "x86_64"}}},
 		}
 		engine := newPackageEngine(&stubPackaging{releases: releases})
 
