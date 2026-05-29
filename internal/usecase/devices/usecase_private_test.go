@@ -5,27 +5,16 @@ import (
 
 	"github.com/stretchr/testify/require"
 
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
-
 	"github.com/device-management-toolkit/console/internal/entity"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	crypto "github.com/device-management-toolkit/console/internal/mocks/crypto"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
-
-type stubCrypto struct{}
-
-func (stubCrypto) Encrypt(string) (string, error)                { return "encrypted", nil }
-func (stubCrypto) Decrypt(string) (string, error)                { return "decrypted", nil }
-func (stubCrypto) EncryptWithKey(string, string) (string, error) { return "encrypted", nil }
-func (stubCrypto) GenerateKey() string                           { return "key" }
-func (stubCrypto) ReadAndDecryptFile(string) (config.Configuration, error) {
-	return config.Configuration{}, nil
-}
 
 func TestDtoToEntity_DeviceInfoSerialization(t *testing.T) {
 	t.Parallel()
 
-	uc := &UseCase{log: logger.New("error"), safeRequirements: stubCrypto{}}
+	uc := &UseCase{log: logger.New("error"), safeRequirements: crypto.MockCrypto{}}
 	lms := true
 
 	t.Run("returns empty DeviceInfo when nil", func(t *testing.T) {
@@ -64,7 +53,7 @@ func TestDtoToEntity_DeviceInfoSerialization(t *testing.T) {
 func TestEntityToDTO_DeviceInfoDeserialization(t *testing.T) {
 	t.Parallel()
 
-	uc := &UseCase{log: logger.New("error"), safeRequirements: stubCrypto{}}
+	uc := &UseCase{log: logger.New("error"), safeRequirements: crypto.MockCrypto{}}
 
 	ent := &entity.Device{
 		GUID:       "guid-1",
