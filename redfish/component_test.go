@@ -2,16 +2,19 @@
 package redfish
 
 import (
+	"bytes"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
+	redfishgenerated "github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	v1 "github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/handler"
 	sessioninfra "github.com/device-management-toolkit/console/redfish/internal/infrastructure/sessions"
 	"github.com/device-management-toolkit/console/redfish/internal/mocks"
@@ -286,6 +289,46 @@ func TestCreateErrorHandler(t *testing.T) {
 			assert.Equal(t, tt.expectedStatus, w.Code)
 		})
 	}
+}
+
+// TestOASMiddlewareRejectsInvalidKVMConsentCode ensures schema validation blocks
+// invalid ConsentCode values before endpoint handler logic is executed.
+func TestOASMiddlewareRejectsInvalidKVMConsentCode(t *testing.T) {
+	t.Parallel()
+
+	gin.SetMode(gin.TestMode)
+
+	swagger, err := redfishgenerated.GetSwagger()
+	require.NoError(t, err)
+
+	oasValidator := ginmiddleware.OapiRequestValidator(swagger)
+
+	router := gin.New()
+	handlerCalled := false
+
+	router.POST(
+		"/redfish/v1/Systems/:ComputerSystemId/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode",
+		oasValidator,
+		func(c *gin.Context) {
+			handlerCalled = true
+
+			c.Status(http.StatusOK)
+		},
+	)
+
+	invalidBody := []byte(`{"ConsentCode":"12AB56"}`)
+	req := httptest.NewRequest(
+		http.MethodPost,
+		"/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode",
+		bytes.NewReader(invalidBody),
+	)
+	req.Header.Set("Content-Type", "application/json")
+
+	resp := httptest.NewRecorder()
+	router.ServeHTTP(resp, req)
+
+	assert.Equal(t, http.StatusBadRequest, resp.Code)
+	assert.False(t, handlerCalled, "request should be rejected by middleware before handler execution")
 }
 
 // TestErrDevicesCastFailed tests the error variable.

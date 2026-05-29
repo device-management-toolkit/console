@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	ginmiddleware "github.com/oapi-codegen/gin-middleware"
 
 	dmtconfig "github.com/device-management-toolkit/console/config"
 	dmtusecase "github.com/device-management-toolkit/console/internal/usecase"
@@ -176,6 +177,19 @@ func RegisterRoutes(router *gin.Engine, _ logger.Interface) error {
 		return nil
 	}
 
+	swagger, err := redfishgenerated.GetSwagger()
+	if err != nil {
+		server.Logger.Error("Failed to load Redfish OpenAPI spec for request validation: %v", err)
+
+		return err
+	}
+
+	oasValidator := ginmiddleware.OapiRequestValidatorWithOptions(swagger, &ginmiddleware.Options{
+		ErrorHandler: func(c *gin.Context, message string, statusCode int) {
+			createErrorHandler()(c, errors.New(message), statusCode)
+		},
+	})
+
 	// Build middleware chain with OData header validation and response
 	middlewares := []redfishgenerated.MiddlewareFunc{
 		func(c *gin.Context) {
@@ -192,6 +206,9 @@ func RegisterRoutes(router *gin.Engine, _ logger.Interface) error {
 			// Set OData-Version header in response
 			c.Header("OData-Version", v1.SupportedODataVersion)
 			c.Next()
+		},
+		func(c *gin.Context) {
+			oasValidator(c)
 		},
 	}
 
