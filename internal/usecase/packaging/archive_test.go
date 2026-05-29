@@ -6,9 +6,23 @@ import (
 	"bytes"
 	"compress/gzip"
 	"errors"
+	"io"
 	"io/fs"
 	"testing"
 )
+
+// neverendingReader is a Reader that fills any buffer with a constant byte and
+// never returns io.EOF, used to drive readLimited past the cap without
+// allocating a large buffer.
+type neverendingReader struct{}
+
+func (neverendingReader) Read(p []byte) (int, error) {
+	for i := range p {
+		p[i] = 0xAB
+	}
+
+	return len(p), nil
+}
 
 func makeTarGz(t *testing.T, name string, content []byte) []byte {
 	t.Helper()
@@ -141,5 +155,19 @@ func TestBuildZip(t *testing.T) {
 
 	if modes["rpc"]&0o111 == 0 {
 		t.Fatalf("expected rpc to be executable, mode = %v", modes["rpc"])
+	}
+}
+
+func TestReadLimitedEntryTooLarge(t *testing.T) {
+	t.Parallel()
+
+	// Provide a reader that yields exactly maxArchiveBytes+10 bytes before being
+	// cut off by io.LimitReader — enough to exceed the cap without allocating the
+	// full buffer in memory.
+	r := io.LimitReader(neverendingReader{}, maxArchiveBytes+10)
+
+	_, err := readLimited(r)
+	if !errors.Is(err, ErrEntryTooLarge) {
+		t.Fatalf("expected ErrEntryTooLarge, got: %v", err)
 	}
 }

@@ -87,7 +87,7 @@ func (s *Service) BuildPackage(ctx context.Context, req dto.PackageRequest) (io.
 		return nil, "", fmt.Errorf("build zip: %w", err)
 	}
 
-	filename := fmt.Sprintf("rpc-%s-%s-%s.zip", req.Command, req.OS, req.Arch)
+	filename := fmt.Sprintf("rpc-%s-%s-%s.zip", safeFilenamePart(req.Command), safeFilenamePart(req.OS), safeFilenamePart(req.Arch))
 
 	return bytes.NewReader(zipBytes), filename, nil
 }
@@ -113,12 +113,26 @@ func (s *Service) resolveAsset(ctx context.Context, req dto.PackageRequest) (dat
 	}
 
 	if s.cfg.LocalDir != "" {
-		s.l.Warn("online asset fetch failed, trying local dir: %v", onlineErr)
+		s.l.Warn("asset not available online, trying local dir: %v", onlineErr)
 
 		return findLocalAsset(s.cfg.LocalDir, req.Version, req.OS, req.Arch)
 	}
 
 	return nil, "", onlineErr
+}
+
+// safeFilenamePart keeps a filename component limited to safe characters.
+// Any character that is not a letter, digit, dot, hyphen, or underscore is
+// replaced with a hyphen, preventing injection into Content-Disposition headers.
+func safeFilenamePart(s string) string {
+	return strings.Map(func(r rune) rune {
+		switch {
+		case r >= 'a' && r <= 'z', r >= 'A' && r <= 'Z', r >= '0' && r <= '9', r == '.', r == '-', r == '_':
+			return r
+		default:
+			return '-'
+		}
+	}, s)
 }
 
 // validateVersion rejects any version string that contains a path separator,

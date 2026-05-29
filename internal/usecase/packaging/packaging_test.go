@@ -241,6 +241,40 @@ func TestListVersionsGitHubFailNoLocalDir(t *testing.T) {
 	}
 }
 
+func TestSafeFilenamePart(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		input string
+		want  string
+	}{
+		{`linux"evil`, "linux-evil"},
+		{"linux/etc/passwd", "linux-etc-passwd"},
+		{"win\\path", "win-path"},
+		{"v3.0.1", "v3.0.1"},
+		{"x86_64", "x86_64"},
+		{"activate", "activate"},
+		{"hello world", "hello-world"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.input, func(t *testing.T) {
+			t.Parallel()
+
+			got := safeFilenamePart(tc.input)
+			if got != tc.want {
+				t.Errorf("safeFilenamePart(%q) = %q, want %q", tc.input, got, tc.want)
+			}
+
+			for _, ch := range got {
+				if ch == '"' {
+					t.Errorf("safeFilenamePart(%q) = %q still contains double-quote", tc.input, got)
+				}
+			}
+		})
+	}
+}
+
 func TestBuildPackageOnline(t *testing.T) {
 	t.Parallel()
 

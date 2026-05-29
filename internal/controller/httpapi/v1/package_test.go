@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"net/http/httptest"
@@ -115,5 +116,47 @@ func TestPackageRoutes(t *testing.T) {
 		require.Equal(t, http.StatusOK, w.Code)
 		require.Contains(t, w.Header().Get("Content-Type"), "application/zip")
 		require.Equal(t, zipData, w.Body.Bytes())
+	})
+
+	t.Run("GET rpc-versions returns 5xx when ListVersions errors", func(t *testing.T) {
+		t.Parallel()
+
+		stubErr := errors.New("upstream unavailable")
+		engine := newPackageEngine(&stubPackaging{err: stubErr})
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/package/rpc-versions", http.NoBody)
+		require.NoError(t, err)
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		require.GreaterOrEqual(t, w.Code, http.StatusInternalServerError)
+	})
+
+	t.Run("POST package returns 5xx when BuildPackage errors", func(t *testing.T) {
+		t.Parallel()
+
+		stubErr := errors.New("build failure")
+		engine := newPackageEngine(&stubPackaging{err: stubErr})
+
+		reqBody := dto.PackageRequest{
+			Command: "activate",
+			Version: "v1.2.3",
+			OS:      "linux",
+			Arch:    "x86_64",
+			Auth:    dto.PackageAuth{Mode: "token"},
+		}
+
+		bodyBytes, err := json.Marshal(reqBody)
+		require.NoError(t, err)
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/package", bytes.NewBuffer(bodyBytes))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		require.GreaterOrEqual(t, w.Code, http.StatusInternalServerError)
 	})
 }
