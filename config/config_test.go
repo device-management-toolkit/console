@@ -2,6 +2,7 @@ package config
 
 import (
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -64,6 +65,74 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://user:password@localhost:5432/testdb", cfg.DB.URL)
 	assert.Equal(t, false, cfg.TLS.Enabled)
+}
+
+func TestResolveConfigPath_FlagWins(t *testing.T) { //nolint:paralleltest // mutates package-global TrayMode
+	orig := TrayMode
+	TrayMode = true
+
+	defer func() { TrayMode = orig }()
+
+	got, err := resolveConfigPath("/custom/path.yml")
+	assert.NoError(t, err)
+	assert.Equal(t, "/custom/path.yml", got)
+}
+
+func TestResolveConfigPath_TrayUsesPerUserDir(t *testing.T) { //nolint:paralleltest // mutates package-global TrayMode
+	orig := TrayMode
+	TrayMode = true
+
+	defer func() { TrayMode = orig }()
+
+	got, err := resolveConfigPath("")
+	assert.NoError(t, err)
+
+	base, err := os.UserConfigDir()
+	assert.NoError(t, err)
+	assert.Equal(t, filepath.Join(base, "device-management-toolkit", "config.yml"), got)
+}
+
+func TestResolveConfigPath_NonTrayUsesBesideBinary(t *testing.T) { //nolint:paralleltest // mutates package-global TrayMode
+	orig := TrayMode
+	TrayMode = false
+
+	defer func() { TrayMode = orig }()
+
+	got, err := resolveConfigPath("")
+	assert.NoError(t, err)
+
+	want, err := besideBinaryConfigPath()
+	assert.NoError(t, err)
+	assert.Equal(t, want, got)
+}
+
+func TestSeedConfig(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	src := filepath.Join(dir, "install", "config.yml")
+	dst := filepath.Join(dir, "user", "config.yml")
+
+	assert.NoError(t, os.MkdirAll(filepath.Dir(src), 0o755))
+	assert.NoError(t, os.WriteFile(src, []byte("app:\n  name: seeded\n"), 0o600))
+
+	// Copies installer config when the per-user file is missing.
+	assert.NoError(t, seedConfig(src, dst))
+	data, err := os.ReadFile(dst)
+	assert.NoError(t, err)
+	assert.Contains(t, string(data), "seeded")
+
+	// Does not overwrite an existing per-user file.
+	assert.NoError(t, os.WriteFile(dst, []byte("app:\n  name: existing\n"), 0o600))
+	assert.NoError(t, seedConfig(src, dst))
+	data, err = os.ReadFile(dst)
+	assert.NoError(t, err)
+	assert.Contains(t, string(data), "existing")
+
+	// Missing src is a no-op, not an error.
+	assert.NoError(t, seedConfig(filepath.Join(dir, "nope.yml"), filepath.Join(dir, "out.yml")))
+	_, statErr := os.Stat(filepath.Join(dir, "out.yml"))
+	assert.True(t, os.IsNotExist(statErr))
 }
 
 func TestNewConfig_FileAndEnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables

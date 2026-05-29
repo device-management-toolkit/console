@@ -215,6 +215,32 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return configPathFlag, nil
 	}
 
+	// The tray runs unelevated as the logged-in user, and its config holds
+	// credentials (auth.adminPassword, auth.jwtKey). Keep it in the per-user
+	// config dir — the same base the SQLite DB uses — instead of world-readable
+	// beside the system-wide binary (Program Files / /usr/local / /opt).
+	if TrayMode {
+		if perUser, err := perUserConfigPath(); err == nil {
+			return perUser, nil
+		}
+		// Fall through to the beside-binary path if the per-user dir is unavailable.
+	}
+
+	return besideBinaryConfigPath()
+}
+
+// perUserConfigPath returns <user config dir>/device-management-toolkit/config.yml.
+func perUserConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "device-management-toolkit", "config.yml"), nil
+}
+
+// besideBinaryConfigPath returns the config path next to the executable.
+func besideBinaryConfigPath() (string, error) {
 	ex, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -227,9 +253,29 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		ex = resolved
 	}
 
-	exPath := filepath.Dir(ex)
+	return filepath.Join(filepath.Dir(ex), "config", "config.yml"), nil
+}
 
-	return filepath.Join(exPath, "config", "config.yml"), nil
+// seedConfig copies an installer-provisioned config from src to dst when dst does
+// not yet exist. On the first tray launch this carries the credentials the
+// installer wrote beside the binary (admin password, jwtKey) into the per-user
+// location, rather than generating a fresh insecure config. A missing src or an
+// already-present dst are both no-ops.
+func seedConfig(src, dst string) error {
+	if _, err := os.Stat(dst); err == nil {
+		return nil
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return nil //nolint:nilerr // no installer config to migrate (e.g. dev run); init proceeds normally
+	}
+
+	if mkErr := os.MkdirAll(filepath.Dir(dst), 0o700); mkErr != nil {
+		return mkErr
+	}
+
+	return os.WriteFile(dst, data, 0o600)
 }
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
@@ -319,6 +365,17 @@ func NewConfig() (*Config, error) {
 	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
 		return nil, err
+	}
+
+	// First tray launch: migrate the installer-written config (beside the binary)
+	// into the per-user location so its credentials carry over instead of being
+	// replaced by a freshly generated default.
+	if TrayMode && configPathFlag == "" {
+		if src, srcErr := besideBinaryConfigPath(); srcErr == nil {
+			if seedErr := seedConfig(src, configPath); seedErr != nil {
+				return nil, seedErr
+			}
+		}
 	}
 
 	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
