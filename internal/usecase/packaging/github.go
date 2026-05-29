@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -17,6 +18,12 @@ import (
 )
 
 var assetRe = regexp.MustCompile(`(?i)_(Linux|Windows|Darwin)_([A-Za-z0-9_]+?)\.(?:tar\.gz|zip)$`)
+
+// releasesURL builds the GitHub API releases URL for the given repo.
+// base is overridable in tests (e.g. an httptest.Server URL).
+func releasesURL(base, repo string) string {
+	return fmt.Sprintf("%s/repos/%s/releases", base, repo)
+}
 
 const minSupportedMajor = 3
 
@@ -69,14 +76,14 @@ func toReleaseAssets(assets []github.Asset) []dtoAsset {
 // ErrFetchReleases indicates the GitHub releases request did not return 200.
 var ErrFetchReleases = errors.New("failed to fetch releases")
 
-// listReleasesFrom GETs a GitHub releases list URL and returns the v3+ releases.
-func listReleasesFrom(ctx context.Context, url string) ([]dto.RpcRelease, error) {
+// getReleases GETs a GitHub releases list URL and returns the raw release slice.
+func getReleases(ctx context.Context, url string) ([]github.Release, error) {
 	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
 	if err != nil {
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
@@ -87,11 +94,39 @@ func listReleasesFrom(ctx context.Context, url string) ([]dto.RpcRelease, error)
 	}
 
 	var releases []github.Release
-	if err := json.NewDecoder(resp.Body).Decode(&releases); err != nil {
+	if err := json.NewDecoder(io.LimitReader(resp.Body, maxArchiveBytes)).Decode(&releases); err != nil {
+		return nil, err
+	}
+
+	return releases, nil
+}
+
+// listReleasesFrom GETs a GitHub releases list URL and returns the v3+ releases.
+func listReleasesFrom(ctx context.Context, url string) ([]dto.RpcRelease, error) {
+	releases, err := getReleases(ctx, url)
+	if err != nil {
 		return nil, err
 	}
 
 	return filterReleases(releases), nil
+}
+
+// findAsset searches releases for an asset matching version, goos, and arch.
+// It returns the download URL, asset name, and whether a match was found.
+func findAsset(releases []github.Release, version, goos, arch string) (url, name string, ok bool) {
+	for i := range releases {
+		if releases[i].TagName != version {
+			continue
+		}
+
+		for _, a := range releases[i].Assets {
+			if aos, aarch, parsed := parseAsset(a.Name); parsed && aos == goos && aarch == arch {
+				return a.BrowserDownloadURL, a.Name, true
+			}
+		}
+	}
+
+	return "", "", false
 }
 
 // filterReleases keeps v3+ releases and maps them to the UI DTO shape.

@@ -12,6 +12,7 @@ import (
 	"net/http"
 	"path"
 	"strings"
+	"time"
 )
 
 const (
@@ -20,7 +21,12 @@ const (
 	configFileName  = "config.yaml"
 	binaryFileMode  = 0o755
 	maxArchiveBytes = 200 << 20 // 200 MiB cap to guard against decompression bombs
+	httpTimeout     = 30 * time.Second
 )
+
+// httpClient is a package-level HTTP client with a bounded timeout used for all
+// outbound requests (releases list and asset downloads).
+var httpClient = &http.Client{Timeout: httpTimeout} //nolint:gochecknoglobals // package-level singleton is intentional: shared across all requests to allow connection reuse
 
 var (
 	// ErrBinaryNotFound indicates the archive had no rpc/rpc.exe entry.
@@ -164,7 +170,7 @@ func downloadAsset(ctx context.Context, url string) ([]byte, error) {
 		return nil, err
 	}
 
-	resp, err := http.DefaultClient.Do(req)
+	resp, err := httpClient.Do(req)
 	if err != nil {
 		return nil, err
 	}
