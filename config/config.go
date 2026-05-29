@@ -30,6 +30,7 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
+		Package `yaml:"package"`
 	}
 
 	// App -.
@@ -118,6 +119,13 @@ type (
 	UI struct {
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
 	}
+
+	// Package -. Settings for the Download RPC packaging endpoints.
+	Package struct {
+		RPCRepo   string `yaml:"rpc_repo" env:"RPC_REPO"`
+		LocalDir  string `yaml:"local_dir" env:"RPC_LOCAL_DIR"`
+		PublicURL string `yaml:"public_url" env:"CONSOLE_PUBLIC_URL"`
+	}
 )
 
 // getPreferredIPAddress detects the most likely candidate IP address for this machine.
@@ -205,6 +213,9 @@ func defaultConfig() *Config {
 		},
 		UI: UI{
 			ExternalURL: "",
+		},
+		Package: Package{
+			RPCRepo: "device-management-toolkit/rpc-go",
 		},
 	}
 }
