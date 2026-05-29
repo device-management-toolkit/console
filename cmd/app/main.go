@@ -1,6 +1,8 @@
 package main
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
@@ -21,6 +23,9 @@ var (
 	ErrSecretStoreAddressNotConfigured = errors.New("secret store address not configured")
 	ErrSecretStoreTokenNotConfigured   = errors.New("secret store token not configured")
 )
+
+// adminPasswordLength is the length of generated admin passwords.
+const adminPasswordLength = 16
 
 // Function pointers for better testability.
 var (
@@ -61,6 +66,8 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
+	handleAdminPassword(cfg)
+
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
 		log.Fatal("--tray was specified but this binary was built without tray support. Rebuild with `make build-tray` (or `go build -tags=tray`).")
@@ -277,4 +284,44 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 	}
 
 	return toolkitCrypto.GenerateKey()
+}
+
+// generateRandomPassword creates a cryptographically secure random password.
+func generateRandomPassword(length int) (string, error) {
+	bytes := make([]byte, length)
+
+	_, err := rand.Read(bytes)
+	if err != nil {
+		return "", err
+	}
+
+	return base64.URLEncoding.EncodeToString(bytes)[:length], nil
+}
+
+// handleAdminPassword ensures cfg.AdminPassword is set, generating one and
+// persisting it to config.yml on first run if nothing was provided via config
+// or environment.
+func handleAdminPassword(cfg *config.Config) {
+	if cfg.AdminPassword != "" {
+		return
+	}
+
+	password, err := generateRandomPassword(adminPasswordLength)
+	if err != nil {
+		log.Fatalf("Failed to generate admin password: %v", err)
+	}
+
+	cfg.AdminPassword = password
+
+	if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
+		log.Fatalf(
+			"Generated admin password but failed to persist it to config (%v).\n"+
+				"Refusing to start with an unsaved credential that would vanish on restart.\n"+
+				"Set AUTH_ADMIN_PASSWORD in the environment (or auth.adminPassword in config) "+
+				"to provide the admin password directly.",
+			err,
+		)
+	}
+
+	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
 }

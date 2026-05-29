@@ -67,7 +67,7 @@ Warning: Key Not Found, Generate new key? Y/N
 
 You’ll run two components during development:
 
-- **Console** – the backend service (Go Service)  
+- **Console** – the backend service (Go Service)
 - **Web UI** – the frontend (for the Angular Web UI)
 
 Local development can be done on **Linux**, **macOS**, and **Windows**. On Windows, WSL is recommended if you plan to use `make`, but it’s not required for running Console directly.
@@ -154,10 +154,12 @@ This will use the `DB_URL` you configured in `.env`.
 Console supports multiple build configurations optimized for different use cases:
 
 #### Default Build
+
 - Full build with embedded web UI
 - Ideal for development and single-instance deployments
 
 #### `noui` Build (Headless/API-only)
+
 - Excludes embedded web UI from binary
 - **Reduces binary size** by ~30MB
 - All API endpoints remain fully functional
@@ -168,6 +170,7 @@ Console supports multiple build configurations optimized for different use cases
 **Configuration for headless builds:**
 
 Edit `config.yml`:
+
 ```yaml
 ui:
   # Redirect UI requests to external frontend (optional)
@@ -177,11 +180,13 @@ ui:
 ```
 
 Or use environment variable:
+
 ```sh
 UI_EXTERNAL_URL=https://your-ui-domain.com ./console-noui
 ```
 
 **Build commands:**
+
 ```sh
 # Default build (with UI) for current platform
 make build
@@ -195,6 +200,7 @@ make build-all-platforms
 ```
 
 **Manual build examples:**
+
 ```sh
 # Build for current platform
 go build -o console ./cmd/app
@@ -232,7 +238,7 @@ npm run enterprise
 
 Check the output of `npm run enterprise` to verify the port (default is 4200), then open the UI in your browser at:
 
-```
+```sh
 http://localhost:4200
 ```
 
@@ -250,9 +256,11 @@ Console exposes the OpenAPI specification two ways:
 1. **Live HTTP endpoint** (always available when the server runs):
    - `http://localhost:8181/api/openapi.json`
 2. **Regenerate `doc/openapi.json` on disk** (used by CI to publish to SwaggerHub):
+
    ```sh
    make openapi
    ```
+
    Equivalent to `go run ./cmd/openapi-gen` — a standalone binary that writes `doc/openapi.json` and exits without starting the server.
 3. **To add API Documentation**: Check wiki `https://github.com/device-management-toolkit/console/wiki/API-Documentation-to-Console`
 
@@ -263,8 +271,8 @@ Console exposes the OpenAPI specification two ways:
 - Ensure code is formatted correctly with `gofumpt -l -w -extra ./`
 - Ensure all unit tests pass with `go test ./...`
 - Ensure code has been linted with:
-  - Windows: `docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
-  - Unix: `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
+  - Windows: `docker run --rm --pull always -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
+  - Unix: `docker run --rm --pull always -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run --config=./.golangci.yml -v`
 
 ## Fuzz Testing
 

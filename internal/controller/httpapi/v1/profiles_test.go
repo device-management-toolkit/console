@@ -181,7 +181,7 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 			method: http.MethodPatch,
 			url:    "/api/v1/admin/profiles",
 			mock: func(profile *mocks.MockProfilesFeature) {
-				profile.EXPECT().Update(context.Background(), &profileTest).Return(&profileTest, nil)
+				profile.EXPECT().Update(context.Background(), &profileTest, gomock.Any()).Return(&profileTest, nil)
 			},
 			response:     profileTest,
 			requestBody:  profileTest,
@@ -192,7 +192,7 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 			method: http.MethodPatch,
 			url:    "/api/v1/admin/profiles",
 			mock: func(profile *mocks.MockProfilesFeature) {
-				profile.EXPECT().Update(context.Background(), &profileTest).Return(nil, profiles.ErrDatabase)
+				profile.EXPECT().Update(context.Background(), &profileTest, gomock.Any()).Return(nil, profiles.ErrDatabase)
 			},
 			response:     profiles.ErrDatabase,
 			requestBody:  profileTest,
@@ -306,6 +306,152 @@ func TestProfileRoutes(t *testing.T) { //nolint:gocognit // this is a test funct
 					require.Equal(t, string(jsonBytes), w.Body.String())
 				}
 			}
+		})
+	}
+}
+
+func TestProfilesUpdatePartialPatch(t *testing.T) {
+	t.Parallel()
+
+	incoming := &dto.Profile{
+		ProfileName:            "newprofile",
+		Activation:             "ccmactivate",
+		AMTPassword:            "P@ssw0rd",
+		GenerateRandomPassword: false,
+		KVMEnabled:             true,
+	}
+
+	expectedFields := map[string]bool{
+		"profilename":            true,
+		"activation":             true,
+		"amtpassword":            true,
+		"generaterandompassword": true,
+		"kvmenabled":             true,
+	}
+
+	profileFeature, engine := profilesTest(t)
+
+	profileFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"profileName":"newprofile","activation":"ccmactivate","amtPassword":"P@ssw0rd","generateRandomPassword":false,"kvmEnabled":true}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/admin/profiles", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+// gin's :name route parameter matches a single path segment, so a profile whose
+// name contains '/' cannot be addressed by the get/delete/export routes — the
+// router 404s before the handler runs.
+func TestProfilesNameWithSlashIsUnreachable(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		name   string
+		method string
+		url    string
+	}{
+		{"getByName raw slash", http.MethodGet, "/api/v1/admin/profiles/my/profile"},
+		{"getByName encoded slash", http.MethodGet, "/api/v1/admin/profiles/my%2Fprofile"},
+		{"delete raw slash", http.MethodDelete, "/api/v1/admin/profiles/my/profile"},
+		{"export raw slash", http.MethodGet, "/api/v1/admin/profiles/export/my/profile"},
+	}
+
+	for _, tc := range cases {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// No mock expectations: if the router unexpectedly matched, the
+			// handler would call the feature and gomock would fail the test.
+			_, engine := profilesTest(t)
+
+			req, err := http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusNotFound, w.Code, "%s %s should 404 (gin :name does not span '/')", tc.method, tc.url)
+		})
+	}
+}
+
+func TestProfilesUpdatePatchWithoutPasswords(t *testing.T) {
+	t.Parallel()
+
+	incoming := &dto.Profile{
+		ProfileName: "newprofile",
+		Activation:  "acmactivate",
+		KVMEnabled:  true,
+	}
+
+	expectedFields := map[string]bool{
+		"profilename": true,
+		"activation":  true,
+		"kvmenabled":  true,
+	}
+
+	profileFeature, engine := profilesTest(t)
+
+	profileFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"profileName":"newprofile","activation":"acmactivate","kvmEnabled":true}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/admin/profiles", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestProfilesInsertWithoutPasswordFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		body    string
+		wantErr error
+	}{
+		{
+			name:    "ccm activation, no amtPassword",
+			body:    `{"profileName":"newprofile","activation":"ccmactivate","generateRandomPassword":false}`,
+			wantErr: profiles.ErrAMTPasswordRequired,
+		},
+		{
+			name:    "acm activation, no mebxPassword",
+			body:    `{"profileName":"newprofile","activation":"acmactivate","amtPassword":"P@ssw0rd","generateRandomMEBxPassword":false}`,
+			wantErr: profiles.ErrMEBXPasswordRequired,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			profileFeature, engine := profilesTest(t)
+
+			profileFeature.EXPECT().
+				Insert(gomock.Any(), gomock.Any()).
+				Return(nil, profiles.ErrNotValid.Wrap("Insert", "validateProfileCreate", tc.wantErr))
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBuffer([]byte(tc.body)))
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
 		})
 	}
 }

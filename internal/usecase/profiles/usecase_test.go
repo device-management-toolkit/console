@@ -13,7 +13,9 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
+	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -401,7 +403,7 @@ func TestUpdate(t *testing.T) {
 
 			tc.mock(repo, wifiFeat, pwfFeat)
 
-			result, err := useCase.Update(context.Background(), profileDTO)
+			result, err := useCase.Update(context.Background(), profileDTO, nil)
 
 			require.Equal(t, tc.res, result)
 			require.IsType(t, err, tc.err)
@@ -409,25 +411,125 @@ func TestUpdate(t *testing.T) {
 	}
 }
 
+func TestUpdatePartialPatchMergesWithExisting(t *testing.T) {
+	t.Parallel()
+
+	tenantID := "tenant-id-456"
+	oldCira := "previous-cira"
+	oldEntity := &entity.Profile{
+		ProfileName:    "example-profile",
+		TenantID:       tenantID,
+		AMTPassword:    "old-encrypted-amt",
+		MEBXPassword:   "old-encrypted-mebx",
+		CIRAConfigName: &oldCira,
+		Tags:           "alpha",
+		Activation:     "acmactivate",
+		DHCPEnabled:    true,
+		KVMEnabled:     false,
+	}
+
+	payload := &dto.Profile{
+		ProfileName: "example-profile",
+		TenantID:    tenantID,
+		KVMEnabled:  true,
+	}
+
+	fields := map[string]bool{
+		"profilename": true,
+		"kvmenabled":  true,
+	}
+
+	expected := &entity.Profile{
+		ProfileName:    "example-profile",
+		TenantID:       tenantID,
+		Activation:     "acmactivate",
+		AMTPassword:    "encrypted",
+		MEBXPassword:   "encrypted",
+		CIRAConfigName: &oldCira,
+		Tags:           "alpha",
+		DHCPEnabled:    true,
+		KVMEnabled:     true,
+	}
+
+	useCase, repo, _, profilewifi := profilesTest(t)
+
+	repo.EXPECT().
+		GetByName(context.Background(), "example-profile", tenantID).
+		Return(oldEntity, nil)
+	profilewifi.EXPECT().
+		GetByProfileName(context.Background(), "example-profile", tenantID).
+		Return(nil, nil)
+	repo.EXPECT().
+		Update(context.Background(), expected).
+		Return(true, nil)
+	profilewifi.EXPECT().
+		DeleteByProfileName(context.Background(), "example-profile", tenantID).
+		Return(nil)
+	repo.EXPECT().
+		GetByName(context.Background(), "example-profile", tenantID).
+		Return(oldEntity, nil)
+
+	_, err := useCase.Update(context.Background(), payload, fields)
+	require.NoError(t, err)
+}
+
+func TestUpdateRejectsUnknownIEEE8021xProfile(t *testing.T) {
+	t.Parallel()
+
+	tenantID := "tenant-id-456"
+	ieeeName := "missing-8021x-profile"
+
+	payload := &dto.Profile{
+		ProfileName:          "example-profile",
+		TenantID:             tenantID,
+		Version:              "1.0.0",
+		Tags:                 []string{""},
+		IEEE8021xProfileName: &ieeeName,
+	}
+
+	mockCtl := gomock.NewController(t)
+	defer mockCtl.Finish()
+
+	repo := mocks.NewMockProfilesRepository(mockCtl)
+	wifiConfig := mocks.NewMockWiFiConfigsRepository(mockCtl)
+	profileWifi := mocks.NewMockProfileWiFiConfigsFeature(mockCtl)
+	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
+	domainsMock := mocks.NewMockDomainsFeature(mockCtl)
+	ciraMock := mocks.NewMockCIRAConfigsRepository(mockCtl)
+	useCase := profiles.New(repo, wifiConfig, profileWifi, ieeeMock, logger.New("error"), domainsMock, ciraMock, mocks.MockCrypto{})
+
+	ieeeMock.EXPECT().
+		GetByName(context.Background(), ieeeName, tenantID).
+		Return(nil, repoerrors.NotFoundError{Console: consoleerrors.CreateConsoleError("ieee not found")})
+
+	_, err := useCase.Update(context.Background(), payload, nil)
+	require.Error(t, err)
+	require.IsType(t, dto.NotValidError{}, err)
+}
+
 func TestInsert(t *testing.T) {
 	t.Parallel()
 
 	profile := &entity.Profile{
-		ProfileName:  "new-profile",
-		TenantID:     "tenant-id-789",
-		Version:      "1.0.0",
-		Tags:         "",
-		DHCPEnabled:  true,
-		AMTPassword:  "encrypted",
-		MEBXPassword: "encrypted",
+		ProfileName:            "new-profile",
+		TenantID:               "tenant-id-789",
+		Version:                "1.0.0",
+		Tags:                   "",
+		DHCPEnabled:            true,
+		AMTPassword:            "encrypted",
+		MEBXPassword:           "encrypted",
+		GenerateRandomPassword: true,
+		Activation:             dto.ActivationCCM,
 	}
 
 	profileDTO := &dto.Profile{
-		ProfileName: "new-profile",
-		TenantID:    "tenant-id-789",
-		Version:     "1.0.0",
-		Tags:        []string{""},
-		DHCPEnabled: true,
+		ProfileName:            "new-profile",
+		TenantID:               "tenant-id-789",
+		Version:                "1.0.0",
+		Tags:                   []string{""},
+		DHCPEnabled:            true,
+		GenerateRandomPassword: true,
+		Activation:             dto.ActivationCCM,
 		WiFiConfigs: []dto.ProfileWiFiConfigs{
 			{
 				ProfileName:         "new-profile",
@@ -489,6 +591,41 @@ func TestInsert(t *testing.T) {
 			} else {
 				require.NoError(t, err)
 			}
+		})
+	}
+}
+
+func TestInsertValidationFails(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		input   dto.Profile
+		wantErr error
+	}{
+		{
+			name:    "ccm activation, no amtPassword and not generated",
+			input:   dto.Profile{ProfileName: "p", Activation: dto.ActivationCCM},
+			wantErr: profiles.ErrAMTPasswordRequired,
+		},
+		{
+			name:    "acm activation, no mebxPassword and not generated",
+			input:   dto.Profile{ProfileName: "p", Activation: dto.ActivationACM, AMTPassword: "P@ssw0rd"},
+			wantErr: profiles.ErrMEBXPasswordRequired,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, _, _, _ := profilesTest(t)
+
+			result, err := useCase.Insert(context.Background(), &tc.input)
+
+			require.Nil(t, result)
+			require.ErrorIs(t, err, tc.wantErr)
 		})
 	}
 }

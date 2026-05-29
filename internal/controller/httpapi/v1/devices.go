@@ -70,8 +70,8 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 		return
 	}
-	// Create JWT token
-	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
+	// Create JWT token with short expiration (5 minutes) for device redirection
+	expirationTime := time.Now().Add(config.ConsoleConfig.RedirectionJWTExpiration)
 	claims := jwt.RegisteredClaims{
 		ExpiresAt: jwt.NewNumericDate(expirationTime),
 	}

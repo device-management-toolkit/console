@@ -27,6 +27,12 @@ func (e InternalError) FriendlyMessage() string {
 	return e.Message
 }
 
+// Unwrap exposes the wrapped error so errors.Is/As can traverse the chain to
+// sentinels stored in OriginalError.
+func (e InternalError) Unwrap() error {
+	return e.OriginalError
+}
+
 func (e *InternalError) Wrap(call, function string, err error) error {
 	e.Call = call
 	e.Function = function

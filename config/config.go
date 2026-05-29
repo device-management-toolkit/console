@@ -45,7 +45,7 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Host           string   `env-required:"true" yaml:"host" env:"HTTP_HOST"`
+		Host           string   `yaml:"host" env:"HTTP_HOST"`
 		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
@@ -99,18 +99,19 @@ type (
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
 		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
+		TLSSkipVerify            bool          `yaml:"tlsSkipVerify" env:"AUTH_TLS_SKIP_VERIFY"`
 		UI                       UIAuthConfig  `yaml:"ui"`
 	}
 
 	// UIAuthConfig -.
 	UIAuthConfig struct {
-		ClientID                          string `yaml:"clientId"`
-		Issuer                            string `yaml:"issuer"`
-		RedirectURI                       string `yaml:"redirectUri"`
-		Scope                             string `yaml:"scope"`
-		ResponseType                      string `yaml:"responseType"`
-		RequireHTTPS                      bool   `yaml:"requireHttps"`
-		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation"`
+		ClientID                          string `yaml:"clientId" env:"AUTH_UI_CLIENT_ID"`
+		Issuer                            string `yaml:"issuer" env:"AUTH_UI_ISSUER"`
+		RedirectURI                       string `yaml:"redirectUri" env:"AUTH_UI_REDIRECT_URI"`
+		Scope                             string `yaml:"scope" env:"AUTH_UI_SCOPE"`
+		ResponseType                      string `yaml:"responseType" env:"AUTH_UI_RESPONSE_TYPE"`
+		RequireHTTPS                      bool   `yaml:"requireHttps" env:"AUTH_UI_REQUIRE_HTTPS"`
+		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation" env:"AUTH_UI_STRICT_DISCOVERY"`
 	}
 
 	// UI -.
@@ -154,7 +155,7 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:           "localhost",
+			Host:           "",
 			Port:           "8181",
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},
@@ -185,7 +186,7 @@ func defaultConfig() *Config {
 		},
 		Auth: Auth{
 			AdminUsername:            "standalone",
-			AdminPassword:            "G@ppm0ym",
+			AdminPassword:            "", // Generated and stored in config on first run if not provided
 			JWTKey:                   "your_secret_jwt_key",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
@@ -219,6 +220,13 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return "", err
 	}
 
+	// Resolve symlinks so invocation via a wrapper symlink (e.g. /usr/local/bin/dmt-console
+	// → /usr/local/device-management-toolkit/console) anchors config beside the real binary
+	// rather than beside the symlink.
+	if resolved, evalErr := filepath.EvalSymlinks(ex); evalErr == nil {
+		ex = resolved
+	}
+
 	exPath := filepath.Dir(ex)
 
 	return filepath.Join(exPath, "config", "config.yml"), nil
@@ -233,29 +241,59 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 
 	var pathErr *os.PathError
 	if errors.As(err, &pathErr) {
-		// Write config file out to disk
-		configDir := filepath.Dir(configPath)
-		if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
-			return mkErr
-		}
-
-		file, cErr := os.Create(configPath)
-		if cErr != nil {
-			return cErr
-		}
-		defer file.Close()
-
-		encoder := yaml.NewEncoder(file)
-		defer encoder.Close()
-
-		if encErr := encoder.Encode(cfg); encErr != nil {
-			return encErr
-		}
-
-		return nil
+		return writeConfig(configPath, cfg)
 	}
 
 	return err
+}
+
+// writeConfig serializes cfg to configPath, creating the parent directory if needed.
+func writeConfig(configPath string, cfg *Config) error {
+	configDir := filepath.Dir(configPath)
+	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+		return mkErr
+	}
+
+	file, err := os.Create(configPath)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
+
+	encoder := yaml.NewEncoder(file)
+	defer encoder.Close()
+
+	return encoder.Encode(cfg)
+}
+
+// SaveAdminPassword persists adminPassword to auth.adminPassword in config.yml
+// without touching any other field. It re-reads the file directly (bypassing the
+// env-var overlay applied by cleanenv) so env-only secrets like APP_ENCRYPTION_KEY,
+// SECRETS_TOKEN, DB_URL, EA_PASSWORD, and AUTH_JWT_KEY cannot leak to disk.
+func SaveAdminPassword(adminPassword string) error {
+	var configPathFlag string
+	if f := flag.Lookup("config"); f != nil {
+		configPathFlag = f.Value.String()
+	}
+
+	configPath, err := resolveConfigPath(configPathFlag)
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	fileCfg := defaultConfig()
+	if err := yaml.Unmarshal(data, fileCfg); err != nil {
+		return err
+	}
+
+	fileCfg.AdminPassword = adminPassword
+
+	return writeConfig(configPath, fileCfg)
 }
 
 // NewConfig returns app config.

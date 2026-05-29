@@ -6,6 +6,7 @@ import (
 	"embed"
 	"io/fs"
 	"log"
+	"net"
 	"net/http"
 	"os"
 	"path/filepath"
@@ -122,7 +123,7 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	}
 
 	data = injectPlaceholders(data, map[string]string{
-		"##CONSOLE_SERVER_API##": protocol + cfg.Host + ":" + cfg.Port,
+		"##CONSOLE_SERVER_API##": consoleServerAPIBase(protocol, cfg.Host, cfg.Port),
 	})
 
 	// Write to /tmp
@@ -135,6 +136,34 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	}
 
 	return tempFile
+}
+
+// Returns "" on wildcard hosts so the UI uses same-origin requests matching the user's URL/SNI.
+func consoleServerAPIBase(protocol, host, port string) string {
+	if isWildcardHost(host) {
+		return ""
+	}
+
+	return protocol + net.JoinHostPort(unbracket(host), port)
+}
+
+// unbracket strips a single pair of surrounding square brackets from a literal
+// IPv6 host so net.JoinHostPort doesn't double-wrap (e.g. "[::1]" → "::1").
+func unbracket(host string) string {
+	if len(host) >= 2 && host[0] == '[' && host[len(host)-1] == ']' {
+		return host[1 : len(host)-1]
+	}
+
+	return host
+}
+
+func isWildcardHost(host string) bool {
+	switch host {
+	case "", "0.0.0.0", "::", "[::]":
+		return true
+	}
+
+	return false
 }
 
 func injectPlaceholders(content []byte, replacements map[string]string) []byte {
