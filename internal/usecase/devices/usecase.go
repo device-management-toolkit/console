@@ -1,6 +1,7 @@
 package devices
 
 import (
+	"encoding/json"
 	"strings"
 	"sync"
 
@@ -74,6 +75,11 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 
 	tags := strings.Join(d.Tags, ",")
 
+	deviceInfo, err := marshalDeviceInfo(d.DeviceInfo)
+	if err != nil {
+		return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "marshalDeviceInfo", err)
+	}
+
 	d1 := &entity.Device{
 		ConnectionStatus: d.ConnectionStatus,
 		MPSInstance:      d.MPSInstance,
@@ -87,14 +93,12 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		LastConnected:    d.LastConnected,
 		LastSeen:         d.LastSeen,
 		LastDisconnected: d.LastDisconnected,
-		// DeviceInfo:       d.DeviceInfo,
-		Username:        d.Username,
-		Password:        d.Password,
-		UseTLS:          d.UseTLS,
-		AllowSelfSigned: d.AllowSelfSigned,
+		DeviceInfo:       deviceInfo,
+		Username:         d.Username,
+		Password:         d.Password,
+		UseTLS:           d.UseTLS,
+		AllowSelfSigned:  d.AllowSelfSigned,
 	}
-
-	var err error
 
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
 	if err != nil {
@@ -133,8 +137,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 }
 
 // Keys are lowercased to match encoding/json's case-insensitive unmarshal.
-// guid and tenantId identify the record; deviceInfo doesn't round-trip through
-// dtoToEntity/entityToDTO — all three are intentionally omitted.
+// guid and tenantId identify the record and are intentionally omitted.
 var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"connectionstatus": func(dst, src *dto.Device) { dst.ConnectionStatus = src.ConnectionStatus },
 	"mpsinstance":      func(dst, src *dto.Device) { dst.MPSInstance = src.MPSInstance },
@@ -153,6 +156,7 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"usetls":           func(dst, src *dto.Device) { dst.UseTLS = src.UseTLS },
 	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
 	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
+	"deviceinfo":       func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
@@ -164,11 +168,16 @@ func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
 }
 
 // convert entity.Device to dto.Device.
-func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
+func (uc *UseCase) entityToDTO(d *entity.Device) (*dto.Device, error) {
 	// convert comma separated string to []string
 	var tags []string
 	if d.Tags != "" {
 		tags = strings.Split(d.Tags, ",")
+	}
+
+	deviceInfo, err := unmarshalDeviceInfo(d.DeviceInfo, d.GUID)
+	if err != nil {
+		return nil, err
 	}
 
 	d1 := &dto.Device{
@@ -184,11 +193,10 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 		LastConnected:    d.LastConnected,
 		LastSeen:         d.LastSeen,
 		LastDisconnected: d.LastDisconnected,
-		// DeviceInfo:       d.DeviceInfo,
-		Username: d.Username,
-		// Password:        d.Password,
-		UseTLS:          d.UseTLS,
-		AllowSelfSigned: d.AllowSelfSigned,
+		DeviceInfo:       deviceInfo,
+		Username:         d.Username,
+		UseTLS:           d.UseTLS,
+		AllowSelfSigned:  d.AllowSelfSigned,
 	}
 
 	if d.CertHash != nil {
@@ -203,5 +211,31 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 		d1.MEBXPassword = *d.MEBXPassword
 	}
 
-	return d1
+	return d1, nil
+}
+
+func marshalDeviceInfo(info *dto.DeviceInfo) (string, error) {
+	if info == nil {
+		return "", nil
+	}
+
+	b, err := json.Marshal(info)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
+func unmarshalDeviceInfo(raw, guid string) (*dto.DeviceInfo, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	var info dto.DeviceInfo
+	if err := json.Unmarshal([]byte(raw), &info); err != nil {
+		return nil, ErrDeviceUseCase.Wrap("unmarshalDeviceInfo", "failed to unmarshal deviceInfo for device "+guid, err)
+	}
+
+	return &info, nil
 }
