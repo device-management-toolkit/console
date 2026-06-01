@@ -92,6 +92,9 @@ var (
 		"usetls":           true,
 		"allowselfsigned":  true,
 		"certhash":         true,
+		// isDeleted has no omitempty, so it is always present in a marshaled
+		// device body and thus always reported as a provided PATCH field.
+		"isdeleted": true,
 	}
 )
 
