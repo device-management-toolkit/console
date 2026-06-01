@@ -485,11 +485,6 @@ func (c *ConnectionEntry) hardwareGets() (GetHWResults, error) {
 		return results, err
 	}
 
-	results.ProcessorResult, err = c.WsmanMessages.CIM.Processor.Get()
-	if err != nil {
-		return results, err
-	}
-
 	return results, nil
 }
 
@@ -518,6 +513,20 @@ func (c *ConnectionEntry) hardwarePulls() (PullHWResults, error) {
 		return results, err
 	}
 
+	// Processor is fetched via Enumerate/Pull rather than Get: on some platforms
+	// (e.g. AMT 21) the device reports zero CIM_Processor instances, and a
+	// WS-Transfer Get against a resource with no instance faults with
+	// b:DestinationUnreachable. Enumerate/Pull returns an empty set instead.
+	processorEnumerateResult, err := c.WsmanMessages.CIM.Processor.Enumerate()
+	if err != nil {
+		return results, err
+	}
+
+	results.ProcessorResult, err = c.WsmanMessages.CIM.Processor.Pull(processorEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return results, err
+	}
+
 	return results, nil
 }
 
@@ -538,19 +547,19 @@ func (c *ConnectionEntry) GetHardwareInfo() (HWResults, error) {
 		CardResult:           getHWResults.CardResult,
 		PhysicalMemoryResult: pullHWResults.PhysicalMemoryResult,
 		BiosResult:           getHWResults.BiosResult,
-		ProcessorResult:      getHWResults.ProcessorResult,
+		ProcessorResult:      pullHWResults.ProcessorResult,
 	}, nil
 }
 
 type GetHWResults struct {
-	ChassisResult   chassis.Response
-	CardResult      card.Response
-	BiosResult      bios.Response
-	ProcessorResult processor.Response
+	ChassisResult chassis.Response
+	CardResult    card.Response
+	BiosResult    bios.Response
 }
 type PullHWResults struct {
 	PhysicalMemoryResult physical.Response
 	ChipResult           chip.Response
+	ProcessorResult      processor.Response
 }
 type HWResults struct {
 	ChassisResult        chassis.Response
