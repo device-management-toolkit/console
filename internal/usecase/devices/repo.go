@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -250,6 +251,13 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 	if d1.GUID == "" {
 		d1.GUID = uuid.New().String()
 	}
+
+	// id and createddate are server-managed: a stable surrogate key and
+	// the insertion timestamp. Client-supplied values are ignored. Nanosecond
+	// precision (UTC) keeps the string lexicographically sortable and avoids
+	// collisions when many devices are added within the same second.
+	d1.ID = uuid.New().String()
+	d1.CreatedDate = time.Now().UTC().Format(time.RFC3339Nano)
 
 	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {

@@ -2,6 +2,8 @@ package devices_test
 
 import (
 	"context"
+	"fmt"
+	"reflect"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -16,6 +18,32 @@ import (
 
 func ptr(s string) *string {
 	return &s
+}
+
+// insertedDevice matches the entity passed to repo.Insert, ignoring the
+// server-generated ID and CreatedDate (which are non-deterministic) while
+// asserting they were populated.
+type insertedDevice struct{ want *entity.Device }
+
+func (m insertedDevice) Matches(x any) bool {
+	got, ok := x.(*entity.Device)
+	if !ok || got == nil {
+		return false
+	}
+
+	if got.ID == "" || got.CreatedDate == "" {
+		return false
+	}
+
+	cp := *got
+	cp.ID = ""
+	cp.CreatedDate = ""
+
+	return reflect.DeepEqual(&cp, m.want)
+}
+
+func (m insertedDevice) String() string {
+	return fmt.Sprintf("matches %+v (ignoring server-set ID/CreatedDate)", m.want)
 }
 
 type testUsecase struct {
@@ -377,7 +405,7 @@ func TestInsert(t *testing.T) {
 				}
 
 				repo.EXPECT().
-					Insert(context.Background(), device).
+					Insert(context.Background(), insertedDevice{want: device}).
 					Return("unique-device-id", nil)
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "tenant-id-456").
@@ -398,7 +426,7 @@ func TestInsert(t *testing.T) {
 				}
 
 				repo.EXPECT().
-					Insert(context.Background(), device).
+					Insert(context.Background(), insertedDevice{want: device}).
 					Return("", devices.ErrDatabase)
 			},
 			res: (*dto.Device)(nil),
@@ -506,7 +534,7 @@ func TestInsertWithPasswords(t *testing.T) {
 		}
 
 		repo.EXPECT().
-			Insert(context.Background(), deviceWithPasswords).
+			Insert(context.Background(), insertedDevice{want: deviceWithPasswords}).
 			Return("unique-device-id", nil)
 		repo.EXPECT().
 			GetByID(context.Background(), "device-guid-123", "tenant-id-456").

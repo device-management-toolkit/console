@@ -98,6 +98,13 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		Password:         d.Password,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+		// ID and CreatedDate are server-managed and deliberately NOT copied
+		// from the inbound DTO: UseCase.Insert sets them after this conversion,
+		// and the repo Update layer never writes them. Leaving them zero here
+		// makes immutability structural rather than reliant on every call site.
+		IsDeleted:      d.IsDeleted,
+		ProductType:    d.ProductType,
+		ConnectionType: d.ConnectionType,
 	}
 
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
@@ -157,6 +164,10 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
 	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
 	"deviceinfo":       func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+	// id and createdDate are server-managed and intentionally not patchable.
+	"isdeleted":      func(dst, src *dto.Device) { dst.IsDeleted = src.IsDeleted },
+	"producttype":    func(dst, src *dto.Device) { dst.ProductType = src.ProductType },
+	"connectiontype": func(dst, src *dto.Device) { dst.ConnectionType = src.ConnectionType },
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
@@ -197,6 +208,12 @@ func (uc *UseCase) entityToDTO(d *entity.Device) (*dto.Device, error) {
 		Username:         d.Username,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+		ID:               d.ID,
+		CreatedDate:      d.CreatedDate,
+		IsDeleted:        d.IsDeleted,
+		DeletedDate:      d.DeletedDate,
+		ProductType:      d.ProductType,
+		ConnectionType:   d.ConnectionType,
 	}
 
 	if d.CertHash != nil {
