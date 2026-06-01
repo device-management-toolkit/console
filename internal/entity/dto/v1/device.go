@@ -35,6 +35,13 @@ type Device struct {
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+	ID               string      `json:"id,omitempty"`             // server-managed surrogate key; read-only
+	CreatedDate      string      `json:"createdDate,omitempty"`    // server-set on insert; read-only
+	LastUpdate       string      `json:"lastUpdate,omitempty"`     // server-set on insert + record edits; read-only
+	IsDeleted        bool        `json:"isDeleted"`                // no omitempty: emit false to distinguish from absent
+	DeletedDate      string      `json:"deletedDate,omitempty"`    // server-set on soft-delete; read-only
+	ProductType      string      `json:"productType,omitempty"`    // manageability SKU (vPro/ISM)
+	ConnectionType   string      `json:"connectionType,omitempty"` // device connection type (CIRA/Direct)
 }
 
 type DeviceInfo struct {
