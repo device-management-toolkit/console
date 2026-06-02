@@ -245,3 +245,30 @@ func (r *MockComputerSystemRepo) UpdateSerialConsoleServiceEnabled(_ context.Con
 
 	return nil
 }
+
+// RequestKVMConsent starts a mock KVM consent flow for an existing system.
+func (r *MockComputerSystemRepo) RequestKVMConsent(_ context.Context, systemID string) error {
+	if _, exists := r.systems[systemID]; !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	return nil
+}
+
+// SubmitKVMConsentCode accepts a mock six-digit consent code for an existing system.
+func (r *MockComputerSystemRepo) SubmitKVMConsentCode(_ context.Context, systemID, _ string) error {
+	if _, exists := r.systems[systemID]; !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	return nil
+}
+
+// CancelKVMConsent cancels a mock KVM consent flow for an existing system.
+func (r *MockComputerSystemRepo) CancelKVMConsent(_ context.Context, systemID string) error {
+	if _, exists := r.systems[systemID]; !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	return nil
+}

@@ -14,6 +14,7 @@ type graphicalConsoleTestRepo struct {
 	bootErr error
 	kvmErr  error
 	solErr  error
+	ccErr   error
 }
 
 func (r *graphicalConsoleTestRepo) GetAll(_ context.Context) ([]string, error) {
@@ -52,6 +53,18 @@ func (r *graphicalConsoleTestRepo) UpdateGraphicalConsoleServiceEnabled(_ contex
 
 func (r *graphicalConsoleTestRepo) UpdateSerialConsoleServiceEnabled(_ context.Context, _ string, _ bool) error {
 	return r.solErr
+}
+
+func (r *graphicalConsoleTestRepo) RequestKVMConsent(_ context.Context, _ string) error {
+	return r.ccErr
+}
+
+func (r *graphicalConsoleTestRepo) SubmitKVMConsentCode(_ context.Context, _, _ string) error {
+	return r.ccErr
+}
+
+func (r *graphicalConsoleTestRepo) CancelKVMConsent(_ context.Context, _ string) error {
+	return r.ccErr
 }
 
 func TestConvertGraphicalConsoleToGeneratedNil(t *testing.T) {
@@ -213,6 +226,8 @@ func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state s
 
 	if result == nil {
 		t.Fatalf("convertStateToGenerated(%q) expected non-nil result", state)
+
+		return
 	}
 
 	got, err := result.AsResourceState()
@@ -362,6 +377,8 @@ func TestConvertSerialConsoleToGenerated_WithNilWebSocket(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	if got.MaxConcurrentSessions == nil || *got.MaxConcurrentSessions != 1 {
@@ -390,6 +407,8 @@ func TestConvertSerialConsoleOEMToGenerated_WithNilIntel(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	if got.Intel != nil {
@@ -412,10 +431,14 @@ func TestConvertSerialConsoleOEMToGenerated_WithNilAMT(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	if got.Intel == nil {
 		t.Fatal("expected Intel to be non-nil")
+
+		return
 	}
 
 	if got.Intel.AMT != nil {
@@ -472,6 +495,8 @@ func TestConvertSerialControlModeToGenerated_ValidValue(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	mode, err := got.AsComputerSystemOemIntelAMTControlMode()
@@ -491,6 +516,8 @@ func TestConvertSOLStatusToGenerated_ValidValue(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	status, err := got.AsComputerSystemOemIntelAMTSOLStatus()
@@ -510,6 +537,8 @@ func TestConvertSerialUserConsentStatusToGenerated_ValidValue(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	consent, err := got.AsComputerSystemOemIntelAMTUserConsentStatus()
@@ -604,6 +633,96 @@ func TestUpdateSerialConsoleServiceEnabled(t *testing.T) {
 	}
 }
 
+func TestRequestKVMConsent(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "success"},
+		{name: "repo error", repoErr: errAMT, wantErr: errAMT},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{ccErr: tt.repoErr}}
+
+			err := uc.RequestKVMConsent(context.Background(), "system-1")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("RequestKVMConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSubmitKVMConsentCode(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "success"},
+		{name: "repo error", repoErr: errAMT, wantErr: errAMT},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{ccErr: tt.repoErr}}
+
+			err := uc.SubmitKVMConsentCode(context.Background(), "system-1", "123456")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("SubmitKVMConsentCode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCancelKVMConsent(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "success"},
+		{name: "repo error", repoErr: errAMT, wantErr: errAMT},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{ccErr: tt.repoErr}}
+
+			err := uc.CancelKVMConsent(context.Background(), "system-1")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("CancelKVMConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
 	t.Parallel()
 
@@ -641,6 +760,18 @@ func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
 		t.Fatal("expected #Oem.Intel.AMT.GenerateRedirectionToken action to be present")
 	}
 
+	if result.Actions.Oem.HashOemIntelAMTRequestKVMConsent == nil {
+		t.Fatal("expected #Oem.Intel.AMT.RequestKVMConsent action to be present")
+	}
+
+	if result.Actions.Oem.HashOemIntelAMTSubmitKVMConsentCode == nil {
+		t.Fatal("expected #Oem.Intel.AMT.SubmitKVMConsentCode action to be present")
+	}
+
+	if result.Actions.Oem.HashOemIntelAMTCancelKVMConsent == nil {
+		t.Fatal("expected #Oem.Intel.AMT.CancelKVMConsent action to be present")
+	}
+
 	action := result.Actions.Oem.HashOemIntelAMTGenerateRedirectionToken
 	expectedTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken"
 
@@ -650,5 +781,26 @@ func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
 
 	if action.Title == nil || *action.Title != "Generate Redirection Token" {
 		t.Fatalf("expected action title %q, got %#v", "Generate Redirection Token", action.Title)
+	}
+
+	requestAction := result.Actions.Oem.HashOemIntelAMTRequestKVMConsent
+	requestTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.RequestKVMConsent"
+
+	submitAction := result.Actions.Oem.HashOemIntelAMTSubmitKVMConsentCode
+	submitTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode"
+
+	cancelAction := result.Actions.Oem.HashOemIntelAMTCancelKVMConsent
+	cancelTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.CancelKVMConsent"
+
+	assertActionTarget(t, "request", requestAction.Target, requestTarget)
+	assertActionTarget(t, "submit", submitAction.Target, submitTarget)
+	assertActionTarget(t, "cancel", cancelAction.Target, cancelTarget)
+}
+
+func assertActionTarget(t *testing.T, actionName string, got *string, want string) {
+	t.Helper()
+
+	if got == nil || *got != want {
+		t.Fatalf("expected %s action target %q, got %#v", actionName, want, got)
 	}
 }

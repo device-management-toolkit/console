@@ -17,4 +17,7 @@ type ComputerSystemRepository interface {
 	UpdateBootSettings(ctx context.Context, systemID string, boot *generated.ComputerSystemBoot) error
 	UpdateGraphicalConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error
 	UpdateSerialConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error
+	RequestKVMConsent(ctx context.Context, systemID string) error
+	SubmitKVMConsentCode(ctx context.Context, systemID, consentCode string) error
+	CancelKVMConsent(ctx context.Context, systemID string) error
 }
