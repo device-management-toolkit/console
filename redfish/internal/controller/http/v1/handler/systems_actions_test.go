@@ -542,6 +542,21 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemReques
 	assertErrorResponse(t, w)
 }
 
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent_ACMNotRequiredMapped(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test System"})
+	repo.errorOnGetByID[testSystemID] = usecase.ErrKVMConsentNotRequiredInACM
+	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
+
+	w := executeResetRequest(router, requestKVMConsentEndpoint, createEmptyActionRequest())
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assertErrorResponse(t, w)
+}
+
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent_AMTBadRequestMapped(t *testing.T) {
 	t.Parallel()
 

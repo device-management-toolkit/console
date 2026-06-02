@@ -88,7 +88,7 @@ func TestRequestKVMConsentRepo_ReturnValueFailure(t *testing.T) {
 	}
 }
 
-func TestRequestKVMConsentRepo_ReturnValue2SkippedInACM(t *testing.T) {
+func TestRequestKVMConsentRepo_ACMReturnsNotRequiredError(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
@@ -113,8 +113,8 @@ func TestRequestKVMConsentRepo_ReturnValue2SkippedInACM(t *testing.T) {
 	)
 
 	err := repo.RequestKVMConsent(context.Background(), device.GUID)
-	if err != nil {
-		t.Fatalf("RequestKVMConsent() error = %v, want nil", err)
+	if !errors.Is(err, ErrKVMConsentNotRequiredInACM) {
+		t.Fatalf("RequestKVMConsent() error = %v, wantErr %v", err, ErrKVMConsentNotRequiredInACM)
 	}
 }
 
@@ -329,7 +329,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			userConsent:  "all",
 			optInState:   int(optin.Requested),
 			controlMode:  controlModeACM,
-			want:         "PendingConsent",
+			want:         StateEnabled,
 		},
 		{
 			name:         "enabled when consent received",
@@ -347,7 +347,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			userConsent:  "kvm",
 			optInState:   999,
 			controlMode:  controlModeACM,
-			want:         "Error",
+			want:         StateEnabled,
 		},
 		{
 			name:         "enabled when consent not required",
@@ -365,7 +365,7 @@ func TestDetermineKVMStatus(t *testing.T) {
 			userConsent:  "none",
 			optInState:   int(optin.Requested),
 			controlMode:  controlModeACM,
-			want:         statusPendingConsent,
+			want:         StateEnabled,
 		},
 		{
 			name:         "CCM requires consent even when configured none",
@@ -419,6 +419,8 @@ func assertGraphicalConsole(t *testing.T, got *redfishv1.ComputerSystemHostGraph
 
 	if got == nil {
 		t.Fatal("buildGraphicalConsole() returned nil")
+
+		return
 	}
 
 	if got.ServiceEnabled == nil || *got.ServiceEnabled != wantEnabled {
@@ -512,7 +514,7 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantConnTypes: kvmIP,
 			wantPort:      16994,
 			wantKVMStatus: kvmStatusActive,
-			wantConsent:   userConsentGranted,
+			wantConsent:   userConsentNotRequired,
 		},
 		{
 			name:          "consent requested maps to Requested",
@@ -521,8 +523,8 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantEnabled:   true,
 			wantConnTypes: kvmIP,
 			wantPort:      16994,
-			wantKVMStatus: statusPendingConsent,
-			wantConsent:   userConsentRequested,
+			wantKVMStatus: StateEnabled,
+			wantConsent:   userConsentNotRequired,
 		},
 		{
 			name:          "consent flow requested with none policy is pending",
@@ -531,8 +533,8 @@ func TestBuildGraphicalConsole(t *testing.T) {
 			wantEnabled:   true,
 			wantConnTypes: kvmIP,
 			wantPort:      16994,
-			wantKVMStatus: statusPendingConsent,
-			wantConsent:   userConsentRequested,
+			wantKVMStatus: StateEnabled,
+			wantConsent:   userConsentNotRequired,
 		},
 	}
 
@@ -573,6 +575,8 @@ func TestDetermineKVMUserConsentStatus(t *testing.T) {
 		{name: "empty not required", userConsent: "", want: userConsentNotRequired},
 		{name: "CCM requires requested when none configured", userConsent: "none", optInState: int(optin.NotStarted), controlMode: controlModeCCM, want: userConsentRequested},
 		{name: "CCM with received maps to granted", userConsent: "none", optInState: int(optin.Received), controlMode: controlModeCCM, want: userConsentGranted},
+		{name: "ACM requested remains not required", userConsent: "kvm", optInState: int(optin.Requested), controlMode: controlModeACM, want: userConsentNotRequired},
+		{name: "ACM in-session remains not required", userConsent: "kvm", optInState: int(optin.InSession), controlMode: controlModeACM, want: userConsentNotRequired},
 	}
 
 	for _, tt := range tests {
@@ -1385,6 +1389,8 @@ func assertSerialConsole(t *testing.T, got *redfishv1.ComputerSystemHostSerialCo
 
 	if got == nil {
 		t.Fatal("buildSerialConsole() returned nil")
+
+		return
 	}
 
 	if got.MaxConcurrentSessions == nil || *got.MaxConcurrentSessions != 1 {
@@ -1393,6 +1399,8 @@ func assertSerialConsole(t *testing.T, got *redfishv1.ComputerSystemHostSerialCo
 
 	if got.WebSocket == nil {
 		t.Fatal("WebSocket is nil")
+
+		return
 	}
 
 	if got.WebSocket.ServiceEnabled == nil || *got.WebSocket.ServiceEnabled != wantEnabled {

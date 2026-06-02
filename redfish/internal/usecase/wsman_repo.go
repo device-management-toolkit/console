@@ -126,6 +126,9 @@ var (
 
 	// ErrInvalidConsentCode is returned when the KVM consent code is not a six-digit numeric value.
 	ErrInvalidConsentCode = errors.New("invalid consent code: must be six-digit numeric value")
+
+	// ErrKVMConsentNotRequiredInACM is returned when requesting user consent in ACM mode.
+	ErrKVMConsentNotRequiredInACM = errors.New("KVM user consent is not required in ACM mode")
 )
 
 // CIMObjectType represents different types of CIM objects.
@@ -981,6 +984,14 @@ func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInS
 		return StateDisabled
 	}
 
+	if strings.EqualFold(strings.TrimSpace(controlMode), controlModeACM) {
+		if optInState == int(optin.InSession) {
+			return kvmStatusActive
+		}
+
+		return StateEnabled
+	}
+
 	consentRequired := isKVMConsentRequired(userConsent, controlMode)
 	if consentRequired || optInState != int(optin.NotStarted) {
 		switch optInState {
@@ -999,6 +1010,10 @@ func determineKVMStatus(enableKVM, kvmAvailable bool, userConsent string, optInS
 }
 
 func determineKVMUserConsentStatus(userConsent string, optInState int, controlMode string) string {
+	if strings.EqualFold(strings.TrimSpace(controlMode), controlModeACM) {
+		return userConsentNotRequired
+	}
+
 	consentRequired := isKVMConsentRequired(userConsent, controlMode)
 	if consentRequired || optInState != int(optin.NotStarted) {
 		switch optInState {
@@ -1171,7 +1186,7 @@ func (r *WsmanComputerSystemRepo) UpdateSerialConsoleServiceEnabled(ctx context.
 func (r *WsmanComputerSystemRepo) RequestKVMConsent(ctx context.Context, systemID string) error {
 	controlMode := strings.TrimSpace(r.getAMTControlMode(ctx, systemID))
 	if strings.EqualFold(controlMode, controlModeACM) {
-		return nil
+		return ErrKVMConsentNotRequiredInACM
 	}
 
 	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)

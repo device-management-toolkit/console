@@ -221,6 +221,8 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		switch {
 		case errors.Is(err, usecase.ErrSystemNotFound):
 			NotFoundError(c, "System", computerSystemID)
+		case errors.Is(err, usecase.ErrKVMConsentNotRequiredInACM):
+			BadRequestError(c, err.Error())
 		case errors.As(err, &consentErr):
 			BadRequestError(c, consentErr.Error())
 		case isAMTBadRequestError(err):

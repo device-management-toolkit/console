@@ -226,6 +226,8 @@ func validateConvertStateResult(t *testing.T, uc *ComputerSystemUseCase, state s
 
 	if result == nil {
 		t.Fatalf("convertStateToGenerated(%q) expected non-nil result", state)
+
+		return
 	}
 
 	got, err := result.AsResourceState()
@@ -375,6 +377,8 @@ func TestConvertSerialConsoleToGenerated_WithNilWebSocket(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	if got.MaxConcurrentSessions == nil || *got.MaxConcurrentSessions != 1 {
@@ -403,6 +407,8 @@ func TestConvertSerialConsoleOEMToGenerated_WithNilIntel(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	if got.Intel != nil {
@@ -425,10 +431,14 @@ func TestConvertSerialConsoleOEMToGenerated_WithNilAMT(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	if got.Intel == nil {
 		t.Fatal("expected Intel to be non-nil")
+
+		return
 	}
 
 	if got.Intel.AMT != nil {
@@ -485,6 +495,8 @@ func TestConvertSerialControlModeToGenerated_ValidValue(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	mode, err := got.AsComputerSystemOemIntelAMTControlMode()
@@ -504,6 +516,8 @@ func TestConvertSOLStatusToGenerated_ValidValue(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	status, err := got.AsComputerSystemOemIntelAMTSOLStatus()
@@ -523,6 +537,8 @@ func TestConvertSerialUserConsentStatusToGenerated_ValidValue(t *testing.T) {
 
 	if got == nil {
 		t.Fatal("expected non-nil result")
+
+		return
 	}
 
 	consent, err := got.AsComputerSystemOemIntelAMTUserConsentStatus()
