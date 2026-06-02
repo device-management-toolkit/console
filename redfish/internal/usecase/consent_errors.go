@@ -31,11 +31,11 @@ func consentReturnValueMessage(operation string, returnValue int) (string, bool)
 	case consentReturnValueInvalidState:
 		switch operation {
 		case consentOperationRequest:
-			return "cannot request consent in the current opt-in state (request may already be pending)", true
+			return "cannot request consent in the current opt-in state", true
 		case consentOperationSubmit:
-			return "cannot submit consent code in the current opt-in state (request may be missing or code invalid)", true
+			return "cannot submit consent code in the current opt-in state", true
 		case consentOperationCancel:
-			return "cannot cancel consent in the current opt-in state (no pending request)", true
+			return "cannot cancel consent in the current opt-in state", true
 		default:
 			return "operation is not allowed in the current AMT opt-in state", true
 		}
@@ -53,7 +53,7 @@ func consentReturnValueMessage(operation string, returnValue int) (string, bool)
 	case consentReturnValueConsentCodeInvalid:
 		switch operation {
 		case consentOperationSubmit:
-			return "consent code was rejected by AMT (code may be incorrect or expired)", true
+			return "consent code was rejected by AMT", true
 		default:
 			return "operation failed due to AMT consent validation error", true
 		}

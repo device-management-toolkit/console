@@ -1169,6 +1169,11 @@ func (r *WsmanComputerSystemRepo) UpdateSerialConsoleServiceEnabled(ctx context.
 
 // RequestKVMConsent starts a user consent request on the target system.
 func (r *WsmanComputerSystemRepo) RequestKVMConsent(ctx context.Context, systemID string) error {
+	controlMode := strings.TrimSpace(r.getAMTControlMode(ctx, systemID))
+	if strings.EqualFold(controlMode, controlModeACM) {
+		return nil
+	}
+
 	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound

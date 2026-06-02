@@ -68,17 +68,53 @@ func TestRequestKVMConsentRepo_ReturnValueFailure(t *testing.T) {
 	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
 	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
 
-	repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
-	management.EXPECT().GetUserConsentCode().Return(optin.Response{
-		Body: optin.Body{StartOptInResponse: optin.StartOptIn_OUTPUT{ReturnValue: 5}},
-	}, nil)
+	gomock.InOrder(
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil),
+		management.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.ClientControlMode}}, nil),
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().GetUserConsentCode().Return(optin.Response{
+			Body: optin.Body{StartOptInResponse: optin.StartOptIn_OUTPUT{ReturnValue: 5}},
+		}, nil),
+	)
 
 	err := repo.RequestKVMConsent(context.Background(), device.GUID)
 
 	var consentErr *ConsentFailedError
 	if !errors.As(err, &consentErr) {
 		t.Fatalf("RequestKVMConsent() error type = %T, want *ConsentFailedError", err)
+	}
+}
+
+func TestRequestKVMConsentRepo_ReturnValue2SkippedInACM(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	gomock.InOrder(
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil),
+		management.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.AdminControlMode}}, nil),
+	)
+
+	err := repo.RequestKVMConsent(context.Background(), device.GUID)
+	if err != nil {
+		t.Fatalf("RequestKVMConsent() error = %v, want nil", err)
 	}
 }
 
@@ -1097,23 +1133,29 @@ func TestRequestKVMConsentRepo(t *testing.T) {
 		{
 			name: "success",
 			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
-				management.EXPECT().GetUserConsentCode().Return(optin.Response{}, nil)
+				gomock.InOrder(
+					repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+					wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+					management.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil),
+					management.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.ClientControlMode}}, nil),
+					repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+					wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+					management.EXPECT().GetUserConsentCode().Return(optin.Response{}, nil),
+				)
 			},
 		},
 		{
 			name: "device not found",
 			setup: func(repoMock *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
-				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound)
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound).Times(2)
 			},
 			wantErr: ErrSystemNotFound,
 		},
 		{
 			name: "wsman error",
 			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
-				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, errAMT)
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil).Times(2)
+				wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, errAMT).Times(2)
 			},
 			wantErr: errAMT,
 		},
