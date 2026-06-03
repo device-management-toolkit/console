@@ -20,6 +20,8 @@ var (
 	ErrCancelled     = dto.CanceledError{Console: ErrDeviceUseCase}
 )
 
+const deviceNotFoundMessage = "device not found"
+
 // History - getting translate history from store.
 func (uc *UseCase) GetCount(ctx context.Context, tenantID string) (int, error) {
 	count, err := uc.repo.GetCount(ctx, tenantID)
@@ -83,7 +85,7 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 	}
 
 	if data == nil || data.GUID == "" {
-		return nil, ErrNotFound
+		return nil, ErrNotFound.WrapWithMessage("GetByID", "uc.repo.GetByID", deviceNotFoundMessage)
 	}
 
 	d2, err := uc.entityToDTO(data)
@@ -192,7 +194,7 @@ func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 	}
 
 	if !isSuccessful {
-		return ErrNotFound
+		return ErrNotFound.WrapWithMessage("Delete", "uc.repo.Delete", deviceNotFoundMessage)
 	}
 
 	return nil
@@ -222,7 +224,7 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 	}
 
 	if !updated {
-		return nil, ErrNotFound.Wrap("Update", "uc.repo.Update", nil)
+		return nil, ErrNotFound.WrapWithMessage("Update", "uc.repo.Update", deviceNotFoundMessage)
 	}
 
 	updateDevice, err := uc.repo.GetByID(ctx, d1.GUID, d1.TenantID)
