@@ -59,6 +59,17 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsComputerSyste
 
 	log.Infof("Received reset request for ComputerSystem %s with ResetType %s", computerSystemID, *req.ResetType)
 
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
 	if err := s.ComputerSystemUC.SetPowerState(c.Request.Context(), computerSystemID, *req.ResetType); err != nil {
 		switch {
 		case errors.Is(err, usecase.ErrSystemNotFound):
@@ -125,6 +136,17 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 
 	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
 		MalformedJSONError(c)
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
 
 		return
 	}
@@ -215,6 +237,17 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
 	if err := s.ComputerSystemUC.RequestKVMConsent(c.Request.Context(), computerSystemID); err != nil {
 		var consentErr *usecase.ConsentFailedError
 
@@ -278,6 +311,17 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 
 	if !sixDigitConsentCodeRe.MatchString(consentCode) {
 		BadRequestError(c, "Invalid ConsentCode: must be a six-digit numeric value")
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
 
 		return
 	}

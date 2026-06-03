@@ -10,6 +10,8 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/device-management-toolkit/console/config"
+	devicev1 "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	devusecase "github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
@@ -38,6 +40,9 @@ var (
 
 	// ErrConsoleConfigNotInitialized is returned when console config is not initialized.
 	ErrConsoleConfigNotInitialized = errors.New("console config is not initialized")
+
+	// ErrDeviceLookupNotConfigured is returned when device lookup dependency is missing.
+	ErrDeviceLookupNotConfigured = errors.New("device lookup repository is not configured")
 )
 
 // OData and schema constants for ComputerSystem.
@@ -80,7 +85,37 @@ const (
 
 // ComputerSystemUseCase provides business logic for ComputerSystem entities.
 type ComputerSystemUseCase struct {
+	Repo       ComputerSystemRepository
+	DeviceRepo DeviceLookupRepository
+}
+
+// DeviceLookupRepository defines the minimal dependency needed to validate
+// device existence for token generation without triggering Redfish WSMAN hydration.
+type DeviceLookupRepository interface {
+	GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*devicev1.Device, error)
+}
+
+// DeviceLookupFromComputerSystemRepo adapts a ComputerSystemRepository for
+// mock/test flows that do not have direct access to the devices use case.
+type DeviceLookupFromComputerSystemRepo struct {
 	Repo ComputerSystemRepository
+}
+
+// GetByID validates existence via the wrapped ComputerSystemRepository.
+func (a DeviceLookupFromComputerSystemRepo) GetByID(ctx context.Context, guid, _ string, _ bool) (*devicev1.Device, error) {
+	if a.Repo == nil {
+		return nil, ErrDeviceLookupNotConfigured
+	}
+
+	if _, err := a.Repo.GetByID(ctx, guid); err != nil {
+		if errors.Is(err, ErrSystemNotFound) {
+			return nil, devusecase.ErrNotFound
+		}
+
+		return nil, err
+	}
+
+	return &devicev1.Device{GUID: guid}, nil
 }
 
 // GetAll retrieves all ComputerSystem IDs from the repository.
@@ -196,6 +231,24 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 	}
 
 	return &result, nil
+}
+
+// EnsureSystemExists validates that the requested system exists via the configured
+// device lookup repository.
+func (uc *ComputerSystemUseCase) EnsureSystemExists(ctx context.Context, systemID string) error {
+	if uc.DeviceRepo == nil {
+		return ErrDeviceLookupNotConfigured
+	}
+
+	if _, err := uc.DeviceRepo.GetByID(ctx, systemID, "", false); err != nil {
+		if errors.Is(err, devusecase.ErrNotFound) || errors.Is(err, ErrSystemNotFound) {
+			return ErrSystemNotFound
+		}
+
+		return err
+	}
+
+	return nil
 }
 
 // SetPowerState validates and sets the power state for a ComputerSystem.
@@ -522,7 +575,7 @@ func (uc *ComputerSystemUseCase) CancelKVMConsent(ctx context.Context, systemID 
 
 // GenerateRedirectionToken validates that the target system exists and returns a short-lived redirection token.
 func (uc *ComputerSystemUseCase) GenerateRedirectionToken(ctx context.Context, systemID string) (*generated.ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse, error) {
-	if _, err := uc.Repo.GetByID(ctx, systemID); err != nil {
+	if err := uc.EnsureSystemExists(ctx, systemID); err != nil {
 		return nil, err
 	}
 

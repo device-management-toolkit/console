@@ -4,7 +4,11 @@ import (
 	"context"
 	"errors"
 	"testing"
+	"time"
 
+	"github.com/device-management-toolkit/console/config"
+	devicev1 "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	devusecase "github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
@@ -15,6 +19,7 @@ type graphicalConsoleTestRepo struct {
 	kvmErr  error
 	solErr  error
 	ccErr   error
+	getErr  error
 }
 
 func (r *graphicalConsoleTestRepo) GetAll(_ context.Context) ([]string, error) {
@@ -22,6 +27,10 @@ func (r *graphicalConsoleTestRepo) GetAll(_ context.Context) ([]string, error) {
 }
 
 func (r *graphicalConsoleTestRepo) GetByID(_ context.Context, _ string) (*redfishv1.ComputerSystem, error) {
+	if r.getErr != nil {
+		return nil, r.getErr
+	}
+
 	if r.system == nil {
 		return nil, ErrSystemNotFound
 	}
@@ -802,5 +811,191 @@ func assertActionTarget(t *testing.T, actionName string, got *string, want strin
 
 	if got == nil || *got != want {
 		t.Fatalf("expected %s action target %q, got %#v", actionName, want, got)
+	}
+}
+
+type testDeviceLookupRepo struct {
+	device *devicev1.Device
+	err    error
+}
+
+func (r testDeviceLookupRepo) GetByID(_ context.Context, _, _ string, _ bool) (*devicev1.Device, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+
+	if r.device != nil {
+		return r.device, nil
+	}
+
+	return &devicev1.Device{GUID: "system-1"}, nil
+}
+
+func TestEnsureSystemExists(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name       string
+		deviceRepo DeviceLookupRepository
+		wantErr    error
+	}{
+		{name: "missing device repo", wantErr: ErrDeviceLookupNotConfigured},
+		{name: "not found from devices repo", deviceRepo: testDeviceLookupRepo{err: devusecase.ErrNotFound}, wantErr: ErrSystemNotFound},
+		{name: "not found from usecase error", deviceRepo: testDeviceLookupRepo{err: ErrSystemNotFound}, wantErr: ErrSystemNotFound},
+		{name: "other lookup error", deviceRepo: testDeviceLookupRepo{err: errors.New("lookup failed")}, wantErr: errors.New("lookup failed")},
+		{name: "success", deviceRepo: testDeviceLookupRepo{}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{DeviceRepo: tt.deviceRepo}
+			err := uc.EnsureSystemExists(context.Background(), "system-1")
+
+			if tt.wantErr == nil {
+				if err != nil {
+					t.Fatalf("EnsureSystemExists() unexpected error: %v", err)
+				}
+
+				return
+			}
+
+			if err == nil || err.Error() != tt.wantErr.Error() {
+				t.Fatalf("EnsureSystemExists() error = %v, want %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestDeviceLookupFromComputerSystemRepoGetByID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		repo    ComputerSystemRepository
+		wantErr error
+		wantMsg string
+	}{
+		{name: "nil repo", repo: nil, wantErr: ErrDeviceLookupNotConfigured},
+		{name: "system not found", repo: &graphicalConsoleTestRepo{system: nil}, wantErr: devusecase.ErrNotFound},
+		{name: "repo failure", repo: &graphicalConsoleTestRepo{getErr: errors.New("repo failed")}, wantMsg: "repo failed"},
+		{name: "success", repo: &graphicalConsoleTestRepo{system: &redfishv1.ComputerSystem{ID: "system-1"}}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			lookup := DeviceLookupFromComputerSystemRepo{Repo: tt.repo}
+			device, err := lookup.GetByID(context.Background(), "system-1", "", false)
+			assertDeviceLookupResult(t, device, err, tt.wantErr, tt.wantMsg)
+		})
+	}
+}
+
+func assertDeviceLookupResult(t *testing.T, device *devicev1.Device, err, wantErr error, wantMsg string) {
+	t.Helper()
+
+	if wantErr == nil && wantMsg == "" {
+		if err != nil {
+			t.Fatalf("GetByID() unexpected error: %v", err)
+		}
+
+		if device == nil || device.GUID != "system-1" {
+			t.Fatalf("GetByID() expected device GUID system-1, got %#v", device)
+		}
+
+		return
+	}
+
+	if wantErr != nil {
+		if !errors.Is(err, wantErr) {
+			t.Fatalf("GetByID() error = %v, want %v", err, wantErr)
+		}
+
+		return
+	}
+
+	if err == nil || err.Error() != wantMsg {
+		t.Fatalf("GetByID() error = %v, want %q", err, wantMsg)
+	}
+}
+
+func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
+	t.Parallel()
+
+	original := config.ConsoleConfig
+	config.ConsoleConfig = &config.Config{}
+	config.ConsoleConfig.JWTKey = "test-key"
+	config.ConsoleConfig.RedirectionJWTExpiration = 5 * time.Minute
+
+	t.Cleanup(func() {
+		config.ConsoleConfig = original
+	})
+
+	tests := []struct {
+		name       string
+		deviceRepo DeviceLookupRepository
+		wantErr    error
+	}{
+		{name: "missing device repo", wantErr: ErrDeviceLookupNotConfigured},
+		{name: "device not found", deviceRepo: testDeviceLookupRepo{err: devusecase.ErrNotFound}, wantErr: ErrSystemNotFound},
+		{name: "lookup failure", deviceRepo: testDeviceLookupRepo{err: errors.New("db unavailable")}, wantErr: errors.New("db unavailable")},
+		{name: "success", deviceRepo: testDeviceLookupRepo{}},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{DeviceRepo: tt.deviceRepo}
+			resp, err := uc.GenerateRedirectionToken(context.Background(), "system-1")
+			assertGenerateTokenResult(t, resp, err, tt.wantErr)
+		})
+	}
+}
+
+func assertGenerateTokenResult(t *testing.T, resp *generated.ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse, err, wantErr error) {
+	t.Helper()
+
+	if wantErr == nil {
+		if err != nil {
+			t.Fatalf("GenerateRedirectionToken() unexpected error: %v", err)
+		}
+
+		if resp == nil || resp.RedirectionToken == nil || *resp.RedirectionToken == "" {
+			t.Fatalf("GenerateRedirectionToken() expected non-empty token, got %#v", resp)
+		}
+
+		return
+	}
+
+	if err == nil || err.Error() != wantErr.Error() {
+		t.Fatalf("GenerateRedirectionToken() error = %v, want %v", err, wantErr)
+	}
+}
+
+func TestGenerateRedirectionToken_ConfigNotInitialized(t *testing.T) {
+	t.Parallel()
+
+	original := config.ConsoleConfig
+	config.ConsoleConfig = nil
+
+	t.Cleanup(func() {
+		config.ConsoleConfig = original
+	})
+
+	uc := &ComputerSystemUseCase{DeviceRepo: testDeviceLookupRepo{}}
+
+	_, err := uc.GenerateRedirectionToken(context.Background(), "system-1")
+	if !errors.Is(err, ErrConsoleConfigNotInitialized) {
+		t.Fatalf("GenerateRedirectionToken() error = %v, want %v", err, ErrConsoleConfigNotInitialized)
 	}
 }

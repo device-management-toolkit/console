@@ -16,12 +16,40 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	"github.com/device-management-toolkit/console/config"
+	devicev1 "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	devusecase "github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 	"github.com/device-management-toolkit/console/redfish/internal/usecase"
 )
 
 var configTestMu sync.Mutex
+
+type testActionDeviceLookupRepo struct {
+	repo *TestSystemsComputerSystemRepository
+	err  error
+}
+
+func (r testActionDeviceLookupRepo) GetByID(_ context.Context, guid, _ string, _ bool) (*devicev1.Device, error) {
+	if r.err != nil {
+		return nil, r.err
+	}
+
+	if _, exists := r.repo.systems[guid]; !exists {
+		return nil, devusecase.ErrNotFound
+	}
+
+	return &devicev1.Device{GUID: guid}, nil
+}
+
+func setupSystemActionsTestServerWithLookup(repo *TestSystemsComputerSystemRepository, lookup testActionDeviceLookupRepo) *RedfishServer {
+	uc := &usecase.ComputerSystemUseCase{
+		Repo:       repo,
+		DeviceRepo: lookup,
+	}
+
+	return &RedfishServer{ComputerSystemUC: uc}
+}
 
 // Test constants for system actions
 const (
@@ -39,7 +67,8 @@ const (
 // setupSystemActionsTestServer creates a test server with a mock repository
 func setupSystemActionsTestServer(repo *TestSystemsComputerSystemRepository) *RedfishServer {
 	uc := &usecase.ComputerSystemUseCase{
-		Repo: repo,
+		Repo:       repo,
+		DeviceRepo: testActionDeviceLookupRepo{repo: repo},
 	}
 
 	return &RedfishServer{
@@ -881,6 +910,63 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancel
 	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, "../invalid")
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsComputerSystemReset_DeviceLookupInternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
+	server := setupSystemActionsTestServerWithLookup(repo, testActionDeviceLookupRepo{repo: repo, err: errors.New("lookup failure")})
+	router := setupSystemActionsTestRouter(server)
+
+	body := createResetRequest(generated.ResourceResetTypeOn)
+	w := executeResetRequest(router, resetActionEndpoint, body)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestKVMConsent_DeviceLookupInternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
+	server := setupSystemActionsTestServerWithLookup(repo, testActionDeviceLookupRepo{repo: repo, err: errors.New("lookup failure")})
+	router := setupSystemActionsTestRouter(server)
+
+	w := executeResetRequest(router, requestKVMConsentEndpoint, createEmptyActionRequest())
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode_DeviceLookupInternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
+	server := setupSystemActionsTestServerWithLookup(repo, testActionDeviceLookupRepo{repo: repo, err: errors.New("lookup failure")})
+	router := setupSystemActionsTestRouter(server)
+
+	w := executeResetRequest(router, submitKVMConsentEndpoint, createSubmitKVMConsentCodeRequest("123456"))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent_DeviceLookupInternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
+	server := setupSystemActionsTestServerWithLookup(repo, testActionDeviceLookupRepo{repo: repo, err: errors.New("lookup failure")})
+	router := setupSystemActionsTestRouter(server)
+
+	w := executeResetRequest(router, cancelKVMConsentEndpoint, createEmptyActionRequest())
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_Stub(t *testing.T) {
