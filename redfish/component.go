@@ -71,12 +71,16 @@ func Initialize(_ *gin.Engine, log logger.Interface, _ *db.SQL, usecases *dmtuse
 	// Check if we should use mock repository (for testing)
 	useMock := os.Getenv("REDFISH_USE_MOCK") == "true"
 
-	var repo redfishusecase.ComputerSystemRepository
+	var (
+		repo       redfishusecase.ComputerSystemRepository
+		deviceRepo redfishusecase.DeviceLookupRepository
+	)
 
 	if useMock {
 		log.Info("Using mock WSMAN repository for Redfish API")
 
 		repo = mocks.NewMockComputerSystemRepo()
+		deviceRepo = redfishusecase.DeviceLookupFromComputerSystemRepo{Repo: repo}
 	} else {
 		// Create Redfish-specific repository and use case using DMT's device management
 		devicesUC, ok := usecases.Devices.(*devices.UseCase)
@@ -87,9 +91,10 @@ func Initialize(_ *gin.Engine, log logger.Interface, _ *db.SQL, usecases *dmtuse
 		}
 
 		repo = redfishusecase.NewWsmanComputerSystemRepo(devicesUC, log)
+		deviceRepo = devicesUC
 	}
 
-	computerSystemUC := &redfishusecase.ComputerSystemUseCase{Repo: repo}
+	computerSystemUC := &redfishusecase.ComputerSystemUseCase{Repo: repo, DeviceRepo: deviceRepo}
 
 	// Create session repository and use case
 	const sessionCleanupInterval = 5 * time.Minute
