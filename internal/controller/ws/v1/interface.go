@@ -60,6 +60,8 @@ type Feature interface {
 	GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
 	Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error
 	GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
+	GetWiredNetworkSettings(c context.Context, guid string) (dto.WiredNetworkInfo, error)
+	PatchWiredNetworkSettings(c context.Context, guid string, req dto.WiredNetworkConfigRequest) error
 	RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
 	GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
 	GetWirelessProfiles(c context.Context, guid string) ([]dto.WirelessProfileResponse, error)
