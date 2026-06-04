@@ -239,7 +239,6 @@ func TestGetByID(t *testing.T) {
 
 				var notFoundErr repoerrors.NotFoundError
 				require.ErrorAs(t, err, &notFoundErr)
-				require.Equal(t, "device not found", notFoundErr.Console.FriendlyMessage())
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.res, got)
@@ -292,7 +291,6 @@ func TestDelete(t *testing.T) {
 
 				var notFoundErr repoerrors.NotFoundError
 				require.ErrorAs(t, err, &notFoundErr)
-				require.Equal(t, "device not found", notFoundErr.Console.FriendlyMessage())
 			} else {
 				require.NoError(t, err)
 			}

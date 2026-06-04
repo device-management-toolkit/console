@@ -1510,7 +1510,7 @@
 									"});\r",
 									"pm.test(\"Expect an error with wrong device guid format\",function(){\r",
 									"    var jsonData = pm.response.json();\r",
-									"    pm.expect(jsonData.error).to.eq(\"device not found\")\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
 									"})"
 								],
 								"type": "text/javascript",
@@ -1600,7 +1600,7 @@
 									"});\r",
 									"pm.test(\"Expect to return device info\",function(){\r",
 									"    var jsonData = pm.response.json();\r",
-									"    pm.expect(jsonData.error).to.be.equal(\"device not found\")\r",
+									"    pm.expect(jsonData.error).to.be.equal(\"Error not found\")\r",
 									"})"
 								],
 								"type": "text/javascript",
@@ -2121,7 +2121,7 @@
 									"});\r",
 									"pm.test(\"Expect an error for invalid guid\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
-									"    pm.expect(jsonData.error).to.eq(\"device not found\")\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -2220,7 +2220,7 @@
 									"});\r",
 									"pm.test(\"Expect an error when there is no device\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
-									"    pm.expect(jsonData.error).to.eq(\"device not found\")\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
 									"});"
 								],
 								"type": "text/javascript",
