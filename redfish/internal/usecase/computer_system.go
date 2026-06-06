@@ -186,12 +186,19 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		}
 	}
 
-	// Fetch boot settings
-	boot, err := uc.Repo.GetBootSettings(ctx, systemID)
-	if err != nil {
-		// Log error but don't fail the entire request - boot settings may not be available
-		boot = nil
+	// Use boot settings retrieved alongside the rest of the system data when
+	// available; otherwise fetch them separately to preserve backward behaviour.
+	boot := system.Boot
+	if boot == nil {
+		var bootErr error
+
+		boot, bootErr = uc.Repo.GetBootSettings(ctx, systemID)
+		if bootErr != nil {
+			// Log error but don't fail the entire request - boot settings may not be available
+			boot = nil
+		}
 	}
+
 	// Create Actions for this system using the generated Actions type
 	actions := uc.createActionsStruct(systemID)
 

@@ -1,6 +1,8 @@
 // Package redfish provides entity definitions for Redfish computer systems.
 package redfish
 
+import "github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
+
 // ComputerSystem represents a Redfish Computer System entity.
 type ComputerSystem struct {
 	ID               string                              `json:"Id"`
@@ -18,8 +20,12 @@ type ComputerSystem struct {
 	Status           *Status                             `json:"Status,omitempty"`
 	MemorySummary    *ComputerSystemMemorySummary        `json:"MemorySummary,omitempty"`
 	ProcessorSummary *ComputerSystemProcessorSummary     `json:"ProcessorSummary,omitempty"`
-	ODataID          string                              `json:"@odata.id"`
-	ODataType        string                              `json:"@odata.type"`
+	// Boot holds the boot configuration fetched alongside the rest of the
+	// system data so a separate WS-Man round-trip can be avoided. It may be nil
+	// when boot data was not retrieved (callers should fall back accordingly).
+	Boot      *generated.ComputerSystemBoot `json:"Boot,omitempty"`
+	ODataID   string                        `json:"@odata.id"`
+	ODataType string                        `json:"@odata.type"`
 }
 
 // ComputerSystemHostGraphicalConsole represents graphical console (KVM) capabilities for a system.

@@ -45,6 +45,13 @@ type UseCase struct {
 	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
+
+	// systemStaticCache caches the per-device data that is effectively static
+	// (hardware inventory and AMT control-mode/version) so repeat Redfish
+	// ComputerSystem requests can skip those WS-Man round-trips. Entries expire
+	// after systemStaticDataCacheTTL. Protected by systemStaticMutex.
+	systemStaticCache map[string]systemStaticCacheEntry
+	systemStaticMutex sync.RWMutex
 }
 
 var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
@@ -52,12 +59,13 @@ var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase"
 // New -.
 func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, safeRequirements security.Cryptor) *UseCase {
 	uc := &UseCase{
-		repo:             r,
-		device:           d,
-		redirection:      redirection,
-		redirConnections: make(map[string]*DeviceConnection),
-		log:              log,
-		safeRequirements: safeRequirements,
+		repo:              r,
+		device:            d,
+		redirection:       redirection,
+		redirConnections:  make(map[string]*DeviceConnection),
+		systemStaticCache: make(map[string]systemStaticCacheEntry),
+		log:               log,
+		safeRequirements:  safeRequirements,
 	}
 	// start up the worker
 	go d.Worker()
