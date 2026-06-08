@@ -509,3 +509,30 @@ func isSixDigitConsentCode(code string) bool {
 
 	return true
 }
+
+// RequestSolConsent starts a mock SOL consent flow for an existing system.
+func (r *MockComputerSystemRepo) RequestSolConsent(_ context.Context, systemID string) error {
+	if _, exists := r.systems[systemID]; !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	return nil
+}
+
+// SubmitSolConsentCode accepts a mock six-digit consent code for SOL for an existing system.
+func (r *MockComputerSystemRepo) SubmitSolConsentCode(_ context.Context, systemID, _ string) error {
+	if _, exists := r.systems[systemID]; !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	return nil
+}
+
+// CancelSolConsent cancels a mock SOL consent flow for an existing system.
+func (r *MockComputerSystemRepo) CancelSolConsent(_ context.Context, systemID string) error {
+	if _, exists := r.systems[systemID]; !exists {
+		return usecase.ErrSystemNotFound
+	}
+
+	return nil
+}

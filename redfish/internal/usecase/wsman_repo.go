@@ -141,6 +141,9 @@ var (
 
 	// ErrKVMConsentNotRequiredInACM is returned when requesting user consent in ACM mode.
 	ErrKVMConsentNotRequiredInACM = errors.New("KVM user consent is not required in ACM mode")
+
+	// ErrSOLConsentNotRequiredInACM is returned when requesting SOL user consent in ACM mode.
+	ErrSOLConsentNotRequiredInACM = errors.New("SOL user consent is not required in ACM mode")
 )
 
 // CIMObjectType represents different types of CIM objects.
@@ -1721,4 +1724,67 @@ func (r *WsmanComputerSystemRepo) applyBootMode(boot *generated.ComputerSystemBo
 	case generated.Legacy:
 		r.log.Info("Legacy boot mode requested", "systemID", systemID)
 	}
+}
+
+// RequestSolConsent initiates a user consent request for SOL.
+func (r *WsmanComputerSystemRepo) RequestSolConsent(ctx context.Context, systemID string) error {
+	controlMode := strings.TrimSpace(r.getAMTControlMode(ctx, systemID))
+	if strings.EqualFold(controlMode, controlModeACM) {
+		return ErrSOLConsentNotRequiredInACM
+	}
+
+	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationRequest, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
+}
+
+// SubmitSolConsentCode submits the six-digit user consent code for SOL.
+func (r *WsmanComputerSystemRepo) SubmitSolConsentCode(ctx context.Context, systemID, consentCode string) error {
+	if !isSixDigitNumeric(consentCode) {
+		return ErrInvalidConsentCode
+	}
+
+	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationSubmit, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
+}
+
+// CancelSolConsent cancels a pending SOL user consent request.
+func (r *WsmanComputerSystemRepo) CancelSolConsent(ctx context.Context, systemID string) error {
+	resp, err := r.usecase.CancelUserConsent(ctx, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationCancel, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
 }
