@@ -1180,6 +1180,11 @@
 									"pm.test(\"Status code is 200\", function () {\r",
 									"    pm.response.to.have.status(200);\r",
 									"});\r",
+									"pm.test(\"Response includes server-managed identity fields\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.id).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.createdDate).to.be.a(\"string\").and.not.empty;\r",
+									"});\r",
 									""
 								],
 								"type": "text/javascript"

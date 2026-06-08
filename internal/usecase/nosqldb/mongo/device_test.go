@@ -53,6 +53,104 @@ func TestDeviceRepo_GetByID_Found(t *testing.T) {
 	require.Equal(t, "lab-host-1", got.FriendlyName)
 }
 
+func TestDeviceRepo_GetByID_IdentityColumns(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{
+			{Key: "guid", Value: "g1"},
+			{Key: "tenantid", Value: "t1"},
+			{Key: "id", Value: "11111111-2222-3333-4444-555555555555"},
+			{Key: "createddate", Value: "2026-05-26T12:00:00Z"},
+			{Key: "isdeleted", Value: true},
+			{Key: "deleteddate", Value: "2026-05-27T08:00:00Z"},
+			{Key: "producttype", Value: "vpro"},
+			{Key: "connectiontype", Value: "CIRA"},
+		},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByID(context.Background(), "g1", "t1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "11111111-2222-3333-4444-555555555555", got.ID)
+	require.Equal(t, "2026-05-26T12:00:00Z", got.CreatedDate)
+	require.True(t, got.IsDeleted)
+	require.Equal(t, "2026-05-27T08:00:00Z", got.DeletedDate)
+	require.Equal(t, "vpro", got.ProductType)
+	require.Equal(t, "CIRA", got.ConnectionType)
+}
+
+// updateSetKeys extracts the key set of the $set document from a captured
+// `update` command (shape: {update, updates:[{q, u:{$set:{...}}}]}).
+func updateSetKeys(t *testing.T, cmd bson.Raw) map[string]struct{} {
+	t.Helper()
+
+	updates, err := cmd.LookupErr("updates")
+	require.NoError(t, err)
+
+	vals, err := updates.Array().Values()
+	require.NoError(t, err)
+	require.NotEmpty(t, vals)
+
+	setVal, err := vals[0].Document().LookupErr("u", "$set")
+	require.NoError(t, err)
+
+	elems, err := setVal.Document().Elements()
+	require.NoError(t, err)
+
+	keys := make(map[string]struct{}, len(elems))
+	for _, e := range elems {
+		keys[e.Key()] = struct{}{}
+	}
+
+	return keys
+}
+
+// TestDeviceRepo_Update_OmitsImmutableIdentityColumns mirrors the sqldb
+// regression test: even when an Update carries changed id/createddate/deleteddate
+// values, the Mongo $set must omit them so the immutable columns can never be mutated,
+// while the mutable identity columns are still written.
+func TestDeviceRepo_Update_OmitsImmutableIdentityColumns(t *testing.T) {
+	t.Parallel()
+
+	db, md, cc := newMonitoredDB(t)
+	md.AddResponses(updateResponse(1))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	ok, err := repo.Update(context.Background(), &entity.Device{
+		GUID:           "g1",
+		TenantID:       "t1",
+		ID:             "tampered-id",
+		CreatedDate:    "2099-01-01T00:00:00Z",
+		DeletedDate:    "2099-01-01T00:00:00Z",
+		ProductType:    "vpro",
+		ConnectionType: "CIRA",
+	})
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	cmd, found := cc.byName("update")
+	require.True(t, found, "expected an update command to be sent")
+
+	set := updateSetKeys(t, cmd)
+
+	// Immutable: must never appear in $set.
+	require.NotContains(t, set, "id", "id must not be writable via Update")
+	require.NotContains(t, set, "createddate", "createddate must not be writable via Update")
+	require.NotContains(t, set, "deleteddate", "deleteddate must not be writable via Update")
+
+	// Mutable identity columns: present so they round-trip on Update.
+	require.Contains(t, set, "isdeleted")
+	require.Contains(t, set, "producttype")
+	require.Contains(t, set, "connectiontype")
+}
+
 func TestDeviceRepo_GetByID_NotFound(t *testing.T) {
 	t.Parallel()
 

@@ -198,7 +198,8 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 	}
 
 	// Explicit field list mirrors sqldb/device.go:Update so a new field must be wired in intentionally.
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldGUID: d.GUID, fieldTenantID: d.TenantID},
 		bson.M{opSet: bson.M{
 			fieldGUID:          d.GUID,
@@ -218,6 +219,10 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 			"usetls":           d.UseTLS,
 			"allowselfsigned":  d.AllowSelfSigned,
 			"certhash":         d.CertHash,
+			// id, createddate, and deleteddate are immutable — intentionally not $set here.
+			"isdeleted":      d.IsDeleted,
+			"producttype":    d.ProductType,
+			"connectiontype": d.ConnectionType,
 		}},
 	)
 	if err != nil {
@@ -254,7 +259,8 @@ func (r *DeviceRepo) UpdateLastSeen(ctx context.Context, guid string) error {
 		return errDeviceDatabase.Wrap("UpdateLastSeen", "validate", nil)
 	}
 
-	_, err := r.col.UpdateOne(ctx,
+	_, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldGUID: guid},
 		bson.M{opSet: bson.M{"lastseen": time.Now()}},
 	)
