@@ -59,6 +59,9 @@ const (
 	requestKVMConsentEndpoint   = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.RequestKVMConsent"
 	submitKVMConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode"
 	cancelKVMConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.CancelKVMConsent"
+	requestSolConsentEndpoint   = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.RequestSolConsent"
+	submitSolConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode"
+	cancelSolConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.CancelSolConsent"
 	taskServiceEndpoint         = "/redfish/v1/TaskService/Tasks/"
 	taskODataContext            = "/redfish/v1/$metadata#Task.Task"
 	taskODataType               = "#Task.v1_6_0.Task"
@@ -106,6 +109,21 @@ func setupSystemActionsTestRouter(server *RedfishServer) *gin.Engine {
 			computerSystemID := c.Param("computerSystemId")
 			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(c, computerSystemID)
 		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.RequestSolConsent",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(c, computerSystemID)
+		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(c, computerSystemID)
+		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.CancelSolConsent",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(c, computerSystemID)
+		})
 
 	return router
 }
@@ -137,6 +155,15 @@ func createEmptyActionRequest() []byte {
 
 func createSubmitKVMConsentCodeRequest(code string) []byte {
 	req := generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody{
+		ConsentCode: code,
+	}
+	body, _ := json.Marshal(req)
+
+	return body
+}
+
+func createSubmitSolConsentCodeRequest(code string) []byte {
+	req := generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCodeJSONRequestBody{
 		ConsentCode: code,
 	}
 	body, _ := json.Marshal(req)
@@ -882,17 +909,14 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancel
 	t.Parallel()
 
 	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
 	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.CancelSolConsent", http.NoBody)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = req
-	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+	w := executeResetRequest(router, cancelSolConsentEndpoint, createEmptyActionRequest())
 
-	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_InvalidSystemID(t *testing.T) {
@@ -973,17 +997,14 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemReques
 	t.Parallel()
 
 	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
 	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.RequestSolConsent", http.NoBody)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = req
-	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+	w := executeResetRequest(router, requestSolConsentEndpoint, createEmptyActionRequest())
 
-	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_InvalidSystemID(t *testing.T) {
@@ -1007,17 +1028,14 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmit
 	t.Parallel()
 
 	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
 	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode", http.NoBody)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = req
-	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+	w := executeResetRequest(router, submitSolConsentEndpoint, createSubmitSolConsentCodeRequest("123456"))
 
-	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_InvalidSystemID(t *testing.T) {

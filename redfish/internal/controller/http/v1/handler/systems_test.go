@@ -213,6 +213,42 @@ func (r *TestSystemsComputerSystemRepository) CancelKVMConsent(_ context.Context
 	return usecase.ErrSystemNotFound
 }
 
+func (r *TestSystemsComputerSystemRepository) RequestSolConsent(_ context.Context, systemID string) error {
+	if err, exists := r.errorOnGetByID[systemID]; exists {
+		return err
+	}
+
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
+func (r *TestSystemsComputerSystemRepository) SubmitSolConsentCode(_ context.Context, systemID, _ string) error {
+	if err, exists := r.errorOnGetByID[systemID]; exists {
+		return err
+	}
+
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
+func (r *TestSystemsComputerSystemRepository) CancelSolConsent(_ context.Context, systemID string) error {
+	if err, exists := r.errorOnGetByID[systemID]; exists {
+		return err
+	}
+
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
 // TestCase represents a generic test case structure
 type SystemsTestCase[T any] struct {
 	name           string

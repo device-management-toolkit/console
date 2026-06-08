@@ -132,6 +132,30 @@ func (r *TestComputerSystemRepository) CancelKVMConsent(_ context.Context, syste
 	return usecase.ErrSystemNotFound
 }
 
+func (r *TestComputerSystemRepository) RequestSolConsent(_ context.Context, systemID string) error {
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
+func (r *TestComputerSystemRepository) SubmitSolConsentCode(_ context.Context, systemID, _ string) error {
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
+func (r *TestComputerSystemRepository) CancelSolConsent(_ context.Context, systemID string) error {
+	if _, exists := r.systems[systemID]; exists {
+		return nil
+	}
+
+	return usecase.ErrSystemNotFound
+}
+
 // createTestSystemData creates a test system for the repository
 func createTestSystemData(systemID, name, manufacturer, model, serialNumber string) *redfishv1.ComputerSystem {
 	return &redfishv1.ComputerSystem{

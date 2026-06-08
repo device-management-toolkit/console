@@ -20,4 +20,7 @@ type ComputerSystemRepository interface {
 	RequestKVMConsent(ctx context.Context, systemID string) error
 	SubmitKVMConsentCode(ctx context.Context, systemID, consentCode string) error
 	CancelKVMConsent(ctx context.Context, systemID string) error
+	RequestSolConsent(ctx context.Context, systemID string) error
+	SubmitSolConsentCode(ctx context.Context, systemID, consentCode string) error
+	CancelSolConsent(ctx context.Context, systemID string) error
 }
