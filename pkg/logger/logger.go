@@ -28,6 +28,8 @@ func New(level string) Interface {
 	var l zerolog.Level
 
 	switch strings.ToLower(level) {
+	case "trace":
+		l = zerolog.TraceLevel
 	case "error":
 		l = zerolog.ErrorLevel
 	case "warn":
@@ -44,7 +46,7 @@ func New(level string) Interface {
 
 	var z zerolog.Logger
 
-	if l == zerolog.DebugLevel {
+	if l <= zerolog.DebugLevel {
 		z = zerolog.New(os.Stdout).Output(zerolog.ConsoleWriter{Out: os.Stderr, TimeFormat: time.RFC3339}).
 			With().
 			Timestamp().

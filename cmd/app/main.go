@@ -7,6 +7,7 @@ import (
 	"os"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+	"github.com/sirupsen/logrus"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
@@ -59,6 +60,7 @@ func main() {
 	}
 
 	l := logger.New(cfg.Level)
+	configureWSMANLogLevel(cfg, l)
 
 	handleEncryptionKey(cfg)
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
@@ -72,6 +74,19 @@ func main() {
 		handleDebugMode(cfg, l)
 		runAppFunc(cfg, l)
 	}
+}
+
+func configureWSMANLogLevel(cfg *config.Config, l logger.Interface) {
+	level := cfg.Level
+
+	parsedLevel, err := logrus.ParseLevel(level)
+	if err != nil {
+		l.Warn("invalid LOG_LEVEL value %q, falling back to info for go-wsman logging", level)
+		parsedLevel = logrus.InfoLevel
+	}
+
+	logrus.SetLevel(parsedLevel)
+	l.Info("go-wsman log level set to %s (source: LOG_LEVEL)", parsedLevel.String())
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {

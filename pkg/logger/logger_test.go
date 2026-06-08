@@ -29,10 +29,16 @@ const (
 	levelWarn  = "warn"
 	levelInfo  = "info"
 	levelDebug = "debug"
+	levelTrace = "trace"
 )
 
 func TestLogger(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
 	tests := []loggerTest{
+		{
+			name:       "Trace level logging",
+			logLevel:   zerolog.TraceLevel,
+			logMessage: "debug message",
+		},
 		{
 			name:       "Debug level logging",
 			logLevel:   zerolog.DebugLevel,
@@ -91,6 +97,11 @@ func TestLogger(t *testing.T) { //nolint:paralleltest // logging library is not 
 				assert.Contains(t, buf.String(), "error")
 				assert.Contains(t, buf.String(), "info")
 				assert.Contains(t, buf.String(), "warn")
+			case levelTrace:
+				assert.Contains(t, buf.String(), tc.logMessage)
+				assert.Contains(t, buf.String(), "error")
+				assert.Contains(t, buf.String(), "info")
+				assert.Contains(t, buf.String(), "warn")
 			}
 		})
 	}
@@ -130,6 +141,7 @@ func TestNewLogger(t *testing.T) {
 		level         string
 		expectedLevel zerolog.Level
 	}{
+		{levelTrace, zerolog.TraceLevel},
 		{levelDebug, zerolog.DebugLevel},
 		{levelInfo, zerolog.InfoLevel},
 		{levelWarn, zerolog.WarnLevel},
