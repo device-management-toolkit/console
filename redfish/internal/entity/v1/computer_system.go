@@ -20,12 +20,9 @@ type ComputerSystem struct {
 	Status           *Status                             `json:"Status,omitempty"`
 	MemorySummary    *ComputerSystemMemorySummary        `json:"MemorySummary,omitempty"`
 	ProcessorSummary *ComputerSystemProcessorSummary     `json:"ProcessorSummary,omitempty"`
-	// Boot holds the boot configuration fetched alongside the rest of the
-	// system data so a separate WS-Man round-trip can be avoided. It may be nil
-	// when boot data was not retrieved (callers should fall back accordingly).
-	Boot      *generated.ComputerSystemBoot `json:"Boot,omitempty"`
-	ODataID   string                        `json:"@odata.id"`
-	ODataType string                        `json:"@odata.type"`
+	Boot             *generated.ComputerSystemBoot       `json:"Boot,omitempty"`
+	ODataID          string                              `json:"@odata.id"`
+	ODataType        string                              `json:"@odata.type"`
 }
 
 // ComputerSystemHostGraphicalConsole represents graphical console (KVM) capabilities for a system.

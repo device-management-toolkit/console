@@ -297,11 +297,17 @@ func NewWsmanComputerSystemRepo(uc *devices.UseCase, log logger.Interface) *Wsma
 	}
 }
 
-// extractCIMProperties builds the CIM property map from pre-fetched hardware
-// info, avoiding an additional WSMAN call when the hardware info is already
-// available (e.g. via a combined GetSystemData fetch).
-func (r *WsmanComputerSystemRepo) extractCIMProperties(hwInfo dto.HardwareInfo, configs []CIMPropertyConfig) map[string]interface{} {
+// getCIMProperties extracts multiple CIM properties in a single call.
+func (r *WsmanComputerSystemRepo) getCIMProperties(ctx context.Context, systemID string, configs []CIMPropertyConfig) (map[string]interface{}, dto.HardwareInfo, error) {
 	results := make(map[string]interface{})
+
+	// Get hardware info only once to avoid multiple WSMAN calls
+	hwInfo, err := r.usecase.GetHardwareInfo(ctx, systemID)
+	if err != nil {
+		r.log.Error("Failed to get hardware info", "systemID", systemID, "error", err)
+
+		return results, hwInfo, err
+	}
 
 	for _, config := range configs {
 		if value := r.extractPropertyFromHardwareInfo(hwInfo, config); value != nil {
@@ -315,7 +321,7 @@ func (r *WsmanComputerSystemRepo) extractCIMProperties(hwInfo dto.HardwareInfo, 
 		}
 	}
 
-	return results
+	return results, hwInfo, nil
 }
 
 // extractPropertyFromHardwareInfo extracts a single property from pre-fetched hardware info.
@@ -871,9 +877,22 @@ func (r *WsmanComputerSystemRepo) GetAll(ctx context.Context) ([]string, error) 
 
 // GetByID retrieves a computer system by its ID from the WSMAN backend.
 func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) (*redfishv1.ComputerSystem, error) {
-	// Fetch power state, hardware info, features, version and boot data using a
-	// single WS-Man client setup to avoid the per-call request-queue overhead.
-	systemData, err := r.usecase.GetSystemData(ctx, systemID)
+	// Verify device exists first
+	device, err := r.usecase.GetByID(ctx, systemID, "", true)
+	if r.isDeviceNotFoundError(err) {
+		return nil, ErrSystemNotFound
+	}
+
+	if err != nil {
+		return nil, err
+	}
+
+	if device == nil {
+		return nil, ErrSystemNotFound
+	}
+
+	// Get power state from devices use case
+	powerState, err := r.usecase.GetPowerState(ctx, systemID)
 	if r.isDeviceNotFoundError(err) {
 		return nil, ErrSystemNotFound
 	}
@@ -883,38 +902,36 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 	}
 
 	// Map the integer power state to Redfish PowerState
-	redfishPowerState := r.mapCIMPowerStateToRedfish(systemData.PowerState.PowerState)
+	redfishPowerState := r.mapCIMPowerStateToRedfish(powerState.PowerState)
 
-	// Extract CIM data from the pre-fetched hardware info.
-	cimData := r.extractCIMProperties(systemData.HardwareInfo, allCIMConfigs)
-
-	// Build the complete ComputerSystem using CIM data and hardware info
-	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, systemData.HardwareInfo)
-
-	// Attach boot settings (best-effort) so a separate WS-Man round-trip is avoided.
-	if systemData.BootErr != nil {
-		r.log.Warn("Failed to get boot data from device", "systemID", systemID, "error", systemData.BootErr)
-	} else {
-		system.Boot = mapBootDataToBoot(systemData.BootData)
+	// Extract CIM data using the global configuration with static transformers
+	cimData, hwInfo, err := r.getCIMProperties(ctx, systemID, allCIMConfigs)
+	if err != nil {
+		return nil, err
 	}
 
-	// Populate GraphicalConsole/SerialConsole best-effort, but avoid returning
-	// guessed values when feature retrieval failed.
-	if systemData.FeaturesErr != nil {
-		r.log.Warn("Failed to retrieve KVM features for GraphicalConsole", "systemID", systemID, "error", systemData.FeaturesErr)
+	// Build and return the complete ComputerSystem using CIM data and hardware info
+	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, hwInfo)
+
+	// Fetch boot settings best-effort so GetComputerSystem can reuse them
+	// without issuing a second WS-Man round-trip.
+	if boot, bootErr := r.GetBootSettings(ctx, systemID); bootErr == nil {
+		system.Boot = boot
+	}
+
+	// Fetch GraphicalConsole data best-effort, but avoid returning guessed values
+	// when feature retrieval fails.
+	_, featuresV2, err := r.usecase.GetFeatures(ctx, systemID)
+	if err != nil {
+		r.log.Warn("Failed to retrieve KVM features for GraphicalConsole", "systemID", systemID, "error", err)
 
 		return system, nil
 	}
 
-	controlMode := ""
-	if systemData.VersionErr != nil {
-		r.log.Warn("Failed to retrieve AMT version for control mode", "systemID", systemID, "error", systemData.VersionErr)
-	} else {
-		controlMode = mapControlModeFromVersion(systemData.Version)
-	}
+	controlMode := r.getAMTControlMode(ctx, systemID)
 
-	system.GraphicalConsole = r.buildGraphicalConsole(systemData.Device.UseTLS, systemData.FeaturesV2, controlMode)
-	system.SerialConsole = r.buildSerialConsole(systemID, systemData.FeaturesV2, controlMode)
+	system.GraphicalConsole = r.buildGraphicalConsole(device.UseTLS, featuresV2, controlMode)
+	system.SerialConsole = r.buildSerialConsole(systemID, featuresV2, controlMode)
 
 	return system, nil
 }
@@ -1295,13 +1312,6 @@ func (r *WsmanComputerSystemRepo) GetBootSettings(ctx context.Context, systemID 
 	}
 
 	// Map AMT boot data to Redfish Boot structure
-	return mapBootDataToBoot(bootData), nil
-}
-
-// mapBootDataToBoot converts AMT boot settings data into the Redfish Boot
-// structure. It is shared by GetBootSettings and the combined GetByID fetch so
-// both produce identical results.
-func mapBootDataToBoot(bootData amtBoot.BootSettingDataResponse) *generated.ComputerSystemBoot {
 	boot := &generated.ComputerSystemBoot{}
 
 	// Map BootSourceOverrideEnabled
@@ -1348,7 +1358,7 @@ func mapBootDataToBoot(bootData amtBoot.BootSettingDataResponse) *generated.Comp
 
 	boot.BootSourceOverrideMode = &mode
 
-	return boot
+	return boot, nil
 }
 
 // UpdateBootSettings updates the boot configuration for a system.
