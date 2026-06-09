@@ -21,6 +21,8 @@ type deviceRoutes struct {
 	l logger.Interface
 }
 
+const hs256KeyLengthBytes = 32
+
 var ErrValidationDevices = dto.NotValidError{Console: consoleerrors.CreateConsoleError("ProfileAPI")}
 
 func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Interface) {
@@ -78,6 +80,12 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
+	if !isValidHS256KeyLength(config.ConsoleConfig.JWTKey) {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "invalid JWT signing key length"})
+
+		return
+	}
+
 	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.JWTKey))
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not create token"})
@@ -86,6 +94,10 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+}
+
+func isValidHS256KeyLength(key string) bool {
+	return len([]byte(key)) == hs256KeyLengthBytes
 }
 
 func (dr *deviceRoutes) get(c *gin.Context) {

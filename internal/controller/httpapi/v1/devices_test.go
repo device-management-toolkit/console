@@ -29,7 +29,7 @@ func setupTestConfig() {
 		if config.ConsoleConfig == nil {
 			config.ConsoleConfig = &config.Config{
 				Auth: config.Auth{
-					JWTKey:                   "test-key",
+					JWTKey:                   "12345678901234567890123456789012",
 					JWTExpiration:            24 * time.Hour,
 					RedirectionJWTExpiration: 5 * time.Minute,
 				},
@@ -552,4 +552,28 @@ func verifyRedirectionTokenExpiration(t *testing.T, tokenString string) {
 	maxWrongExpiration := 24 * time.Hour
 	require.True(t, timeDiff < maxWrongExpiration-time.Hour,
 		"token expiration time %v is suspiciously close to 24 hours (the bug)", timeDiff)
+}
+
+func TestIsValidHS256KeyLength(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name  string
+		key   string
+		valid bool
+	}{
+		{name: "valid key length", key: "12345678901234567890123456789012", valid: true},
+		{name: "short key", key: "short-key", valid: false},
+		{name: "long key", key: "123456789012345678901234567890123", valid: false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tc.valid, isValidHS256KeyLength(tc.key))
+		})
+	}
 }
