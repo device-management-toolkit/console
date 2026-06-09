@@ -12,18 +12,26 @@ const amtRequiredSpecialChars = `!@#$%^&*`
 // profileNameDisallowedChars are chars that break the ":name" path-segment routes.
 const profileNameDisallowedChars = `/?#%`
 
+// ActivationCCM and ActivationACM are the AMT activation modes. Struct tags can't
+// reference constants, so the `oneof=ccmactivate acmactivate` literal on
+// Profile.Activation must stay in sync with these values.
+const (
+	ActivationCCM = "ccmactivate"
+	ActivationACM = "acmactivate"
+)
+
 // &-_ is a literal U+0026-U+005F range (not three chars).
 var amtPasswordCharsRegex = regexp.MustCompile(`^[a-zA-Z0-9$@!%*#?&-_~^]+$`) //nolint:gocritic // badRegexp: matches RPS amtProfileValidator
 
 type Profile struct {
 	ProfileName                string               `json:"profileName,omitempty" binding:"required,profilename" example:"My_Profile"`
-	AMTPassword                string               `json:"amtPassword,omitempty" binding:"required_if=GenerateRandomPassword false,omitempty,len=0|min=8,max=32,amtpasswordcomplexity" example:"P@ssw0rd"`
+	AMTPassword                string               `json:"amtPassword,omitempty" binding:"omitempty,len=0|min=8,max=32,amtpasswordcomplexity" example:"P@ssw0rd"`
 	CreationDate               string               `json:"creationDate,omitempty" example:"2021-07-01T00:00:00Z"`
 	CreatedBy                  string               `json:"created_by,omitempty" example:"admin"`
 	GenerateRandomPassword     bool                 `json:"generateRandomPassword" binding:"omitempty,genpasswordwone" example:"true"`
 	CIRAConfigName             *string              `json:"ciraConfigName,omitempty" example:"My CIRA Config"`
 	Activation                 string               `json:"activation" binding:"required,oneof=ccmactivate acmactivate" example:"activate"`
-	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false,omitempty,len=0|min=8,max=32,amtpasswordcomplexity" example:"P@ssw0rd"`
+	MEBXPassword               string               `json:"mebxPassword,omitempty" binding:"omitempty,len=0|min=8,max=32,amtpasswordcomplexity" example:"P@ssw0rd"`
 	GenerateRandomMEBxPassword bool                 `json:"generateRandomMEBxPassword" example:"true"`
 	CIRAConfigObject           *CIRAConfig          `json:"ciraConfigObject,omitempty"`
 	Tags                       []string             `json:"tags,omitempty"`
@@ -99,7 +107,7 @@ var ValidateUserConsent validator.Func = func(fl validator.FieldLevel) bool {
 	userConsent := strings.ToLower(fl.Field().String())
 
 	activation := fl.Parent().FieldByName("Activation").String()
-	if activation == "ccmactivate" && userConsent != "All" {
+	if activation == ActivationCCM && userConsent != "All" {
 		return false
 	}
 

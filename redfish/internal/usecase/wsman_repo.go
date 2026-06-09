@@ -53,6 +53,7 @@ const (
 	userConsentKVM          = "kvm"
 	userConsentAll          = "all"
 	userConsentNotRequired  = "NotRequired"
+	userConsentRequired     = "Required"
 	userConsentRequested    = "Requested"
 	userConsentGranted      = "Granted"
 	userConsentDenied       = "Denied"
@@ -1023,7 +1024,9 @@ func determineKVMUserConsentStatus(userConsent string, optInState int, controlMo
 	consentRequired := isKVMConsentRequired(userConsent, controlMode)
 	if consentRequired || optInState != int(optin.NotStarted) {
 		switch optInState {
-		case int(optin.NotStarted), int(optin.Requested), int(optin.Displayed):
+		case int(optin.NotStarted):
+			return userConsentRequired
+		case int(optin.Requested), int(optin.Displayed):
 			return userConsentRequested
 		case int(optin.Received), int(optin.InSession):
 			return userConsentGranted

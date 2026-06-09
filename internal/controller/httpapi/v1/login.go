@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"crypto/tls"
 	"errors"
 	"fmt"
 	"net/http"
@@ -34,7 +35,20 @@ func NewLoginRoute(configData *config.Config) *LoginRoute {
 	}
 
 	if config.ConsoleConfig.ClientID != "" {
-		provider, err := oidc.NewProvider(context.Background(), config.ConsoleConfig.Issuer)
+		ctx := context.Background()
+
+		if config.ConsoleConfig.TLSSkipVerify {
+			transport, _ := http.DefaultTransport.(*http.Transport)
+			transport = transport.Clone()
+			transport.TLSClientConfig = &tls.Config{
+				MinVersion:         tls.VersionTLS12,
+				InsecureSkipVerify: true, //nolint:gosec // operator opted in via auth.tlsSkipVerify to trust self-signed IdP
+			}
+
+			ctx = oidc.ClientContext(ctx, &http.Client{Transport: transport})
+		}
+
+		provider, err := oidc.NewProvider(ctx, config.ConsoleConfig.Issuer)
 		if err != nil {
 			return nil
 		}
