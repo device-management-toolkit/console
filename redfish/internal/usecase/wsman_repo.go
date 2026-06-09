@@ -116,7 +116,7 @@ const (
 
 	// Parallel call and timeout constants for system aggregation.
 	parallelCallCount    = 2
-	wsmanCallTimeout     = 8 * time.Second
+	wsmanCallTimeout     = 30 * time.Second
 	consoleBudgetMinimum = 1500 * time.Millisecond
 	controlModeTimeout   = 2 * time.Second
 )
@@ -1033,17 +1033,36 @@ func getCachedFeaturesFromDevice(device *dto.Device) (dtov2.Features, bool) {
 		return dtov2.Features{}, false
 	}
 
+	var rawFeatures map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &rawFeatures); err != nil {
+		return dtov2.Features{}, false
+	}
+
+	if _, hasLegacyOCR := rawFeatures["ocr"]; hasLegacyOCR {
+		return mapCachedFeaturesV1(raw)
+	}
+
+	if _, hasLegacyHTTPSBoot := rawFeatures["httpsBootSupported"]; hasLegacyHTTPSBoot {
+		if _, hasV2HTTPSBoot := rawFeatures["httpBootSupported"]; !hasV2HTTPSBoot {
+			return mapCachedFeaturesV1(raw)
+		}
+	}
+
 	var featuresV2 dtov2.Features
 	if err := json.Unmarshal([]byte(raw), &featuresV2); err == nil {
 		return featuresV2, true
 	}
 
+	return mapCachedFeaturesV1(raw)
+}
+
+func mapCachedFeaturesV1(raw string) (dtov2.Features, bool) {
 	var featuresV1 dto.Features
 	if err := json.Unmarshal([]byte(raw), &featuresV1); err != nil {
 		return dtov2.Features{}, false
 	}
 
-	featuresV2 = dtov2.Features{
+	featuresV2 := dtov2.Features{
 		UserConsent:           featuresV1.UserConsent,
 		EnableSOL:             featuresV1.EnableSOL,
 		EnableIDER:            featuresV1.EnableIDER,
@@ -1090,11 +1109,15 @@ func isContextTimeoutOrCancelError(err error) bool {
 		return false
 	}
 
-	errText := strings.ToLower(err.Error())
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
 
-	return strings.Contains(errText, "context deadline exceeded") ||
-		strings.Contains(errText, "context canceled") ||
-		strings.Contains(errText, "ctx.done")
+	type timeoutErr interface{ Timeout() bool }
+
+	var te timeoutErr
+
+	return errors.As(err, &te) && te.Timeout()
 }
 
 func hasSufficientTimeBudget(ctx context.Context, minBudget time.Duration) bool {
