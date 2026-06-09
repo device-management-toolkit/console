@@ -678,6 +678,21 @@ func (mr *MockManagementMockRecorder) GetUserConsentCode() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserConsentCode", reflect.TypeOf((*MockManagement)(nil).GetUserConsentCode))
 }
 
+// GetWiFiPortConfigurationService mocks base method.
+func (m *MockManagement) GetWiFiPortConfigurationService() (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWiFiPortConfigurationService")
+	ret0, _ := ret[0].(wifiportconfiguration.WiFiPortConfigurationServiceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWiFiPortConfigurationService indicates an expected call of GetWiFiPortConfigurationService.
+func (mr *MockManagementMockRecorder) GetWiFiPortConfigurationService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWiFiPortConfigurationService", reflect.TypeOf((*MockManagement)(nil).GetWiFiPortConfigurationService))
+}
+
 // GetWiFiPorts mocks base method.
 func (m *MockManagement) GetWiFiPorts() ([]wifi.WiFiPort, error) {
 	m.ctrl.T.Helper()
@@ -736,6 +751,21 @@ func (m *MockManagement) PutEthernetPortSettings(ethernetPortSettings ethernetpo
 func (mr *MockManagementMockRecorder) PutEthernetPortSettings(ethernetPortSettings, instanceID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutEthernetPortSettings", reflect.TypeOf((*MockManagement)(nil).PutEthernetPortSettings), ethernetPortSettings, instanceID)
+}
+
+// PutWiFiPortConfigurationService mocks base method.
+func (m *MockManagement) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutWiFiPortConfigurationService", request)
+	ret0, _ := ret[0].(wifiportconfiguration.WiFiPortConfigurationServiceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PutWiFiPortConfigurationService indicates an expected call of PutWiFiPortConfigurationService.
+func (mr *MockManagementMockRecorder) PutWiFiPortConfigurationService(request any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutWiFiPortConfigurationService", reflect.TypeOf((*MockManagement)(nil).PutWiFiPortConfigurationService), request)
 }
 
 // RequestAMTRedirectionServiceStateChange mocks base method.
