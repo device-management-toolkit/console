@@ -31,7 +31,7 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, "DEVELOPMENT", cfg.Version)
 	assert.Equal(t, "test", cfg.EncryptionKey)
 
-	assert.Equal(t, "localhost", cfg.Host)
+	assert.Equal(t, "", cfg.Host)
 	assert.Equal(t, "8181", cfg.Port)
 	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
 	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)

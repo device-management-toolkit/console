@@ -7,6 +7,7 @@ import (
 	"crypto/x509/pkix"
 	"encoding/pem"
 	"math/big"
+	"os"
 	"testing"
 	"time"
 
@@ -197,6 +198,97 @@ func TestSaveCertificateToStore_Error(t *testing.T) {
 
 	err := SaveCertificateToStore(mockStore, "test-cert", cert, key)
 	assert.Error(t, err)
+
+	mockStore.AssertExpectations(t)
+}
+
+// setupConfigDir creates a temporary config directory and changes to its parent
+// so that functions writing to "config/" work correctly.
+// Returns a cleanup function that restores the original working directory.
+func setupConfigDir(t *testing.T) func() {
+	t.Helper()
+
+	origDir, err := os.Getwd()
+	assert.NoError(t, err)
+
+	tmpDir := t.TempDir()
+	err = os.MkdirAll(tmpDir+"/config", 0o755)
+	assert.NoError(t, err)
+
+	err = os.Chdir(tmpDir)
+	assert.NoError(t, err)
+
+	return func() {
+		_ = os.Chdir(origDir)
+	}
+}
+
+func TestGenerateRootCertificate_ReturnsParsedCert(t *testing.T) { //nolint:paralleltest // uses os.Chdir
+	cleanup := setupConfigDir(t)
+	defer cleanup()
+
+	cert, key, err := GenerateRootCertificate(false, "test-root", "US", "TestOrg", false)
+	assert.NoError(t, err)
+	assert.NotNil(t, cert)
+	assert.NotNil(t, key)
+	assert.NotEmpty(t, cert.Raw, "cert.Raw must not be empty")
+
+	// Verify .Raw can be re-parsed (the fix we made)
+	reparsed, err := x509.ParseCertificate(cert.Raw)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-root", reparsed.Subject.CommonName)
+	assert.True(t, reparsed.IsCA)
+}
+
+func TestIssueWebServerCertificate_ReturnsParsedCert(t *testing.T) { //nolint:paralleltest // uses os.Chdir
+	cleanup := setupConfigDir(t)
+	defer cleanup()
+
+	// Generate root cert first
+	rootCert, rootKey, err := GenerateRootCertificate(false, "test-root-ca", "US", "TestOrg", false)
+	assert.NoError(t, err)
+
+	root := CertAndKeyType{Cert: rootCert, Key: rootKey}
+
+	cert, key, err := IssueWebServerCertificate(root, false, "test-server", "US", "TestOrg", false)
+	assert.NoError(t, err)
+	assert.NotNil(t, cert)
+	assert.NotNil(t, key)
+	assert.NotEmpty(t, cert.Raw, "cert.Raw must not be empty")
+
+	// Verify .Raw can be re-parsed (the fix we made)
+	reparsed, err := x509.ParseCertificate(cert.Raw)
+	assert.NoError(t, err)
+	assert.Equal(t, "test-server", reparsed.Subject.CommonName)
+	assert.False(t, reparsed.IsCA)
+}
+
+func TestLoadOrGenerateWebServerCertificateWithVault_LoadsFromVault(t *testing.T) { //nolint:paralleltest // uses os.Chdir
+	cleanup := setupConfigDir(t)
+	defer cleanup()
+
+	cert, key := generateTestCertAndKey(t)
+	certPEM, keyPEM := certAndKeyToPEM(cert, key)
+
+	mockStore := new(MockObjectStorager)
+	mockStore.On("GetObject", "certs/webserver-test-server").Return(map[string]string{
+		"cert": certPEM,
+		"key":  keyPEM,
+	}, nil)
+
+	root := CertAndKeyType{Cert: cert, Key: key}
+
+	loadedCert, loadedKey, err := LoadOrGenerateWebServerCertificateWithVault(mockStore, root, false, "test-server", "US", "TestOrg", false)
+	assert.NoError(t, err)
+	assert.NotNil(t, loadedCert)
+	assert.NotNil(t, loadedKey)
+
+	// Verify cert files were persisted to disk
+	_, certErr := os.Stat("config/test-server_cert.pem")
+	assert.NoError(t, certErr, "cert file should exist on disk after Vault load")
+
+	_, keyErr := os.Stat("config/test-server_key.pem")
+	assert.NoError(t, keyErr, "key file should exist on disk after Vault load")
 
 	mockStore.AssertExpectations(t)
 }
