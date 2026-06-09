@@ -37,13 +37,14 @@ type Device struct {
 }
 
 type DeviceInfo struct {
-	FWVersion   string    `json:"fwVersion"`
-	FWBuild     string    `json:"fwBuild"`
-	FWSku       string    `json:"fwSku"`
-	CurrentMode string    `json:"currentMode"`
-	Features    string    `json:"features"`
-	IPAddress   string    `json:"ipAddress"`
-	LastUpdated time.Time `json:"lastUpdated"`
+	FWVersion    string    `json:"fwVersion"`
+	FWBuild      string    `json:"fwBuild"`
+	FWSku        string    `json:"fwSku"`
+	CurrentMode  string    `json:"currentMode"`
+	Features     string    `json:"features"`
+	IPAddress    string    `json:"ipAddress"`
+	LastUpdated  time.Time `json:"lastUpdated"`
+	LMSInstalled *bool     `json:"lmsInstalled,omitempty"`
 }
 
 type Explorer struct {
