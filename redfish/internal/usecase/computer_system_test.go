@@ -193,18 +193,18 @@ func TestConvertStateToGenerated(t *testing.T) {
 		wantNil   bool
 		wantState generated.ResourceState
 	}{
-		{name: "StateEnabled", state: StateEnabled, wantState: generated.ResourceStateEnabled},
-		{name: "StateDisabled", state: StateDisabled, wantState: generated.ResourceStateDisabled},
-		{name: "StateStandbyOffline", state: StateStandbyOffline, wantState: generated.ResourceStateStandbyOffline},
-		{name: "StateStandbySpare", state: StateStandbySpare, wantState: generated.ResourceStateStandbySpare},
-		{name: "StateInTest", state: StateInTest, wantState: generated.ResourceStateInTest},
-		{name: "StateStarting", state: StateStarting, wantState: generated.ResourceStateStarting},
-		{name: "StateAbsent", state: StateAbsent, wantState: generated.ResourceStateAbsent},
-		{name: "StateUnavailableOffline", state: StateUnavailableOffline, wantState: generated.ResourceStateUnavailableOffline},
-		{name: "StateDeferring", state: StateDeferring, wantState: generated.ResourceStateDeferring},
-		{name: "StateQuiesced", state: StateQuiesced, wantState: generated.ResourceStateQuiesced},
-		{name: "StateUpdating", state: StateUpdating, wantState: generated.ResourceStateUpdating},
-		{name: "StateDegraded", state: StateDegraded, wantState: generated.ResourceStateDegraded},
+		{name: "StateEnabled", state: StateEnabled, wantState: generated.Enabled},
+		{name: "StateDisabled", state: StateDisabled, wantState: generated.Disabled},
+		{name: "StateStandbyOffline", state: StateStandbyOffline, wantState: generated.StandbyOffline},
+		{name: "StateStandbySpare", state: StateStandbySpare, wantState: generated.StandbySpare},
+		{name: "StateInTest", state: StateInTest, wantState: generated.InTest},
+		{name: "StateStarting", state: StateStarting, wantState: generated.Starting},
+		{name: "StateAbsent", state: StateAbsent, wantState: generated.Absent},
+		{name: "StateUnavailableOffline", state: StateUnavailableOffline, wantState: generated.UnavailableOffline},
+		{name: "StateDeferring", state: StateDeferring, wantState: generated.Deferring},
+		{name: "StateQuiesced", state: StateQuiesced, wantState: generated.Quiesced},
+		{name: "StateUpdating", state: StateUpdating, wantState: generated.Updating},
+		{name: "StateDegraded", state: StateDegraded, wantState: generated.Degraded},
 		{name: "UnknownState", state: "UnknownState", wantNil: true},
 		{name: "EmptyState", state: "", wantNil: true},
 	}
@@ -365,8 +365,8 @@ func assertGeneratedSerialConsoleAMT(t *testing.T, serialConsole *generated.Comp
 		t.Fatalf("failed to decode UserConsentStatus: %v", err)
 	}
 
-	if gotConsentStatus != generated.NotRequired {
-		t.Fatalf("expected UserConsentStatus=%q, got %q", generated.NotRequired, gotConsentStatus)
+	if gotConsentStatus != generated.ComputerSystemOemIntelAMTUserConsentStatusNotRequired {
+		t.Fatalf("expected UserConsentStatus=%q, got %q", generated.ComputerSystemOemIntelAMTUserConsentStatusNotRequired, gotConsentStatus)
 	}
 }
 
@@ -555,7 +555,7 @@ func TestConvertSerialUserConsentStatusToGenerated_ValidValue(t *testing.T) {
 		t.Fatalf("failed to decode UserConsentStatus: %v", err)
 	}
 
-	if consent != generated.NotRequired {
+	if consent != generated.ComputerSystemOemIntelAMTUserConsentStatusNotRequired {
 		t.Fatalf("expected NotRequired, got %q", consent)
 	}
 }
