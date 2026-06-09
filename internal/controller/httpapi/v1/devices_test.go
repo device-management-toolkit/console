@@ -477,6 +477,39 @@ func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestCollectNestedJSONFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collects nested keys", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30","upid":{"csmeId":"x"}}`), fields, 0)
+
+		require.True(t, fields["deviceinfo.fwversion"])
+		require.True(t, fields["deviceinfo.upid"])
+		require.True(t, fields["deviceinfo.upid.csmeid"])
+	})
+
+	t.Run("stops at max depth", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30"}`), fields, maxNestedJSONFieldDepth)
+
+		require.Empty(t, fields)
+	})
+
+	t.Run("ignores non-object payload", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`"not-an-object"`), fields, 0)
+
+		require.Empty(t, fields)
+	})
+}
+
 func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	t.Parallel()
 
