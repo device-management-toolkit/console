@@ -914,6 +914,12 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 	// Build and return the complete ComputerSystem using CIM data and hardware info
 	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, hwInfo)
 
+	// Fetch boot settings best-effort so GetComputerSystem can reuse them
+	// without issuing a second WS-Man round-trip.
+	if boot, bootErr := r.GetBootSettings(ctx, systemID); bootErr == nil {
+		system.Boot = boot
+	}
+
 	// Fetch GraphicalConsole data best-effort, but avoid returning guessed values
 	// when feature retrieval fails.
 	_, featuresV2, err := r.usecase.GetFeatures(ctx, systemID)

@@ -1,6 +1,8 @@
 // Package redfish provides entity definitions for Redfish computer systems.
 package redfish
 
+import "github.com/device-management-toolkit/console/redfish/internal/controller/http/v1/generated"
+
 // ComputerSystem represents a Redfish Computer System entity.
 type ComputerSystem struct {
 	ID               string                              `json:"Id"`
@@ -18,6 +20,7 @@ type ComputerSystem struct {
 	Status           *Status                             `json:"Status,omitempty"`
 	MemorySummary    *ComputerSystemMemorySummary        `json:"MemorySummary,omitempty"`
 	ProcessorSummary *ComputerSystemProcessorSummary     `json:"ProcessorSummary,omitempty"`
+	Boot             *generated.ComputerSystemBoot       `json:"Boot,omitempty"`
 	ODataID          string                              `json:"@odata.id"`
 	ODataType        string                              `json:"@odata.type"`
 }
