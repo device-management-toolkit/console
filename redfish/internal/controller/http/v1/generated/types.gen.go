@@ -112,11 +112,12 @@ const (
 
 // Defines values for ComputerSystemOemIntelAMTUserConsentStatus.
 const (
-	Denied      ComputerSystemOemIntelAMTUserConsentStatus = "Denied"
-	Granted     ComputerSystemOemIntelAMTUserConsentStatus = "Granted"
-	NotRequired ComputerSystemOemIntelAMTUserConsentStatus = "NotRequired"
-	Requested   ComputerSystemOemIntelAMTUserConsentStatus = "Requested"
-	Timeout     ComputerSystemOemIntelAMTUserConsentStatus = "Timeout"
+	ComputerSystemOemIntelAMTUserConsentStatusDenied      ComputerSystemOemIntelAMTUserConsentStatus = "Denied"
+	ComputerSystemOemIntelAMTUserConsentStatusGranted     ComputerSystemOemIntelAMTUserConsentStatus = "Granted"
+	ComputerSystemOemIntelAMTUserConsentStatusNotRequired ComputerSystemOemIntelAMTUserConsentStatus = "NotRequired"
+	ComputerSystemOemIntelAMTUserConsentStatusRequested   ComputerSystemOemIntelAMTUserConsentStatus = "Requested"
+	ComputerSystemOemIntelAMTUserConsentStatusRequired    ComputerSystemOemIntelAMTUserConsentStatus = "Required"
+	ComputerSystemOemIntelAMTUserConsentStatusTimeout     ComputerSystemOemIntelAMTUserConsentStatus = "Timeout"
 )
 
 // Defines values for ComputerSystemStopBootOnFault.
@@ -196,19 +197,19 @@ const (
 
 // Defines values for ResourceState.
 const (
-	ResourceStateAbsent             ResourceState = "Absent"
-	ResourceStateDeferring          ResourceState = "Deferring"
-	ResourceStateDegraded           ResourceState = "Degraded"
-	ResourceStateDisabled           ResourceState = "Disabled"
-	ResourceStateEnabled            ResourceState = "Enabled"
-	ResourceStateInTest             ResourceState = "InTest"
-	ResourceStateQualified          ResourceState = "Qualified"
-	ResourceStateQuiesced           ResourceState = "Quiesced"
-	ResourceStateStandbyOffline     ResourceState = "StandbyOffline"
-	ResourceStateStandbySpare       ResourceState = "StandbySpare"
-	ResourceStateStarting           ResourceState = "Starting"
-	ResourceStateUnavailableOffline ResourceState = "UnavailableOffline"
-	ResourceStateUpdating           ResourceState = "Updating"
+	Absent             ResourceState = "Absent"
+	Deferring          ResourceState = "Deferring"
+	Degraded           ResourceState = "Degraded"
+	Disabled           ResourceState = "Disabled"
+	Enabled            ResourceState = "Enabled"
+	InTest             ResourceState = "InTest"
+	Qualified          ResourceState = "Qualified"
+	Quiesced           ResourceState = "Quiesced"
+	StandbyOffline     ResourceState = "StandbyOffline"
+	StandbySpare       ResourceState = "StandbySpare"
+	Starting           ResourceState = "Starting"
+	UnavailableOffline ResourceState = "UnavailableOffline"
+	Updating           ResourceState = "Updating"
 )
 
 // Defines values for SessionSessionTypes.
