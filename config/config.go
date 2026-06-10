@@ -1,8 +1,11 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"flag"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -17,7 +20,10 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
-const defaultHost = "localhost"
+const (
+	defaultHost                 = "localhost"
+	hs256RecommendedMinKeyBytes = 32
+)
 
 type (
 	// Config -.
@@ -94,7 +100,7 @@ type (
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -187,7 +193,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "", // Generated and stored in config on first run if not provided
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			// OAUTH CONFIG, if provided will not use basic auth
@@ -236,11 +242,35 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 func readOrInitConfig(configPath string, cfg *Config) error {
 	err := cleanenv.ReadConfig(configPath, cfg)
 	if err == nil {
-		return nil
+		if cfg.JWTKey != "" {
+			return nil
+		}
+
+		if _, isSetByEnv := os.LookupEnv("AUTH_JWT_KEY"); isSetByEnv {
+			return nil
+		}
+
+		jwtKey, genErr := generateJWTKey()
+		if genErr != nil {
+			return genErr
+		}
+
+		cfg.JWTKey = jwtKey
+
+		return saveJWTKey(configPath, jwtKey)
 	}
 
 	var pathErr *os.PathError
 	if errors.As(err, &pathErr) {
+		if _, isSetByEnv := os.LookupEnv("AUTH_JWT_KEY"); !isSetByEnv {
+			jwtKey, genErr := generateJWTKey()
+			if genErr != nil {
+				return genErr
+			}
+
+			cfg.JWTKey = jwtKey
+		}
+
 		return writeConfig(configPath, cfg)
 	}
 
@@ -296,6 +326,38 @@ func SaveAdminPassword(adminPassword string) error {
 	return writeConfig(configPath, fileCfg)
 }
 
+func saveJWTKey(configPath, jwtKey string) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	fileCfg := defaultConfig()
+	if err := yaml.Unmarshal(data, fileCfg); err != nil {
+		return err
+	}
+
+	fileCfg.JWTKey = jwtKey
+
+	return writeConfig(configPath, fileCfg)
+}
+
+func generateJWTKey() (string, error) {
+	b := make([]byte, hs256RecommendedMinKeyBytes)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(b), nil
+}
+
+func warnIfWeakJWTKey(cfg *Config) {
+	keyLen := len([]byte(cfg.JWTKey))
+	if keyLen < hs256RecommendedMinKeyBytes {
+		log.Printf("WARNING: auth.jwtKey looks too short (%d bytes). Please use at least %d bytes for a strong key.", keyLen, hs256RecommendedMinKeyBytes)
+	}
+}
+
 // NewConfig returns app config.
 func NewConfig() (*Config, error) {
 	// set defaults
@@ -328,6 +390,8 @@ func NewConfig() (*Config, error) {
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
 		return nil, err
 	}
+
+	warnIfWeakJWTKey(ConsoleConfig)
 
 	return ConsoleConfig, nil
 }

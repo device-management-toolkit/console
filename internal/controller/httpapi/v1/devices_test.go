@@ -29,7 +29,7 @@ func setupTestConfig() {
 		if config.ConsoleConfig == nil {
 			config.ConsoleConfig = &config.Config{
 				Auth: config.Auth{
-					JWTKey:                   "test-key",
+					JWTKey:                   "12345678901234567890123456789012",
 					JWTExpiration:            24 * time.Hour,
 					RedirectionJWTExpiration: 5 * time.Minute,
 				},
