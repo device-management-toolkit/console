@@ -769,17 +769,17 @@ func (mr *MockManagementMockRecorder) SendPowerAction(action any) *gomock.Call {
 }
 
 // SetRemoteEraseOptions mocks base method.
-func (m *MockManagement) SetRemoteEraseOptions(eraseMask int) error {
+func (m *MockManagement) SetRemoteEraseOptions(eraseMask int, ssdPassword string) error {
 	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", eraseMask)
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", eraseMask, ssdPassword)
 	ret0, _ := ret[0].(error)
 	return ret0
 }
 
 // SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
-func (mr *MockManagementMockRecorder) SetRemoteEraseOptions(eraseMask any) *gomock.Call {
+func (mr *MockManagementMockRecorder) SetRemoteEraseOptions(eraseMask, ssdPassword any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockManagement)(nil).SetRemoteEraseOptions), eraseMask)
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockManagement)(nil).SetRemoteEraseOptions), eraseMask, ssdPassword)
 }
 
 // SetAMTRedirectionService mocks base method.

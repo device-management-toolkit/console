@@ -52,7 +52,7 @@ func (c *ConnectionEntry) SetRPEEnabled(enabled bool) error {
 	return err
 }
 
-func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
+func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword string) error {
 	if eraseMask < 0 {
 		return ErrInvalidEraseMask
 	}
@@ -126,6 +126,7 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int) error {
 		PlatformErase:           tlvMask != 0,
 		UefiBootParametersArray: encodedParams,
 		UefiBootNumberOfParams:  uefiBootNumParams,
+		RSEPassword:             ssdPassword,
 	}
 
 	if _, putErr := c.WsmanMessages.AMT.BootSettingData.Put(putReq); putErr != nil {

@@ -92,7 +92,7 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 		req.UnconfigureCSME,
 	)
 
-	if err := device.SetRemoteEraseOptions(eraseMask); err != nil {
+	if err := device.SetRemoteEraseOptions(eraseMask, req.SSDPassword); err != nil {
 		if errors.Is(err, deviceManagement.ErrRPENotEnabled) {
 			return NotSupportedError{Console: consoleerrors.CreateConsoleError("Remote Platform Erase is not enabled by the BIOS on this device")}
 		}

@@ -169,7 +169,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0).
+					SetRemoteEraseOptions(0, "").
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -190,7 +190,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x44).
+					SetRemoteEraseOptions(0x44, "").
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -211,7 +211,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x4000000).
+					SetRemoteEraseOptions(0x4000000, "").
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -250,7 +250,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(4).
+					SetRemoteEraseOptions(4, "").
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -337,7 +337,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0).
+					SetRemoteEraseOptions(0, "").
 					Return(ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -358,7 +358,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 0x10001}, nil) // RPE + CSME bits
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x10000).
+					SetRemoteEraseOptions(0x10000, "").
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -387,6 +387,27 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support CSME unconfigure"),
 		},
 		{
+			name: "success - SSD password forwarded to wsman",
+			req:  dto.RemoteEraseRequest{SecureEraseAllSSDs: true, SSDPassword: "s3cr3t"},
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
+				man2.EXPECT().
+					SetRemoteEraseOptions(4, "s3cr3t").
+					Return(nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: nil,
+		},
+		{
 			name: "SetRemoteEraseOptions returns ErrRPENotEnabled - converted to NotSupportedError",
 			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
@@ -397,7 +418,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0).
+					SetRemoteEraseOptions(0, "").
 					Return(devicewsman.ErrRPENotEnabled)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
