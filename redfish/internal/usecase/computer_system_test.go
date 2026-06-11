@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -926,8 +927,16 @@ func assertDeviceLookupResult(t *testing.T, device *devicev1.Device, err, wantEr
 	}
 }
 
+// generateRedirectionTokenConfigMu serializes the two GenerateRedirectionToken
+// tests below, which mutate the shared config.ConsoleConfig global. Both remain
+// parallel (per the paralleltest/tparallel linters); the mutex prevents them from
+// clobbering each other's global state when run concurrently.
+var generateRedirectionTokenConfigMu sync.Mutex
+
 func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
 	t.Parallel()
+
+	generateRedirectionTokenConfigMu.Lock()
 
 	original := config.ConsoleConfig
 	config.ConsoleConfig = &config.Config{}
@@ -936,6 +945,7 @@ func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
 
 	t.Cleanup(func() {
 		config.ConsoleConfig = original
+		generateRedirectionTokenConfigMu.Unlock()
 	})
 
 	tests := []struct {
@@ -985,11 +995,14 @@ func assertGenerateTokenResult(t *testing.T, resp *generated.ComputerSystemOemIn
 func TestGenerateRedirectionToken_ConfigNotInitialized(t *testing.T) {
 	t.Parallel()
 
+	generateRedirectionTokenConfigMu.Lock()
+
 	original := config.ConsoleConfig
 	config.ConsoleConfig = nil
 
 	t.Cleanup(func() {
 		config.ConsoleConfig = original
+		generateRedirectionTokenConfigMu.Unlock()
 	})
 
 	uc := &ComputerSystemUseCase{DeviceRepo: testDeviceLookupRepo{}}
