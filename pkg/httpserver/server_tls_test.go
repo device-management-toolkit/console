@@ -20,6 +20,38 @@ import (
 	appLogger "github.com/device-management-toolkit/console/pkg/logger"
 )
 
+func TestGenerateSelfSignedCert_UsesRSA3072AndSHA384(t *testing.T) {
+	t.Parallel()
+
+	certPEM, _, err := generateSelfSignedCert()
+	if err != nil {
+		t.Fatalf("generateSelfSignedCert failed: %v", err)
+	}
+
+	block, _ := pem.Decode(certPEM)
+	if block == nil {
+		t.Fatalf("failed to decode generated certificate PEM")
+	}
+
+	cert, err := x509.ParseCertificate(block.Bytes)
+	if err != nil {
+		t.Fatalf("parse certificate failed: %v", err)
+	}
+
+	if cert.SignatureAlgorithm != x509.SHA384WithRSA {
+		t.Fatalf("expected signature algorithm SHA384WithRSA, got %v", cert.SignatureAlgorithm)
+	}
+
+	rsaPub, ok := cert.PublicKey.(*rsa.PublicKey)
+	if !ok {
+		t.Fatalf("expected RSA public key")
+	}
+
+	if rsaPub.N.BitLen() != 3072 {
+		t.Fatalf("expected RSA key size 3072, got %d", rsaPub.N.BitLen())
+	}
+}
+
 // helper to create a basic cert/key pair on disk.
 func writeTempCertPair(t *testing.T) (certPath, keyPath string) { // named results for clarity
 	t.Helper()
@@ -192,6 +224,76 @@ func TestTLS_WithProvidedCerts_Serves(t *testing.T) { //nolint:paralleltest // b
 
 	if resp.StatusCode != 200 {
 		t.Fatalf("expected 200, got %d", resp.StatusCode)
+	}
+}
+
+func TestTLS_TLS12OnlyClient_IsRejected(t *testing.T) { //nolint:paralleltest // binds a port
+	cert, key := writeTempCertPair(t)
+	handler := http.NewServeMux()
+	handler.HandleFunc("/", func(w http.ResponseWriter, _ *http.Request) { _, _ = w.Write([]byte("ok")) })
+
+	l := newTestListener(t)
+	s := New(handler, Listener(l), TLS(true, cert, key))
+
+	defer func() { _ = s.Shutdown() }()
+
+	addr := l.Addr().String()
+
+	certPEM, rerr := os.ReadFile(cert)
+	if rerr != nil {
+		t.Fatalf("read cert: %v", rerr)
+	}
+
+	roots := x509.NewCertPool()
+	if ok := roots.AppendCertsFromPEM(certPEM); !ok {
+		t.Fatalf("failed to append cert to pool")
+	}
+
+	// First confirm the server is reachable with a TLS 1.3-capable client.
+	tls13Client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS13}}}
+
+	deadline := time.Now().Add(2 * time.Second)
+
+	var (
+		resp *http.Response
+		err  error
+	)
+
+	ctx, cancel := context.WithDeadline(context.Background(), deadline)
+	defer cancel()
+
+	for time.Now().Before(deadline) {
+		req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+addr+"/", http.NoBody)
+		if reqErr != nil {
+			t.Fatalf("create request: %v", reqErr)
+		}
+
+		resp, err = tls13Client.Do(req)
+		if err == nil {
+			break
+		}
+
+		time.Sleep(50 * time.Millisecond)
+	}
+
+	if err != nil {
+		t.Fatalf("TLS 1.3 readiness check failed: %v", err)
+	}
+
+	_ = resp.Body.Close()
+
+	tls12OnlyClient := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{RootCAs: roots, MinVersion: tls.VersionTLS12, MaxVersion: tls.VersionTLS12}}}
+
+	req, reqErr := http.NewRequestWithContext(ctx, http.MethodGet, "https://"+addr+"/", http.NoBody)
+	if reqErr != nil {
+		t.Fatalf("create request: %v", reqErr)
+	}
+
+	resp, err = tls12OnlyClient.Do(req)
+	if err == nil {
+		defer resp.Body.Close()
+
+		t.Fatalf("expected TLS 1.2-only client handshake to fail, got status %d", resp.StatusCode)
 	}
 }
 

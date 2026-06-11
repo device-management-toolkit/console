@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -15,10 +16,11 @@ type ciraConfigRoutes struct {
 	l    logger.Interface
 }
 
-func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logger.Interface) {
+func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logger.Interface, cfg *config.Config) {
 	r := &ciraConfigRoutes{t, l}
 
 	h := handler.Group("/ciraconfigs")
+	h.Use(ciraDisabledMiddleware(cfg.DisableCIRA))
 	{
 		h.GET("", r.get)
 		h.GET(":ciraConfigName", r.getByName)
@@ -80,15 +82,15 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 }
 
 func (r *ciraConfigRoutes) insert(c *gin.Context) {
-	var config dto.CIRAConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	var ciraConfig dto.CIRAConfig
+	if err := c.ShouldBindJSON(&ciraConfig); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &config)
+	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &ciraConfig)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 		ErrorResponse(c, err)
@@ -100,15 +102,15 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 }
 
 func (r *ciraConfigRoutes) update(c *gin.Context) {
-	var config dto.CIRAConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	var ciraConfig dto.CIRAConfig
+	if err := c.ShouldBindJSON(&ciraConfig); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - update")
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	updatedConfig, err := r.cira.Update(c.Request.Context(), &config)
+	updatedConfig, err := r.cira.Update(c.Request.Context(), &ciraConfig)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - update")
 		ErrorResponse(c, err)
