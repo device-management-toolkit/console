@@ -5,6 +5,7 @@ import (
 	"context"
 	"crypto/rand"
 	"crypto/rsa"
+	"crypto/tls"
 	"crypto/x509"
 	"crypto/x509/pkix"
 	"encoding/pem"
@@ -27,7 +28,7 @@ const (
 	_defaultShutdownTimeout = 3 * time.Second
 
 	_filePerm   = 0o600
-	_rsaKeyBits = 2048
+	_rsaKeyBits = 3072
 
 	_localhost = "localhost"
 )
@@ -94,6 +95,12 @@ func (s *Server) servePlain() error {
 }
 
 func (s *Server) serveTLS() error {
+	if s.server.TLSConfig == nil {
+		s.server.TLSConfig = &tls.Config{MinVersion: tls.VersionTLS13}
+	} else {
+		s.server.TLSConfig.MinVersion = tls.VersionTLS13
+	}
+
 	// If cert and key files are provided, ensure they exist
 	if s.certFile != "" || s.keyFile != "" {
 		if s.certFile == "" || s.keyFile == "" {
@@ -184,6 +191,7 @@ func generateSelfSignedCert() (certPEM, keyPEM []byte, err error) {
 		Subject:               pkix.Name{CommonName: _localhost},
 		NotBefore:             time.Now().Add(-time.Minute),
 		NotAfter:              time.Now().Add(365 * 24 * time.Hour),
+		SignatureAlgorithm:    x509.SHA384WithRSA,
 		BasicConstraintsValid: true,
 		KeyUsage:              x509.KeyUsageKeyEncipherment | x509.KeyUsageDigitalSignature,
 		ExtKeyUsage:           []x509.ExtKeyUsage{x509.ExtKeyUsageServerAuth},
