@@ -13,6 +13,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
 
@@ -39,6 +40,15 @@ func ErrorResponse(c *gin.Context, err error) {
 		certPasswordErr domains.CertPasswordError
 		netErr          net.Error
 	)
+
+	if errors.Is(err, profiles.ErrCIRADisabled) {
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{
+			Error:   profiles.ErrCIRADisabled.Error(),
+			Message: profiles.CIRADisabledHint,
+		})
+
+		return
+	}
 
 	switch {
 	case errors.As(err, &netErr):

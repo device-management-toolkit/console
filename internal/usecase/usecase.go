@@ -94,7 +94,7 @@ func NewUseCases(repos *Repos, log logger.Interface, certStore security.Storager
 		Domains:            domains1,
 		Devices:            devices.New(repos.Devices, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements),
 		AMTExplorer:        amtexplorer.New(repos.Devices, wsman2, log, safeRequirements),
-		Profiles:           profiles.New(repos.Profiles, repos.WirelessConfigs, pwc, ieee, log, domains1, repos.CIRAConfigs, safeRequirements),
+		Profiles:           profiles.New(repos.Profiles, repos.WirelessConfigs, pwc, ieee, log, domains1, repos.CIRAConfigs, safeRequirements, config.ConsoleConfig.DisableCIRA),
 		IEEE8021xProfiles:  ieee,
 		CIRAConfigs:        ciraconfigs.New(repos.CIRAConfigs, log, safeRequirements),
 		WirelessProfiles:   wificonfig,
