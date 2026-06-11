@@ -408,7 +408,7 @@ func TestGetPowerCapabilities(t *testing.T) {
 					GetAMTVersion().
 					Return([]software.SoftwareIdentity{}, nil)
 				hmm.EXPECT().
-					GetPowerCapabilities().
+					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -448,7 +448,7 @@ func TestGetPowerCapabilities(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(hmm, nil)
 				hmm.EXPECT().
-					GetPowerCapabilities().
+					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
 				hmm.EXPECT().
 					GetAMTVersion().

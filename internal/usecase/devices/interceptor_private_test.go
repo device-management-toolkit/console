@@ -848,7 +848,7 @@ type spyRedirection struct {
 	listenErr error
 }
 
-func (s *spyRedirection) SetupWsmanClient(_ entity.Device, _, _ bool) (wsman.Messages, error) {
+func (s *spyRedirection) SetupWsmanClient(_ context.Context, _ entity.Device, _, _ bool) (wsman.Messages, error) {
 	return wsman.Messages{}, nil
 }
 
