@@ -8,6 +8,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -31,26 +32,19 @@ type ciraCertRoutes struct {
 	certReader CertReader
 }
 
-func NewCIRACertRoutes(handler *gin.RouterGroup, l logger.Interface) {
-	r := &ciraCertRoutes{
-		l:          l,
-		certReader: &FileCertReader{Path: "config/root_cert.pem"},
-	}
-
-	h := handler.Group("/ciracert")
-	{
-		h.GET("", r.getCIRACert)
-	}
+func NewCIRACertRoutes(handler *gin.RouterGroup, l logger.Interface, cfg *config.Config) {
+	NewCIRACertRoutesWithReader(handler, l, &FileCertReader{Path: "config/root_cert.pem"}, cfg)
 }
 
 // NewCIRACertRoutesWithReader creates routes with a custom cert reader (for testing).
-func NewCIRACertRoutesWithReader(handler *gin.RouterGroup, l logger.Interface, certReader CertReader) {
+func NewCIRACertRoutesWithReader(handler *gin.RouterGroup, l logger.Interface, certReader CertReader, cfg *config.Config) {
 	r := &ciraCertRoutes{
 		l:          l,
 		certReader: certReader,
 	}
 
 	h := handler.Group("/ciracert")
+	h.Use(ciraDisabledMiddleware(cfg.DisableCIRA))
 	{
 		h.GET("", r.getCIRACert)
 	}
