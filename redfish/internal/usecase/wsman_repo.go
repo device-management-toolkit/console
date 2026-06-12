@@ -115,10 +115,12 @@ const (
 	consentCodeDigits = 6
 
 	// Parallel call and timeout constants for system aggregation.
-	parallelCallCount    = 2
-	wsmanCallTimeout     = 30 * time.Second
-	consoleBudgetMinimum = 1500 * time.Millisecond
-	controlModeTimeout   = 2 * time.Second
+	parallelCallCount      = 2
+	wsmanCallTimeout       = 30 * time.Second
+	powerStateCheckTimeout = 5 * time.Second // Best-effort timeout for conflict check
+	enrichmentTimeout      = 5 * time.Second // Best-effort timeout for optional enrichment
+	consoleBudgetMinimum   = 1500 * time.Millisecond
+	controlModeTimeout     = 2 * time.Second
 )
 
 var (
@@ -891,6 +893,8 @@ func (r *WsmanComputerSystemRepo) GetAll(ctx context.Context) ([]string, error) 
 //
 //nolint:gocognit,gocyclo,cyclop,funlen // Parallel WSMAN fan-out with partial-response fallback requires branching for resilience.
 func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) (*redfishv1.ComputerSystem, error) {
+	startTime := time.Now()
+
 	// Verify device exists first (DB lookup — fast, no WSMAN)
 	device, err := r.usecase.GetByID(ctx, systemID, "", true)
 	if r.isDeviceNotFoundError(err) {
@@ -971,7 +975,8 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, hwInfo)
 
 	// Optional console enrichment should not run if the request is close to timing out.
-	if !hasSufficientTimeBudget(ctx, consoleBudgetMinimum) {
+	// Check both context deadline and elapsed time to handle cases where handlers don't set deadlines.
+	if !hasSufficientTimeBudget(ctx, consoleBudgetMinimum) || time.Since(startTime)+consoleBudgetMinimum > wsmanCallTimeout {
 		return system, nil
 	}
 
@@ -987,7 +992,8 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 	go func() {
 		defer wg.Done()
 
-		featCtx, featCancel := context.WithTimeout(ctx, wsmanCallTimeout)
+		// GetFeatures is optional with cached fallback, use shorter timeout to reduce tail latency
+		featCtx, featCancel := context.WithTimeout(ctx, enrichmentTimeout)
 		defer featCancel()
 
 		_, featuresV2, featuresErr = r.usecase.GetFeatures(featCtx, systemID)
@@ -1074,6 +1080,7 @@ func mapCachedFeaturesV1(raw string) (dtov2.Features, bool) {
 		HTTPSBootSupported:    featuresV1.HTTPSBootSupported,
 		WinREBootSupported:    featuresV1.WinREBootSupported,
 		LocalPBABootSupported: featuresV1.LocalPBABootSupported,
+		RemoteErase:           featuresV1.RemoteErase,
 	}
 
 	return featuresV2, true
@@ -1464,8 +1471,41 @@ func (r *WsmanComputerSystemRepo) CancelKVMConsent(ctx context.Context, systemID
 	return nil
 }
 
+// isConflictCheckableState returns true for power states that can be conflict-checked.
+func (r *WsmanComputerSystemRepo) isConflictCheckableState(state redfishv1.PowerState) bool {
+	return state == redfishv1.PowerStateOn || state == redfishv1.PowerStateOff || state == redfishv1.ResetTypeForceOff
+}
+
+// normalizeToRequestState converts reset types to comparable power states.
+func (r *WsmanComputerSystemRepo) normalizeToRequestState(state redfishv1.PowerState) redfishv1.PowerState {
+	if state == redfishv1.ResetTypeForceOff {
+		return redfishv1.PowerStateOff
+	}
+
+	return state
+}
+
 // UpdatePowerState sends a power action command to the specified system via WSMAN.
 func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID string, resetType redfishv1.PowerState) error {
+	// For idempotent operations (PowerStateOn/PowerStateOff and ForceOff), do a best-effort conflict check
+	// without calling expensive GetByID. This allows returning 409 Conflict when already in requested state.
+	if r.isConflictCheckableState(resetType) {
+		// Best-effort power state check with short timeout
+		powerCtx, powerCancel := context.WithTimeout(ctx, powerStateCheckTimeout)
+		defer powerCancel()
+
+		powerState, err := r.usecase.GetPowerState(powerCtx, systemID)
+		if err == nil {
+			currentState := r.mapCIMPowerStateToRedfish(powerState.PowerState)
+			requestState := r.normalizeToRequestState(resetType)
+
+			if currentState == requestState {
+				return ErrPowerStateConflict
+			}
+		}
+		// If check fails or times out, proceed with the power action
+	}
+
 	// Map Redfish reset type to WSMAN action
 	action, err := r.mapRedfishPowerStateToAction(resetType)
 	if err != nil {

@@ -193,15 +193,14 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 
 	var boot *generated.ComputerSystemBoot
 
-	if system.PowerState == redfishv1.PowerStateOn {
-		// Fetch boot settings from WSMAN with a bounded timeout to avoid long-tail latency.
-		bootCtx, bootCancel := context.WithTimeout(ctx, bootSettingsTimeout)
-		defer bootCancel()
+	// Fetch boot settings from WSMAN with a bounded timeout to avoid long-tail latency.
+	// Boot settings are available via AMT out-of-band even when host power is off.
+	bootCtx, bootCancel := context.WithTimeout(ctx, bootSettingsTimeout)
+	defer bootCancel()
 
-		boot, err = uc.Repo.GetBootSettings(bootCtx, systemID)
-		if err != nil {
-			boot = nil
-		}
+	boot, err = uc.Repo.GetBootSettings(bootCtx, systemID)
+	if err != nil {
+		boot = nil
 	}
 	// Create Actions for this system using the generated Actions type
 	actions := uc.createActionsStruct(systemID)

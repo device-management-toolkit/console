@@ -1510,7 +1510,7 @@ func TestGetByIDSkipsConsoleEnrichmentWhenTimeBudgetIsLow(t *testing.T) {
 	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
 	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
 
-	ctx := createContextWithDeadline(t, 100*time.Millisecond)
+	ctx := createContextWithDeadline(t, 1*time.Second)
 
 	got, err := repo.GetByID(ctx, device.GUID)
 	if err != nil {
