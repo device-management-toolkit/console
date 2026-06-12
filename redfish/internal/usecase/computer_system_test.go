@@ -3,6 +3,7 @@ package usecase
 import (
 	"context"
 	"errors"
+	"sync"
 	"testing"
 	"time"
 
@@ -935,6 +936,7 @@ func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
 
 	t.Cleanup(func() {
 		config.ConsoleConfig = original
+		generateRedirectionTokenConfigMu.Unlock()
 	})
 
 	tests := []struct {
@@ -987,6 +989,7 @@ func TestGenerateRedirectionToken_ConfigNotInitialized(t *testing.T) {
 
 	t.Cleanup(func() {
 		config.ConsoleConfig = original
+		generateRedirectionTokenConfigMu.Unlock()
 	})
 
 	uc := &ComputerSystemUseCase{DeviceRepo: testDeviceLookupRepo{}}
