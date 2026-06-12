@@ -759,13 +759,15 @@ func TestUpdatePartial(t *testing.T) {
 		MEBXPassword: ptr("encrypted-mebx"),
 	}
 
-	// Client sends only guid, tenantId and a new hostname.
+	// Client sends guid, a new hostname, and a partial deviceInfo update.
+	discovered := true
 	incoming := &dto.Device{
 		GUID:     "device-guid-123",
 		TenantID: "tenant-id-456",
 		Hostname: "new-hostname",
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:    "16.1.30",
+			Discovered:   &discovered,
 			IPAddress:    "10.0.0.55",
 			LMSInstalled: boolPtr(true),
 		},
@@ -776,13 +778,14 @@ func TestUpdatePartial(t *testing.T) {
 		"hostname":                true,
 		"deviceinfo":              true,
 		"deviceinfo.fwversion":    true,
+		"deviceinfo.discovered":   true,
 		"deviceinfo.ipaddress":    true,
 		"deviceinfo.lmsinstalled": true,
 	}
 
 	// After merge + dtoToEntity (MockCrypto re-encrypts plaintext to "encrypted"):
 	// Only fields without omitempty tag are included in JSON for zero values.
-	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","currentMode":"","features":"","ipAddress":"10.0.0.55","lmsInstalled":true}`
+	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"currentMode":"","features":"","ipAddress":"10.0.0.55","lmsInstalled":true}`
 	expectedEntity := &entity.Device{
 		GUID:         "device-guid-123",
 		TenantID:     "tenant-id-456",
@@ -803,6 +806,7 @@ func TestUpdatePartial(t *testing.T) {
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:    "16.1.30",
 			FWBuild:      "3400",
+			Discovered:   boolPtr(true),
 			IPAddress:    "10.0.0.55",
 			LMSInstalled: boolPtr(true),
 		},
