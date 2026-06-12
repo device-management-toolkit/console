@@ -599,6 +599,49 @@ func TestDetermineKVMUserConsentStatus(t *testing.T) {
 	}
 }
 
+func TestDetermineSOLUserConsentStatus(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name        string
+		userConsent string
+		optInState  int
+		controlMode string
+		want        string
+	}{
+		{name: "sol requested status", userConsent: "sol", optInState: int(optin.Requested), want: userConsentRequested},
+		{name: "all requested status", userConsent: "all", optInState: int(optin.Displayed), want: userConsentRequested},
+		{name: "sol uppercase required status", userConsent: "SOL", optInState: int(optin.NotStarted), want: userConsentRequired},
+		{name: "all with spaces required status", userConsent: "  all  ", optInState: int(optin.NotStarted), want: userConsentRequired},
+		{name: "received maps to granted", userConsent: "sol", optInState: int(optin.Received), want: userConsentGranted},
+		{name: "in-session maps to granted", userConsent: "sol", optInState: int(optin.InSession), want: userConsentGranted},
+		{name: "raw denied state maps to denied", userConsent: "sol", optInState: optInStateDeniedRaw, want: userConsentDenied},
+		{name: "raw timeout state maps to timeout", userConsent: "sol", optInState: optInStateTimeoutRaw, want: userConsentTimeout},
+		{name: "unknown required state falls back to requested", userConsent: "sol", optInState: 999, want: userConsentRequested},
+		{name: "none not required", userConsent: "none", want: userConsentNotRequired},
+		{name: "none with requested flow maps to requested", userConsent: "none", optInState: int(optin.Requested), want: userConsentRequested},
+		{name: "none with received flow maps to granted", userConsent: "none", optInState: int(optin.Received), want: userConsentGranted},
+		{name: "empty not required", userConsent: "", want: userConsentNotRequired},
+		{name: "CCM requires required when none configured", userConsent: "none", optInState: int(optin.NotStarted), controlMode: controlModeCCM, want: userConsentRequired},
+		{name: "CCM with received maps to granted", userConsent: "none", optInState: int(optin.Received), controlMode: controlModeCCM, want: userConsentGranted},
+		{name: "ACM requested remains not required", userConsent: "sol", optInState: int(optin.Requested), controlMode: controlModeACM, want: userConsentNotRequired},
+		{name: "ACM in-session remains not required", userConsent: "sol", optInState: int(optin.InSession), controlMode: controlModeACM, want: userConsentNotRequired},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := determineSOLUserConsentStatus(tt.userConsent, tt.optInState, tt.controlMode)
+			if got != tt.want {
+				t.Fatalf("determineSOLUserConsentStatus() = %q, want %q", got, tt.want)
+			}
+		})
+	}
+}
+
 func TestDetermineSOLStatus(t *testing.T) {
 	t.Parallel()
 
@@ -1368,7 +1411,7 @@ func TestIsSixDigitNumeric(t *testing.T) {
 	}
 }
 
-func assertSerialConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostSerialConsole, wantSOLStatus string) {
+func assertSerialConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostSerialConsole, wantSOLStatus, wantControlMode, wantUserConsentStatus string) {
 	t.Helper()
 
 	if got.OEM == nil || got.OEM.Intel == nil || got.OEM.Intel.AMT == nil {
@@ -1381,16 +1424,16 @@ func assertSerialConsoleOEM(t *testing.T, got *redfishv1.ComputerSystemHostSeria
 		t.Errorf("SOLStatus = %q, want %q", amt.SOLStatus, wantSOLStatus)
 	}
 
-	if amt.ControlMode != "ACM" {
-		t.Errorf("ControlMode = %q, want %q", amt.ControlMode, "ACM")
+	if amt.ControlMode != wantControlMode {
+		t.Errorf("ControlMode = %q, want %q", amt.ControlMode, wantControlMode)
 	}
 
-	if amt.UserConsentStatus != "NotRequired" {
-		t.Errorf("UserConsentStatus = %q, want %q", amt.UserConsentStatus, "NotRequired")
+	if amt.UserConsentStatus != wantUserConsentStatus {
+		t.Errorf("UserConsentStatus = %q, want %q", amt.UserConsentStatus, wantUserConsentStatus)
 	}
 }
 
-func assertSerialConsole(t *testing.T, got *redfishv1.ComputerSystemHostSerialConsole, wantEnabled bool, wantURI, wantSOLStatus string) {
+func assertSerialConsole(t *testing.T, got *redfishv1.ComputerSystemHostSerialConsole, wantEnabled bool, wantURI, wantSOLStatus, wantControlMode, wantUserConsentStatus string) {
 	t.Helper()
 
 	if got == nil {
@@ -1427,7 +1470,7 @@ func assertSerialConsole(t *testing.T, got *redfishv1.ComputerSystemHostSerialCo
 		}
 	}
 
-	assertSerialConsoleOEM(t, got, wantSOLStatus)
+	assertSerialConsoleOEM(t, got, wantSOLStatus, wantControlMode, wantUserConsentStatus)
 }
 
 func TestBuildSerialConsole(t *testing.T) {
@@ -1436,44 +1479,59 @@ func TestBuildSerialConsole(t *testing.T) {
 	repo := &WsmanComputerSystemRepo{log: logger.New("error")}
 
 	tests := []struct {
-		name          string
-		systemID      string
-		features      dtov2.Features
-		wantEnabled   bool
-		wantURI       string
-		wantSOLStatus string
+		name                  string
+		systemID              string
+		features              dtov2.Features
+		controlMode           string
+		wantEnabled           bool
+		wantURI               string
+		wantSOLStatus         string
+		wantControlMode       string
+		wantUserConsentStatus string
 	}{
 		{
-			name:          "SOL not available - no URI",
-			systemID:      "system-1",
-			features:      dtov2.Features{EnableSOL: true, Redirection: false, UserConsent: "none"},
-			wantEnabled:   true,
-			wantURI:       "",
-			wantSOLStatus: StateDisabled,
+			name:                  "SOL not available - no URI",
+			systemID:              "system-1",
+			features:              dtov2.Features{EnableSOL: true, Redirection: false, UserConsent: "none"},
+			controlMode:           controlModeACM,
+			wantEnabled:           true,
+			wantURI:               "",
+			wantSOLStatus:         StateDisabled,
+			wantControlMode:       controlModeACM,
+			wantUserConsentStatus: userConsentNotRequired,
 		},
 		{
-			name:          "SOL available with URI",
-			systemID:      "system-1",
-			features:      dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "none"},
-			wantEnabled:   true,
-			wantURI:       "/relay/webrelay.ashx?host=system-1&mode=sol",
-			wantSOLStatus: StateEnabled,
+			name:                  "SOL available with URI",
+			systemID:              "system-1",
+			features:              dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "none"},
+			controlMode:           controlModeACM,
+			wantEnabled:           true,
+			wantURI:               "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus:         StateEnabled,
+			wantControlMode:       controlModeACM,
+			wantUserConsentStatus: userConsentNotRequired,
 		},
 		{
-			name:          "SOL disabled",
-			systemID:      "system-1",
-			features:      dtov2.Features{EnableSOL: false, Redirection: true, UserConsent: "none"},
-			wantEnabled:   false,
-			wantURI:       "/relay/webrelay.ashx?host=system-1&mode=sol",
-			wantSOLStatus: StateDisabled,
+			name:                  "SOL disabled",
+			systemID:              "system-1",
+			features:              dtov2.Features{EnableSOL: false, Redirection: true, UserConsent: "none"},
+			controlMode:           controlModeACM,
+			wantEnabled:           false,
+			wantURI:               "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus:         StateDisabled,
+			wantControlMode:       controlModeACM,
+			wantUserConsentStatus: userConsentNotRequired,
 		},
 		{
-			name:          "consent required and in session - active",
-			systemID:      "system-1",
-			features:      dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "sol", OptInState: int(optin.InSession)},
-			wantEnabled:   true,
-			wantURI:       "/relay/webrelay.ashx?host=system-1&mode=sol",
-			wantSOLStatus: solStatusActive,
+			name:                  "consent required and in session - active",
+			systemID:              "system-1",
+			features:              dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "sol", OptInState: int(optin.InSession)},
+			controlMode:           controlModeCCM,
+			wantEnabled:           true,
+			wantURI:               "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus:         solStatusActive,
+			wantControlMode:       controlModeCCM,
+			wantUserConsentStatus: userConsentGranted,
 		},
 	}
 
@@ -1483,8 +1541,8 @@ func TestBuildSerialConsole(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			got := repo.buildSerialConsole(tt.systemID, tt.features, controlModeACM)
-			assertSerialConsole(t, got, tt.wantEnabled, tt.wantURI, tt.wantSOLStatus)
+			got := repo.buildSerialConsole(tt.systemID, tt.features, tt.controlMode)
+			assertSerialConsole(t, got, tt.wantEnabled, tt.wantURI, tt.wantSOLStatus, tt.wantControlMode, tt.wantUserConsentStatus)
 		})
 	}
 }
@@ -1591,7 +1649,7 @@ func TestGetByIDFallsBackToCachedConsoleData(t *testing.T) {
 	}
 
 	assertGraphicalConsole(t, got.GraphicalConsole, true, []string{kvmConnectTypeKVMIP}, 16995, StateEnabled, userConsentNotRequired)
-	assertSerialConsole(t, got.SerialConsole, true, "/relay/webrelay.ashx?host=system-1&mode=sol", StateEnabled)
+	assertSerialConsole(t, got.SerialConsole, true, "/relay/webrelay.ashx?host=system-1&mode=sol", StateEnabled, controlModeACM, userConsentNotRequired)
 }
 
 func TestGetByIDUsesSafeDefaultsWhenConsoleEnrichmentFailsWithoutCache(t *testing.T) {
@@ -1648,7 +1706,7 @@ func TestGetByIDUsesSafeDefaultsWhenConsoleEnrichmentFailsWithoutCache(t *testin
 	}
 
 	assertGraphicalConsole(t, got.GraphicalConsole, false, nil, 0, StateDisabled, userConsentNotRequired)
-	assertSerialConsole(t, got.SerialConsole, false, "", StateDisabled)
+	assertSerialConsole(t, got.SerialConsole, false, "", StateDisabled, controlModeACM, userConsentNotRequired)
 }
 
 func TestIsContextTimeoutOrCancelError(t *testing.T) {
@@ -1775,6 +1833,293 @@ func TestGetCachedControlModeFromDevice(t *testing.T) {
 				t.Errorf("getCachedControlModeFromDevice() = %q, want %q", got, tt.wantMode)
 			}
 		})
+	}
+}
+
+// ============================================================================
+// SOL Consent Repository Tests
+// ============================================================================
+
+func TestRequestSolConsentRepo_ACMReturnsNotRequiredError(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	device := &entity.Device{
+		GUID:     "system-1",
+		TenantID: "tenant-1",
+	}
+
+	management := mocks.NewMockManagement(ctrl)
+
+	repoMock.EXPECT().GetByID(gomock.Any(), device.GUID, "").Return(device, nil).AnyTimes()
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).Return(management, nil).AnyTimes()
+	management.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil).AnyTimes()
+	management.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.AdminControlMode}}, nil).AnyTimes()
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	err := repo.RequestSolConsent(context.Background(), device.GUID)
+	if !errors.Is(err, ErrSOLConsentNotRequiredInACM) {
+		t.Fatalf("RequestSolConsent() error = %v, wantErr %v", err, ErrSOLConsentNotRequiredInACM)
+	}
+}
+
+func TestSubmitSolConsentCodeRepo(t *testing.T) {
+	t.Parallel()
+
+	errDeviceNotFound := errors.New(ErrMsgDeviceNotFound)
+	errAMT := errors.New("amt refused")
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	tests := []struct {
+		name    string
+		code    string
+		setup   func(*mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement)
+		wantErr error
+	}{
+		{
+			name: "success",
+			code: "123456",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				gomock.InOrder(
+					repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+					wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+					management.EXPECT().SendConsentCode(gomock.Any()).Return(optin.Response{}, nil),
+				)
+			},
+		},
+		{
+			name:    "invalid consent code",
+			code:    "12345",
+			wantErr: ErrInvalidConsentCode,
+		},
+		{
+			name: "device not found",
+			code: "123456",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name: "wsman error",
+			code: "123456",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				gomock.InOrder(
+					repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+					wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(nil, errAMT),
+				)
+			},
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			management := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			if tt.setup != nil {
+				tt.setup(repoMock, wsmanMock, management)
+			}
+
+			err := repo.SubmitSolConsentCode(context.Background(), device.GUID, tt.code)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("SubmitSolConsentCode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCancelSolConsentRepo(t *testing.T) {
+	t.Parallel()
+
+	errDeviceNotFound := errors.New(ErrMsgDeviceNotFound)
+	errAMT := errors.New("amt refused")
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	tests := []struct {
+		name    string
+		setup   func(*mocks.MockDeviceManagementRepository, *mocks.MockWSMAN, *mocks.MockManagement)
+		wantErr error
+	}{
+		{
+			name: "success",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, management *mocks.MockManagement) {
+				gomock.InOrder(
+					repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+					wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+					management.EXPECT().CancelUserConsentRequest().Return(optin.Response{}, nil),
+				)
+			},
+		},
+		{
+			name: "device not found",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, errDeviceNotFound)
+			},
+			wantErr: ErrSystemNotFound,
+		},
+		{
+			name: "wsman error",
+			setup: func(repoMock *mocks.MockDeviceManagementRepository, wsmanMock *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				gomock.InOrder(
+					repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+					wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(nil, errAMT),
+				)
+			},
+			wantErr: errAMT,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			ctrl := gomock.NewController(t)
+			defer ctrl.Finish()
+
+			repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+			wsmanMock := mocks.NewMockWSMAN(ctrl)
+			wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+			management := mocks.NewMockManagement(ctrl)
+
+			uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+			repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+			tt.setup(repoMock, wsmanMock, management)
+
+			err := repo.CancelSolConsent(context.Background(), device.GUID)
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("CancelSolConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestRequestSolConsentRepo_ReturnValueFailure(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	gomock.InOrder(
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil),
+		management.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.ClientControlMode}}, nil),
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().GetUserConsentCode().Return(optin.Response{
+			Body: optin.Body{StartOptInResponse: optin.StartOptIn_OUTPUT{ReturnValue: 5}},
+		}, nil),
+	)
+
+	err := repo.RequestSolConsent(context.Background(), device.GUID)
+
+	var consentErr *ConsentFailedError
+	if !errors.As(err, &consentErr) {
+		t.Fatalf("RequestSolConsent() error type = %T, want *ConsentFailedError", err)
+	}
+}
+
+func TestSubmitSolConsentCodeRepo_ReturnValueFailure(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	gomock.InOrder(
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().SendConsentCode(gomock.Any()).Return(optin.Response{
+			Body: optin.Body{SendOptInCodeResponse: optin.SendOptInCode_OUTPUT{ReturnValue: 2066}},
+		}, nil),
+	)
+
+	err := repo.SubmitSolConsentCode(context.Background(), device.GUID, "123456")
+
+	var consentErr *ConsentFailedError
+	if !errors.As(err, &consentErr) {
+		t.Fatalf("SubmitSolConsentCode() error type = %T, want *ConsentFailedError", err)
+	}
+}
+
+func TestCancelSolConsentRepo_ReturnValueFailure(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1"}
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+
+	management := mocks.NewMockManagement(ctrl)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	gomock.InOrder(
+		repoMock.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil),
+		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil),
+		management.EXPECT().CancelUserConsentRequest().Return(optin.Response{
+			Body: optin.Body{CancelOptInResponse: optin.CancelOptIn_OUTPUT{ReturnValue: 2}},
+		}, nil),
+	)
+
+	err := repo.CancelSolConsent(context.Background(), device.GUID)
+
+	var consentErr *ConsentFailedError
+	if !errors.As(err, &consentErr) {
+		t.Fatalf("CancelSolConsent() error type = %T, want *ConsentFailedError", err)
 	}
 }
 

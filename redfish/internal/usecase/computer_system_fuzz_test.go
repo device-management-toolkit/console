@@ -350,7 +350,7 @@ func FuzzPowerStateConversion(f *testing.F) {
 }
 
 // FuzzSolConsentCode fuzzes SubmitSolConsentCode with arbitrary consent code strings.
-// Verifies: no panics, deterministic error handling, valid/invalid codes handled correctly.
+// Verifies: no panics and deterministic error behavior for identical inputs.
 func FuzzSolConsentCode(f *testing.F) {
 	seeds := []string{
 		"123456",

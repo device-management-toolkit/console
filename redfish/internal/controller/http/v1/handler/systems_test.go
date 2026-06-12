@@ -51,12 +51,15 @@ var (
 
 // TestSystemsComputerSystemRepository is a test implementation for systems tests
 type TestSystemsComputerSystemRepository struct {
-	systems           map[string]*redfishv1.ComputerSystem
-	errorOnGetAll     bool
-	errorOnGetByID    map[string]error
-	errorOnUpdateBoot map[string]error
-	errorOnUpdateKVM  map[string]error
-	errorOnUpdateSOL  map[string]error
+	systems                 map[string]*redfishv1.ComputerSystem
+	errorOnGetAll           bool
+	errorOnGetByID          map[string]error
+	errorOnUpdateBoot       map[string]error
+	errorOnUpdateKVM        map[string]error
+	errorOnUpdateSOL        map[string]error
+	requestSolConsentErr    error
+	submitSolConsentCodeErr error
+	cancelSolConsentErr     error
 }
 
 func NewTestSystemsComputerSystemRepository() *TestSystemsComputerSystemRepository {
@@ -214,6 +217,10 @@ func (r *TestSystemsComputerSystemRepository) CancelKVMConsent(_ context.Context
 }
 
 func (r *TestSystemsComputerSystemRepository) RequestSolConsent(_ context.Context, systemID string) error {
+	if r.requestSolConsentErr != nil {
+		return r.requestSolConsentErr
+	}
+
 	if err, exists := r.errorOnGetByID[systemID]; exists {
 		return err
 	}
@@ -226,6 +233,10 @@ func (r *TestSystemsComputerSystemRepository) RequestSolConsent(_ context.Contex
 }
 
 func (r *TestSystemsComputerSystemRepository) SubmitSolConsentCode(_ context.Context, systemID, _ string) error {
+	if r.submitSolConsentCodeErr != nil {
+		return r.submitSolConsentCodeErr
+	}
+
 	if err, exists := r.errorOnGetByID[systemID]; exists {
 		return err
 	}
@@ -238,6 +249,10 @@ func (r *TestSystemsComputerSystemRepository) SubmitSolConsentCode(_ context.Con
 }
 
 func (r *TestSystemsComputerSystemRepository) CancelSolConsent(_ context.Context, systemID string) error {
+	if r.cancelSolConsentErr != nil {
+		return r.cancelSolConsentErr
+	}
+
 	if err, exists := r.errorOnGetByID[systemID]; exists {
 		return err
 	}

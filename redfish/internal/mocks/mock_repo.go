@@ -84,7 +84,8 @@ const (
 	mockConsentCodeDenied  = "000000"
 	mockConsentCodeTimeout = "111111"
 
-	mockConsentOperationSubmit = "SubmitKVMConsentCode"
+	mockConsentOperationSubmit    = "SubmitKVMConsentCode"
+	mockConsentOperationSolSubmit = "SubmitSolConsentCode"
 
 	// Consent ReturnValues mirror the values used by the real WSMAN repository.
 	mockConsentReturnInvalidState = 2
@@ -510,29 +511,72 @@ func isSixDigitConsentCode(code string) bool {
 	return true
 }
 
-// RequestSolConsent starts a mock SOL consent flow for an existing system.
+// RequestSolConsent starts a mock SOL consent flow for an existing system,
+// transitioning the consent state to "Requested".
 func (r *MockComputerSystemRepo) RequestSolConsent(_ context.Context, systemID string) error {
 	if _, exists := r.systems[systemID]; !exists {
 		return usecase.ErrSystemNotFound
 	}
 
+	state := r.kvmStateFor(systemID)
+	if strings.EqualFold(strings.TrimSpace(state.controlMode), mockControlModeACM) {
+		return usecase.ErrSOLConsentNotRequiredInACM
+	}
+
+	state.optInState = mockOptInRequested
+
 	return nil
 }
 
-// SubmitSolConsentCode accepts a mock six-digit consent code for SOL for an existing system.
-func (r *MockComputerSystemRepo) SubmitSolConsentCode(_ context.Context, systemID, _ string) error {
+// SubmitSolConsentCode accepts a mock six-digit consent code for SOL for an existing
+// system and transitions the consent state based on the code submitted.
+func (r *MockComputerSystemRepo) SubmitSolConsentCode(_ context.Context, systemID, code string) error {
 	if _, exists := r.systems[systemID]; !exists {
 		return usecase.ErrSystemNotFound
 	}
 
-	return nil
+	if !isSixDigitConsentCode(code) {
+		return usecase.ErrInvalidConsentCode
+	}
+
+	state := r.kvmStateFor(systemID)
+
+	// A consent code can only be submitted while a prompt is active.
+	if state.optInState != mockOptInRequested && state.optInState != mockOptInDisplayed {
+		return &usecase.ConsentFailedError{Operation: mockConsentOperationSolSubmit, ReturnValue: mockConsentReturnInvalidState}
+	}
+
+	if code == mockConsentCodeGranted {
+		state.optInState = mockOptInReceived
+
+		return nil
+	}
+
+	// Demo trigger codes drive the denied/timeout outcomes; any other code is
+	// treated as a security failure.
+	if code == mockConsentCodeDenied {
+		state.optInState = mockOptInDenied
+
+		return nil
+	}
+
+	if code == mockConsentCodeTimeout {
+		state.optInState = mockOptInTimeout
+
+		return nil
+	}
+
+	return &usecase.ConsentFailedError{Operation: mockConsentOperationSolSubmit, ReturnValue: mockConsentReturnCodeInvalid}
 }
 
-// CancelSolConsent cancels a mock SOL consent flow for an existing system.
+// CancelSolConsent cancels a mock SOL consent flow for an existing system,
+// resetting the consent state back to "Required".
 func (r *MockComputerSystemRepo) CancelSolConsent(_ context.Context, systemID string) error {
 	if _, exists := r.systems[systemID]; !exists {
 		return usecase.ErrSystemNotFound
 	}
+
+	r.kvmStateFor(systemID).optInState = mockOptInNotStarted
 
 	return nil
 }
