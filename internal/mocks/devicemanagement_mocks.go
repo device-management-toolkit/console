@@ -941,6 +941,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) GetWirelessProfiles(c, guid a
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWirelessProfiles", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetWirelessProfiles), c, guid)
 }
 
+// GetWiredNetworkSettings mocks base method.
+func (m *MockDeviceManagementFeature) GetWiredNetworkSettings(c context.Context, guid string) (dto.WiredNetworkInfo, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWiredNetworkSettings", c, guid)
+	ret0, _ := ret[0].(dto.WiredNetworkInfo)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWiredNetworkSettings indicates an expected call of GetWiredNetworkSettings.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetWiredNetworkSettings(c, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWiredNetworkSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetWiredNetworkSettings), c, guid)
+}
+
 // GetWirelessState mocks base method.
 func (m *MockDeviceManagementFeature) GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error) {
 	m.ctrl.T.Helper()
@@ -969,6 +984,20 @@ func (m *MockDeviceManagementFeature) Insert(ctx context.Context, d *dto.Device)
 func (mr *MockDeviceManagementFeatureMockRecorder) Insert(ctx, d any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Insert", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Insert), ctx, d)
+}
+
+// PatchWiredNetworkSettings mocks base method.
+func (m *MockDeviceManagementFeature) PatchWiredNetworkSettings(c context.Context, guid string, req dto.WiredNetworkConfigRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PatchWiredNetworkSettings", c, guid, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// PatchWiredNetworkSettings indicates an expected call of PatchWiredNetworkSettings.
+func (mr *MockDeviceManagementFeatureMockRecorder) PatchWiredNetworkSettings(c, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PatchWiredNetworkSettings", reflect.TypeOf((*MockDeviceManagementFeature)(nil).PatchWiredNetworkSettings), c, guid, req)
 }
 
 // Redirect mocks base method.
