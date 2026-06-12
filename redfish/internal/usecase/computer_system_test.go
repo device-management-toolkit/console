@@ -14,6 +14,8 @@ import (
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
 
+var generateRedirectionTokenConfigMu sync.Mutex
+
 type graphicalConsoleTestRepo struct {
 	system  *redfishv1.ComputerSystem
 	bootErr error
@@ -929,6 +931,7 @@ func assertDeviceLookupResult(t *testing.T, device *devicev1.Device, err, wantEr
 
 //nolint:paralleltest // Mutates global config.ConsoleConfig and must run serially.
 func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
+	generateRedirectionTokenConfigMu.Lock()
 	original := config.ConsoleConfig
 	config.ConsoleConfig = &config.Config{}
 	config.ConsoleConfig.JWTKey = "test-key"
@@ -984,6 +987,7 @@ func assertGenerateTokenResult(t *testing.T, resp *generated.ComputerSystemOemIn
 
 //nolint:paralleltest // Mutates global config.ConsoleConfig and must run serially.
 func TestGenerateRedirectionToken_ConfigNotInitialized(t *testing.T) {
+	generateRedirectionTokenConfigMu.Lock()
 	original := config.ConsoleConfig
 	config.ConsoleConfig = nil
 
