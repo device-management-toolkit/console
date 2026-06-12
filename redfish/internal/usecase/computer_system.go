@@ -583,6 +583,21 @@ func (uc *ComputerSystemUseCase) CancelKVMConsent(ctx context.Context, systemID 
 	return uc.Repo.CancelKVMConsent(ctx, systemID)
 }
 
+// RequestSolConsent triggers a user consent request for SOL on the target system.
+func (uc *ComputerSystemUseCase) RequestSolConsent(ctx context.Context, systemID string) error {
+	return uc.Repo.RequestSolConsent(ctx, systemID)
+}
+
+// SubmitSolConsentCode submits the user-provided SOL consent code.
+func (uc *ComputerSystemUseCase) SubmitSolConsentCode(ctx context.Context, systemID, consentCode string) error {
+	return uc.Repo.SubmitSolConsentCode(ctx, systemID, consentCode)
+}
+
+// CancelSolConsent cancels a pending SOL user consent request on the target system.
+func (uc *ComputerSystemUseCase) CancelSolConsent(ctx context.Context, systemID string) error {
+	return uc.Repo.CancelSolConsent(ctx, systemID)
+}
+
 // GenerateRedirectionToken validates that the target system exists and returns a short-lived redirection token.
 func (uc *ComputerSystemUseCase) GenerateRedirectionToken(ctx context.Context, systemID string) (*generated.ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse, error) {
 	if err := uc.EnsureSystemExists(ctx, systemID); err != nil {
@@ -831,6 +846,12 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 	submitConsentCodeTitle := "Submit KVM Consent Code"
 	cancelConsentTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.CancelKVMConsent", systemID)
 	cancelConsentTitle := "Cancel KVM Consent"
+	requestSolConsentTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.RequestSolConsent", systemID)
+	requestSolConsentTitle := "Request SOL Consent"
+	submitSolConsentCodeTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode", systemID)
+	submitSolConsentCodeTitle := "Submit SOL Consent Code"
+	cancelSolConsentTarget := fmt.Sprintf("/redfish/v1/Systems/%s/Actions/Oem/IntelComputerSystem.CancelSolConsent", systemID)
+	cancelSolConsentTitle := "Cancel SOL Consent"
 
 	// Create the ComputerSystem.Reset action
 	resetAction := &generated.ComputerSystemReset{
@@ -855,6 +876,18 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 		Target: &cancelConsentTarget,
 		Title:  &cancelConsentTitle,
 	}
+	requestSolConsentAction := &generated.ComputerSystemOemIntelAmtRequestSolConsent{
+		Target: &requestSolConsentTarget,
+		Title:  &requestSolConsentTitle,
+	}
+	submitSolConsentCodeAction := &generated.ComputerSystemOemIntelAmtSubmitSolConsentCode{
+		Target: &submitSolConsentCodeTarget,
+		Title:  &submitSolConsentCodeTitle,
+	}
+	cancelSolConsentAction := &generated.ComputerSystemOemIntelAmtCancelSolConsent{
+		Target: &cancelSolConsentTarget,
+		Title:  &cancelSolConsentTitle,
+	}
 
 	// Create and return the Actions structure
 	return &generated.ComputerSystemActions{
@@ -864,6 +897,9 @@ func (uc *ComputerSystemUseCase) createActionsStruct(systemID string) *generated
 			HashOemIntelAMTRequestKVMConsent:        requestConsentAction,
 			HashOemIntelAMTSubmitKVMConsentCode:     submitConsentCodeAction,
 			HashOemIntelAMTCancelKVMConsent:         cancelConsentAction,
+			HashOemIntelAMTRequestSolConsent:        requestSolConsentAction,
+			HashOemIntelAMTSubmitSolConsentCode:     submitSolConsentCodeAction,
+			HashOemIntelAMTCancelSolConsent:         cancelSolConsentAction,
 		},
 	}
 }

@@ -54,7 +54,9 @@ const (
 	controlModeACM          = "ACM"
 	controlModeCCM          = "CCM"
 	userConsentKVM          = "kvm"
+	userConsentSOL          = "sol"
 	userConsentAll          = "all"
+	userConsentNone         = "none"
 	userConsentNotRequired  = "NotRequired"
 	userConsentRequired     = "Required"
 	userConsentRequested    = "Requested"
@@ -141,6 +143,9 @@ var (
 
 	// ErrKVMConsentNotRequiredInACM is returned when requesting user consent in ACM mode.
 	ErrKVMConsentNotRequiredInACM = errors.New("KVM user consent is not required in ACM mode")
+
+	// ErrSOLConsentNotRequiredInACM is returned when requesting SOL user consent in ACM mode.
+	ErrSOLConsentNotRequiredInACM = errors.New("SOL user consent is not required in ACM mode")
 )
 
 // CIMObjectType represents different types of CIM objects.
@@ -1252,6 +1257,48 @@ func isKVMConsentRequired(userConsent, controlMode string) bool {
 	return consentMode == userConsentKVM || consentMode == userConsentAll
 }
 
+// determineSOLUserConsentStatus determines the SOL user consent status based on opt-in state.
+// In ACM mode, consent is never required by policy, so returns NotRequired.
+// In CCM mode, SOL consent is always treated as required; the status is derived from the current opt-in state.
+func determineSOLUserConsentStatus(userConsent string, optInState int, controlMode string) string {
+	if strings.EqualFold(strings.TrimSpace(controlMode), controlModeACM) {
+		return userConsentNotRequired
+	}
+
+	consentRequired := isSOLConsentRequired(userConsent, controlMode)
+	if consentRequired || optInState != int(optin.NotStarted) {
+		switch optInState {
+		case int(optin.NotStarted):
+			return userConsentRequired
+		case int(optin.Requested), int(optin.Displayed):
+			return userConsentRequested
+		case int(optin.Received), int(optin.InSession):
+			return userConsentGranted
+		case optInStateDeniedRaw:
+			return userConsentDenied
+		case optInStateTimeoutRaw:
+			return userConsentTimeout
+		default:
+			return userConsentRequested
+		}
+	}
+
+	return userConsentNotRequired
+}
+
+// isSOLConsentRequired checks if SOL user consent is required.
+// In CCM mode, consent is always required. In ACM mode, it's only required if userConsent is "sol" or "all".
+func isSOLConsentRequired(userConsent, controlMode string) bool {
+	consentMode := strings.ToLower(strings.TrimSpace(userConsent))
+	normalizedControlMode := strings.TrimSpace(controlMode)
+
+	if strings.EqualFold(normalizedControlMode, controlModeCCM) {
+		return true
+	}
+
+	return consentMode == userConsentSOL || consentMode == userConsentAll
+}
+
 func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2 dtov2.Features, controlMode string) *redfishv1.ComputerSystemHostSerialConsole {
 	serviceEnabled := featuresV2.EnableSOL
 	maxConcurrentSessions := int64(1)
@@ -1264,16 +1311,30 @@ func (r *WsmanComputerSystemRepo) buildSerialConsole(systemID string, featuresV2
 		consoleURI = &uri
 	}
 
-	solStatus := determineSOLStatus(featuresV2.EnableSOL, featuresV2.Redirection, featuresV2.UserConsent, featuresV2.OptInState)
+	normalizedUserConsent := strings.ToLower(strings.TrimSpace(featuresV2.UserConsent))
+
+	consentModeForSOLStatus := normalizedUserConsent
+	if strings.EqualFold(strings.TrimSpace(controlMode), controlModeACM) {
+		// In ACM mode, preserve Active status when in an active session
+		if featuresV2.OptInState == int(optin.InSession) {
+			consentModeForSOLStatus = userConsentSOL
+		} else {
+			consentModeForSOLStatus = userConsentNone
+		}
+	} else if isSOLConsentRequired(normalizedUserConsent, controlMode) {
+		consentModeForSOLStatus = userConsentSOL
+	}
+
+	solStatus := determineSOLStatus(featuresV2.EnableSOL, featuresV2.Redirection, consentModeForSOLStatus, featuresV2.OptInState)
+	solUserConsentStatus := determineSOLUserConsentStatus(normalizedUserConsent, featuresV2.OptInState, controlMode)
 
 	// Build OEM extensions with Intel AMT status.
 	oemExt := &redfishv1.ComputerSystemHostSerialConsoleOEM{
 		Intel: &redfishv1.ComputerSystemHostSerialConsoleIntel{
 			AMT: &redfishv1.ComputerSystemHostSerialConsoleAMT{
-				ControlMode: controlMode,
-				SOLStatus:   solStatus,
-				// Planned follow-up: query AMT_RedirectionService and IPS_OptInService for actual user consent status.
-				UserConsentStatus: userConsentNotRequired,
+				ControlMode:       controlMode,
+				SOLStatus:         solStatus,
+				UserConsentStatus: solUserConsentStatus,
 			},
 		},
 	}
@@ -1721,4 +1782,67 @@ func (r *WsmanComputerSystemRepo) applyBootMode(boot *generated.ComputerSystemBo
 	case generated.Legacy:
 		r.log.Info("Legacy boot mode requested", "systemID", systemID)
 	}
+}
+
+// RequestSolConsent initiates a user consent request for SOL.
+func (r *WsmanComputerSystemRepo) RequestSolConsent(ctx context.Context, systemID string) error {
+	controlMode := strings.TrimSpace(r.getAMTControlMode(ctx, systemID))
+	if strings.EqualFold(controlMode, controlModeACM) {
+		return ErrSOLConsentNotRequiredInACM
+	}
+
+	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationSolRequest, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
+}
+
+// SubmitSolConsentCode submits the six-digit user consent code for SOL.
+func (r *WsmanComputerSystemRepo) SubmitSolConsentCode(ctx context.Context, systemID, consentCode string) error {
+	if !isSixDigitNumeric(consentCode) {
+		return ErrInvalidConsentCode
+	}
+
+	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationSolSubmit, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
+}
+
+// CancelSolConsent cancels a pending SOL user consent request.
+func (r *WsmanComputerSystemRepo) CancelSolConsent(ctx context.Context, systemID string) error {
+	resp, err := r.usecase.CancelUserConsent(ctx, systemID)
+	if r.isDeviceNotFoundError(err) {
+		return ErrSystemNotFound
+	}
+
+	if err != nil {
+		return err
+	}
+
+	if resp.Body.ReturnValue != 0 {
+		return &ConsentFailedError{Operation: consentOperationSolCancel, ReturnValue: resp.Body.ReturnValue}
+	}
+
+	return nil
 }

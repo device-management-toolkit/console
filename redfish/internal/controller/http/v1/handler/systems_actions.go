@@ -172,7 +172,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent handles canceling SOL consent for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(c *gin.Context, computerSystemID string) {
@@ -182,7 +181,43 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsentJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.CancelSolConsent(c.Request.Context(), computerSystemID); err != nil {
+		var consentErr *usecase.ConsentFailedError
+
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		case errors.As(err, &consentErr):
+			BadRequestError(c, consentErr.Error())
+		case isAMTBadRequestError(err):
+			BadRequestError(c, err.Error())
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	sendActionSuccessResponse(c)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemGenerateRedirectionToken handles generating a redirection token for a computer system.
@@ -271,7 +306,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent handles requesting SOL consent for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(c *gin.Context, computerSystemID string) {
@@ -281,7 +315,45 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsentJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil && !errors.Is(err, io.EOF) {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.RequestSolConsent(c.Request.Context(), computerSystemID); err != nil {
+		var consentErr *usecase.ConsentFailedError
+
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		case errors.Is(err, usecase.ErrSOLConsentNotRequiredInACM):
+			BadRequestError(c, err.Error())
+		case errors.As(err, &consentErr):
+			BadRequestError(c, consentErr.Error())
+		case isAMTBadRequestError(err):
+			BadRequestError(c, err.Error())
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	sendActionSuccessResponse(c)
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCode handles submitting a KVM consent code for a computer system.
@@ -347,7 +419,6 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 }
 
 // PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode handles submitting a SOL consent code for a computer system.
-// This is a stub implementation.
 //
 //nolint:revive // Method name is generated from OpenAPI spec and cannot be changed
 func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(c *gin.Context, computerSystemID string) {
@@ -357,7 +428,56 @@ func (s *RedfishServer) PostRedfishV1SystemsComputerSystemIdActionsOemIntelCompu
 		return
 	}
 
-	MethodNotAllowedError(c)
+	var req generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCodeJSONRequestBody
+
+	if err := c.ShouldBindJSON(&req); err != nil {
+		MalformedJSONError(c)
+
+		return
+	}
+
+	consentCode := strings.TrimSpace(req.ConsentCode)
+	if consentCode == "" {
+		PropertyMissingError(c, "ConsentCode")
+
+		return
+	}
+
+	if !sixDigitConsentCodeRe.MatchString(consentCode) {
+		BadRequestError(c, "Invalid ConsentCode: must be a six-digit numeric value")
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.EnsureSystemExists(c.Request.Context(), computerSystemID); err != nil {
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	if err := s.ComputerSystemUC.SubmitSolConsentCode(c.Request.Context(), computerSystemID, consentCode); err != nil {
+		var consentErr *usecase.ConsentFailedError
+
+		switch {
+		case errors.Is(err, usecase.ErrSystemNotFound):
+			NotFoundError(c, "System", computerSystemID)
+		case errors.As(err, &consentErr):
+			BadRequestError(c, consentErr.Error())
+		case isAMTBadRequestError(err):
+			BadRequestError(c, err.Error())
+		default:
+			InternalServerError(c, err)
+		}
+
+		return
+	}
+
+	sendActionSuccessResponse(c)
 }
 
 func sendActionSuccessResponse(c *gin.Context) {

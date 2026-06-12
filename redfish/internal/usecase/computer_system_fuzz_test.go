@@ -115,6 +115,30 @@ func (r *fuzzMockRepo) CancelKVMConsent(_ context.Context, systemID string) erro
 	return nil
 }
 
+func (r *fuzzMockRepo) RequestSolConsent(_ context.Context, systemID string) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
+func (r *fuzzMockRepo) SubmitSolConsentCode(_ context.Context, systemID, _ string) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
+func (r *fuzzMockRepo) CancelSolConsent(_ context.Context, systemID string) error {
+	if _, ok := r.systems[systemID]; !ok {
+		return ErrSystemNotFound
+	}
+
+	return nil
+}
+
 // newFuzzUseCase returns a ComputerSystemUseCase backed by the inline mock repository.
 func newFuzzUseCase() *ComputerSystemUseCase {
 	return &ComputerSystemUseCase{Repo: newFuzzMockRepo()}
@@ -321,6 +345,100 @@ func FuzzPowerStateConversion(f *testing.F) {
 
 		if result == nil {
 			t.Fatal("expected non-nil result")
+		}
+	})
+}
+
+// FuzzSolConsentCode fuzzes SubmitSolConsentCode with arbitrary consent code strings.
+// Verifies: no panics and deterministic error behavior for identical inputs.
+func FuzzSolConsentCode(f *testing.F) {
+	seeds := []string{
+		"123456",
+		"000000",
+		"999999",
+		"",
+		"12345",
+		"1234567",
+		"abcdef",
+		"12ab56",
+		strings.Repeat("1", 4096),
+		"123\x00456",
+		"용戶🙂секрет",
+	}
+
+	for _, s := range seeds {
+		f.Add(s)
+	}
+
+	uc := newFuzzUseCase()
+	ctx := context.Background()
+
+	f.Fuzz(func(t *testing.T, consentCode string) {
+		// Must never panic regardless of input.
+		err1 := uc.SubmitSolConsentCode(ctx, fuzzTestSystemID, consentCode)
+		err2 := uc.SubmitSolConsentCode(ctx, fuzzTestSystemID, consentCode)
+
+		if (err1 == nil) != (err2 == nil) {
+			t.Fatalf("non-deterministic error for consentCode %q: first=%v second=%v", consentCode, err1, err2)
+		}
+	})
+}
+
+// FuzzRequestSolConsent fuzzes RequestSolConsent with arbitrary system ID values.
+// Verifies: no panics, deterministic results for the same ID.
+func FuzzRequestSolConsent(f *testing.F) {
+	seeds := []string{
+		fuzzTestSystemID,
+		"",
+		"not-a-uuid",
+		"00000000-0000-0000-0000-000000000000",
+		strings.Repeat("a", 4096),
+		"../etc/passwd",
+		"550e8400-e29b-41d4-a716-446655440001\x00extra",
+	}
+
+	for _, s := range seeds {
+		f.Add(s)
+	}
+
+	uc := newFuzzUseCase()
+	ctx := context.Background()
+
+	f.Fuzz(func(t *testing.T, systemID string) {
+		err1 := uc.RequestSolConsent(ctx, systemID)
+		err2 := uc.RequestSolConsent(ctx, systemID)
+
+		if (err1 == nil) != (err2 == nil) {
+			t.Fatalf("non-deterministic error for systemID %q: first=%v second=%v", systemID, err1, err2)
+		}
+	})
+}
+
+// FuzzCancelSolConsent fuzzes CancelSolConsent with arbitrary system ID values.
+// Verifies: no panics, deterministic results for the same ID.
+func FuzzCancelSolConsent(f *testing.F) {
+	seeds := []string{
+		fuzzTestSystemID,
+		"",
+		"not-a-uuid",
+		"00000000-0000-0000-0000-000000000000",
+		strings.Repeat("a", 4096),
+		"../etc/passwd",
+	}
+
+	for _, s := range seeds {
+		f.Add(s)
+	}
+
+	uc := newFuzzUseCase()
+	ctx := context.Background()
+
+	f.Fuzz(func(t *testing.T, systemID string) {
+		err1 := uc.CancelSolConsent(ctx, systemID)
+		err2 := uc.CancelSolConsent(ctx, systemID)
+
+		if (err1 == nil) != (err2 == nil) {
+			t.Fatalf("non-deterministic error for systemID %q: first=%v second=%v", systemID, err1, err2)
 		}
 	})
 }
