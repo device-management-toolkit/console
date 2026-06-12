@@ -14,6 +14,7 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	amtEnabled := true
 	dhcpEnabled := true
 	lmsInstalled := true
+	discovered := true
 	ethernetAdapterCount := 2
 	monitorConnected := true
 	ieee8021xEnabled := false
@@ -23,6 +24,7 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 		FWVersion:   "16.1.30",
 		FWBuild:     "3400",
 		FWSku:       "11",
+		Discovered:  &discovered,
 		CurrentMode: "Admin",
 		Features:    "SOL,IDER,KVM",
 		IPAddress:   "10.0.0.12",
@@ -59,6 +61,8 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	require.Equal(t, info.MEInterfaceVersion, decoded.MEInterfaceVersion)
 	require.Equal(t, info.CertHashes, decoded.CertHashes)
 	require.Equal(t, info.LMSVersion, decoded.LMSVersion)
+	require.NotNil(t, decoded.Discovered)
+	require.Equal(t, *info.Discovered, *decoded.Discovered)
 	require.NotNil(t, decoded.LMSInstalled)
 	require.Equal(t, *info.LMSInstalled, *decoded.LMSInstalled)
 }

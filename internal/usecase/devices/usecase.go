@@ -166,6 +166,7 @@ var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
 	"fwversion":            func(dst, src *dto.DeviceInfo) { dst.FWVersion = src.FWVersion },
 	"fwbuild":              func(dst, src *dto.DeviceInfo) { dst.FWBuild = src.FWBuild },
 	"fwsku":                func(dst, src *dto.DeviceInfo) { dst.FWSku = src.FWSku },
+	"discovered":           func(dst, src *dto.DeviceInfo) { dst.Discovered = src.Discovered },
 	"currentmode":          func(dst, src *dto.DeviceInfo) { dst.CurrentMode = src.CurrentMode },
 	"features":             func(dst, src *dto.DeviceInfo) { dst.Features = src.Features },
 	"ipaddress":            func(dst, src *dto.DeviceInfo) { dst.IPAddress = src.IPAddress },

@@ -446,18 +446,21 @@ func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
 	t.Parallel()
 
 	guid := testDeviceGUID
+	discovered := true
 
 	incoming := &dto.Device{
 		GUID: guid,
 		DeviceInfo: &dto.DeviceInfo{
-			FWVersion: "16.1.30",
+			FWVersion:  "16.1.30",
+			Discovered: &discovered,
 		},
 	}
 
 	expectedFields := map[string]bool{
-		"guid":                 true,
-		"deviceinfo":           true,
-		"deviceinfo.fwversion": true,
+		"guid":                  true,
+		"deviceinfo":            true,
+		"deviceinfo.fwversion":  true,
+		"deviceinfo.discovered": true,
 	}
 
 	devicesFeature, engine := devicesTest(t)
@@ -466,7 +469,7 @@ func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
 		Update(context.Background(), incoming, expectedFields).
 		Return(incoming, nil)
 
-	body := []byte(`{"guid":"` + guid + `","deviceInfo":{"fwVersion":"16.1.30"}}`)
+	body := []byte(`{"guid":"` + guid + `","deviceInfo":{"fwVersion":"16.1.30","discovered":true}}`)
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
 	require.NoError(t, err)
@@ -514,6 +517,7 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	t.Parallel()
 
 	lmsInstalled := false
+	discovered := true
 	amtEnabledInBIOS := true
 	dhcpEnabled := true
 	ethernetAdapterCount := 2
@@ -527,6 +531,7 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 			FWVersion:   "16.1.30",
 			FWBuild:     "3400",
 			FWSku:       "11",
+			Discovered:  &discovered,
 			CurrentMode: "Admin",
 			Features:    "SOL,IDER,KVM",
 			IPAddress:   "10.0.0.12",
@@ -567,6 +572,7 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 			"fwVersion":"16.1.30",
 			"fwBuild":"3400",
 			"fwSku":"11",
+			"discovered":true,
 			"currentMode":"Admin",
 			"features":"SOL,IDER,KVM",
 			"ipAddress":"10.0.0.12",

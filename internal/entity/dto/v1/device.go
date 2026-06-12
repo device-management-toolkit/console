@@ -41,6 +41,7 @@ type DeviceInfo struct {
 	FWVersion            string                     `json:"fwVersion"`
 	FWBuild              string                     `json:"fwBuild"`
 	FWSku                string                     `json:"fwSku"`
+	Discovered           *bool                      `json:"discovered,omitempty"`
 	CurrentMode          string                     `json:"currentMode"`
 	Features             string                     `json:"features"`
 	IPAddress            string                     `json:"ipAddress"`
