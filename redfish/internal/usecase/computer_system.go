@@ -58,6 +58,9 @@ const (
 
 	// Default system type.
 	DefaultSystemType = "Physical"
+
+	// WSMAN boot settings call timeout for system GET responses.
+	bootSettingsTimeout = 2 * time.Second
 )
 
 // Resource Health constants.
@@ -124,6 +127,8 @@ func (uc *ComputerSystemUseCase) GetAll(ctx context.Context) ([]string, error) {
 }
 
 // GetComputerSystem retrieves a ComputerSystem by its systemID and converts it to the generated API type.
+//
+//nolint:funlen // This method assembles many optional Redfish fields and handles best-effort fallbacks in one flow.
 func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID string) (*generated.ComputerSystemComputerSystem, error) {
 	// Get device information from repository - this gives us basic device data
 	system, err := uc.Repo.GetByID(ctx, systemID)
@@ -186,10 +191,15 @@ func (uc *ComputerSystemUseCase) GetComputerSystem(ctx context.Context, systemID
 		}
 	}
 
-	// Fetch boot settings
-	boot, err := uc.Repo.GetBootSettings(ctx, systemID)
+	var boot *generated.ComputerSystemBoot
+
+	// Fetch boot settings from WSMAN with a bounded timeout to avoid long-tail latency.
+	// Boot settings are available via AMT out-of-band even when host power is off.
+	bootCtx, bootCancel := context.WithTimeout(ctx, bootSettingsTimeout)
+	defer bootCancel()
+
+	boot, err = uc.Repo.GetBootSettings(bootCtx, systemID)
 	if err != nil {
-		// Log error but don't fail the entire request - boot settings may not be available
 		boot = nil
 	}
 	// Create Actions for this system using the generated Actions type

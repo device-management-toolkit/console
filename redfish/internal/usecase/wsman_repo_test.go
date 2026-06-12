@@ -3,7 +3,9 @@ package usecase
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	gomock "go.uber.org/mock/gomock"
 
@@ -12,14 +14,18 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
 	cimBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/kvm"
+	cimmodels "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/models"
+	cimservice "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/service"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/software"
 	optin "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/optin"
+	ipspower "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/power"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
@@ -1481,4 +1487,304 @@ func TestBuildSerialConsole(t *testing.T) {
 			assertSerialConsole(t, got, tt.wantEnabled, tt.wantURI, tt.wantSOLStatus)
 		})
 	}
+}
+
+func TestGetByIDSkipsConsoleEnrichmentWhenTimeBudgetIsLow(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1", Password: "encrypted"}
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	management := mocks.NewMockManagement(ctrl)
+
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+	repoMock.EXPECT().GetByID(gomock.Any(), device.GUID, "").Return(device, nil).Times(3)
+	wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil).Times(2)
+	management.EXPECT().GetPowerState().Return([]cimservice.CIM_AssociatedPowerManagementService{{PowerState: cimmodels.PowerState(redfishv1.CIMPowerStateOn)}}, nil)
+	management.EXPECT().GetOSPowerSavingState().Return(ipspower.OSPowerSavingState(0), nil)
+	management.EXPECT().GetHardwareInfo().Return(wsmanAPI.HWResults{}, nil)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	ctx := createContextWithDeadline(t, 1*time.Second)
+
+	got, err := repo.GetByID(ctx, device.GUID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v, want nil", err)
+	}
+
+	if got == nil {
+		t.Fatal("GetByID() returned nil system")
+	}
+
+	if got.PowerState != redfishv1.PowerStateOn {
+		t.Fatalf("PowerState = %q, want %q", got.PowerState, redfishv1.PowerStateOn)
+	}
+
+	if got.GraphicalConsole != nil {
+		t.Fatalf("GraphicalConsole = %#v, want nil when time budget is insufficient", got.GraphicalConsole)
+	}
+
+	if got.SerialConsole != nil {
+		t.Fatalf("SerialConsole = %#v, want nil when time budget is insufficient", got.SerialConsole)
+	}
+}
+
+func TestGetByIDFallsBackToCachedConsoleData(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	device := &entity.Device{
+		GUID:       "system-1",
+		TenantID:   "tenant-1",
+		Password:   "encrypted",
+		UseTLS:     true,
+		DeviceInfo: `{"currentMode":"Admin Control Mode","features":"{\"userConsent\":\"none\",\"enableSOL\":true,\"enableIDER\":false,\"enableKVM\":true,\"redirection\":true,\"optInState\":0,\"kvmAvailable\":true,\"httpBoot\":false,\"httpBootSupported\":false,\"winREBootSupported\":false,\"localPBABootSupported\":false}"}`,
+	}
+
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	phaseOneManagement := mocks.NewMockManagement(ctrl)
+	phaseTwoManagement := mocks.NewMockManagement(ctrl)
+
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+	repoMock.EXPECT().GetByID(gomock.Any(), device.GUID, "").Return(device, nil).Times(5)
+
+	var setupCallCount atomic.Int32
+
+	setupWsmanClientCall := wsmanMock.EXPECT().
+		SetupWsmanClient(gomock.Any(), gomock.Any(), false, true)
+
+	setupWsmanClientCall.DoAndReturn(
+		func(_ context.Context, _ entity.Device, _, _ bool) (wsmanAPI.Management, error) {
+			if setupCallCount.Add(1) <= 2 {
+				return phaseOneManagement, nil
+			}
+
+			return phaseTwoManagement, nil
+		},
+	).Times(4)
+
+	phaseOneManagement.EXPECT().GetPowerState().Return([]cimservice.CIM_AssociatedPowerManagementService{{PowerState: cimmodels.PowerState(redfishv1.CIMPowerStateOn)}}, nil)
+	phaseOneManagement.EXPECT().GetOSPowerSavingState().Return(ipspower.OSPowerSavingState(0), nil)
+	phaseOneManagement.EXPECT().GetHardwareInfo().Return(wsmanAPI.HWResults{}, errors.New("hardware unavailable"))
+
+	phaseTwoManagement.EXPECT().GetAMTRedirectionService().Return(redirection.Response{}, errors.New("features unavailable"))
+	phaseTwoManagement.EXPECT().GetAMTVersion().Return(nil, errors.New("version unavailable"))
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	got, err := repo.GetByID(context.Background(), device.GUID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v, want nil", err)
+	}
+
+	if got == nil {
+		t.Fatal("GetByID() returned nil system")
+	}
+
+	assertGraphicalConsole(t, got.GraphicalConsole, true, []string{kvmConnectTypeKVMIP}, 16995, StateEnabled, userConsentNotRequired)
+	assertSerialConsole(t, got.SerialConsole, true, "/relay/webrelay.ashx?host=system-1&mode=sol", StateEnabled)
+}
+
+func TestGetByIDUsesSafeDefaultsWhenConsoleEnrichmentFailsWithoutCache(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	defer ctrl.Finish()
+
+	device := &entity.Device{GUID: "system-1", TenantID: "tenant-1", Password: "encrypted"}
+	repoMock := mocks.NewMockDeviceManagementRepository(ctrl)
+	wsmanMock := mocks.NewMockWSMAN(ctrl)
+	phaseOneManagement := mocks.NewMockManagement(ctrl)
+	phaseTwoManagement := mocks.NewMockManagement(ctrl)
+
+	wsmanMock.EXPECT().Worker().Return().AnyTimes()
+	repoMock.EXPECT().GetByID(gomock.Any(), device.GUID, "").Return(device, nil).Times(5)
+
+	var setupCallCount atomic.Int32
+
+	setupWsmanClientCall := wsmanMock.EXPECT().
+		SetupWsmanClient(gomock.Any(), gomock.Any(), false, true)
+
+	setupWsmanClientCall.DoAndReturn(
+		func(_ context.Context, _ entity.Device, _, _ bool) (wsmanAPI.Management, error) {
+			if setupCallCount.Add(1) <= 2 {
+				return phaseOneManagement, nil
+			}
+
+			return phaseTwoManagement, nil
+		},
+	).Times(4)
+
+	phaseOneManagement.EXPECT().GetPowerState().Return(nil, errors.New("power unavailable"))
+	phaseOneManagement.EXPECT().GetHardwareInfo().Return(wsmanAPI.HWResults{}, nil)
+
+	phaseTwoManagement.EXPECT().GetAMTRedirectionService().Return(redirection.Response{}, errors.New("features unavailable"))
+	phaseTwoManagement.EXPECT().GetAMTVersion().Return([]software.SoftwareIdentity{}, nil)
+	phaseTwoManagement.EXPECT().GetSetupAndConfiguration().Return([]setupandconfiguration.SetupAndConfigurationServiceResponse{{ProvisioningMode: setupandconfiguration.AdminControlMode}}, nil)
+
+	uc := devices.New(repoMock, wsmanMock, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
+	repo := &WsmanComputerSystemRepo{usecase: uc, log: logger.New("error")}
+
+	got, err := repo.GetByID(context.Background(), device.GUID)
+	if err != nil {
+		t.Fatalf("GetByID() error = %v, want nil", err)
+	}
+
+	if got == nil {
+		t.Fatal("GetByID() returned nil system")
+	}
+
+	if got.PowerState != redfishv1.PowerStateOff {
+		t.Fatalf("PowerState = %q, want %q", got.PowerState, redfishv1.PowerStateOff)
+	}
+
+	assertGraphicalConsole(t, got.GraphicalConsole, false, nil, 0, StateDisabled, userConsentNotRequired)
+	assertSerialConsole(t, got.SerialConsole, false, "", StateDisabled)
+}
+
+func TestIsContextTimeoutOrCancelError(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{name: "context deadline", err: context.DeadlineExceeded, want: true},
+		{name: "context cancel", err: context.Canceled, want: true},
+		{name: "other error", err: errors.New("other"), want: false},
+		{name: "nil error", err: nil, want: false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := isContextTimeoutOrCancelError(tt.err)
+			if got != tt.want {
+				t.Errorf("isContextTimeoutOrCancelError() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestHasSufficientTimeBudget(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		ctx    context.Context
+		budget time.Duration
+		want   bool
+	}{
+		{name: "background context", ctx: context.Background(), budget: 1 * time.Second, want: true},
+		{name: "context with sufficient deadline", ctx: createContextWithDeadline(t, 5*time.Second), budget: 1 * time.Second, want: true},
+		{name: "context with insufficient deadline", ctx: createContextWithDeadline(t, 100*time.Millisecond), budget: 1 * time.Second, want: false},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := hasSufficientTimeBudget(tt.ctx, tt.budget)
+			if got != tt.want {
+				t.Errorf("hasSufficientTimeBudget() = %v, want %v", got, tt.want)
+			}
+		})
+	}
+}
+
+func TestGetCachedFeaturesFromDevice(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		device *dto.Device
+		want   bool
+		wantV2 dtov2.Features
+	}{
+		{name: "nil device", device: nil, want: false},
+		{name: "device without info", device: &dto.Device{}, want: false},
+		{name: "blank features", device: &dto.Device{DeviceInfo: &dto.DeviceInfo{Features: "  "}}, want: false},
+		{name: "invalid features", device: &dto.Device{DeviceInfo: &dto.DeviceInfo{Features: "not-json"}}, want: false},
+		{
+			name:   "v2 features json",
+			device: &dto.Device{DeviceInfo: &dto.DeviceInfo{Features: `{"userConsent":"none","enableSOL":true,"enableIDER":false,"enableKVM":true,"redirection":true,"optInState":0,"kvmAvailable":true,"httpBoot":false,"httpBootSupported":true,"winREBootSupported":false,"localPBABootSupported":true}`}},
+			want:   true,
+			wantV2: dtov2.Features{UserConsent: "none", EnableSOL: true, EnableKVM: true, Redirection: true, KVMAvailable: true, HTTPSBootSupported: true, LocalPBABootSupported: true},
+		},
+		{
+			name:   "v1 features json is mapped to v2",
+			device: &dto.Device{DeviceInfo: &dto.DeviceInfo{Features: `{"userConsent":"kvm","enableSOL":true,"enableIDER":true,"enableKVM":false,"redirection":true,"optInState":1,"kvmAvailable":false,"ocr":true,"httpsBootSupported":true,"winREBootSupported":true,"localPBABootSupported":false}`}},
+			want:   true,
+			wantV2: dtov2.Features{UserConsent: "kvm", EnableSOL: true, EnableIDER: true, Redirection: true, OptInState: 1, OCR: true, HTTPSBootSupported: true, WinREBootSupported: true},
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got, ok := getCachedFeaturesFromDevice(tt.device)
+			if ok != tt.want {
+				t.Errorf("getCachedFeaturesFromDevice() ok = %v, want %v", ok, tt.want)
+			}
+
+			if ok && got != tt.wantV2 {
+				t.Errorf("getCachedFeaturesFromDevice() = %#v, want %#v", got, tt.wantV2)
+			}
+		})
+	}
+}
+
+func TestGetCachedControlModeFromDevice(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		device   *dto.Device
+		wantMode string
+	}{
+		{name: "nil device", device: nil, wantMode: ""},
+		{name: "device without info", device: &dto.Device{}, wantMode: ""},
+		{name: "admin mode string", device: &dto.Device{DeviceInfo: &dto.DeviceInfo{CurrentMode: "Admin Control Mode"}}, wantMode: controlModeACM},
+		{name: "client mode string", device: &dto.Device{DeviceInfo: &dto.DeviceInfo{CurrentMode: "client control mode"}}, wantMode: controlModeCCM},
+		{name: "short acm mode", device: &dto.Device{DeviceInfo: &dto.DeviceInfo{CurrentMode: "acm"}}, wantMode: controlModeACM},
+		{name: "unknown mode", device: &dto.Device{DeviceInfo: &dto.DeviceInfo{CurrentMode: "unknown"}}, wantMode: ""},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			got := getCachedControlModeFromDevice(tt.device)
+			if got != tt.wantMode {
+				t.Errorf("getCachedControlModeFromDevice() = %q, want %q", got, tt.wantMode)
+			}
+		})
+	}
+}
+
+// Helper functions for tests.
+func createContextWithDeadline(t *testing.T, d time.Duration) context.Context {
+	t.Helper()
+
+	ctx, cancel := context.WithDeadline(context.Background(), time.Now().Add(d))
+
+	t.Cleanup(cancel)
+
+	return ctx
 }

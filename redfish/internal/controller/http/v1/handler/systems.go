@@ -100,9 +100,7 @@ func (s *RedfishServer) handleGetSystemError(c *gin.Context, err error, systemID
 		NotFoundError(c, "System", systemID)
 	default:
 		if s.Logger != nil {
-			s.Logger.Error("Failed to retrieve computer system",
-				"systemID", systemID,
-				"error", err)
+			s.Logger.Error("Failed to retrieve computer system: systemID=%s error=%v", systemID, err)
 		}
 
 		InternalServerError(c, err)
@@ -118,7 +116,7 @@ func (s *RedfishServer) GetRedfishV1Systems(c *gin.Context) {
 	systemIDs, err := s.ComputerSystemUC.GetAll(ctx)
 	if err != nil {
 		if s.Logger != nil {
-			s.Logger.Error("Failed to retrieve computer systems collection", "error", err)
+			s.Logger.Error("Failed to retrieve computer systems collection: error=%v", err)
 		}
 
 		InternalServerError(c, err)

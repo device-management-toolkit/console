@@ -14,6 +14,8 @@ import (
 	redfishv1 "github.com/device-management-toolkit/console/redfish/internal/entity/v1"
 )
 
+var generateRedirectionTokenConfigMu sync.Mutex
+
 type graphicalConsoleTestRepo struct {
 	system  *redfishv1.ComputerSystem
 	bootErr error
@@ -927,17 +929,9 @@ func assertDeviceLookupResult(t *testing.T, device *devicev1.Device, err, wantEr
 	}
 }
 
-// generateRedirectionTokenConfigMu serializes the two GenerateRedirectionToken
-// tests below, which mutate the shared config.ConsoleConfig global. Both remain
-// parallel (per the paralleltest/tparallel linters); the mutex prevents them from
-// clobbering each other's global state when run concurrently.
-var generateRedirectionTokenConfigMu sync.Mutex
-
+//nolint:paralleltest // Mutates global config.ConsoleConfig and must run serially.
 func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
-	t.Parallel()
-
 	generateRedirectionTokenConfigMu.Lock()
-
 	original := config.ConsoleConfig
 	config.ConsoleConfig = &config.Config{}
 	config.ConsoleConfig.JWTKey = "test-key"
@@ -959,12 +953,11 @@ func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
 		{name: "success", deviceRepo: testDeviceLookupRepo{}},
 	}
 
+	//nolint:paralleltest // Subtests share global config setup from parent test.
 	for _, tt := range tests {
 		tt := tt
 
 		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-
 			uc := &ComputerSystemUseCase{DeviceRepo: tt.deviceRepo}
 			resp, err := uc.GenerateRedirectionToken(context.Background(), "system-1")
 			assertGenerateTokenResult(t, resp, err, tt.wantErr)
@@ -992,11 +985,9 @@ func assertGenerateTokenResult(t *testing.T, resp *generated.ComputerSystemOemIn
 	}
 }
 
+//nolint:paralleltest // Mutates global config.ConsoleConfig and must run serially.
 func TestGenerateRedirectionToken_ConfigNotInitialized(t *testing.T) {
-	t.Parallel()
-
 	generateRedirectionTokenConfigMu.Lock()
-
 	original := config.ConsoleConfig
 	config.ConsoleConfig = nil
 

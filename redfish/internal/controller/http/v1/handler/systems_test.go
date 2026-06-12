@@ -943,7 +943,7 @@ func TestSystemsHandler_GetSystemsCollection_WithLogger(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	// Verify logger was called
 	assert.Len(t, testLogger.ErrorCalls, 1)
-	assert.Equal(t, "Failed to retrieve computer systems collection", testLogger.ErrorCalls[0][0])
+	assert.Equal(t, "Failed to retrieve computer systems collection: error=%v", testLogger.ErrorCalls[0][0])
 }
 
 // TestSystemsHandler_GetSystemByID_WithLogger tests logging paths
@@ -973,7 +973,7 @@ func TestSystemsHandler_GetSystemByID_WithLogger(t *testing.T) {
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 	// Verify logger was called
 	assert.Len(t, testLogger.ErrorCalls, 1)
-	assert.Equal(t, "Failed to retrieve computer system", testLogger.ErrorCalls[0][0])
+	assert.Equal(t, "Failed to retrieve computer system: systemID=%s error=%v", testLogger.ErrorCalls[0][0])
 }
 
 // createTestSystemEntityDataWithMemory creates a test system entity with MemorySummary

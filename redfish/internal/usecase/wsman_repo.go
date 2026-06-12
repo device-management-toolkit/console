@@ -3,11 +3,14 @@ package usecase
 
 import (
 	"context"
+	"encoding/json"
 	"errors"
 	"fmt"
 	"reflect"
 	"strconv"
 	"strings"
+	"sync"
+	"time"
 
 	amtBoot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
@@ -110,6 +113,14 @@ const (
 
 	// KVM consent code constraints.
 	consentCodeDigits = 6
+
+	// Parallel call and timeout constants for system aggregation.
+	parallelCallCount      = 2
+	wsmanCallTimeout       = 30 * time.Second
+	powerStateCheckTimeout = 5 * time.Second // Best-effort timeout for conflict check
+	enrichmentTimeout      = 5 * time.Second // Best-effort timeout for optional enrichment
+	consoleBudgetMinimum   = 1500 * time.Millisecond
+	controlModeTimeout     = 2 * time.Second
 )
 
 var (
@@ -305,7 +316,9 @@ func (r *WsmanComputerSystemRepo) getCIMProperties(ctx context.Context, systemID
 	// Get hardware info only once to avoid multiple WSMAN calls
 	hwInfo, err := r.usecase.GetHardwareInfo(ctx, systemID)
 	if err != nil {
-		r.log.Error("Failed to get hardware info", "systemID", systemID, "error", err)
+		if !isContextTimeoutOrCancelError(err) {
+			r.log.Error("Failed to get hardware info: systemID=%s error=%v", systemID, err)
+		}
 
 		return results, hwInfo, err
 	}
@@ -877,8 +890,12 @@ func (r *WsmanComputerSystemRepo) GetAll(ctx context.Context) ([]string, error) 
 }
 
 // GetByID retrieves a computer system by its ID from the WSMAN backend.
+//
+//nolint:gocognit,gocyclo,cyclop,funlen // Parallel WSMAN fan-out with partial-response fallback requires branching for resilience.
 func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) (*redfishv1.ComputerSystem, error) {
-	// Verify device exists first
+	startTime := time.Now()
+
+	// Verify device exists first (DB lookup — fast, no WSMAN)
 	device, err := r.usecase.GetByID(ctx, systemID, "", true)
 	if r.isDeviceNotFoundError(err) {
 		return nil, ErrSystemNotFound
@@ -892,43 +909,231 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 		return nil, ErrSystemNotFound
 	}
 
-	// Get power state from devices use case
-	powerState, err := r.usecase.GetPowerState(ctx, systemID)
-	if r.isDeviceNotFoundError(err) {
+	// Bound each WSMAN sub-call to keep end-to-end GET latency below the API deadline.
+	// wsmanCallTimeout allows for connection establishment + WS-MAN operation + network latency.
+
+	var (
+		redfishPowerState = redfishv1.PowerStateOff
+		cimData           map[string]interface{}
+		hwInfo            dto.HardwareInfo
+		powerErr          error
+		cimErr            error
+	)
+
+	var wg sync.WaitGroup
+	wg.Add(parallelCallCount)
+
+	go func() {
+		defer wg.Done()
+
+		powerCtx, powerCancel := context.WithTimeout(ctx, wsmanCallTimeout)
+		defer powerCancel()
+
+		powerState, err := r.usecase.GetPowerState(powerCtx, systemID)
+		if err != nil {
+			powerErr = err
+
+			return
+		}
+
+		redfishPowerState = r.mapCIMPowerStateToRedfish(powerState.PowerState)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		cimCtx, cimCancel := context.WithTimeout(ctx, wsmanCallTimeout)
+		defer cimCancel()
+
+		cimData, hwInfo, cimErr = r.getCIMProperties(cimCtx, systemID, allCIMConfigs)
+	}()
+
+	wg.Wait()
+
+	if r.isDeviceNotFoundError(powerErr) || r.isDeviceNotFoundError(cimErr) {
 		return nil, ErrSystemNotFound
 	}
 
-	if err != nil {
-		return nil, err
+	if powerErr != nil {
+		if !isContextTimeoutOrCancelError(powerErr) {
+			r.log.Warn("Failed to get power state, assuming off: systemID=%s error=%v", systemID, powerErr)
+		}
 	}
 
-	// Map the integer power state to Redfish PowerState
-	redfishPowerState := r.mapCIMPowerStateToRedfish(powerState.PowerState)
+	if cimErr != nil {
+		// Build with empty CIM data to ensure we return a valid ComputerSystem
+		// instead of nil, providing graceful degradation
+		if ctx.Err() == nil && !isContextTimeoutOrCancelError(cimErr) {
+			r.log.Warn("Failed to retrieve CIM properties, building with partial data: systemID=%s error=%v", systemID, cimErr)
+		}
 
-	// Extract CIM data using the global configuration with static transformers
-	cimData, hwInfo, err := r.getCIMProperties(ctx, systemID, allCIMConfigs)
-	if err != nil {
-		return nil, err
+		cimData = make(map[string]interface{})
 	}
 
-	// Build and return the complete ComputerSystem using CIM data and hardware info
+	// Build and return the ComputerSystem using available CIM data and hardware info
+	// If CIM failed, cimData is empty but buildComputerSystemFromCIMData handles this gracefully
 	system := r.buildComputerSystemFromCIMData(systemID, redfishPowerState, cimData, hwInfo)
 
-	// Fetch GraphicalConsole data best-effort, but avoid returning guessed values
-	// when feature retrieval fails.
-	_, featuresV2, err := r.usecase.GetFeatures(ctx, systemID)
-	if err != nil {
-		r.log.Warn("Failed to retrieve KVM features for GraphicalConsole", "systemID", systemID, "error", err)
-
+	// Optional console enrichment should not run if the request is close to timing out.
+	// Check both context deadline and elapsed time to handle cases where handlers don't set deadlines.
+	if !hasSufficientTimeBudget(ctx, consoleBudgetMinimum) || time.Since(startTime)+consoleBudgetMinimum > wsmanCallTimeout {
 		return system, nil
 	}
 
-	controlMode := r.getAMTControlMode(ctx, systemID)
+	var (
+		featuresV2  dtov2.Features
+		featuresErr error
+		controlMode string
+	)
+
+	wg = sync.WaitGroup{}
+	wg.Add(parallelCallCount)
+
+	go func() {
+		defer wg.Done()
+
+		// GetFeatures is optional with cached fallback, use shorter timeout to reduce tail latency
+		featCtx, featCancel := context.WithTimeout(ctx, enrichmentTimeout)
+		defer featCancel()
+
+		_, featuresV2, featuresErr = r.usecase.GetFeatures(featCtx, systemID)
+	}()
+
+	go func() {
+		defer wg.Done()
+
+		modeCtx, modeCancel := context.WithTimeout(ctx, controlModeTimeout)
+		defer modeCancel()
+
+		controlMode = r.getAMTControlMode(modeCtx, systemID)
+	}()
+
+	wg.Wait()
+
+	if featuresErr != nil {
+		// Fall back to DB-persisted features from last sync
+		if cached, ok := getCachedFeaturesFromDevice(device); ok {
+			featuresV2 = cached
+		} else if ctx.Err() == nil && !isContextTimeoutOrCancelError(featuresErr) {
+			r.log.Warn("Failed to retrieve KVM features for GraphicalConsole: systemID=%s error=%v", systemID, featuresErr)
+		}
+	}
+
+	if controlMode == "" {
+		controlMode = getCachedControlModeFromDevice(device)
+	}
 
 	system.GraphicalConsole = r.buildGraphicalConsole(device.UseTLS, featuresV2, controlMode)
 	system.SerialConsole = r.buildSerialConsole(systemID, featuresV2, controlMode)
 
 	return system, nil
+}
+
+func getCachedFeaturesFromDevice(device *dto.Device) (dtov2.Features, bool) {
+	if device == nil || device.DeviceInfo == nil {
+		return dtov2.Features{}, false
+	}
+
+	raw := strings.TrimSpace(device.DeviceInfo.Features)
+	if raw == "" {
+		return dtov2.Features{}, false
+	}
+
+	var rawFeatures map[string]json.RawMessage
+	if err := json.Unmarshal([]byte(raw), &rawFeatures); err != nil {
+		return dtov2.Features{}, false
+	}
+
+	if _, hasLegacyOCR := rawFeatures["ocr"]; hasLegacyOCR {
+		return mapCachedFeaturesV1(raw)
+	}
+
+	if _, hasLegacyHTTPSBoot := rawFeatures["httpsBootSupported"]; hasLegacyHTTPSBoot {
+		if _, hasV2HTTPSBoot := rawFeatures["httpBootSupported"]; !hasV2HTTPSBoot {
+			return mapCachedFeaturesV1(raw)
+		}
+	}
+
+	var featuresV2 dtov2.Features
+	if err := json.Unmarshal([]byte(raw), &featuresV2); err == nil {
+		return featuresV2, true
+	}
+
+	return mapCachedFeaturesV1(raw)
+}
+
+func mapCachedFeaturesV1(raw string) (dtov2.Features, bool) {
+	var featuresV1 dto.Features
+	if err := json.Unmarshal([]byte(raw), &featuresV1); err != nil {
+		return dtov2.Features{}, false
+	}
+
+	featuresV2 := dtov2.Features{
+		UserConsent:           featuresV1.UserConsent,
+		EnableSOL:             featuresV1.EnableSOL,
+		EnableIDER:            featuresV1.EnableIDER,
+		EnableKVM:             featuresV1.EnableKVM,
+		Redirection:           featuresV1.Redirection,
+		OptInState:            featuresV1.OptInState,
+		KVMAvailable:          featuresV1.KVMAvailable,
+		OCR:                   featuresV1.OCR,
+		HTTPSBootSupported:    featuresV1.HTTPSBootSupported,
+		WinREBootSupported:    featuresV1.WinREBootSupported,
+		LocalPBABootSupported: featuresV1.LocalPBABootSupported,
+		RemoteErase:           featuresV1.RemoteErase,
+	}
+
+	return featuresV2, true
+}
+
+func getCachedControlModeFromDevice(device *dto.Device) string {
+	if device == nil || device.DeviceInfo == nil {
+		return ""
+	}
+
+	mode := strings.TrimSpace(device.DeviceInfo.CurrentMode)
+	if mode == "" {
+		return ""
+	}
+
+	if strings.Contains(strings.ToLower(mode), "admin") {
+		return controlModeACM
+	}
+
+	if strings.Contains(strings.ToLower(mode), "client") {
+		return controlModeCCM
+	}
+
+	if strings.EqualFold(mode, controlModeACM) || strings.EqualFold(mode, controlModeCCM) {
+		return strings.ToUpper(mode)
+	}
+
+	return ""
+}
+
+func isContextTimeoutOrCancelError(err error) bool {
+	if err == nil {
+		return false
+	}
+
+	if errors.Is(err, context.DeadlineExceeded) || errors.Is(err, context.Canceled) {
+		return true
+	}
+
+	type timeoutErr interface{ Timeout() bool }
+
+	var te timeoutErr
+
+	return errors.As(err, &te) && te.Timeout()
+}
+
+func hasSufficientTimeBudget(ctx context.Context, minBudget time.Duration) bool {
+	deadline, ok := ctx.Deadline()
+	if !ok {
+		return true
+	}
+
+	return time.Until(deadline) > minBudget
 }
 
 func (r *WsmanComputerSystemRepo) buildGraphicalConsole(useTLS bool, featuresV2 dtov2.Features, controlMode string) *redfishv1.ComputerSystemHostGraphicalConsole {
@@ -1120,7 +1325,11 @@ func determineSOLStatus(enableSOL, solAvailable bool, userConsent string, optInS
 func (r *WsmanComputerSystemRepo) getAMTControlMode(ctx context.Context, systemID string) string {
 	version, _, err := r.usecase.GetVersion(ctx, systemID)
 	if err != nil {
-		r.log.Warn("Failed to retrieve AMT version for control mode", "systemID", systemID, "error", err)
+		if ctx.Err() != nil {
+			return ""
+		}
+
+		r.log.Warn("Failed to retrieve AMT version for control mode: systemID=%s error=%v", systemID, err)
 
 		return ""
 	}
@@ -1262,21 +1471,39 @@ func (r *WsmanComputerSystemRepo) CancelKVMConsent(ctx context.Context, systemID
 	return nil
 }
 
-// UpdatePowerState sends a power action command to the specified system via WSMAN.
-func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID string, resetType redfishv1.PowerState) error {
-	// Get the current power state for logging and validation
-	currentSystem, err := r.GetByID(ctx, systemID)
-	if err != nil {
-		return err
+// isConflictCheckableState returns true for power states that can be conflict-checked.
+func (r *WsmanComputerSystemRepo) isConflictCheckableState(state redfishv1.PowerState) bool {
+	return state == redfishv1.PowerStateOn || state == redfishv1.PowerStateOff || state == redfishv1.ResetTypeForceOff
+}
+
+// normalizeToRequestState converts reset types to comparable power states.
+func (r *WsmanComputerSystemRepo) normalizeToRequestState(state redfishv1.PowerState) redfishv1.PowerState {
+	if state == redfishv1.ResetTypeForceOff {
+		return redfishv1.PowerStateOff
 	}
 
-	// For certain reset types like PowerCycle and ForceRestart, we don't check current state
-	// because they are valid operations regardless of current power state
-	if resetType != redfishv1.ResetTypePowerCycle && resetType != redfishv1.ResetTypeForceRestart {
-		// Check if the requested state matches the current state
-		if currentSystem.PowerState == resetType {
-			return ErrPowerStateConflict
+	return state
+}
+
+// UpdatePowerState sends a power action command to the specified system via WSMAN.
+func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID string, resetType redfishv1.PowerState) error {
+	// For idempotent operations (PowerStateOn/PowerStateOff and ForceOff), do a best-effort conflict check
+	// without calling expensive GetByID. This allows returning 409 Conflict when already in requested state.
+	if r.isConflictCheckableState(resetType) {
+		// Best-effort power state check with short timeout
+		powerCtx, powerCancel := context.WithTimeout(ctx, powerStateCheckTimeout)
+		defer powerCancel()
+
+		powerState, err := r.usecase.GetPowerState(powerCtx, systemID)
+		if err == nil {
+			currentState := r.mapCIMPowerStateToRedfish(powerState.PowerState)
+			requestState := r.normalizeToRequestState(resetType)
+
+			if currentState == requestState {
+				return ErrPowerStateConflict
+			}
 		}
+		// If check fails or times out, proceed with the power action
 	}
 
 	// Map Redfish reset type to WSMAN action
@@ -1303,7 +1530,9 @@ func (r *WsmanComputerSystemRepo) GetBootSettings(ctx context.Context, systemID 
 			return nil, ErrSystemNotFound
 		}
 
-		r.log.Warn("Failed to get boot data from device", "systemID", systemID, "error", err)
+		if ctx.Err() == nil {
+			r.log.Warn("Failed to get boot data from device: systemID=%s error=%v", systemID, err)
+		}
 
 		return nil, ErrBootSettingsNotAvailable
 	}
