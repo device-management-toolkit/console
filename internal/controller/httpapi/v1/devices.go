@@ -207,6 +207,8 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 
 // Keys are lowercased so callers can match against setter maps regardless of
 // client casing (encoding/json unmarshals case-insensitively).
+// Nested objects are flattened with dot notation (for example,
+// "deviceinfo.fwversion") so PATCH handlers can deep-merge object fields.
 func providedJSONFields(c *gin.Context) (map[string]bool, error) {
 	var raw map[string]json.RawMessage
 	if err := c.ShouldBindBodyWithJSON(&raw); err != nil {
@@ -214,11 +216,32 @@ func providedJSONFields(c *gin.Context) (map[string]bool, error) {
 	}
 
 	fields := make(map[string]bool, len(raw))
-	for k := range raw {
-		fields[strings.ToLower(k)] = true
+	for k, v := range raw {
+		key := strings.ToLower(k)
+		fields[key] = true
+		collectNestedJSONFields(key, v, fields, 0)
 	}
 
 	return fields, nil
+}
+
+const maxNestedJSONFieldDepth = 16
+
+func collectNestedJSONFields(prefix string, raw json.RawMessage, fields map[string]bool, depth int) {
+	if depth >= maxNestedJSONFieldDepth {
+		return
+	}
+
+	var obj map[string]json.RawMessage
+	if err := json.Unmarshal(raw, &obj); err != nil {
+		return
+	}
+
+	for k, v := range obj {
+		path := prefix + "." + strings.ToLower(k)
+		fields[path] = true
+		collectNestedJSONFields(path, v, fields, depth+1)
+	}
 }
 
 func (dr *deviceRoutes) update(c *gin.Context) {

@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
@@ -30,7 +31,7 @@ func ciraconfigsTest(t *testing.T) (*mocks.MockCIRAConfigsFeature, *gin.Engine) 
 	engine := gin.New()
 	handler := engine.Group("/api/v1/admin")
 
-	NewCIRAConfigRoutes(handler, ciraconfig, log)
+	NewCIRAConfigRoutes(handler, ciraconfig, log, &config.Config{})
 
 	return ciraconfig, engine
 }
@@ -293,6 +294,46 @@ func TestCIRAConfigRoutes(t *testing.T) {
 				jsonBytes, _ := json.Marshal(tc.response)
 				require.Equal(t, string(jsonBytes), w.Body.String())
 			}
+		})
+	}
+}
+
+func TestCIRAConfigRoutes_DisabledReturns404(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		method string
+		url    string
+	}{
+		{http.MethodGet, "/api/v1/admin/ciraconfigs"},
+		{http.MethodGet, "/api/v1/admin/ciraconfigs/example"},
+		{http.MethodPost, "/api/v1/admin/ciraconfigs"},
+		{http.MethodPatch, "/api/v1/admin/ciraconfigs"},
+		{http.MethodDelete, "/api/v1/admin/ciraconfigs/example"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.method+" "+tc.url, func(t *testing.T) {
+			t.Parallel()
+
+			engine := gin.New()
+			handler := engine.Group("/api/v1/admin")
+
+			// Per-subtest controller/mock so parallel subtests don't share one.
+			// No expectations are set: the guard must reject before the feature is reached.
+			ciraconfig := mocks.NewMockCIRAConfigsFeature(gomock.NewController(t))
+			NewCIRAConfigRoutes(handler, ciraconfig, logger.New("error"), &config.Config{App: config.App{DisableCIRA: true}})
+
+			req, err := http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusNotFound, w.Code)
+			require.JSONEq(t, `{"error":"CIRA is disabled on this instance"}`, w.Body.String())
 		})
 	}
 }

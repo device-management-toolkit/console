@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -37,14 +38,30 @@ type Device struct {
 }
 
 type DeviceInfo struct {
-	FWVersion    string    `json:"fwVersion"`
-	FWBuild      string    `json:"fwBuild"`
-	FWSku        string    `json:"fwSku"`
-	CurrentMode  string    `json:"currentMode"`
-	Features     string    `json:"features"`
-	IPAddress    string    `json:"ipAddress"`
-	LastUpdated  time.Time `json:"lastUpdated"`
-	LMSInstalled *bool     `json:"lmsInstalled,omitempty"`
+	FWVersion            string                     `json:"fwVersion"`
+	FWBuild              string                     `json:"fwBuild"`
+	FWSku                string                     `json:"fwSku"`
+	Discovered           *bool                      `json:"discovered,omitempty"`
+	CurrentMode          string                     `json:"currentMode"`
+	Features             string                     `json:"features"`
+	IPAddress            string                     `json:"ipAddress"`
+	LastUpdated          *time.Time                 `json:"lastUpdated,omitempty"`
+	LMSInstalled         *bool                      `json:"lmsInstalled,omitempty"`
+	LMSVersion           string                     `json:"lmsVersion,omitempty"`
+	TLSMode              string                     `json:"tlsMode,omitempty"`
+	UPID                 map[string]json.RawMessage `json:"upid,omitempty"`
+	AMTEnabledInBIOS     *bool                      `json:"amtEnabledInBIOS,omitempty"`
+	MEInterfaceVersion   string                     `json:"meInterfaceVersion,omitempty"`
+	DHCPEnabled          *bool                      `json:"dhcpEnabled,omitempty"`
+	CertHashes           []string                   `json:"certHashes,omitempty"`
+	OSName               string                     `json:"osName,omitempty"`
+	OSVersion            string                     `json:"osVersion,omitempty"`
+	OSDistro             string                     `json:"osDistro,omitempty"`
+	CPUModel             string                     `json:"cpuModel,omitempty"`
+	OSIPAddress          string                     `json:"osIpAddress,omitempty"`
+	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
+	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
+	IEEE8021XEnabled     *bool                      `json:"ieee8021xEnabled,omitempty"`
 }
 
 type Explorer struct {
