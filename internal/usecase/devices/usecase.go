@@ -35,6 +35,9 @@ const (
 
 	// MinAMTVersion - minimum AMT version required for certain features in power capabilities.
 	MinAMTVersion = 9
+
+	deviceInfoFieldKey    = "deviceinfo"
+	deviceInfoFieldPrefix = deviceInfoFieldKey + "."
 )
 
 // UseCase -.
@@ -156,14 +159,80 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"usetls":           func(dst, src *dto.Device) { dst.UseTLS = src.UseTLS },
 	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
 	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
-	"deviceinfo":       func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+	deviceInfoFieldKey: func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+}
+
+var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
+	"fwversion":            func(dst, src *dto.DeviceInfo) { dst.FWVersion = src.FWVersion },
+	"fwbuild":              func(dst, src *dto.DeviceInfo) { dst.FWBuild = src.FWBuild },
+	"fwsku":                func(dst, src *dto.DeviceInfo) { dst.FWSku = src.FWSku },
+	"currentmode":          func(dst, src *dto.DeviceInfo) { dst.CurrentMode = src.CurrentMode },
+	"features":             func(dst, src *dto.DeviceInfo) { dst.Features = src.Features },
+	"ipaddress":            func(dst, src *dto.DeviceInfo) { dst.IPAddress = src.IPAddress },
+	"lastupdated":          func(dst, src *dto.DeviceInfo) { dst.LastUpdated = src.LastUpdated },
+	"tlsmode":              func(dst, src *dto.DeviceInfo) { dst.TLSMode = src.TLSMode },
+	"upid":                 func(dst, src *dto.DeviceInfo) { dst.UPID = src.UPID },
+	"amtenabledinbios":     func(dst, src *dto.DeviceInfo) { dst.AMTEnabledInBIOS = src.AMTEnabledInBIOS },
+	"meinterfaceversion":   func(dst, src *dto.DeviceInfo) { dst.MEInterfaceVersion = src.MEInterfaceVersion },
+	"dhcpenabled":          func(dst, src *dto.DeviceInfo) { dst.DHCPEnabled = src.DHCPEnabled },
+	"certhashes":           func(dst, src *dto.DeviceInfo) { dst.CertHashes = src.CertHashes },
+	"lmsinstalled":         func(dst, src *dto.DeviceInfo) { dst.LMSInstalled = src.LMSInstalled },
+	"lmsversion":           func(dst, src *dto.DeviceInfo) { dst.LMSVersion = src.LMSVersion },
+	"osname":               func(dst, src *dto.DeviceInfo) { dst.OSName = src.OSName },
+	"osversion":            func(dst, src *dto.DeviceInfo) { dst.OSVersion = src.OSVersion },
+	"osdistro":             func(dst, src *dto.DeviceInfo) { dst.OSDistro = src.OSDistro },
+	"cpumodel":             func(dst, src *dto.DeviceInfo) { dst.CPUModel = src.CPUModel },
+	"osipaddress":          func(dst, src *dto.DeviceInfo) { dst.OSIPAddress = src.OSIPAddress },
+	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
+	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
+	"ieee8021xenabled":     func(dst, src *dto.DeviceInfo) { dst.IEEE8021XEnabled = src.IEEE8021XEnabled },
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
 	for key := range fields {
+		if key == deviceInfoFieldKey || strings.HasPrefix(key, deviceInfoFieldPrefix) {
+			continue
+		}
+
 		if apply, ok := deviceFieldSetters[key]; ok {
 			apply(dst, src)
 		}
+	}
+
+	if fields[deviceInfoFieldKey] {
+		mergeDeviceInfo(dst, src, fields)
+	}
+}
+
+func mergeDeviceInfo(dst, src *dto.Device, fields map[string]bool) {
+	if src.DeviceInfo == nil {
+		dst.DeviceInfo = nil
+
+		return
+	}
+
+	hasNestedFields := false
+
+	if dst.DeviceInfo == nil {
+		dst.DeviceInfo = &dto.DeviceInfo{}
+	}
+
+	for key := range fields {
+		if !strings.HasPrefix(key, deviceInfoFieldPrefix) {
+			continue
+		}
+
+		hasNestedFields = true
+
+		subfield := strings.TrimPrefix(key, deviceInfoFieldPrefix)
+		if apply, ok := deviceInfoFieldSetters[subfield]; ok {
+			apply(dst.DeviceInfo, src.DeviceInfo)
+		}
+	}
+
+	if !hasNestedFields {
+		// Backward compatibility for callers that only send top-level field maps.
+		dst.DeviceInfo = src.DeviceInfo
 	}
 }
 
