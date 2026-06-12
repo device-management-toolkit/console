@@ -442,6 +442,170 @@ func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
+	t.Parallel()
+
+	guid := testDeviceGUID
+
+	incoming := &dto.Device{
+		GUID: guid,
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion: "16.1.30",
+		},
+	}
+
+	expectedFields := map[string]bool{
+		"guid":                 true,
+		"deviceinfo":           true,
+		"deviceinfo.fwversion": true,
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"guid":"` + guid + `","deviceInfo":{"fwVersion":"16.1.30"}}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCollectNestedJSONFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collects nested keys", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30","upid":{"csmeId":"x"}}`), fields, 0)
+
+		require.True(t, fields["deviceinfo.fwversion"])
+		require.True(t, fields["deviceinfo.upid"])
+		require.True(t, fields["deviceinfo.upid.csmeid"])
+	})
+
+	t.Run("stops at max depth", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30"}`), fields, maxNestedJSONFieldDepth)
+
+		require.Empty(t, fields)
+	})
+
+	t.Run("ignores non-object payload", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`"not-an-object"`), fields, 0)
+
+		require.Empty(t, fields)
+	})
+}
+
+func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
+	t.Parallel()
+
+	lmsInstalled := false
+	amtEnabledInBIOS := true
+	dhcpEnabled := true
+	ethernetAdapterCount := 2
+	monitorConnected := true
+	ieee8021xEnabled := false
+
+	incoming := &dto.Device{
+		GUID:     testDeviceGUID,
+		Hostname: "test-device",
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:   "16.1.30",
+			FWBuild:     "3400",
+			FWSku:       "11",
+			CurrentMode: "Admin",
+			Features:    "SOL,IDER,KVM",
+			IPAddress:   "10.0.0.12",
+			LastUpdated: &timeNow,
+			TLSMode:     "TLS 1.2",
+			UPID: map[string]json.RawMessage{
+				"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
+				"oemId":             json.RawMessage(`""`),
+				"csmeId":            json.RawMessage(`"4A45A39C5ED9462082510000"`),
+			},
+			AMTEnabledInBIOS:     &amtEnabledInBIOS,
+			MEInterfaceVersion:   "16.1.25.2124",
+			DHCPEnabled:          &dhcpEnabled,
+			CertHashes:           []string{"a1b2c3", "d4e5f6"},
+			LMSInstalled:         &lmsInstalled,
+			LMSVersion:           "2410.5.0.0",
+			OSName:               "linux",
+			OSVersion:            "6.8.0-51-generic",
+			OSDistro:             "Ubuntu 24.04 LTS",
+			CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
+			OSIPAddress:          "10.49.76.163",
+			EthernetAdapterCount: &ethernetAdapterCount,
+			MonitorConnected:     &monitorConnected,
+			IEEE8021XEnabled:     &ieee8021xEnabled,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Insert(context.Background(), incoming).
+		Return(incoming, nil)
+
+	body := []byte(`{
+		"guid":"` + testDeviceGUID + `",
+		"hostname":"test-device",
+		"deviceInfo":{
+			"fwVersion":"16.1.30",
+			"fwBuild":"3400",
+			"fwSku":"11",
+			"currentMode":"Admin",
+			"features":"SOL,IDER,KVM",
+			"ipAddress":"10.0.0.12",
+			"lastUpdated":"` + timeNow.Format(time.RFC3339Nano) + `",
+			"tlsMode":"TLS 1.2",
+			"upid":{
+				"oemPlatformIdType":"Not Set (0)",
+				"oemId":"",
+				"csmeId":"4A45A39C5ED9462082510000"
+			},
+			"amtEnabledInBIOS":true,
+			"meInterfaceVersion":"16.1.25.2124",
+			"dhcpEnabled":true,
+			"certHashes":["a1b2c3","d4e5f6"],
+			"lmsInstalled":false,
+			"lmsVersion":"2410.5.0.0",
+			"osName":"linux",
+			"osVersion":"6.8.0-51-generic",
+			"osDistro":"Ubuntu 24.04 LTS",
+			"cpuModel":"Intel(R) Core(TM) Ultra 7 165H",
+			"osIpAddress":"10.49.76.163",
+			"ethernetAdapterCount":2,
+			"monitorConnected":true,
+			"ieee8021xEnabled":false
+		}
+	}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	expected, _ := json.Marshal(incoming)
+	require.Equal(t, string(expected), w.Body.String())
+}
+
 // TestLoginRedirection verifies the device redirection token endpoint
 func TestLoginRedirection(t *testing.T) {
 	t.Parallel()
