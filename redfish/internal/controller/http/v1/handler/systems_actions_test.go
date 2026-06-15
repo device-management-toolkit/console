@@ -1247,12 +1247,9 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmit
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_InvalidConsentCode(t *testing.T) {
 	t.Parallel()
 
-	repo := &TestSystemsComputerSystemRepository{
-		systems: map[string]*redfishv1.ComputerSystem{
-			testSystemID: {},
-		},
-		submitSolConsentCodeErr: usecase.ErrInvalidConsentCode,
-	}
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+
 	server := setupSystemActionsTestServer(repo)
 
 	body := []byte(`{"ConsentCode": "12345"}`)

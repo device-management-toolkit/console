@@ -1287,7 +1287,7 @@ func determineSOLUserConsentStatus(userConsent string, optInState int, controlMo
 }
 
 // isSOLConsentRequired checks if SOL user consent is required.
-// In CCM mode, consent is always required. In ACM mode, it's only required if userConsent is "sol" or "all".
+// In CCM mode, consent is always required. Otherwise, it's only required if userConsent is "sol" or "all".
 func isSOLConsentRequired(userConsent, controlMode string) bool {
 	consentMode := strings.ToLower(strings.TrimSpace(userConsent))
 	normalizedControlMode := strings.TrimSpace(controlMode)

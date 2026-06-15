@@ -570,7 +570,7 @@ func (r *MockComputerSystemRepo) SubmitSolConsentCode(_ context.Context, systemI
 }
 
 // CancelSolConsent cancels a mock SOL consent flow for an existing system,
-// resetting the consent state back to "Required".
+// resetting the opt-in state back to "NotStarted".
 func (r *MockComputerSystemRepo) CancelSolConsent(_ context.Context, systemID string) error {
 	if _, exists := r.systems[systemID]; !exists {
 		return usecase.ErrSystemNotFound

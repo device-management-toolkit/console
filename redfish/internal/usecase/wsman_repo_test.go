@@ -1533,6 +1533,17 @@ func TestBuildSerialConsole(t *testing.T) {
 			wantControlMode:       controlModeCCM,
 			wantUserConsentStatus: userConsentGranted,
 		},
+		{
+			name:                  "ACM with no consent but in session - active",
+			systemID:              "system-1",
+			features:              dtov2.Features{EnableSOL: true, Redirection: true, UserConsent: "none", OptInState: int(optin.InSession)},
+			controlMode:           controlModeACM,
+			wantEnabled:           true,
+			wantURI:               "/relay/webrelay.ashx?host=system-1&mode=sol",
+			wantSOLStatus:         solStatusActive,
+			wantControlMode:       controlModeACM,
+			wantUserConsentStatus: userConsentNotRequired,
+		},
 	}
 
 	for _, tt := range tests {
