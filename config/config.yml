@@ -39,7 +39,7 @@ auth:
   disabled: false
   adminUsername: standalone
   adminPassword: 
-  jwtKey: your_secret_jwt_key
+  jwtKey: 
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
   clientId: ""

@@ -1,11 +1,15 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/hex"
 	"errors"
 	"flag"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -17,7 +21,15 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
-const defaultHost = "localhost"
+const (
+	defaultHost                 = "localhost"
+	hs256RecommendedMinKeyBytes = 32
+)
+
+// ErrEmptyJWTKeyEnv is returned when AUTH_JWT_KEY is set in the environment but
+// has an empty or whitespace-only value. Operators must either provide a non-empty
+// key or leave the variable unset so Console can auto-generate one.
+var ErrEmptyJWTKeyEnv = errors.New("AUTH_JWT_KEY is set but empty; provide a non-empty key or unset the variable to auto-generate")
 
 type (
 	// Config -.
@@ -94,7 +106,7 @@ type (
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -187,7 +199,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "", // Generated and stored in config on first run if not provided
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			// OAUTH CONFIG, if provided will not use basic auth
@@ -236,15 +248,40 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 func readOrInitConfig(configPath string, cfg *Config) error {
 	err := cleanenv.ReadConfig(configPath, cfg)
 	if err == nil {
-		return nil
+		if cfg.JWTKey != "" {
+			return nil
+		}
+
+		if hasNonEmptyJWTKeyEnv() {
+			return nil
+		}
+
+		jwtKey, genErr := generateAndSetJWTKey(cfg)
+		if genErr != nil {
+			return genErr
+		}
+
+		return saveJWTKey(configPath, jwtKey)
 	}
 
 	var pathErr *os.PathError
 	if errors.As(err, &pathErr) {
+		if !hasNonEmptyJWTKeyEnv() {
+			if _, genErr := generateAndSetJWTKey(cfg); genErr != nil {
+				return genErr
+			}
+		}
+
 		return writeConfig(configPath, cfg)
 	}
 
 	return err
+}
+
+func hasNonEmptyJWTKeyEnv() bool {
+	jwtKeyEnv, isSetByEnv := os.LookupEnv("AUTH_JWT_KEY")
+
+	return isSetByEnv && strings.TrimSpace(jwtKeyEnv) != ""
 }
 
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
@@ -296,6 +333,69 @@ func SaveAdminPassword(adminPassword string) error {
 	return writeConfig(configPath, fileCfg)
 }
 
+func saveJWTKey(configPath, jwtKey string) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	fileCfg := defaultConfig()
+	if err := yaml.Unmarshal(data, fileCfg); err != nil {
+		return err
+	}
+
+	fileCfg.JWTKey = jwtKey
+
+	return writeConfig(configPath, fileCfg)
+}
+
+func generateJWTKey() (string, error) {
+	b := make([]byte, hs256RecommendedMinKeyBytes)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return hex.EncodeToString(b), nil
+}
+
+func generateAndSetJWTKey(cfg *Config) (string, error) {
+	jwtKey, err := generateJWTKey()
+	if err != nil {
+		return "", err
+	}
+
+	cfg.JWTKey = jwtKey
+
+	return jwtKey, nil
+}
+
+func warnIfWeakJWTKey(cfg *Config) {
+	keyLen := len([]byte(cfg.JWTKey))
+	if keyLen < hs256RecommendedMinKeyBytes {
+		log.Printf("WARNING: auth.jwtKey looks too short (%d bytes). Please use at least %d bytes for a strong key.", keyLen, hs256RecommendedMinKeyBytes)
+	}
+}
+
+func ensureJWTKeyNotEmpty(cfg *Config, configPath string) error {
+	if strings.TrimSpace(cfg.JWTKey) != "" {
+		return nil
+	}
+
+	// If AUTH_JWT_KEY is explicitly set in the environment but empty, fail fast.
+	// Operators who opt in to env-driven config must supply a valid value.
+	jwtKeyEnv, isSetByEnv := os.LookupEnv("AUTH_JWT_KEY")
+	if isSetByEnv && strings.TrimSpace(jwtKeyEnv) == "" {
+		return ErrEmptyJWTKeyEnv
+	}
+
+	jwtKey, err := generateAndSetJWTKey(cfg)
+	if err != nil {
+		return err
+	}
+
+	return saveJWTKey(configPath, jwtKey)
+}
+
 // NewConfig returns app config.
 func NewConfig() (*Config, error) {
 	// set defaults
@@ -328,6 +428,12 @@ func NewConfig() (*Config, error) {
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
 		return nil, err
 	}
+
+	if err := ensureJWTKeyNotEmpty(ConsoleConfig, configPath); err != nil {
+		return nil, err
+	}
+
+	warnIfWeakJWTKey(ConsoleConfig)
 
 	return ConsoleConfig, nil
 }
