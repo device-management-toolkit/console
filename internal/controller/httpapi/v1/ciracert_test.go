@@ -11,6 +11,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -32,7 +33,7 @@ func ciraCertTestWithReader(t *testing.T, reader CertReader) *gin.Engine {
 	engine := gin.New()
 	handler := engine.Group("/api/v1/admin")
 
-	NewCIRACertRoutesWithReader(handler, log, reader)
+	NewCIRACertRoutesWithReader(handler, log, reader, &config.Config{})
 
 	return engine
 }
@@ -231,6 +232,28 @@ func TestCIRACertRoutes_ReadError(t *testing.T) {
 
 	require.Equal(t, http.StatusInternalServerError, w.Code)
 	require.Contains(t, w.Body.String(), "Failed to read certificate file")
+}
+
+func TestCIRACertRoutes_DisabledReturns404(t *testing.T) {
+	t.Parallel()
+
+	log := logger.New("error")
+
+	engine := gin.New()
+	handler := engine.Group("/api/v1/admin")
+
+	// Reader errors if reached — the guard must reject first.
+	reader := &mockCertReader{data: nil, err: errors.New("should not be read")}
+	NewCIRACertRoutesWithReader(handler, log, reader, &config.Config{App: config.App{DisableCIRA: true}})
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/admin/ciracert", http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.JSONEq(t, `{"error":"CIRA is disabled on this instance"}`, w.Body.String())
 }
 
 // TestCIRACertRoutes_Coverage ensures all code paths are tested.

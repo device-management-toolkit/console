@@ -52,6 +52,8 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.POST("userConsentCode/:guid", r.sendConsentCode)
 
 		h.GET("networkSettings/:guid", r.getNetworkSettings)
+		h.GET("networkSettings/wired/:guid", r.getWiredNetworkSettings)
+		h.PATCH("networkSettings/wired/:guid", r.patchWiredNetworkSettings)
 		h.GET("networkSettings/wireless/state/:guid", r.getWirelessState)
 		h.POST("networkSettings/wireless/state/:guid", r.requestWirelessStateChange)
 		h.GET("networkSettings/wireless/profile/:guid", r.getWirelessProfiles)

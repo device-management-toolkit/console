@@ -301,6 +301,73 @@ func TestDeviceManagement(t *testing.T) {
 			response:     dto.NetworkSettings{},
 		},
 		{
+			name:   "getNetworkSettings - failed retrieval",
+			url:    "/api/v1/amt/networkSettings/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetNetworkSettings(context.Background(), "valid-guid").
+					Return(dto.NetworkSettings{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:   "getWiredNetworkSettings - successful retrieval",
+			url:    "/api/v1/amt/networkSettings/wired/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetWiredNetworkSettings(context.Background(), "valid-guid").
+					Return(dto.WiredNetworkInfo{}, nil)
+			},
+			expectedCode: http.StatusOK,
+			response:     dto.WiredNetworkInfo{},
+		},
+		{
+			name:   "getWiredNetworkSettings - failed retrieval",
+			url:    "/api/v1/amt/networkSettings/wired/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetWiredNetworkSettings(context.Background(), "valid-guid").
+					Return(dto.WiredNetworkInfo{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
+			name:        "patchWiredNetworkSettings - successful update",
+			url:         "/api/v1/amt/networkSettings/wired/valid-guid",
+			method:      http.MethodPatch,
+			requestBody: map[string]interface{}{"dhcpEnabled": true},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().PatchWiredNetworkSettings(context.Background(), "valid-guid", gomock.Any()).
+					Return(nil)
+			},
+			expectedCode: http.StatusNoContent,
+			response:     nil,
+		},
+		{
+			name:        "patchWiredNetworkSettings - use case error",
+			url:         "/api/v1/amt/networkSettings/wired/valid-guid",
+			method:      http.MethodPatch,
+			requestBody: map[string]interface{}{"dhcpEnabled": true},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				validationErr := dto.NotValidError{Console: consoleerrors.CreateConsoleError("PatchWiredNetworkSettings")}
+				m.EXPECT().PatchWiredNetworkSettings(context.Background(), "valid-guid", gomock.Any()).
+					Return(validationErr)
+			},
+			expectedCode: http.StatusBadRequest,
+			response:     nil,
+		},
+		{
+			name:         "patchWiredNetworkSettings - binding error",
+			url:          "/api/v1/amt/networkSettings/wired/valid-guid",
+			method:       http.MethodPatch,
+			requestBody:  map[string]interface{}{"dhcpEnabled": "not-a-bool"},
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			expectedCode: http.StatusInternalServerError,
+			response:     nil,
+		},
+		{
 			name:   "getCertificates - successful retrieval",
 			url:    "/api/v1/amt/certificates/valid-guid",
 			method: http.MethodGet,

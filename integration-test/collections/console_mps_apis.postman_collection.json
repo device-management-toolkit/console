@@ -8,6 +8,51 @@
 	},
 	"item": [
 		{
+			"name": "Server",
+			"item": [
+				{
+					"name": "Get Server Features",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response contains ciraEnabled boolean\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property(\"ciraEnabled\");\r",
+									"    pm.expect(jsonData.ciraEnabled).to.be.a(\"boolean\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/server/features",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"server",
+								"features"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "AMT",
 			"item": [
 				{
@@ -818,6 +863,101 @@
 					"response": []
 				},
 				{
+					"name": "Get Wired Network Settings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wired",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Wired Network Settings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"dhcpEnabled\": false,\r\n    \"ipAddress\": \"192.168.1.50\",\r\n    \"subnetMask\": \"255.255.255.0\",\r\n    \"defaultGateway\": \"192.168.1.1\",\r\n    \"primaryDNS\": \"192.168.1.1\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wired",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Get Wireless State",
 					"event": [
 						{
@@ -1396,7 +1536,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyName\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [],\r\n    \"mpsusername\": \"admin\"\r\n}",
+							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyName\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [],\r\n    \"mpsusername\": \"admin\",\r\n    \"deviceInfo\": {\r\n        \"fwVersion\": \"16.1.30\",\r\n        \"fwBuild\": \"3400\",\r\n        \"fwSku\": \"11\",\r\n        \"discovered\": true,\r\n        \"currentMode\": \"Admin\",\r\n        \"features\": \"SOL,IDER,KVM\",\r\n        \"ipAddress\": \"10.0.0.12\",\r\n        \"lastUpdated\": \"2026-05-21T00:00:00Z\",\r\n        \"tlsMode\": \"TLS 1.2\",\r\n        \"upid\": {\r\n            \"oemPlatformIdType\": \"Not Set (0)\",\r\n            \"oemId\": \"\",\r\n            \"csmeId\": \"4A45A39C5ED9462082510000\"\r\n        },\r\n        \"amtEnabledInBIOS\": true,\r\n        \"meInterfaceVersion\": \"16.1.25.2124\",\r\n        \"dhcpEnabled\": true,\r\n        \"certHashes\": [\r\n            \"a1b2c3\",\r\n            \"d4e5f6\"\r\n        ],\r\n        \"lmsInstalled\": true,\r\n        \"lmsVersion\": \"2410.5.0.0\",\r\n        \"osName\": \"linux\",\r\n        \"osVersion\": \"6.8.0-51-generic\",\r\n        \"osDistro\": \"Ubuntu 24.04 LTS\",\r\n        \"cpuModel\": \"Intel(R) Core(TM) Ultra 7 165H\",\r\n        \"osIpAddress\": \"10.49.76.163\",\r\n        \"ethernetAdapterCount\": 2,\r\n        \"monitorConnected\": true,\r\n        \"ieee8021xEnabled\": false\r\n    }\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"

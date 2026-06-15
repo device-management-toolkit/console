@@ -1,6 +1,7 @@
 package openapi
 
 import (
+	"encoding/json"
 	"net/http"
 	"time"
 
@@ -157,6 +158,7 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			Password:         "password1",
 			ConnectionStatus: true,
 			Hostname:         exampleDeviceHost,
+			DeviceInfo:       exampleDeviceInfo(),
 		},
 		{
 			GUID:             "example-guid-2",
@@ -165,6 +167,7 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			Password:         "password2",
 			ConnectionStatus: false,
 			Hostname:         "device2.example.com",
+			DeviceInfo:       exampleDeviceInfo(),
 		},
 	}
 
@@ -231,7 +234,44 @@ func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) 
 		Password:         "password1",
 		ConnectionStatus: true,
 		Hostname:         exampleDeviceHost,
+		DeviceInfo:       exampleDeviceInfo(),
 	}, nil
+}
+
+func exampleDeviceInfo() *dto.DeviceInfo {
+	lastUpdated := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
+	lmsInstalled := true
+	amtEnabledInBIOS := true
+	dhcpEnabled := true
+	ethernetAdapterCount := 2
+	monitorConnected := true
+	ieee8021xEnabled := false
+
+	return &dto.DeviceInfo{
+		FWVersion:            "16.1.30",
+		FWBuild:              "3400",
+		FWSku:                "11",
+		CurrentMode:          "Admin",
+		Features:             "SOL,IDER,KVM",
+		IPAddress:            "10.0.0.12",
+		LastUpdated:          &lastUpdated,
+		LMSInstalled:         &lmsInstalled,
+		LMSVersion:           "2410.5.0.0",
+		TLSMode:              "TLS 1.2",
+		UPID:                 map[string]json.RawMessage{"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`), "oemId": json.RawMessage(`""`), "csmeId": json.RawMessage(`"4A45A39C5ED9462082510000"`)},
+		AMTEnabledInBIOS:     &amtEnabledInBIOS,
+		MEInterfaceVersion:   "16.1.25.2124",
+		DHCPEnabled:          &dhcpEnabled,
+		CertHashes:           []string{"a1b2c3", "d4e5f6"},
+		OSName:               "linux",
+		OSVersion:            "6.8.0-51-generic",
+		OSDistro:             "Ubuntu 24.04 LTS",
+		CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
+		OSIPAddress:          "10.49.76.163",
+		EthernetAdapterCount: &ethernetAdapterCount,
+		MonitorConnected:     &monitorConnected,
+		IEEE8021XEnabled:     &ieee8021xEnabled,
+	}
 }
 
 func (f *FuegoAdapter) getTags(_ fuego.ContextNoBody) ([]string, error) {

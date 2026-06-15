@@ -7,6 +7,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
@@ -63,6 +64,8 @@ type Management interface {
 	GetAuditLog(startIndex int) (auditlog.Response, error)
 	GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error)
 	GetNetworkSettings() (NetworkResults, error)
+	GetEthernetPortSettings() ([]ethernetport.SettingsResponse, error)
+	PutEthernetPortSettings(ethernetPortSettings ethernetport.SettingsRequest, instanceID string) (ethernetport.Response, error)
 	GetWiFiSettings() ([]wifi.WiFiEndpointSettingsResponse, error)
 	GetCIMIEEE8021xSettings() (cimIEEE8021x.Response, error)
 	DeleteWiFiSetting(instanceID string) error

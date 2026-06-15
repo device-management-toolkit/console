@@ -13,7 +13,8 @@ import (
 func (f *FuegoAdapter) RegisterDeviceManagementRoutes() {
 	f.registerKVMAndCertificateRoutes()
 	f.registerExplorerRoutes()
-	f.registerNetworkAndFeatureRoutes()
+	f.registerNetworkRoutes()
+	f.registerFeatureRoutes()
 	f.registerUserConsentRoutes()
 	f.registerPowerRoutes()
 	f.registerLogsAndAlarmRoutes()
@@ -85,7 +86,7 @@ func (f *FuegoAdapter) registerExplorerRoutes() {
 	)
 }
 
-func (f *FuegoAdapter) registerNetworkAndFeatureRoutes() {
+func (f *FuegoAdapter) registerNetworkRoutes() {
 	// TLS settings
 	fuego.Get(f.server, "/api/v1/amt/tls/{guid}", f.getTLSSettingData,
 		fuego.OptionTags("Device Management"),
@@ -101,6 +102,23 @@ func (f *FuegoAdapter) registerNetworkAndFeatureRoutes() {
 		fuego.OptionSummary("Get Network Settings"),
 		fuego.OptionDescription("Retrieve network settings for a device"),
 		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Get(f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.getWiredNetworkSettings,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Wired Network Settings"),
+		fuego.OptionDescription("Retrieve the wired network settings for a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Patch(f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.patchWiredNetworkSettings,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Update Wired Network Settings"),
+		fuego.OptionDescription("Update the wired IPv4 configuration (DHCP or static IP) for a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
 	)
 
@@ -163,7 +181,9 @@ func (f *FuegoAdapter) registerNetworkAndFeatureRoutes() {
 		fuego.OptionPath("guid", "Device GUID"),
 		protectedRouteOptions(),
 	)
+}
 
+func (f *FuegoAdapter) registerFeatureRoutes() {
 	// Features
 	fuego.Get(f.server, "/api/v1/amt/features/{guid}", f.getFeatures,
 		fuego.OptionTags("Device Management"),
@@ -450,6 +470,19 @@ func (f *FuegoAdapter) getTLSSettingData(_ fuego.ContextNoBody) ([]dto.SettingDa
 
 func (f *FuegoAdapter) getNetworkSettings(_ fuego.ContextNoBody) (dto.NetworkSettings, error) {
 	return dto.NetworkSettings{}, nil
+}
+
+func (f *FuegoAdapter) getWiredNetworkSettings(_ fuego.ContextNoBody) (dto.WiredNetworkInfo, error) {
+	return dto.WiredNetworkInfo{}, nil
+}
+
+func (f *FuegoAdapter) patchWiredNetworkSettings(c fuego.ContextWithBody[dto.WiredNetworkConfigRequest]) (NoContentResponse, error) {
+	_, err := c.Body()
+	if err != nil {
+		return NoContentResponse{}, err
+	}
+
+	return NoContentResponse{}, nil
 }
 
 func (f *FuegoAdapter) getWirelessState(_ fuego.ContextNoBody) (dto.WirelessStateResponse, error) {

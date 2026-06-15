@@ -69,13 +69,14 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v1.NewDeviceRoutes(h2, t.Devices, l)
 		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, t.Exporter, l)
-		v1.NewCIRACertRoutes(h2, l)
+		v1.NewCIRACertRoutes(h2, l, cfg)
+		v1.NewServerRoutes(h2, cfg)
 	}
 
 	h := protected.Group("/v1/admin")
 	{
 		v1.NewDomainRoutes(h, t.Domains, l)
-		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l)
+		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l, cfg)
 		v1.NewProfileRoutes(h, t.Profiles, l)
 		v1.NewWirelessConfigRoutes(h, t.WirelessProfiles, l)
 		v1.NewIEEE8021xConfigRoutes(h, t.IEEE8021xProfiles, l)
