@@ -79,6 +79,18 @@ func (r *graphicalConsoleTestRepo) CancelKVMConsent(_ context.Context, _ string)
 	return r.ccErr
 }
 
+func (r *graphicalConsoleTestRepo) RequestSolConsent(_ context.Context, _ string) error {
+	return r.ccErr
+}
+
+func (r *graphicalConsoleTestRepo) SubmitSolConsentCode(_ context.Context, _, _ string) error {
+	return r.ccErr
+}
+
+func (r *graphicalConsoleTestRepo) CancelSolConsent(_ context.Context, _ string) error {
+	return r.ccErr
+}
+
 func TestConvertGraphicalConsoleToGeneratedNil(t *testing.T) {
 	t.Parallel()
 
@@ -735,6 +747,96 @@ func TestCancelKVMConsent(t *testing.T) {
 	}
 }
 
+func TestRequestSolConsent(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "success"},
+		{name: "repo error", repoErr: errAMT, wantErr: errAMT},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{ccErr: tt.repoErr}}
+
+			err := uc.RequestSolConsent(context.Background(), "system-1")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("RequestSolConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestSubmitSolConsentCode(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "success"},
+		{name: "repo error", repoErr: errAMT, wantErr: errAMT},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{ccErr: tt.repoErr}}
+
+			err := uc.SubmitSolConsentCode(context.Background(), "system-1", "123456")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("SubmitSolConsentCode() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
+func TestCancelSolConsent(t *testing.T) {
+	t.Parallel()
+
+	errAMT := errors.New("amt refused")
+
+	tests := []struct {
+		name    string
+		repoErr error
+		wantErr error
+	}{
+		{name: "success"},
+		{name: "repo error", repoErr: errAMT, wantErr: errAMT},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			uc := &ComputerSystemUseCase{Repo: &graphicalConsoleTestRepo{ccErr: tt.repoErr}}
+
+			err := uc.CancelSolConsent(context.Background(), "system-1")
+			if !errors.Is(err, tt.wantErr) {
+				t.Fatalf("CancelSolConsent() error = %v, wantErr %v", err, tt.wantErr)
+			}
+		})
+	}
+}
+
 func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
 	t.Parallel()
 
@@ -760,29 +862,7 @@ func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
 		t.Fatal("expected Actions to be present")
 	}
 
-	if result.Actions.HashComputerSystemReset == nil {
-		t.Fatal("expected #ComputerSystem.Reset action to be present")
-	}
-
-	if result.Actions.Oem == nil {
-		t.Fatal("expected OEM actions to be present")
-	}
-
-	if result.Actions.Oem.HashOemIntelAMTGenerateRedirectionToken == nil {
-		t.Fatal("expected #Oem.Intel.AMT.GenerateRedirectionToken action to be present")
-	}
-
-	if result.Actions.Oem.HashOemIntelAMTRequestKVMConsent == nil {
-		t.Fatal("expected #Oem.Intel.AMT.RequestKVMConsent action to be present")
-	}
-
-	if result.Actions.Oem.HashOemIntelAMTSubmitKVMConsentCode == nil {
-		t.Fatal("expected #Oem.Intel.AMT.SubmitKVMConsentCode action to be present")
-	}
-
-	if result.Actions.Oem.HashOemIntelAMTCancelKVMConsent == nil {
-		t.Fatal("expected #Oem.Intel.AMT.CancelKVMConsent action to be present")
-	}
+	assertRequiredOemActions(t, result.Actions)
 
 	action := result.Actions.Oem.HashOemIntelAMTGenerateRedirectionToken
 	expectedTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.GenerateRedirectionToken"
@@ -807,6 +887,59 @@ func TestGetComputerSystemIncludesGenerateRedirectionTokenAction(t *testing.T) {
 	assertActionTarget(t, "request", requestAction.Target, requestTarget)
 	assertActionTarget(t, "submit", submitAction.Target, submitTarget)
 	assertActionTarget(t, "cancel", cancelAction.Target, cancelTarget)
+
+	requestSolAction := result.Actions.Oem.HashOemIntelAMTRequestSolConsent
+	requestSolTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.RequestSolConsent"
+
+	submitSolAction := result.Actions.Oem.HashOemIntelAMTSubmitSolConsentCode
+	submitSolTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode"
+
+	cancelSolAction := result.Actions.Oem.HashOemIntelAMTCancelSolConsent
+	cancelSolTarget := "/redfish/v1/Systems/system-1/Actions/Oem/IntelComputerSystem.CancelSolConsent"
+
+	assertActionTarget(t, "sol-request", requestSolAction.Target, requestSolTarget)
+	assertActionTarget(t, "sol-submit", submitSolAction.Target, submitSolTarget)
+	assertActionTarget(t, "sol-cancel", cancelSolAction.Target, cancelSolTarget)
+}
+
+func assertRequiredOemActions(t *testing.T, actions *generated.ComputerSystemActions) {
+	t.Helper()
+
+	if actions.HashComputerSystemReset == nil {
+		t.Fatal("expected #ComputerSystem.Reset action to be present")
+	}
+
+	if actions.Oem == nil {
+		t.Fatal("expected OEM actions to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTGenerateRedirectionToken == nil {
+		t.Fatal("expected #Oem.Intel.AMT.GenerateRedirectionToken action to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTRequestKVMConsent == nil {
+		t.Fatal("expected #Oem.Intel.AMT.RequestKVMConsent action to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTSubmitKVMConsentCode == nil {
+		t.Fatal("expected #Oem.Intel.AMT.SubmitKVMConsentCode action to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTCancelKVMConsent == nil {
+		t.Fatal("expected #Oem.Intel.AMT.CancelKVMConsent action to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTRequestSolConsent == nil {
+		t.Fatal("expected #Oem.Intel.AMT.RequestSolConsent action to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTSubmitSolConsentCode == nil {
+		t.Fatal("expected #Oem.Intel.AMT.SubmitSolConsentCode action to be present")
+	}
+
+	if actions.Oem.HashOemIntelAMTCancelSolConsent == nil {
+		t.Fatal("expected #Oem.Intel.AMT.CancelSolConsent action to be present")
+	}
 }
 
 func assertActionTarget(t *testing.T, actionName string, got *string, want string) {

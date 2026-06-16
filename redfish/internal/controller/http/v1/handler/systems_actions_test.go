@@ -59,6 +59,9 @@ const (
 	requestKVMConsentEndpoint   = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.RequestKVMConsent"
 	submitKVMConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.SubmitKVMConsentCode"
 	cancelKVMConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.CancelKVMConsent"
+	requestSolConsentEndpoint   = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.RequestSolConsent"
+	submitSolConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode"
+	cancelSolConsentEndpoint    = "/redfish/v1/Systems/550e8400-e29b-41d4-a716-446655440001/Actions/Oem/IntelComputerSystem.CancelSolConsent"
 	taskServiceEndpoint         = "/redfish/v1/TaskService/Tasks/"
 	taskODataContext            = "/redfish/v1/$metadata#Task.Task"
 	taskODataType               = "#Task.v1_6_0.Task"
@@ -106,6 +109,21 @@ func setupSystemActionsTestRouter(server *RedfishServer) *gin.Engine {
 			computerSystemID := c.Param("computerSystemId")
 			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelKVMConsent(c, computerSystemID)
 		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.RequestSolConsent",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(c, computerSystemID)
+		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(c, computerSystemID)
+		})
+	router.POST("/redfish/v1/Systems/:computerSystemId/Actions/Oem/IntelComputerSystem.CancelSolConsent",
+		func(c *gin.Context) {
+			computerSystemID := c.Param("computerSystemId")
+			server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(c, computerSystemID)
+		})
 
 	return router
 }
@@ -137,6 +155,15 @@ func createEmptyActionRequest() []byte {
 
 func createSubmitKVMConsentCodeRequest(code string) []byte {
 	req := generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitKVMConsentCodeJSONRequestBody{
+		ConsentCode: code,
+	}
+	body, _ := json.Marshal(req)
+
+	return body
+}
+
+func createSubmitSolConsentCodeRequest(code string) []byte {
+	req := generated.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCodeJSONRequestBody{
 		ConsentCode: code,
 	}
 	body, _ := json.Marshal(req)
@@ -878,21 +905,18 @@ func TestSendActionSuccessResponseWithLookup_Success(t *testing.T) {
 
 // Stub implementation tests for SOL actions
 
-func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_Stub(t *testing.T) {
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_WithRouter(t *testing.T) {
 	t.Parallel()
 
 	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
 	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.CancelSolConsent", http.NoBody)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = req
-	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+	w := executeResetRequest(router, cancelSolConsentEndpoint, createEmptyActionRequest())
 
-	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_InvalidSystemID(t *testing.T) {
@@ -969,21 +993,18 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancel
 	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
-func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_Stub(t *testing.T) {
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_WithRouter(t *testing.T) {
 	t.Parallel()
 
 	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
 	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.RequestSolConsent", http.NoBody)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = req
-	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+	w := executeResetRequest(router, requestSolConsentEndpoint, createEmptyActionRequest())
 
-	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_InvalidSystemID(t *testing.T) {
@@ -1003,21 +1024,18 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemReques
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_Stub(t *testing.T) {
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_WithRouter(t *testing.T) {
 	t.Parallel()
 
 	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{ID: testSystemID, Name: "Test"})
+
 	server := setupSystemActionsTestServer(repo)
+	router := setupSystemActionsTestRouter(server)
 
-	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+testSystemID+"/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode", http.NoBody)
-	w := httptest.NewRecorder()
-	ctx, _ := gin.CreateTestContext(w)
-	ctx.Request = req
-	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+	w := executeResetRequest(router, submitSolConsentEndpoint, createSubmitSolConsentCodeRequest("123456"))
 
-	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
-
-	assert.Equal(t, http.StatusMethodNotAllowed, w.Code)
+	assert.Equal(t, http.StatusOK, w.Code)
 }
 
 func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_InvalidSystemID(t *testing.T) {
@@ -1035,4 +1053,453 @@ func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmit
 	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, "<script>")
 
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+// Additional SOL Consent Tests for Coverage
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_Success(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, requestSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_SystemNotFound(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	nonExistentID := "550e8400-e29b-41d4-a716-446655440999"
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+nonExistentID+"/Actions/Oem/IntelComputerSystem.RequestSolConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: nonExistentID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, nonExistentID)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_MalformedJSON(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	malformedBody := bytes.NewReader([]byte("{invalid json"))
+
+	req := httptest.NewRequest(http.MethodPost, requestSolConsentEndpoint, malformedBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_ConsentFailure(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		requestSolConsentErr: &usecase.ConsentFailedError{
+			Operation:   "RequestSolConsent",
+			ReturnValue: 2, // Invalid state error
+		},
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, requestSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_ACMNotRequired(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		requestSolConsentErr: usecase.ErrSOLConsentNotRequiredInACM,
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, requestSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_AMTBadRequest(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		requestSolConsentErr: errors.New("400 Bad Request"),
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, requestSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent_InternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		requestSolConsentErr: errors.New("internal server error"),
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, requestSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemRequestSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_Success(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+	server := setupSystemActionsTestServer(repo)
+
+	body := []byte(`{"ConsentCode": "123456"}`)
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_SystemNotFound(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	nonExistentID := "550e8400-e29b-41d4-a716-446655440999"
+	body := []byte(`{"ConsentCode": "123456"}`)
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+nonExistentID+"/Actions/Oem/IntelComputerSystem.SubmitSolConsentCode", bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: nonExistentID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, nonExistentID)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_InvalidConsentCode(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+
+	server := setupSystemActionsTestServer(repo)
+
+	body := []byte(`{"ConsentCode": "12345"}`)
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_MissingConsentCode(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+	server := setupSystemActionsTestServer(repo)
+
+	body := []byte(`{}`)
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_MalformedJSON(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+	server := setupSystemActionsTestServer(repo)
+
+	malformedBody := bytes.NewReader([]byte("{invalid json"))
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, malformedBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_ConsentFailure(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		submitSolConsentCodeErr: &usecase.ConsentFailedError{
+			Operation:   "SubmitSolConsentCode",
+			ReturnValue: 2066, // Consent code invalid
+		},
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	body := []byte(`{"ConsentCode": "123456"}`)
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_AMTBadRequest(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		submitSolConsentCodeErr: errors.New("400 Bad Request from AMT"),
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	body := []byte(`{"ConsentCode": "123456"}`)
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode_InternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		submitSolConsentCodeErr: errors.New("internal server error"),
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	body := []byte(`{"ConsentCode": "123456"}`)
+
+	req := httptest.NewRequest(http.MethodPost, submitSolConsentEndpoint, bytes.NewReader(body))
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemSubmitSolConsentCode(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_Success(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, cancelSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_EmptyBody(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	repo.AddSystem(testSystemID, &redfishv1.ComputerSystem{})
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, cancelSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_SystemNotFound(t *testing.T) {
+	t.Parallel()
+
+	repo := NewTestSystemsComputerSystemRepository()
+	server := setupSystemActionsTestServer(repo)
+
+	nonExistentID := "550e8400-e29b-41d4-a716-446655440999"
+
+	req := httptest.NewRequest(http.MethodPost, "/redfish/v1/Systems/"+nonExistentID+"/Actions/Oem/IntelComputerSystem.CancelSolConsent", http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: nonExistentID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, nonExistentID)
+
+	assert.Equal(t, http.StatusNotFound, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_ConsentFailure(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		cancelSolConsentErr: &usecase.ConsentFailedError{
+			Operation:   "CancelSolConsent",
+			ReturnValue: 2, // Invalid state error
+		},
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, cancelSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_AMTBadRequest(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		cancelSolConsentErr: errors.New("400 Bad Request"),
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, cancelSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestPostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent_InternalError(t *testing.T) {
+	t.Parallel()
+
+	repo := &TestSystemsComputerSystemRepository{
+		systems: map[string]*redfishv1.ComputerSystem{
+			testSystemID: {},
+		},
+		cancelSolConsentErr: errors.New("internal server error"),
+	}
+	server := setupSystemActionsTestServer(repo)
+
+	req := httptest.NewRequest(http.MethodPost, cancelSolConsentEndpoint, http.NoBody)
+	w := httptest.NewRecorder()
+	ctx, _ := gin.CreateTestContext(w)
+	ctx.Request = req
+	ctx.Params = gin.Params{{Key: "computerSystemId", Value: testSystemID}}
+
+	server.PostRedfishV1SystemsComputerSystemIdActionsOemIntelComputerSystemCancelSolConsent(ctx, testSystemID)
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
