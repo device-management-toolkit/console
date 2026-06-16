@@ -43,6 +43,8 @@ func NewIEEE8021xConfigRoutes(handler *gin.RouterGroup, t ieee8021xconfigs.Featu
 }
 
 func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
+	tenantID := tenantIDFromHeader(c)
+
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
 		validationErr := ErrValidation8021xConfig.Wrap("get", "ShouldBindQuery", err)
@@ -51,7 +53,7 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
-	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - getCount")
 		ErrorResponse(c, err)
@@ -60,7 +62,7 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := r.t.GetCount(c.Request.Context(), "")
+		count, err := r.t.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - IEEE8021x configs - v1 - getCount")
 			ErrorResponse(c, err)
@@ -79,8 +81,9 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 
 func (r *ieee8021xConfigRoutes) getByName(c *gin.Context) {
 	configName := c.Param("profileName")
+	tenantID := tenantIDFromHeader(c)
 
-	config, err := r.t.GetByName(c.Request.Context(), configName, "")
+	config, err := r.t.GetByName(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - getByName")
 		ErrorResponse(c, err)
@@ -99,6 +102,8 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 
 		return
 	}
+
+	setTenantID(&config, tenantIDFromHeader(c))
 
 	newConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
@@ -120,6 +125,8 @@ func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
+	setTenantID(&config, tenantIDFromHeader(c))
+
 	updatedConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - update")
@@ -133,8 +140,9 @@ func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 
 func (r *ieee8021xConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
+	tenantID := tenantIDFromHeader(c)
 
-	err := r.t.Delete(c.Request.Context(), configName, "")
+	err := r.t.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - delete")
 		ErrorResponse(c, err)

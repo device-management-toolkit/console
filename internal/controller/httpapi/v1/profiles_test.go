@@ -414,6 +414,52 @@ func TestProfilesUpdatePatchWithoutPasswords(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestProfilesGetUsesTenantHeader(t *testing.T) {
+	t.Parallel()
+
+	profileFeature, engine := profilesTest(t)
+
+	profileFeature.EXPECT().
+		Get(context.Background(), 25, 0, "tenant-a").
+		Return([]dto.Profile{{ProfileName: "profile", TenantID: "tenant-a"}}, nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/admin/profiles", http.NoBody)
+	require.NoError(t, err)
+	req.Header.Set(tenantHeaderName, "tenant-a")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Body.String(), "tenant-a")
+}
+
+func TestProfilesInsertUsesTenantHeader(t *testing.T) {
+	t.Parallel()
+
+	profileFeature, engine := profilesTest(t)
+
+	expected := profileTest
+	expected.TenantID = "tenant-a"
+
+	profileFeature.EXPECT().
+		Insert(context.Background(), &expected).
+		Return(&expected, nil)
+
+	body, err := json.Marshal(profileTest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBuffer(body))
+	require.NoError(t, err)
+	req.Header.Set(tenantHeaderName, "tenant-a")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+	require.Contains(t, w.Body.String(), "tenant-a")
+}
+
 func TestProfilesInsertWithoutPasswordFails(t *testing.T) {
 	t.Parallel()
 

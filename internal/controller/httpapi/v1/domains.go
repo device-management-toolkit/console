@@ -37,6 +37,8 @@ type DomainCountResponse struct {
 }
 
 func (r *domainRoutes) get(c *gin.Context) {
+	tenantID := tenantIDFromHeader(c)
+
 	var odata OData
 	if err := c.ShouldBindQuery(&odata); err != nil {
 		validationErr := ErrValidationDomains.Wrap("get", "ShouldBindQuery", err)
@@ -45,7 +47,7 @@ func (r *domainRoutes) get(c *gin.Context) {
 		return
 	}
 
-	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getCount")
 		ErrorResponse(c, err)
@@ -54,7 +56,7 @@ func (r *domainRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := r.t.GetCount(c.Request.Context(), "")
+		count, err := r.t.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getCount")
 			ErrorResponse(c, err)
@@ -73,8 +75,9 @@ func (r *domainRoutes) get(c *gin.Context) {
 
 func (r *domainRoutes) getByName(c *gin.Context) {
 	name := c.Param("name")
+	tenantID := tenantIDFromHeader(c)
 
-	item, err := r.t.GetByName(c.Request.Context(), name, "")
+	item, err := r.t.GetByName(c.Request.Context(), name, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getByName")
 		ErrorResponse(c, err)
@@ -93,6 +96,8 @@ func (r *domainRoutes) insert(c *gin.Context) {
 
 		return
 	}
+
+	setTenantID(&domain, tenantIDFromHeader(c))
 
 	newDomain, err := r.t.Insert(c.Request.Context(), &domain)
 	if err != nil {
@@ -114,6 +119,8 @@ func (r *domainRoutes) update(c *gin.Context) {
 		return
 	}
 
+	setTenantID(&domain, tenantIDFromHeader(c))
+
 	updatedDomain, err := r.t.Update(c.Request.Context(), &domain)
 	if err != nil {
 		r.l.Error(err, "http - v1 - update")
@@ -127,8 +134,9 @@ func (r *domainRoutes) update(c *gin.Context) {
 
 func (r *domainRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
+	tenantID := tenantIDFromHeader(c)
 
-	err := r.t.Delete(c.Request.Context(), name, "")
+	err := r.t.Delete(c.Request.Context(), name, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - delete")
 		ErrorResponse(c, err)
