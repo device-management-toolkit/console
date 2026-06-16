@@ -2,6 +2,7 @@ package devices_test
 
 import (
 	"context"
+	"encoding/json"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -10,12 +11,17 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func ptr(s string) *string {
 	return &s
+}
+
+func boolPtr(v bool) *bool {
+	return &v
 }
 
 type testUsecase struct {
@@ -230,7 +236,9 @@ func TestGetByID(t *testing.T) {
 
 			if tc.err != nil {
 				require.Error(t, err)
-				require.Contains(t, err.Error(), tc.err.Error())
+
+				var notFoundErr repoerrors.NotFoundError
+				require.ErrorAs(t, err, &notFoundErr)
 			} else {
 				require.NoError(t, err)
 				require.Equal(t, tc.res, got)
@@ -280,7 +288,9 @@ func TestDelete(t *testing.T) {
 
 			if tc.err != nil {
 				require.Error(t, err)
-				require.Equal(t, err.Error(), tc.err.Error())
+
+				var notFoundErr repoerrors.NotFoundError
+				require.ErrorAs(t, err, &notFoundErr)
 			} else {
 				require.NoError(t, err)
 			}
@@ -740,6 +750,7 @@ func TestUpdatePartial(t *testing.T) {
 		GUID:         "device-guid-123",
 		TenantID:     "tenant-id-456",
 		Hostname:     "old-hostname",
+		DeviceInfo:   `{"fwVersion":"11.8.50","fwBuild":"3400","ipAddress":"10.0.0.1","lmsInstalled":false}`,
 		Tags:         "lab,floor-2",
 		MPSUsername:  "admin",
 		Username:     "amtadmin",
@@ -748,19 +759,38 @@ func TestUpdatePartial(t *testing.T) {
 		MEBXPassword: ptr("encrypted-mebx"),
 	}
 
-	// Client sends only guid, tenantId and a new hostname.
+	// Client sends guid, a new hostname, and a partial deviceInfo update.
+	discovered := true
 	incoming := &dto.Device{
 		GUID:     "device-guid-123",
 		TenantID: "tenant-id-456",
 		Hostname: "new-hostname",
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:    "16.1.30",
+			Discovered:   &discovered,
+			IPAddress:    "10.0.0.55",
+			LMSInstalled: boolPtr(true),
+		},
 	}
-	fields := map[string]bool{"guid": true, "tenantId": true, "hostname": true}
+	fields := map[string]bool{
+		"guid":                    true,
+		"tenantId":                true,
+		"hostname":                true,
+		"deviceinfo":              true,
+		"deviceinfo.fwversion":    true,
+		"deviceinfo.discovered":   true,
+		"deviceinfo.ipaddress":    true,
+		"deviceinfo.lmsinstalled": true,
+	}
 
 	// After merge + dtoToEntity (MockCrypto re-encrypts plaintext to "encrypted"):
+	// Only fields without omitempty tag are included in JSON for zero values.
+	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"currentMode":"","features":"","ipAddress":"10.0.0.55","lmsInstalled":true}`
 	expectedEntity := &entity.Device{
 		GUID:         "device-guid-123",
 		TenantID:     "tenant-id-456",
 		Hostname:     "new-hostname",
+		DeviceInfo:   expectedDeviceInfoJSON,
 		Tags:         "lab,floor-2",
 		MPSUsername:  "admin",
 		Username:     "amtadmin",
@@ -770,9 +800,16 @@ func TestUpdatePartial(t *testing.T) {
 	}
 
 	expectedDTO := &dto.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Hostname:     "new-hostname",
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		Hostname: "new-hostname",
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:    "16.1.30",
+			FWBuild:      "3400",
+			Discovered:   boolPtr(true),
+			IPAddress:    "10.0.0.55",
+			LMSInstalled: boolPtr(true),
+		},
 		Tags:         []string{"lab", "floor-2"},
 		MPSUsername:  "admin",
 		Username:     "amtadmin",
@@ -785,17 +822,30 @@ func TestUpdatePartial(t *testing.T) {
 
 		useCase, repo, management := devicesTest(t)
 
-		gomock.InOrder(
-			repo.EXPECT().
-				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
-				Return(existing, nil),
-			repo.EXPECT().
-				Update(context.Background(), expectedEntity).
-				Return(true, nil),
-			repo.EXPECT().
-				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
-				Return(expectedEntity, nil),
-		)
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(existing, nil)
+		repo.EXPECT().
+			Update(context.Background(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, actualEntity *entity.Device) (bool, error) {
+				require.NotNil(t, actualEntity)
+				require.JSONEq(t, expectedDeviceInfoJSON, actualEntity.DeviceInfo)
+
+				expectedWithoutInfo := *expectedEntity
+				actualWithoutInfo := *actualEntity
+				expectedWithoutInfo.DeviceInfo = ""
+				actualWithoutInfo.DeviceInfo = ""
+				require.Equal(t, expectedWithoutInfo, actualWithoutInfo)
+
+				var actualInfo dto.DeviceInfo
+				require.NoError(t, json.Unmarshal([]byte(actualEntity.DeviceInfo), &actualInfo))
+				require.Equal(t, "3400", actualInfo.FWBuild)
+
+				return true, nil
+			})
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(expectedEntity, nil)
 		management.EXPECT().DestroyWsmanClient(*expectedDTO)
 
 		result, err := useCase.Update(context.Background(), incoming, fields)

@@ -188,3 +188,437 @@ func TestGetNetworkSettings(t *testing.T) {
 		})
 	}
 }
+
+func TestGetWiredNetworkSettings(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+	}
+
+	wiredResult := wsman.NetworkResults{
+		EthernetPortSettingsResult: []ethernetport.SettingsResponse{
+			{
+				ElementName: "Intel(r) AMT Ethernet Port Settings",
+				InstanceID:  "Intel(r) AMT Ethernet Port Settings 0",
+				DHCPEnabled: true,
+				IPAddress:   "192.168.1.10",
+			},
+		},
+		IPSIEEE8021xSettingsResult: ieee8021x.IEEE8021xSettingsResponse{Enabled: 3},
+	}
+
+	wirelessOnlyResult := wsman.NetworkResults{
+		EthernetPortSettingsResult: []ethernetport.SettingsResponse{
+			{
+				ElementName: "Intel(r) AMT Ethernet Port Settings",
+				InstanceID:  "Intel(r) AMT Ethernet Port Settings 1",
+			},
+		},
+	}
+
+	tests := []struct {
+		name     string
+		manMock  func(*mocks.MockWSMAN, *mocks.MockManagement)
+		repoMock func(*mocks.MockDeviceManagementRepository)
+		res      dto.WiredNetworkInfo
+		err      error
+	}{
+		{
+			name: "success",
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetNetworkSettings().
+					Return(wiredResult, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.WiredNetworkInfo{
+				IEEE8021x: dto.IEEE8021x{Enabled: "Disabled"},
+				NetworkInfo: dto.NetworkInfo{
+					ElementName:            "Intel(r) AMT Ethernet Port Settings",
+					InstanceID:             "Intel(r) AMT Ethernet Port Settings 0",
+					DHCPEnabled:            true,
+					IPAddress:              "192.168.1.10",
+					PhysicalConnectionType: "Integrated LAN NIC",
+					PhysicalNicMedium:      "SMBUS",
+				},
+			},
+			err: nil,
+		},
+		{
+			name: "no wired interface returns not found",
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetNetworkSettings().
+					Return(wirelessOnlyResult, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			res: dto.WiredNetworkInfo{},
+			err: devices.ErrNotFound,
+		},
+		{
+			name: "GetById fails",
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, ErrGeneral)
+			},
+			res: dto.WiredNetworkInfo{},
+			err: devices.ErrGeneral,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initNetworkTest(t)
+
+			if tc.manMock != nil {
+				tc.manMock(wsmanMock, management)
+			}
+
+			tc.repoMock(repo)
+
+			res, err := useCase.GetWiredNetworkSettings(context.Background(), device.GUID)
+
+			require.Equal(t, tc.res, res)
+			require.IsType(t, tc.err, err)
+		})
+	}
+}
+
+func TestPatchWiredNetworkSettings(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+	}
+
+	currentSettings := []ethernetport.SettingsResponse{
+		{
+			ElementName: "Intel(r) AMT Ethernet Port Settings",
+			InstanceID:  "Intel(r) AMT Ethernet Port Settings 0",
+			DHCPEnabled: false,
+			IPAddress:   "192.168.1.10",
+		},
+	}
+
+	dhcpTrue := true
+	dhcpFalse := false
+
+	tests := []struct {
+		name     string
+		req      dto.WiredNetworkConfigRequest
+		manMock  func(*testing.T, *mocks.MockWSMAN, *mocks.MockManagement)
+		repoMock func(*mocks.MockDeviceManagementRepository)
+		err      error
+	}{
+		{
+			name: "success switch to dhcp",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(t *testing.T, man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				t.Helper()
+
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetEthernetPortSettings().
+					Return(currentSettings, nil)
+				man2.EXPECT().
+					PutEthernetPortSettings(gomock.Any(), "Intel(r) AMT Ethernet Port Settings 0").
+					DoAndReturn(func(req ethernetport.SettingsRequest, _ string) (ethernetport.Response, error) {
+						// DHCP mode: AMT acquires its IPv4 config, host sync is forced
+						// on, and any explicit IP fields must be cleared.
+						require.True(t, req.DHCPEnabled)
+						require.True(t, req.IpSyncEnabled)
+						require.False(t, req.SharedStaticIp)
+						require.Empty(t, req.IPAddress)
+						require.Empty(t, req.SubnetMask)
+						require.Empty(t, req.DefaultGateway)
+						require.Empty(t, req.PrimaryDNS)
+						require.Empty(t, req.SecondaryDNS)
+
+						return ethernetport.Response{}, nil
+					})
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: nil,
+		},
+		{
+			name:     "validation error dhcp with static ip",
+			req:      dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue, IPAddress: "192.168.1.5"},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrValidationUseCase,
+		},
+		{
+			name:     "validation error ip sync with static ip",
+			req:      dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpFalse, IPSyncEnabled: &dhcpTrue, IPAddress: "192.168.1.5"},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrValidationUseCase,
+		},
+		{
+			name: "not supported ieee8021x provided",
+			req: dto.WiredNetworkConfigRequest{
+				DHCPEnabled: &dhcpTrue,
+				IEEE8021x:   &dto.WiredIEEE8021xConfig{ProfileName: "wired-eap"},
+			},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrNotSupportedUseCase,
+		},
+		{
+			name:     "validation error nothing requested",
+			req:      dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpFalse},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrValidationUseCase,
+		},
+		{
+			name:     "validation error static missing subnet",
+			req:      dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpFalse, IPAddress: "192.168.1.5"},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrValidationUseCase,
+		},
+		{
+			name: "validation error static missing gateway",
+			req: dto.WiredNetworkConfigRequest{
+				DHCPEnabled: &dhcpFalse,
+				IPAddress:   "192.168.1.5",
+				SubnetMask:  "255.255.255.0",
+			},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrValidationUseCase,
+		},
+		{
+			name: "validation error static missing primary dns",
+			req: dto.WiredNetworkConfigRequest{
+				DHCPEnabled:    &dhcpFalse,
+				IPAddress:      "192.168.1.5",
+				SubnetMask:     "255.255.255.0",
+				DefaultGateway: "192.168.1.1",
+			},
+			manMock:  func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(_ *mocks.MockDeviceManagementRepository) {},
+			err:      devices.ErrValidationUseCase,
+		},
+		{
+			name: "success static ip",
+			req: dto.WiredNetworkConfigRequest{
+				DHCPEnabled:    &dhcpFalse,
+				IPAddress:      "192.168.1.5",
+				SubnetMask:     "255.255.255.0",
+				DefaultGateway: "192.168.1.1",
+				PrimaryDNS:     "192.168.1.1",
+			},
+			manMock: func(t *testing.T, man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				t.Helper()
+
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetEthernetPortSettings().
+					Return(currentSettings, nil)
+				man2.EXPECT().
+					PutEthernetPortSettings(gomock.Any(), "Intel(r) AMT Ethernet Port Settings 0").
+					DoAndReturn(func(req ethernetport.SettingsRequest, _ string) (ethernetport.Response, error) {
+						// Manual static IP: ip sync inherited from current (false),
+						// so the supplied IP fields are carried through unchanged.
+						require.False(t, req.DHCPEnabled)
+						require.False(t, req.IpSyncEnabled)
+						require.False(t, req.SharedStaticIp)
+						require.Equal(t, "192.168.1.5", req.IPAddress)
+						require.Equal(t, "255.255.255.0", req.SubnetMask)
+						require.Equal(t, "192.168.1.1", req.DefaultGateway)
+						require.Equal(t, "192.168.1.1", req.PrimaryDNS)
+
+						return ethernetport.Response{}, nil
+					})
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: nil,
+		},
+		{
+			name: "GetById fails",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, ErrGeneral)
+			},
+			err: devices.ErrGeneral,
+		},
+		{
+			name: "no wired interface",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(_ *testing.T, man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetEthernetPortSettings().
+					Return([]ethernetport.SettingsResponse{}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: devices.ErrNotFound,
+		},
+		{
+			name: "device not found nil item",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(_ *testing.T, _ *mocks.MockWSMAN, _ *mocks.MockManagement) {
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(nil, nil)
+			},
+			err: devices.ErrNotFound,
+		},
+		{
+			name: "SetupWsmanClient fails",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(_ *testing.T, man *mocks.MockWSMAN, _ *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(nil, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: ErrGeneral,
+		},
+		{
+			name: "GetEthernetPortSettings fails",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(_ *testing.T, man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetEthernetPortSettings().
+					Return(nil, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: ErrGeneral,
+		},
+		{
+			name: "PutEthernetPortSettings fails",
+			req:  dto.WiredNetworkConfigRequest{DHCPEnabled: &dhcpTrue},
+			manMock: func(_ *testing.T, man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetEthernetPortSettings().
+					Return(currentSettings, nil)
+				man2.EXPECT().
+					PutEthernetPortSettings(gomock.Any(), "Intel(r) AMT Ethernet Port Settings 0").
+					Return(ethernetport.Response{}, ErrGeneral)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: ErrGeneral,
+		},
+		{
+			name: "success static ip with host sync enabled",
+			req: dto.WiredNetworkConfigRequest{
+				DHCPEnabled:   &dhcpFalse,
+				IPSyncEnabled: &dhcpTrue,
+			},
+			manMock: func(t *testing.T, man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				t.Helper()
+
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetEthernetPortSettings().
+					Return(currentSettings, nil)
+				man2.EXPECT().
+					PutEthernetPortSettings(gomock.Any(), "Intel(r) AMT Ethernet Port Settings 0").
+					DoAndReturn(func(req ethernetport.SettingsRequest, _ string) (ethernetport.Response, error) {
+						// Host-synced static IP: SharedStaticIp follows IpSyncEnabled
+						// and the explicit IP fields are cleared because they are
+						// supplied by the host OS.
+						require.False(t, req.DHCPEnabled)
+						require.True(t, req.IpSyncEnabled)
+						require.True(t, req.SharedStaticIp)
+						require.Empty(t, req.IPAddress)
+						require.Empty(t, req.SubnetMask)
+						require.Empty(t, req.DefaultGateway)
+						require.Empty(t, req.PrimaryDNS)
+
+						return ethernetport.Response{}, nil
+					})
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: nil,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initNetworkTest(t)
+
+			tc.manMock(t, wsmanMock, management)
+			tc.repoMock(repo)
+
+			err := useCase.PatchWiredNetworkSettings(context.Background(), device.GUID, tc.req)
+
+			require.IsType(t, tc.err, err)
+		})
+	}
+}
