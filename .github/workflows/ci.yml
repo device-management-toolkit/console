@@ -85,7 +85,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Run Semgrep scan
-        uses: open-edge-platform/orch-ci/.github/actions/security/semgrep@da08a06e8aec70621e50ed4aec2fac5599839f45  # 0.1.62
+        uses: open-edge-platform/orch-ci/.github/actions/security/semgrep@534b9fa62da6702aa582eda1957e517c163a3734  # 2026.1.3
         with:
           scan-scope: "changed"
           severity: "HIGH"
