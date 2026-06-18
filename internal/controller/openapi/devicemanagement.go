@@ -23,7 +23,8 @@ func (f *FuegoAdapter) RegisterDeviceManagementRoutes() {
 
 func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 	// kvm displays
-	fuego.Get(f.server, "/api/v1/amt/kvm/displays/{guid}", f.getKVMDisplays,
+	fuego.Get(
+		f.server, "/api/v1/amt/kvm/displays/{guid}", f.getKVMDisplays,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get KVM displays"),
 		fuego.OptionDescription("Retrieve current KVM display settings for a device"),
@@ -31,7 +32,8 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Put(f.server, "/api/v1/amt/kvm/displays/{guid}", f.setKVMDisplays,
+	fuego.Put(
+		f.server, "/api/v1/amt/kvm/displays/{guid}", f.setKVMDisplays,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set KVM displays"),
 		fuego.OptionDescription("Update KVM display settings for a device"),
@@ -40,7 +42,8 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 	)
 
 	// Certificates
-	fuego.Get(f.server, "/api/v1/amt/certificates/{guid}", f.getCertificates,
+	fuego.Get(
+		f.server, "/api/v1/amt/certificates/{guid}", f.getCertificates,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Certificates"),
 		fuego.OptionDescription("Retrieve certificate and key information for a device"),
@@ -48,7 +51,8 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/certificates/{guid}", f.addCertificate,
+	fuego.Post(
+		f.server, "/api/v1/amt/certificates/{guid}", f.addCertificate,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Add Certificate"),
 		fuego.OptionDescription("Add a certificate to the device"),
@@ -56,7 +60,8 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/amt/certificates/{guid}/{instanceId}", f.deleteCertificate,
+	fuego.Delete(
+		f.server, "/api/v1/amt/certificates/{guid}/{instanceId}", f.deleteCertificate,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Delete Certificate"),
 		fuego.OptionDescription("Delete a certificate from the device"),
@@ -69,14 +74,16 @@ func (f *FuegoAdapter) registerKVMAndCertificateRoutes() {
 
 func (f *FuegoAdapter) registerExplorerRoutes() {
 	// Explorer endpoints
-	fuego.Get(f.server, "/api/v1/amt/explorer", f.getCallList,
+	fuego.Get(
+		f.server, "/api/v1/amt/explorer", f.getCallList,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Explorer Calls"),
 		fuego.OptionDescription("Retrieve supported AMT explorer calls"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/explorer/{guid}/{call}", f.executeCall,
+	fuego.Get(
+		f.server, "/api/v1/amt/explorer/{guid}/{call}", f.executeCall,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Execute Explorer Call"),
 		fuego.OptionDescription("Execute an AMT explorer call on a device"),
@@ -88,7 +95,8 @@ func (f *FuegoAdapter) registerExplorerRoutes() {
 
 func (f *FuegoAdapter) registerNetworkRoutes() {
 	// TLS settings
-	fuego.Get(f.server, "/api/v1/amt/tls/{guid}", f.getTLSSettingData,
+	fuego.Get(
+		f.server, "/api/v1/amt/tls/{guid}", f.getTLSSettingData,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get TLS Setting Data"),
 		fuego.OptionDescription("Retrieve TLS setting data for a device"),
@@ -97,7 +105,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 	)
 
 	// Network settings
-	fuego.Get(f.server, "/api/v1/amt/networkSettings/{guid}", f.getNetworkSettings,
+	fuego.Get(
+		f.server, "/api/v1/amt/networkSettings/{guid}", f.getNetworkSettings,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Network Settings"),
 		fuego.OptionDescription("Retrieve network settings for a device"),
@@ -122,23 +131,12 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/networkSettings/wireless/state/{guid}", f.getWirelessState,
-		fuego.OptionTags("Device Management"),
-		fuego.OptionSummary("Get Wireless State"),
-		fuego.OptionDescription("Retrieve wireless state for a device"),
-		fuego.OptionPath("guid", "Device GUID"),
-		protectedRouteOptions(),
-	)
+	f.registerWirelessStateRoutes()
 
-	fuego.Post(f.server, "/api/v1/amt/networkSettings/wireless/state/{guid}", f.requestWirelessStateChange,
-		fuego.OptionTags("Device Management"),
-		fuego.OptionSummary("Request Wireless State Change"),
-		fuego.OptionDescription("Request a wireless state change for a device"),
-		fuego.OptionPath("guid", "Device GUID"),
-		protectedRouteOptions(),
-	)
+	f.registerWirelessProfileSyncRoutes()
 
-	fuego.Get(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.getWirelessProfiles,
+	fuego.Get(
+		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.getWirelessProfiles,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Wireless Profiles"),
 		fuego.OptionDescription("Retrieve configured wireless profiles for a device"),
@@ -146,7 +144,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.addWirelessProfile,
+	fuego.Post(
+		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.addWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Create Wireless Profile"),
 		fuego.OptionDescription("Create a wireless profile on a device"),
@@ -155,7 +154,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.updateWirelessProfile,
+	fuego.Patch(
+		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.updateWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Update Wireless Profile"),
 		fuego.OptionDescription("Update a wireless profile on a device"),
@@ -164,7 +164,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}/{profileName}", f.deleteWirelessProfile,
+	fuego.Delete(
+		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}/{profileName}", f.deleteWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Delete Wireless Profile"),
 		fuego.OptionDescription("Delete a wireless profile from a device"),
@@ -174,7 +175,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/network/linkPreference/{guid}", f.setLinkPreference,
+	fuego.Post(
+		f.server, "/api/v1/amt/network/linkPreference/{guid}", f.setLinkPreference,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Link Preference"),
 		fuego.OptionDescription("Set network link preference on a device"),
@@ -185,7 +187,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 
 func (f *FuegoAdapter) registerFeatureRoutes() {
 	// Features
-	fuego.Get(f.server, "/api/v1/amt/features/{guid}", f.getFeatures,
+	fuego.Get(
+		f.server, "/api/v1/amt/features/{guid}", f.getFeatures,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Features"),
 		fuego.OptionDescription("Retrieve feature flags for a device"),
@@ -193,7 +196,8 @@ func (f *FuegoAdapter) registerFeatureRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/features/{guid}", f.setFeatures,
+	fuego.Post(
+		f.server, "/api/v1/amt/features/{guid}", f.setFeatures,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Features"),
 		fuego.OptionDescription("Update feature flags for a device"),
@@ -202,9 +206,52 @@ func (f *FuegoAdapter) registerFeatureRoutes() {
 	)
 }
 
+func (f *FuegoAdapter) registerWirelessStateRoutes() {
+	fuego.Get(
+		f.server, "/api/v1/amt/networkSettings/wireless/state/{guid}", f.getWirelessState,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Wireless State"),
+		fuego.OptionDescription("Retrieve wireless state for a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Post(
+		f.server, "/api/v1/amt/networkSettings/wireless/state/{guid}", f.requestWirelessStateChange,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Request Wireless State Change"),
+		fuego.OptionDescription("Request a wireless state change for a device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+}
+
+func (f *FuegoAdapter) registerWirelessProfileSyncRoutes() {
+	fuego.Get(
+		f.server, "/api/v1/amt/networkSettings/wireless/profileSync/{guid}", f.getWirelessProfileSync,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Wireless Profile Sync"),
+		fuego.OptionDescription("Retrieve local and UEFI WiFi profile synchronization state, including whether UEFI sync is supported by the device"),
+		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Post(
+		f.server, "/api/v1/amt/networkSettings/wireless/profileSync/{guid}", f.setWirelessProfileSync,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Set Wireless Profile Sync"),
+		fuego.OptionDescription("Enable or disable local and/or UEFI WiFi profile synchronization. Requesting UEFI sync on an unsupported device rejects the entire request with 409 Conflict"),
+		fuego.OptionPath("guid", "Device GUID"),
+		errorResponseOption(http.StatusBadRequest, "Bad Request"),
+		errorResponseOption(http.StatusConflict, "Conflict"),
+		protectedRouteOptions(),
+	)
+}
+
 func (f *FuegoAdapter) registerUserConsentRoutes() {
 	// User consent code
-	fuego.Get(f.server, "/api/v1/amt/userConsentCode/cancel/{guid}", f.cancelUserConsentCode,
+	fuego.Get(
+		f.server, "/api/v1/amt/userConsentCode/cancel/{guid}", f.cancelUserConsentCode,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Cancel User Consent Code"),
 		fuego.OptionDescription("Cancel a previously issued user consent code for a device"),
@@ -212,7 +259,8 @@ func (f *FuegoAdapter) registerUserConsentRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/userConsentCode/{guid}", f.getUserConsentCode,
+	fuego.Get(
+		f.server, "/api/v1/amt/userConsentCode/{guid}", f.getUserConsentCode,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get User Consent Code"),
 		fuego.OptionDescription("Retrieve the current user consent code for a device"),
@@ -220,7 +268,8 @@ func (f *FuegoAdapter) registerUserConsentRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/userConsentCode/{guid}", f.sendConsentCode,
+	fuego.Post(
+		f.server, "/api/v1/amt/userConsentCode/{guid}", f.sendConsentCode,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Send User Consent Code"),
 		fuego.OptionDescription("Send a user consent code to the device"),
@@ -231,7 +280,8 @@ func (f *FuegoAdapter) registerUserConsentRoutes() {
 
 func (f *FuegoAdapter) registerPowerRoutes() {
 	// Power endpoints
-	fuego.Get(f.server, "/api/v1/amt/power/state/{guid}", f.getPowerState,
+	fuego.Get(
+		f.server, "/api/v1/amt/power/state/{guid}", f.getPowerState,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Power State"),
 		fuego.OptionDescription("Retrieve the current power state of a device"),
@@ -239,7 +289,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/power/action/{guid}", f.powerAction,
+	fuego.Post(
+		f.server, "/api/v1/amt/power/action/{guid}", f.powerAction,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Perform Power Action"),
 		fuego.OptionDescription("Perform a power action on a device"),
@@ -247,7 +298,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/power/bootOptions/{guid}", f.setBootOptions,
+	fuego.Post(
+		f.server, "/api/v1/amt/power/bootOptions/{guid}", f.setBootOptions,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Boot Options"),
 		fuego.OptionDescription("Set boot options on a device"),
@@ -255,7 +307,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/power/bootoptions/{guid}", f.setBootOptions,
+	fuego.Post(
+		f.server, "/api/v1/amt/power/bootoptions/{guid}", f.setBootOptions,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Boot Options (alt path)"),
 		fuego.OptionDescription("Set boot options on a device (alternate path)"),
@@ -263,7 +316,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/power/bootSources/{guid}", f.getBootSources,
+	fuego.Get(
+		f.server, "/api/v1/amt/power/bootSources/{guid}", f.getBootSources,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Boot Sources"),
 		fuego.OptionDescription("Retrieve available boot sources for a device"),
@@ -271,7 +325,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/power/capabilities/{guid}", f.getPowerCapabilities,
+	fuego.Get(
+		f.server, "/api/v1/amt/power/capabilities/{guid}", f.getPowerCapabilities,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Power Capabilities"),
 		fuego.OptionDescription("Retrieve power capabilities for a device"),
@@ -282,7 +337,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 
 func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 	// Audit and Event logs
-	fuego.Get(f.server, "/api/v1/amt/log/audit/{guid}", f.getAuditLog,
+	fuego.Get(
+		f.server, "/api/v1/amt/log/audit/{guid}", f.getAuditLog,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Audit Log"),
 		fuego.OptionDescription("Retrieve audit log entries for a device"),
@@ -291,7 +347,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/log/audit/{guid}/download", f.downloadAuditLog,
+	fuego.Get(
+		f.server, "/api/v1/amt/log/audit/{guid}/download", f.downloadAuditLog,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Download Audit Log"),
 		fuego.OptionDescription("Download audit logs as CSV for a device"),
@@ -300,7 +357,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/log/event/{guid}", f.getEventLog,
+	fuego.Get(
+		f.server, "/api/v1/amt/log/event/{guid}", f.getEventLog,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Event Log"),
 		fuego.OptionDescription("Retrieve event log entries for a device"),
@@ -311,7 +369,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/log/event/{guid}/download", f.downloadEventLog,
+	fuego.Get(
+		f.server, "/api/v1/amt/log/event/{guid}/download", f.downloadEventLog,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Download Event Log"),
 		fuego.OptionDescription("Download event logs as CSV for a device"),
@@ -321,7 +380,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 	)
 
 	// Alarm occurrences
-	fuego.Get(f.server, "/api/v1/amt/alarmOccurrences/{guid}", f.getAlarmOccurrences,
+	fuego.Get(
+		f.server, "/api/v1/amt/alarmOccurrences/{guid}", f.getAlarmOccurrences,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Alarm Occurrences"),
 		fuego.OptionDescription("Retrieve alarm occurrences for a device"),
@@ -329,7 +389,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/alarmOccurrences/{guid}", f.createAlarmOccurrences,
+	fuego.Post(
+		f.server, "/api/v1/amt/alarmOccurrences/{guid}", f.createAlarmOccurrences,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Create Alarm Occurrence"),
 		fuego.OptionDescription("Create an alarm occurrence on a device"),
@@ -338,7 +399,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/amt/alarmOccurrences/{guid}", f.deleteAlarmOccurrences,
+	fuego.Delete(
+		f.server, "/api/v1/amt/alarmOccurrences/{guid}", f.deleteAlarmOccurrences,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Delete Alarm Occurrence"),
 		fuego.OptionDescription("Delete an alarm occurrence from a device"),
@@ -350,7 +412,8 @@ func (f *FuegoAdapter) registerLogsAndAlarmRoutes() {
 
 func (f *FuegoAdapter) registerVersionAndHardwareRoutes() {
 	// Version
-	fuego.Get(f.server, "/api/v1/amt/version/{guid}", f.getVersion,
+	fuego.Get(
+		f.server, "/api/v1/amt/version/{guid}", f.getVersion,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Version"),
 		fuego.OptionDescription("Retrieve AMT/software version information for a device"),
@@ -359,7 +422,8 @@ func (f *FuegoAdapter) registerVersionAndHardwareRoutes() {
 	)
 
 	// Hardware
-	fuego.Get(f.server, "/api/v1/amt/hardwareInfo/{guid}", f.getHardwareInfo,
+	fuego.Get(
+		f.server, "/api/v1/amt/hardwareInfo/{guid}", f.getHardwareInfo,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Hardware Info"),
 		fuego.OptionDescription("Retrieve hardware information for a device"),
@@ -368,7 +432,8 @@ func (f *FuegoAdapter) registerVersionAndHardwareRoutes() {
 	)
 
 	// Disk Info
-	fuego.Get(f.server, "/api/v1/amt/diskInfo/{guid}", f.getDiskInfo,
+	fuego.Get(
+		f.server, "/api/v1/amt/diskInfo/{guid}", f.getDiskInfo,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Disk Info"),
 		fuego.OptionDescription("Retrieve disk information for a device"),
@@ -377,7 +442,8 @@ func (f *FuegoAdapter) registerVersionAndHardwareRoutes() {
 	)
 
 	// General Settings
-	fuego.Get(f.server, "/api/v1/amt/generalSettings/{guid}", f.getGeneralSettings,
+	fuego.Get(
+		f.server, "/api/v1/amt/generalSettings/{guid}", f.getGeneralSettings,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get General Settings"),
 		fuego.OptionDescription("Retrieve general settings for a device"),
@@ -482,6 +548,19 @@ func (f *FuegoAdapter) requestWirelessStateChange(c fuego.ContextWithBody[dto.Wi
 	}
 
 	return dto.WirelessStateResponse(req), nil
+}
+
+func (f *FuegoAdapter) getWirelessProfileSync(_ fuego.ContextNoBody) (dto.WirelessProfileSyncResponse, error) {
+	return dto.WirelessProfileSyncResponse{}, nil
+}
+
+func (f *FuegoAdapter) setWirelessProfileSync(c fuego.ContextWithBody[dto.WirelessProfileSyncRequest]) (dto.WirelessProfileSyncResponse, error) {
+	_, err := c.Body()
+	if err != nil {
+		return dto.WirelessProfileSyncResponse{}, err
+	}
+
+	return dto.WirelessProfileSyncResponse{}, nil
 }
 
 func (f *FuegoAdapter) getWirelessProfiles(_ fuego.ContextNoBody) ([]dto.WirelessProfileResponse, error) {
