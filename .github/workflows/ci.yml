@@ -76,7 +76,6 @@ jobs:
     runs-on: ubuntu-latest
     container:
       image: returntocorp/semgrep@sha256:14e073f6417e5d2d0797aa13f26d569270b86fac9d52052d2358c985f1a4e9f0  # v1.124.0
-    needs: sanitize-project-folder
     steps:
       - name: Checkout code
         uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
