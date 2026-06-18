@@ -70,6 +70,24 @@ jobs:
       - uses: dotenv-linter/action-dotenv-linter@afde61cfda2ecffe7bea35837b6f20b956c88689 # v3.0.0
         with:
           reporter: github-pr-review
+  semgrep:
+    permissions:
+      contents: read
+    runs-on: ubuntu-latest
+    container:
+      image: returntocorp/semgrep@sha256:14e073f6417e5d2d0797aa13f26d569270b86fac9d52052d2358c985f1a4e9f0  # v1.124.0
+    needs: sanitize-project-folder
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@08c6903cd8c0fde910a37f88322edcfb5dd907a8  # v5.0.0
+        with:
+          persist-credentials: false
+      - name: Run Semgrep scan
+        uses: open-edge-platform/orch-ci/.github/actions/security/semgrep@da08a06e8aec70621e50ed4aec2fac5599839f45  # 0.1.62
+        with:
+          scan-scope: "changed"
+          severity: "HIGH"
+          output-format: "txt"
 
   check-dependencies:
     name: runner / check-dependencies
