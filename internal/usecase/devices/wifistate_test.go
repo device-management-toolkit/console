@@ -9,7 +9,6 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/common"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
@@ -53,6 +52,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 			request: wifi.RequestedStateWifiEnabledS0SxAC,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
+				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{}}, nil)
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiEnabledS0SxAC).Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -66,6 +66,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 			request: wifi.RequestedStateWifiDisabled,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
+				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{}}, nil)
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiDisabled).Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -79,7 +80,21 @@ func TestRequestWirelessStateChange(t *testing.T) {
 			request: wifi.RequestedStateWifiEnabledS0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
+				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{}}, nil)
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiEnabledS0).Return(nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+			},
+			res: wifi.RequestedStateWifiEnabledS0,
+			err: nil,
+		},
+		{
+			name:    "success - already in requested state skips state change",
+			request: wifi.RequestedStateWifiEnabledS0,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
+				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{EnabledState: wifi.EnabledStateWifiEnabledS0}}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
@@ -129,10 +144,24 @@ func TestRequestWirelessStateChange(t *testing.T) {
 			err: devices.ErrGeneral,
 		},
 		{
+			name:    "GetWiFiPorts fails - no wifi port",
+			request: wifi.RequestedStateWifiDisabled,
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
+				man2.EXPECT().GetWiFiPorts().Return(nil, wsman.ErrNoWiFiPort)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+			},
+			res: 0,
+			err: wsman.ErrNoWiFiPort,
+		},
+		{
 			name:    "WiFiRequestStateChange fails",
 			request: wifi.RequestedStateWifiDisabled,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(wsman.Management(man2), nil)
+				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{}}, nil)
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiDisabled).Return(ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -193,18 +222,7 @@ func TestGetWirelessState(t *testing.T) {
 			name: "success",
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
-				man2.EXPECT().EnumerateWiFiPort().Return(wifi.Response{
-					Body: wifi.Body{
-						EnumerateResponse: common.EnumerateResponse{EnumerationContext: "test-context"},
-					},
-				}, nil)
-				man2.EXPECT().PullWiFiPort("test-context").Return(wifi.Response{
-					Body: wifi.Body{
-						PullResponse: wifi.PullResponse{
-							WiFiPortItems: []wifi.WiFiPort{{EnabledState: 32769}},
-						},
-					},
-				}, nil)
+				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{EnabledState: 32769}}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
@@ -242,27 +260,10 @@ func TestGetWirelessState(t *testing.T) {
 			err: devices.ErrGeneral,
 		},
 		{
-			name: "EnumerateWiFiPort fails",
+			name: "GetWiFiPorts fails",
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
-				man2.EXPECT().EnumerateWiFiPort().Return(wifi.Response{}, ErrGeneral)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
-			},
-			res: 0,
-			err: devices.ErrGeneral,
-		},
-		{
-			name: "PullWiFiPort fails",
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
-				man2.EXPECT().EnumerateWiFiPort().Return(wifi.Response{
-					Body: wifi.Body{
-						EnumerateResponse: common.EnumerateResponse{EnumerationContext: "test-context"},
-					},
-				}, nil)
-				man2.EXPECT().PullWiFiPort("test-context").Return(wifi.Response{}, ErrGeneral)
+				man2.EXPECT().GetWiFiPorts().Return(nil, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
@@ -274,18 +275,7 @@ func TestGetWirelessState(t *testing.T) {
 			name: "no wifi ports found",
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(man2, nil)
-				man2.EXPECT().EnumerateWiFiPort().Return(wifi.Response{
-					Body: wifi.Body{
-						EnumerateResponse: common.EnumerateResponse{EnumerationContext: "test-context"},
-					},
-				}, nil)
-				man2.EXPECT().PullWiFiPort("test-context").Return(wifi.Response{
-					Body: wifi.Body{
-						PullResponse: wifi.PullResponse{
-							WiFiPortItems: []wifi.WiFiPort{},
-						},
-					},
-				}, nil)
+				man2.EXPECT().GetWiFiPorts().Return(nil, wsman.ErrNoWiFiPort)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
