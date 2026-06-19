@@ -35,14 +35,14 @@ jobs:
       - name: Semantic Release dry-run
         id: semantic-release
         env:
-          GITHUB_REF: ${{ github.head_ref || github.ref_name }}
+          GITHUB_REF_NAME: ${{ github.head_ref || github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
           # unset GITHUB_ACTIONS
           # git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
-          npx semantic-release --dry-run --no-ci --branches main,$GITHUB_REF
+          npx semantic-release --dry-run --no-ci --branches "main,$GITHUB_REF_NAME"
           version=$(cat .VERSION)
-          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Version
         run: echo "The next version is ${{ steps.semantic-release.outputs.version }}"
