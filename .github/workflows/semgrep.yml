@@ -31,4 +31,4 @@ jobs:
         with:
           scan-scope: all
           severity: "HIGH"
-          output-format: "txt"
+          output-format: "text"
