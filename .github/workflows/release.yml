@@ -39,7 +39,6 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
           # unset GITHUB_ACTIONS
-          # git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
           npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF_NAME"
           version=$(cat .VERSION)
           echo "version=$version" >> "$GITHUB_OUTPUT"
