@@ -63,8 +63,10 @@ func acquireInstanceMutex(kernel32 *windows.LazyDLL, namePtr *uint16, url string
 func probeInstanceMutex(kernel32 *windows.LazyDLL, namePtr *uint16, url string) {
 	openMutex := kernel32.NewProc("OpenMutexW")
 
+	const synchronize = 0x00100000 // SYNCHRONIZE
+
 	handle, _, _ := openMutex.Call(
-		0x00100000, // SYNCHRONIZE
+		synchronize,
 		0,
 		uintptr(unsafe.Pointer(namePtr)),
 	)
