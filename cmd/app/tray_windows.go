@@ -5,12 +5,13 @@ package main
 import (
 	"context"
 	"fmt"
-	"golang.org/x/sys/windows"
 	"log"
 	"os"
 	"os/exec"
 	"path/filepath"
 	"unsafe"
+
+	"golang.org/x/sys/windows"
 )
 
 // detachedProcess is the Windows CreationFlag that runs the child without
