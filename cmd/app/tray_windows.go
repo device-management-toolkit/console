@@ -103,12 +103,14 @@ func surfaceRunningInstance(url string) {
 		return
 	}
 
-	_ = exec.CommandContext(
+	if err := exec.CommandContext(
 		context.Background(),
 		"rundll32",
 		"url.dll,FileProtocolHandler",
 		url,
-	).Start()
+	).Start(); err != nil {
+		log.Printf("Failed to open browser: %v", err)
+	}
 }
 
 func logDir() string {
