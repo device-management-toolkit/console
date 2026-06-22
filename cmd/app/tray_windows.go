@@ -55,7 +55,7 @@ func acquireInstanceMutex(kernel32 *windows.LazyDLL, namePtr *uint16, url string
 	}
 
 	if errno, ok := err.(windows.Errno); ok && uint32(errno) == errorAlreadyExists {
-		log.Printf("DMT Console is already running; signalling user at %s", url)
+		log.Printf("DMT Console is already running; signaling user at %s", url)
 		surfaceRunningInstance(url)
 		os.Exit(0)
 	}
