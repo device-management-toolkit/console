@@ -1,15 +1,39 @@
 package v1
 
 import (
+	"bytes"
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
 )
+
+func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: "secret"}}}
+	engine.POST("/api/v1/authorize", route.Login)
+
+	req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+
+	var got map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Equal(t, "invalid credentials", got["error"])
+	require.Equal(t, "Incorrect username or password", got["message"])
+}
 
 // oidcDiscoveryServer spins up a TLS test server that serves the minimum
 // OpenID Connect discovery document that go-oidc requires. The issuer field
