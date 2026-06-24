@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -18,6 +19,18 @@ var ConsoleConfig *Config
 var TrayMode bool
 
 const defaultHost = "localhost"
+
+const (
+	// configFilePerm restricts the config file to its owner — it can hold
+	// secrets (auth.adminPassword, auth.jwtKey), so it must not be world-readable.
+	configFilePerm = 0o600
+	// configDirPerm restricts the config directory to its owner, matching the
+	// confidentiality of the file it contains.
+	configDirPerm = 0o700
+	// goosWindows is runtime.GOOS's value on Windows, named to avoid repeating
+	// the bare string literal across path resolution and tests.
+	goosWindows = "windows"
+)
 
 type (
 	// Config -.
@@ -215,6 +228,47 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return configPathFlag, nil
 	}
 
+	// The tray runs unelevated as the logged-in user, and its config holds
+	// credentials (auth.adminPassword, auth.jwtKey). Keep it in the per-user
+	// config dir — the same base the SQLite DB uses — instead of world-readable
+	// beside the system-wide binary (Program Files / /usr/local / /opt).
+	if TrayMode {
+		if perUser, err := perUserConfigPath(); err == nil {
+			return perUser, nil
+		}
+		// Fall through to the headless resolution below if the per-user dir is unavailable.
+	}
+
+	// Headless uses the installer-provisioned machine-wide config when one is
+	// present. Without an installer (a plain `go run`, a dev build, or the test
+	// binary) that path is an unwritable system dir (/etc, /Library, ProgramData),
+	// so fall back to the writable beside-binary path — keeping zero-infra startup.
+	machine, err := machineConfigPath()
+	if err != nil {
+		return "", err
+	}
+
+	if _, statErr := os.Stat(machine); statErr == nil {
+		return machine, nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+// perUserConfigPath returns <user config dir>/device-management-toolkit/config/config.yml.
+func perUserConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "device-management-toolkit", "config", "config.yml"), nil
+}
+
+// besideBinaryConfigPath returns the config path next to the executable. It is
+// the writable fallback for headless runs with no installer-provisioned machine
+// config (dev builds, `go run`, tests) and for an unrecognized GOOS.
+func besideBinaryConfigPath() (string, error) {
 	ex, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -227,9 +281,57 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		ex = resolved
 	}
 
-	exPath := filepath.Dir(ex)
+	return filepath.Join(filepath.Dir(ex), "config", "config.yml"), nil
+}
 
-	return filepath.Join(exPath, "config", "config.yml"), nil
+// machineConfigPath returns the machine-wide, installer-provisioned config path,
+// kept out of the program directory and readable by the unelevated user:
+//   - Windows: %ProgramData%\device-management-toolkit\config.yml
+//   - macOS:   /Library/Application Support/device-management-toolkit/config.yml
+//   - Linux:   /etc/dmt-console/config/config.yml
+//
+// Anything else falls back to the beside-binary path.
+func machineConfigPath() (string, error) {
+	switch runtime.GOOS {
+	case goosWindows:
+		if dir := os.Getenv("ProgramData"); dir != "" {
+			return filepath.Join(dir, "device-management-toolkit", "config.yml"), nil
+		}
+	case "darwin":
+		return "/Library/Application Support/device-management-toolkit/config.yml", nil
+	case "linux":
+		return "/etc/dmt-console/config/config.yml", nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+// seedConfig copies an installer-provisioned config from src to dst when dst does
+// not yet exist, carrying the installer's credentials (admin password, jwtKey) into
+// the per-user location instead of generating a fresh config. A missing src or an
+// already-present dst are both no-ops. On a shared machine each OS user seeds from
+// the same src, inheriting one credential set until rotated — intentional.
+func seedConfig(src, dst string) error {
+	_, err := os.Stat(dst)
+	if err == nil {
+		return nil // dst already present — never overwrite an existing per-user config
+	}
+
+	if !os.IsNotExist(err) {
+		return err // unexpected stat error (permissions/IO) — surface it rather than silently re-seeding
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return nil //nolint:nilerr // no installer config to migrate (e.g. dev run); init proceeds normally
+	}
+
+	if mkErr := os.MkdirAll(filepath.Dir(dst), configDirPerm); mkErr != nil {
+		return mkErr
+	}
+
+	// #nosec G703 -- dst is derived from os.UserConfigDir()/os.Executable() (see resolveConfigPath), not external input.
+	return os.WriteFile(dst, data, configFilePerm)
 }
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
@@ -248,17 +350,27 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 }
 
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
+// The file and directory are owner-only (configFilePerm/configDirPerm): a generated
+// config carries secrets (a freshly generated jwtKey/adminPassword) just like a seeded
+// one, so the freshly-generated path must not write them world-readable.
 func writeConfig(configPath string, cfg *Config) error {
 	configDir := filepath.Dir(configPath)
-	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+	if mkErr := os.MkdirAll(configDir, configDirPerm); mkErr != nil {
 		return mkErr
 	}
 
-	file, err := os.Create(configPath)
+	file, err := os.OpenFile(configPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, configFilePerm)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	// O_CREATE only applies configFilePerm when the file is newly created; an
+	// existing config left world-readable by an older build keeps its old mode.
+	// Chmod explicitly so upgrades are tightened to owner-only too.
+	if err := file.Chmod(configFilePerm); err != nil {
+		return err
+	}
 
 	encoder := yaml.NewEncoder(file)
 	defer encoder.Close()
@@ -319,6 +431,16 @@ func NewConfig() (*Config, error) {
 	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
 		return nil, err
+	}
+
+	// First tray launch: seed the per-user config from the machine-wide installer
+	// config so its credentials carry over instead of being regenerated.
+	if TrayMode && configPathFlag == "" {
+		if src, srcErr := machineConfigPath(); srcErr == nil {
+			if seedErr := seedConfig(src, configPath); seedErr != nil {
+				return nil, seedErr
+			}
+		}
 	}
 
 	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
