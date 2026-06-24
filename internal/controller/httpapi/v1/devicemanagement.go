@@ -20,62 +20,75 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 	r := &deviceManagementRoutes{d, amt, e, l}
 
 	h := handler.Group("/amt")
-	{
-		h.GET("version/:guid", r.getVersion)
+	r.registerCoreRoutes(h)
+	r.registerPowerAndLogRoutes(h)
+	r.registerNetworkRoutes(h)
+	r.registerExplorerAndCertificateRoutes(h)
+	r.registerKVMAndLinkRoutes(h)
+}
 
-		h.GET("features/:guid", r.getFeatures)
-		h.POST("features/:guid", r.setFeatures)
+func (r *deviceManagementRoutes) registerCoreRoutes(h *gin.RouterGroup) {
+	h.GET("version/:guid", r.getVersion)
 
-		h.GET("alarmOccurrences/:guid", r.getAlarmOccurrences)
-		h.POST("alarmOccurrences/:guid", r.createAlarmOccurrences)
-		h.DELETE("alarmOccurrences/:guid", r.deleteAlarmOccurrences)
+	h.GET("features/:guid", r.getFeatures)
+	h.POST("features/:guid", r.setFeatures)
 
-		h.GET("boot/remoteErase/:guid", r.getRemoteEraseCapabilities)
-		h.POST("boot/remoteErase/:guid", r.setRemoteEraseOptions)
-		h.GET("hardwareInfo/:guid", r.getHardwareInfo)
-		h.GET("diskInfo/:guid", r.getDiskInfo)
-		h.GET("power/state/:guid", r.getPowerState)
-		h.POST("power/action/:guid", r.powerAction)
-		h.POST("power/bootOptions/:guid", r.setBootOptions)
-		h.POST("power/bootoptions/:guid", r.setBootOptions)
-		h.GET("power/bootSources/:guid", r.getBootSources)
-		h.GET("power/capabilities/:guid", r.getPowerCapabilities)
+	h.GET("alarmOccurrences/:guid", r.getAlarmOccurrences)
+	h.POST("alarmOccurrences/:guid", r.createAlarmOccurrences)
+	h.DELETE("alarmOccurrences/:guid", r.deleteAlarmOccurrences)
 
-		h.GET("log/audit/:guid", r.getAuditLog)
-		h.GET("log/audit/:guid/download", r.downloadAuditLog)
-		h.GET("log/event/:guid", r.getEventLog)
-		h.GET("log/event/:guid/download", r.downloadEventLog)
-		h.GET("generalSettings/:guid", r.getGeneralSettings)
+	h.GET("boot/remoteErase/:guid", r.getRemoteEraseCapabilities)
+	h.POST("boot/remoteErase/:guid", r.setRemoteEraseOptions)
+	h.GET("hardwareInfo/:guid", r.getHardwareInfo)
+	h.GET("diskInfo/:guid", r.getDiskInfo)
+	h.GET("generalSettings/:guid", r.getGeneralSettings)
 
-		h.GET("userConsentCode/cancel/:guid", r.cancelUserConsentCode)
-		h.GET("userConsentCode/:guid", r.getUserConsentCode)
-		h.POST("userConsentCode/:guid", r.sendConsentCode)
+	h.GET("userConsentCode/cancel/:guid", r.cancelUserConsentCode)
+	h.GET("userConsentCode/:guid", r.getUserConsentCode)
+	h.POST("userConsentCode/:guid", r.sendConsentCode)
+}
 
-		h.GET("networkSettings/:guid", r.getNetworkSettings)
-		h.GET("networkSettings/wired/:guid", r.getWiredNetworkSettings)
-		h.PATCH("networkSettings/wired/:guid", r.patchWiredNetworkSettings)
-		h.GET("networkSettings/wireless/state/:guid", r.getWirelessState)
-		h.POST("networkSettings/wireless/state/:guid", r.requestWirelessStateChange)
-		h.GET("networkSettings/wireless/profileSync/:guid", r.getWirelessProfileSync)
-		h.POST("networkSettings/wireless/profileSync/:guid", r.setWirelessProfileSync)
-		h.GET("networkSettings/wireless/profile/:guid", r.getWirelessProfiles)
-		h.POST("networkSettings/wireless/profile/:guid", r.addWirelessProfile)
-		h.PATCH("networkSettings/wireless/profile/:guid", r.updateWirelessProfile)
-		h.DELETE("networkSettings/wireless/profile/:guid/:profileName", r.deleteWirelessProfile)
+func (r *deviceManagementRoutes) registerPowerAndLogRoutes(h *gin.RouterGroup) {
+	h.GET("power/state/:guid", r.getPowerState)
+	h.POST("power/action/:guid", r.powerAction)
+	h.POST("power/bootOptions/:guid", r.setBootOptions)
+	h.POST("power/bootoptions/:guid", r.setBootOptions)
+	h.GET("power/bootSources/:guid", r.getBootSources)
+	h.GET("power/capabilities/:guid", r.getPowerCapabilities)
 
-		h.GET("explorer", r.getCallList)
-		h.GET("explorer/:guid/:call", r.executeCall)
-		h.GET("tls/:guid", r.getTLSSettingData)
+	h.GET("log/audit/:guid", r.getAuditLog)
+	h.GET("log/audit/:guid/download", r.downloadAuditLog)
+	h.GET("log/event/:guid", r.getEventLog)
+	h.GET("log/event/:guid/download", r.downloadEventLog)
+}
 
-		h.GET("certificates/:guid", r.getCertificates)
-		h.POST("certificates/:guid", r.addCertificate)
-		h.DELETE("certificates/:guid/:instanceId", r.deleteCertificate)
+func (r *deviceManagementRoutes) registerNetworkRoutes(h *gin.RouterGroup) {
+	h.GET("networkSettings/:guid", r.getNetworkSettings)
+	h.GET("networkSettings/wired/:guid", r.getWiredNetworkSettings)
+	h.PATCH("networkSettings/wired/:guid", r.patchWiredNetworkSettings)
+	h.GET("networkSettings/wireless/state/:guid", r.getWirelessState)
+	h.POST("networkSettings/wireless/state/:guid", r.requestWirelessStateChange)
+	h.GET("networkSettings/wireless/profileSync/:guid", r.getWirelessProfileSync)
+	h.POST("networkSettings/wireless/profileSync/:guid", r.setWirelessProfileSync)
+	h.GET("networkSettings/wireless/profile/:guid", r.getWirelessProfiles)
+	h.POST("networkSettings/wireless/profile/:guid", r.addWirelessProfile)
+	h.PATCH("networkSettings/wireless/profile/:guid", r.updateWirelessProfile)
+	h.DELETE("networkSettings/wireless/profile/:guid/:profileName", r.deleteWirelessProfile)
+}
 
-		// KVM display settings
-		h.GET("kvm/displays/:guid", r.getKVMDisplays)
-		h.PUT("kvm/displays/:guid", r.setKVMDisplays)
+func (r *deviceManagementRoutes) registerExplorerAndCertificateRoutes(h *gin.RouterGroup) {
+	h.GET("explorer", r.getCallList)
+	h.GET("explorer/:guid/:call", r.executeCall)
+	h.GET("tls/:guid", r.getTLSSettingData)
 
-		// Network link preference
-		h.POST("network/linkPreference/:guid", r.setLinkPreference)
-	}
+	h.GET("certificates/:guid", r.getCertificates)
+	h.POST("certificates/:guid", r.addCertificate)
+	h.DELETE("certificates/:guid/:instanceId", r.deleteCertificate)
+}
+
+func (r *deviceManagementRoutes) registerKVMAndLinkRoutes(h *gin.RouterGroup) {
+	h.GET("kvm/displays/:guid", r.getKVMDisplays)
+	h.PUT("kvm/displays/:guid", r.setKVMDisplays)
+
+	h.POST("network/linkPreference/:guid", r.setLinkPreference)
 }

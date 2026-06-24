@@ -30,7 +30,7 @@ func (uc *UseCase) GetWirelessProfileSync(c context.Context, guid string) (dto.W
 		return dto.WirelessProfileSyncResponse{}, err
 	}
 
-	powerCapabilities, err := device.GetPowerCapabilities()
+	powerCapabilities, err := device.GetBootCapabilities()
 	if err != nil {
 		return dto.WirelessProfileSyncResponse{}, err
 	}
@@ -55,7 +55,7 @@ func (uc *UseCase) SetWirelessProfileSync(c context.Context, guid string, req dt
 		return dto.WirelessProfileSyncResponse{}, err
 	}
 
-	powerCapabilities, err := device.GetPowerCapabilities()
+	powerCapabilities, err := device.GetBootCapabilities()
 	if err != nil {
 		return dto.WirelessProfileSyncResponse{}, err
 	}
