@@ -88,6 +88,8 @@ type (
 		PatchWiredNetworkSettings(c context.Context, guid string, req dto.WiredNetworkConfigRequest) error
 		RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
 		GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
+		GetWirelessProfileSync(c context.Context, guid string) (dto.WirelessProfileSyncResponse, error)
+		SetWirelessProfileSync(c context.Context, guid string, req dto.WirelessProfileSyncRequest) (dto.WirelessProfileSyncResponse, error)
 		GetWirelessProfiles(c context.Context, guid string) ([]dto.WirelessProfileResponse, error)
 		AddWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
 		DeleteWirelessProfile(c context.Context, guid, profileName string) error
