@@ -54,6 +54,8 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, amt amtexplorer.F
 		h.PATCH("networkSettings/wired/:guid", r.patchWiredNetworkSettings)
 		h.GET("networkSettings/wireless/state/:guid", r.getWirelessState)
 		h.POST("networkSettings/wireless/state/:guid", r.requestWirelessStateChange)
+		h.GET("networkSettings/wireless/profileSync/:guid", r.getWirelessProfileSync)
+		h.POST("networkSettings/wireless/profileSync/:guid", r.setWirelessProfileSync)
 		h.GET("networkSettings/wireless/profile/:guid", r.getWirelessProfiles)
 		h.POST("networkSettings/wireless/profile/:guid", r.addWirelessProfile)
 		h.PATCH("networkSettings/wireless/profile/:guid", r.updateWirelessProfile)
