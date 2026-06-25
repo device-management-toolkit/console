@@ -22,6 +22,9 @@ jobs:
 
     runs-on: ubuntu-latest
 
+    env:
+      ZIZMOR_VERSION: 1.20.0
+
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
@@ -33,11 +36,24 @@ jobs:
         with:
           persist-credentials: false
 
-      - name: Run Zizmor scan
-        id: zizmor
-        uses: open-edge-platform/orch-ci/.github/actions/security/zizmor@587c67a41629ce30ddbc6e5f06c0990b13c4118c  # v2026.1.3
+      - name: Install uv
+        uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+
+      - name: Run Zizmor
+        run: |
+          uvx zizmor=="$ZIZMOR_VERSION" \
+            --format sarif \
+            .github/workflows .github/actions \
+            > zizmor_scan_report.sarif
+
+      - name: Upload SARIF to GitHub Security
+        uses: github/codeql-action/upload-sarif@8aad20d150bbac5944a9f9d289da16a4b0d87c1e # v4.36.2
         with:
-          scan-scope: all
-          paths: .
-          output-format: sarif
-          upload-sarif: true
+          sarif_file: zizmor_scan_report.sarif
+
+      - name: Upload Zizmor report artifact
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        with:
+          name: zizmor-results
+          path: zizmor_scan_report.sarif
+          retention-days: 7
