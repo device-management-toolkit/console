@@ -38,6 +38,8 @@ jobs:
 
       - name: Install uv
         uses: astral-sh/setup-uv@fac544c07dec837d0ccb6301d7b5580bf5edae39 # v8.2.0
+        with:
+          enable-cache: false
 
       - name: Run Zizmor
         run: |
@@ -52,7 +54,7 @@ jobs:
           sarif_file: zizmor_scan_report.sarif
 
       - name: Upload Zizmor report artifact
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4.6.2
+        uses: actions/upload-artifact@bbbca2ddaa5d8feaa63e36b76fdaad77386f024f  # v7.0.0
         with:
           name: zizmor-results
           path: zizmor_scan_report.sarif
