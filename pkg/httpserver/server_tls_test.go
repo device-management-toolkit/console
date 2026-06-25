@@ -31,6 +31,8 @@ func TestGenerateSelfSignedCert_UsesRSA3072AndSHA384(t *testing.T) {
 	block, _ := pem.Decode(certPEM)
 	if block == nil {
 		t.Fatalf("failed to decode generated certificate PEM")
+
+		return
 	}
 
 	cert, err := x509.ParseCertificate(block.Bytes)
