@@ -43,7 +43,7 @@ jobs:
         run: |
           uvx zizmor=="$ZIZMOR_VERSION" \
             --format sarif \
-            "$GITHUB_WORKSPACE" \
+            .github \
             > zizmor_scan_report.sarif
 
       - name: Upload SARIF to GitHub Security
