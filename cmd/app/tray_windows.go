@@ -121,7 +121,7 @@ func surfaceRunningInstance(url string) {
 		return
 	}
   
-  // rundll32 avoids cmd.exe's metacharacter parsing on URLs with querystrings.
+// rundll32 avoids cmd.exe's metacharacter parsing on URLs with querystrings.
 	if err := exec.CommandContext(
 		context.Background(),
 		"rundll32",
