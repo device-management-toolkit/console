@@ -35,11 +35,11 @@ jobs:
       - name: Semantic Release dry-run
         id: semantic-release
         env:
-          GITHUB_REF_NAME: ${{ github.head_ref || github.ref_name }}
+          GITHUB_REF: ${{ github.head_ref || github.ref_name }}
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
           # unset GITHUB_ACTIONS
-          npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF_NAME"
+          npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF"
           version=$(cat .VERSION)
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
