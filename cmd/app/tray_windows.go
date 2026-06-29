@@ -145,6 +145,7 @@ func logDir() string {
 
 	return filepath.Join(home, "AppData", "Local", "device-management-toolkit", "logs")
 }
+
 // relaunchInBackground re-execs the current process detached from the console,
 // redirecting output to a log file. It exits the parent process on success.
 func relaunchInBackground() {
