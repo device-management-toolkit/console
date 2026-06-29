@@ -19,9 +19,11 @@ import (
 // golang.org/x/sys/windows just for the constant.
 // inheriting the parent console.
 const detachedProcess = 0x00000008
+
 // CreateMutexW returns ERROR_ALREADY_EXISTS when another instance holds the named mutex.
 const mutexName = "Local\\DMTConsoleTray"
 const errorAlreadyExists uint32 = 183
+
 // ensureSingleInstance prevents concurrent tray processes via a named mutex.
 //
 // The mutex handle does not survive process exit and cannot be passed to the
@@ -46,6 +48,7 @@ func ensureSingleInstance(url string) {
 
 	probeInstanceMutex(kernel32, namePtr, url)
 }
+
 // shouldHoldInstanceMutex reports whether this process is the persistent tray
 // process (re-execed child or non-terminal launch). The terminal parent that
 // is about to call relaunchInBackground returns false.
@@ -118,7 +121,7 @@ func surfaceRunningInstance(url string) {
 		return
 	}
   
-// rundll32 avoids cmd.exe's metacharacter parsing on URLs with querystrings.
+  // rundll32 avoids cmd.exe's metacharacter parsing on URLs with querystrings.
 	if err := exec.CommandContext(
 		context.Background(),
 		"rundll32",
@@ -128,6 +131,7 @@ func surfaceRunningInstance(url string) {
 		log.Printf("Failed to open browser: %v", err)
 	}
 }
+
 // logDir returns the Windows-conventional log directory for the app.
 func logDir() string {
 	if dir := os.Getenv("LOCALAPPDATA"); dir != "" {
