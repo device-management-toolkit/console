@@ -15,8 +15,6 @@ import (
 )
 
 // detachedProcess is the Windows CreationFlag that runs the child without
-// inheriting the parent console. Defined here to avoid pulling in
-// golang.org/x/sys/windows just for the constant.
 // inheriting the parent console.
 const detachedProcess = 0x00000008
 
