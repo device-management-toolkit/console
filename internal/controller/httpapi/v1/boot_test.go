@@ -87,6 +87,27 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
+			name: "setRemoteEraseOptions - forwards full payload",
+			requestBody: dto.RemoteEraseRequest{
+				SecureEraseAllSSDs: true,
+				TPMClear:           true,
+				RestoreBIOSToEOM:   true,
+				UnconfigureCSME:    true,
+				SSDPassword:        "s3cr3t",
+			},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", dto.RemoteEraseRequest{
+					SecureEraseAllSSDs: true,
+					TPMClear:           true,
+					RestoreBIOSToEOM:   true,
+					UnconfigureCSME:    true,
+					SSDPassword:        "s3cr3t",
+				}).
+					Return(nil)
+			},
+			expectedCode: http.StatusOK,
+		},
+		{
 			name:        "setRemoteEraseOptions - invalid JSON payload",
 			requestBody: "invalid-json",
 			mock: func(_ *mocks.MockDeviceManagementFeature) {

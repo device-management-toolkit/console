@@ -32,6 +32,17 @@ var (
 	ErrRPEConfigurationDataResetNotLatched = errors.New("remote erase: ConfigurationDataReset did not latch; aborting to avoid reboot without CSME reset")
 	// ErrRPEPutAndVerifyFailed is returned when both the PUT and the verify GET fail.
 	ErrRPEPutAndVerifyFailed = errors.New("remote erase: PUT failed and verify GET failed; aborting")
+	// errRPEPowerStateUnavailable is returned when no power state can be read from AMT.
+	errRPEPowerStateUnavailable = errors.New("remote erase: power state unavailable")
+)
+
+const (
+	// DMTF/CIM current power-state values reported by ServiceAvailableToElement.
+	// Off states should be powered on (2) rather than cycled (5).
+	currentPowerStateOffHard              = 6
+	currentPowerStateOffSoft              = 8
+	currentPowerStatePowerOffSoftGraceful = 12
+	currentPowerStatePowerOffHardGraceful = 13
 )
 
 func (c *ConnectionEntry) SetRPEEnabled(enabled bool) error {
@@ -138,14 +149,51 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword strin
 		return fmt.Errorf("SetBootConfigRole: %w", err)
 	}
 
-	// Step 5: Restart the platform via a full hardware power cycle (S5→S0).
-	// PowerCycleOffHard is required: MasterBusReset (warm reset) keeps ME power rails energised
-	// so the BIOS never gets the opportunity to execute the CSME/platform erase.
-	if _, err = c.WsmanMessages.CIM.PowerManagementService.RequestPowerStateChange(power.PowerCycleOffHard); err != nil {
+	// Step 5: If the host is currently off, request PowerOn (2). Otherwise, preserve
+	// existing behavior and request a hard power cycle (5) so the BIOS executes the erase flow.
+	powerAction, err := c.chooseRPEPowerAction()
+	if err != nil {
+		return err
+	}
+
+	if _, err = c.WsmanMessages.CIM.PowerManagementService.RequestPowerStateChange(powerAction); err != nil {
 		return fmt.Errorf("RequestPowerStateChange: %w", err)
 	}
 
 	return nil
+}
+
+func (c *ConnectionEntry) chooseRPEPowerAction() (power.PowerState, error) {
+	state, err := c.GetPowerState()
+	if err != nil {
+		return 0, fmt.Errorf("GetPowerState: %w", err)
+	}
+
+	if len(state) == 0 {
+		return 0, errRPEPowerStateUnavailable
+	}
+
+	return selectRPEPowerAction(int(state[0].PowerState)), nil
+}
+
+func selectRPEPowerAction(currentState int) power.PowerState {
+	if isOffPowerState(currentState) {
+		return power.PowerOn
+	}
+
+	return power.PowerCycleOffHard
+}
+
+func isOffPowerState(currentState int) bool {
+	switch currentState {
+	case currentPowerStateOffHard,
+		currentPowerStateOffSoft,
+		currentPowerStatePowerOffSoftGraceful,
+		currentPowerStatePowerOffHardGraceful:
+		return true
+	default:
+		return false
+	}
 }
 
 // verifyPutLatched is called when BootSettingData.Put returns an error. It issues a
