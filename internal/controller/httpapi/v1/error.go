@@ -18,7 +18,11 @@ import (
 )
 
 // errorKey is the JSON field name used for error messages in gin.H responses.
-const errorKey = "error"
+// messageKey is the JSON field name used for human-readable messages in gin.H responses.
+const (
+	errorKey   = "error"
+	messageKey = "message"
+)
 
 type response struct {
 	Error   string `json:"error,omitempty" example:"message"`
