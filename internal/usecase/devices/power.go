@@ -179,7 +179,7 @@ func (uc *UseCase) GetPowerCapabilities(c context.Context, guid string) (dto.Pow
 		return dto.PowerCapabilities{}, err
 	}
 
-	capabilities, err := device.GetBootCapabilities()
+	capabilities, err := device.GetPowerCapabilities()
 	if err != nil {
 		return dto.PowerCapabilities{}, err
 	}

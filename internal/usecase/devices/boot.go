@@ -84,7 +84,8 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 		eraseMask |= platformEraseCSMEUnconfigure
 	}
 
-	uc.log.Debug("SetRemoteEraseOptions guid=%s eraseMask=0x%x secureErase=%v tpmClear=%v biosReload=%v csmeReset=%v",
+	uc.log.Debug(
+		"SetRemoteEraseOptions guid=%s eraseMask=0x%x secureErase=%v tpmClear=%v biosReload=%v csmeReset=%v",
 		guid, eraseMask,
 		req.SecureEraseAllSSDs,
 		req.TPMClear,

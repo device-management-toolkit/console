@@ -618,6 +618,21 @@ func (mr *MockManagementMockRecorder) GetOSPowerSavingState() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetOSPowerSavingState", reflect.TypeOf((*MockManagement)(nil).GetOSPowerSavingState))
 }
 
+// GetPowerCapabilities mocks base method.
+func (m *MockManagement) GetPowerCapabilities() (boot.BootCapabilitiesResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetPowerCapabilities")
+	ret0, _ := ret[0].(boot.BootCapabilitiesResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetPowerCapabilities indicates an expected call of GetPowerCapabilities.
+func (mr *MockManagementMockRecorder) GetPowerCapabilities() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPowerCapabilities", reflect.TypeOf((*MockManagement)(nil).GetPowerCapabilities))
+}
+
 // GetPowerState mocks base method.
 func (m *MockManagement) GetPowerState() ([]service.CIM_AssociatedPowerManagementService, error) {
 	m.ctrl.T.Helper()
@@ -829,20 +844,6 @@ func (mr *MockManagementMockRecorder) SendPowerAction(action any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SendPowerAction", reflect.TypeOf((*MockManagement)(nil).SendPowerAction), action)
 }
 
-// SetRemoteEraseOptions mocks base method.
-func (m *MockManagement) SetRemoteEraseOptions(eraseMask int, ssdPassword string) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", eraseMask, ssdPassword)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
-func (mr *MockManagementMockRecorder) SetRemoteEraseOptions(eraseMask, ssdPassword any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockManagement)(nil).SetRemoteEraseOptions), eraseMask, ssdPassword)
-}
-
 // SetAMTRedirectionService mocks base method.
 func (m *MockManagement) SetAMTRedirectionService(arg0 *redirection.RedirectionRequest) (redirection.Response, error) {
 	m.ctrl.T.Helper()
@@ -945,6 +946,20 @@ func (m *MockManagement) SetLinkPreference(linkPreference, timeout uint32) (int,
 func (mr *MockManagementMockRecorder) SetLinkPreference(linkPreference, timeout any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockManagement)(nil).SetLinkPreference), linkPreference, timeout)
+}
+
+// SetRemoteEraseOptions mocks base method.
+func (m *MockManagement) SetRemoteEraseOptions(eraseMask int, ssdPassword string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", eraseMask, ssdPassword)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
+func (mr *MockManagementMockRecorder) SetRemoteEraseOptions(eraseMask, ssdPassword any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockManagement)(nil).SetRemoteEraseOptions), eraseMask, ssdPassword)
 }
 
 // UpdateWiFiSettings mocks base method.

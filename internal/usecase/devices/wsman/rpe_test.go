@@ -5,9 +5,10 @@ import (
 	"encoding/binary"
 	"testing"
 
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 )
 
 func TestBuildRPETLVParams(t *testing.T) {

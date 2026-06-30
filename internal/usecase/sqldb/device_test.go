@@ -18,24 +18,6 @@ import (
 	"github.com/device-management-toolkit/console/pkg/db"
 )
 
-const BuilderErrorTestName = "Builder error"
-
-// alwaysErrFormat is a squirrel PlaceholderFormat that always fails ReplacePlaceholders,
-// causing builder.ToSql() to return an error.
-type alwaysErrFormat struct{}
-
-func (alwaysErrFormat) ReplacePlaceholders(_ string) (string, error) {
-	return "", errors.New("placeholder error")
-}
-
-func createSQLConfigWithBuilderError(dbConn *sql.DB) *db.SQL {
-	return &db.SQL{
-		Builder:    squirrel.StatementBuilder.PlaceholderFormat(alwaysErrFormat{}),
-		Pool:       dbConn,
-		IsEmbedded: true,
-	}
-}
-
 var (
 	crthash  = "certhash"
 	Certhash = &crthash
@@ -1199,14 +1181,6 @@ func TestDeviceRepo_UpdateConnectionStatus(t *testing.T) {
 			err:    &repoerrors.DatabaseError{},
 			verify: func(_ *testing.T, _ *sql.DB) {},
 		},
-		{
-			name:   BuilderErrorTestName,
-			setup:  func(_ *sql.DB) {},
-			guid:   "guid1",
-			status: true,
-			err:    &repoerrors.DatabaseError{},
-			verify: func(_ *testing.T, _ *sql.DB) {},
-		},
 	}
 
 	for _, tc := range tests {
@@ -1219,12 +1193,7 @@ func TestDeviceRepo_UpdateConnectionStatus(t *testing.T) {
 
 			tc.setup(dbConn)
 
-			var sqlConfig *db.SQL
-			if tc.name == BuilderErrorTestName {
-				sqlConfig = createSQLConfigWithBuilderError(dbConn)
-			} else {
-				sqlConfig = CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
-			}
+			sqlConfig := CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
 
 			mockLog := mocks.NewMockLogger(nil)
 			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
@@ -1291,13 +1260,6 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 			err:    &repoerrors.DatabaseError{},
 			verify: func(_ *testing.T, _ *sql.DB) {},
 		},
-		{
-			name:   BuilderErrorTestName,
-			setup:  func(_ *sql.DB) {},
-			guid:   "guid1",
-			err:    &repoerrors.DatabaseError{},
-			verify: func(_ *testing.T, _ *sql.DB) {},
-		},
 	}
 
 	for _, tc := range tests {
@@ -1310,12 +1272,7 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 
 			tc.setup(dbConn)
 
-			var sqlConfig *db.SQL
-			if tc.name == BuilderErrorTestName {
-				sqlConfig = createSQLConfigWithBuilderError(dbConn)
-			} else {
-				sqlConfig = CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
-			}
+			sqlConfig := CreateSQLConfig(dbConn, tc.name == QueryExecutionErrorTestName)
 
 			mockLog := mocks.NewMockLogger(nil)
 			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)

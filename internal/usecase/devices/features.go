@@ -125,7 +125,7 @@ func getBootConfiguration(device wsman.Management) BootConfiguration {
 
 	// Non-fatal: older devices that do not support OCR/RPE will return an error here;
 	// all capability-derived fields will default to false/zero.
-	capabilities, _ := device.GetBootCapabilities()
+	capabilities, _ := device.GetPowerCapabilities()
 
 	bootData, _ := device.GetBootData()
 
@@ -269,7 +269,7 @@ func syncRPEResults(src *dtov2.Features, dst *dto.Features) {
 }
 
 func setRPE(enableRemoteErase bool, settingsResultsV2 *dtov2.Features, device wsman.Management) error {
-	bootCapabilities, err := device.GetBootCapabilities()
+	bootCapabilities, err := device.GetPowerCapabilities()
 	if err != nil {
 		return err
 	}

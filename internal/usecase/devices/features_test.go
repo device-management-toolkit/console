@@ -204,7 +204,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        true,
@@ -285,7 +285,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        true,
@@ -388,7 +388,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    false,
 						ForceWinREBoot:        false,
@@ -571,7 +571,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					GetBootService().
@@ -629,7 +629,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					GetBootService().
@@ -687,7 +687,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					GetBootService().
@@ -698,7 +698,7 @@ func TestGetFeatures(t *testing.T) {
 					GetCIMBootSourceSetting().
 					Return(cimBoot.Response{}, ErrGeneral)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					GetBootData().
@@ -789,7 +789,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
 				man2.EXPECT().
 					GetBootData().
@@ -880,7 +880,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        true,
@@ -969,7 +969,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        true,
@@ -1047,7 +1047,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot: true,
 					}, nil)
@@ -1149,7 +1149,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceWinREBoot: true, // Only WinRE supported
 					}, nil)
@@ -1229,7 +1229,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					GetBootService().
@@ -1293,7 +1293,7 @@ func TestGetFeatures(t *testing.T) {
 					GetCIMBootSourceSetting().
 					Return(cimBoot.Response{}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						PlatformErase: 0x45, // bits 0,2,6 set: RPESupport | SecureErase | TPMClear
 					}, nil)
@@ -1375,7 +1375,7 @@ func TestGetFeatures(t *testing.T) {
 					GetCIMBootSourceSetting().
 					Return(cimBoot.Response{}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					// bits 0,2,6,25,26 set: RPESupport|SecureErase|TPMClear|ClearBIOSNVM|BIOSReload
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 0x6000045}, nil)
 				man2.EXPECT().
@@ -1467,7 +1467,7 @@ func TestGetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFILocalPBABoot: true,
 					}, nil)
@@ -1702,7 +1702,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32769). // OCR enabled
@@ -1729,7 +1729,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        false,
@@ -1817,7 +1817,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32768).
@@ -1844,7 +1844,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        false,
@@ -1974,7 +1974,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32769).
@@ -2001,7 +2001,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{
 						ForceUEFIHTTPSBoot:    true,
 						ForceWinREBoot:        false,
@@ -2194,7 +2194,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32769).
@@ -2276,13 +2276,13 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32769).
 					Return(cimBoot.BootService{}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					GetBootService().
@@ -2370,7 +2370,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, nil)
 				man2.EXPECT().
 					BootServiceStateChange(32769).
@@ -2382,7 +2382,7 @@ func TestSetFeatures(t *testing.T) {
 					GetCIMBootSourceSetting().
 					Return(cimBoot.Response{}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
 				man2.EXPECT().
 					GetBootData().
@@ -2585,7 +2585,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -2661,7 +2661,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				// BootServiceStateChange fails (non-fatal), so getOneClickRecoverySettings
 				// is skipped and the RPE fields set by setRPE are preserved.
@@ -2752,7 +2752,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
 				// OCR=true + RPE=true → state 32771
 				man2.EXPECT().
@@ -2773,7 +2773,7 @@ func TestSetFeatures(t *testing.T) {
 						},
 					}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{ForceUEFIHTTPSBoot: true, PlatformErase: 1}, nil)
 				man2.EXPECT().
 					GetBootData().
@@ -2863,7 +2863,7 @@ func TestSetFeatures(t *testing.T) {
 					}).
 					Return(nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
 				// OCR=false + RPE=true → state 32770
 				man2.EXPECT().
@@ -2876,7 +2876,7 @@ func TestSetFeatures(t *testing.T) {
 					GetCIMBootSourceSetting().
 					Return(cimBoot.Response{}, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 1}, nil)
 				man2.EXPECT().
 					GetBootData().

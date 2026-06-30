@@ -5,4 +5,3 @@ coverage:
   # Specify files or directories to ignore
 ignore:
 - "internal/usecase/devices/wsman/*"
-- "internal/mocks/*"

@@ -50,6 +50,10 @@ type Management interface {
 	GetOSPowerSavingState() (ipspower.OSPowerSavingState, error)
 	GetIPSPowerManagementService() (ipspower.PowerManagementService, error)
 	RequestOSPowerSavingStateChange(osPowerSavingState ipspower.OSPowerSavingState) (ipspower.PowerActionResponse, error)
+	// GetPowerCapabilities is a compatibility alias for callers that were
+	// migrated from GetBootCapabilities while still consuming the same raw AMT
+	// BootCapabilities payload.
+	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetBootCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
 	CancelUserConsentRequest() (optin.Response, error)

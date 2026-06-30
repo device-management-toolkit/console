@@ -62,7 +62,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalUserProfileSynchronizationEnabled,
 					UEFIWiFiProfileShareEnabled:        true,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.GetWirelessProfileSync(context.Background(), guid)
@@ -78,7 +78,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalSyncDisabled,
 					UEFIWiFiProfileShareEnabled:        false,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: false}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: false}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.GetWirelessProfileSync(context.Background(), guid)
@@ -124,7 +124,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				expectSetupSuccess(repo, wsmanMock, management)
 				management.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{}}, nil)
 				management.EXPECT().GetWiFiPortConfigurationService().Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{}, errWiFiProfileSync)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.GetWirelessProfileSync(context.Background(), guid)
@@ -142,7 +142,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalSyncDisabled,
 					UEFIWiFiProfileShareEnabled:        false,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 				management.EXPECT().PutWiFiPortConfigurationService(gomock.Any()).DoAndReturn(func(req wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 					assert.Equal(t, wifiportconfiguration.LocalUserProfileSynchronizationEnabled, req.LocalProfileSynchronizationEnabled)
 					assert.False(t, req.UEFIWiFiProfileShareEnabled)
@@ -169,7 +169,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalSyncDisabled,
 					UEFIWiFiProfileShareEnabled:        false,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 				management.EXPECT().PutWiFiPortConfigurationService(gomock.Any()).DoAndReturn(func(req wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 					assert.True(t, req.UEFIWiFiProfileShareEnabled)
 
@@ -193,7 +193,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalSyncDisabled,
 					UEFIWiFiProfileShareEnabled:        false,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: false}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: false}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true), UEFIProfileSync: testBoolPtr(true)})
@@ -210,7 +210,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalUserProfileSynchronizationEnabled,
 					UEFIWiFiProfileShareEnabled:        false,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true), UEFIProfileSync: testBoolPtr(false)})
@@ -226,7 +226,7 @@ func TestWiFiProfileSync(t *testing.T) {
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalUserProfileSynchronizationEnabled,
 					UEFIWiFiProfileShareEnabled:        true,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{})
@@ -272,7 +272,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				expectSetupSuccess(repo, wsmanMock, management)
 				management.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{}}, nil)
 				management.EXPECT().GetWiFiPortConfigurationService().Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{}, errWiFiProfileSync)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
 				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
@@ -287,7 +287,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetWiFiPortConfigurationService().Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{
 					LocalProfileSynchronizationEnabled: wifiportconfiguration.LocalSyncDisabled,
 				}, nil)
-				management.EXPECT().GetBootCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 				management.EXPECT().PutWiFiPortConfigurationService(gomock.Any()).Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
