@@ -21,7 +21,7 @@ jobs:
       version: ${{ steps.semantic-release.outputs.version }}
     steps:
       - name: Checkout Console
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
@@ -39,10 +39,9 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
           # unset GITHUB_ACTIONS
-          # git checkout -b ${{ github.base_ref }} pull/${{ github.event.number }}/merge
-          npx semantic-release --dry-run --no-ci --branches main,$GITHUB_REF
+          npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF"
           version=$(cat .VERSION)
-          echo "version=$version" >> $GITHUB_OUTPUT
+          echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Version
         run: echo "The next version is ${{ steps.semantic-release.outputs.version }}"
@@ -59,17 +58,17 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
       - name: Checkout Console
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
 
       - name: Check out Sample Web UI
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: device-management-toolkit/sample-web-ui
           ref: main
@@ -127,7 +126,7 @@ jobs:
         run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
 
       # Cache all build artifacts in a single step
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             dist/linux
@@ -142,12 +141,12 @@ jobs:
     needs: build
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@9af89fc71515a100421586dfdb3dc9c984fbf411 # v2.19.4
+        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
         with:
           egress-policy: audit
 
       - name: Checkout Console
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           persist-credentials: false
           fetch-depth: 2
@@ -157,7 +156,7 @@ jobs:
         run: |
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
-      - uses: actions/cache@27d5ce7f107fe9357f9df03efb73ab90386fccae # v5.0.5
+      - uses: actions/cache@2c8a9bd7457de244a408f35966fab2fb45fda9c8 # v6.0.0
         with:
           path: |
             dist/linux
@@ -183,7 +182,7 @@ jobs:
           go env -w GOTOOLCHAIN=local
 
       - name: Checkout Sample Web UI for license scan
-        uses: actions/checkout@df4cb1c069e1874edd31b4311f1884172cec0e10 # v6.0.3
+        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
         with:
           repository: device-management-toolkit/sample-web-ui
           ref: main
@@ -213,7 +212,7 @@ jobs:
         run: zip -r licenses.zip licenses
       
       - name: Docker Login
-        uses: docker/login-action@650006c6eb7dba73a995cc03b0b2d7f5ca915bee # v4.2.0
+        uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
         with:
           registry: vprodemo.azurecr.io
           username: ${{ secrets.DOCKER_USERNAME }}
