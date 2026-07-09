@@ -32,7 +32,7 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	var got map[string]string
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 	require.Equal(t, "invalid credentials", got["error"])
-	require.Equal(t, "Incorrect username or password", got["message"])
+	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
 }
 
 // oidcDiscoveryServer spins up a TLS test server that serves the minimum

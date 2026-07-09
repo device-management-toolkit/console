@@ -76,7 +76,7 @@ func (lr LoginRoute) Login(c *gin.Context) {
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	if creds.Username != lr.Config.AdminUsername || creds.Password != lr.Config.AdminPassword {
-		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect username or password"})
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
 
 		return
 	}
