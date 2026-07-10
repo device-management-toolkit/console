@@ -617,17 +617,31 @@ func TestLoginRedirection(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		deviceID     string
-		mock         func(devFeature *mocks.MockDeviceManagementFeature)
-		expectedCode int
-		expectedErr  bool
+		name string
+		// deviceID is the GUID as it appears in the request path.
+		deviceID string
+		// expectedClaim is the deviceId the token must carry; empty means deviceID.
+		expectedClaim string
+		mock          func(devFeature *mocks.MockDeviceManagementFeature)
+		expectedCode  int
+		expectedErr   bool
 	}{
 		{
 			name:     "login redirection - success",
 			deviceID: "test-device-guid",
 			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
 				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedErr:  false,
+		},
+		{
+			name:          "login redirection - mixed-case guid is normalized in claim",
+			deviceID:      "Test-Device-GUID",
+			expectedClaim: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "Test-Device-GUID", "", false).
 					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -683,32 +697,40 @@ func TestLoginRedirection(t *testing.T) {
 				require.True(t, ok, "token field not found in response")
 				require.NotEmpty(t, tokenString)
 
-				// Decode and verify token expiration
-				verifyRedirectionTokenExpiration(t, tokenString)
+				expectedClaim := tc.expectedClaim
+				if expectedClaim == "" {
+					expectedClaim = tc.deviceID
+				}
+
+				// Decode and verify token expiration and device binding
+				verifyRedirectionToken(t, tokenString, expectedClaim)
 			}
 		})
 	}
 }
 
-// verifyRedirectionTokenExpiration decodes JWT token and verifies 5-minute expiration
-func verifyRedirectionTokenExpiration(t *testing.T, tokenString string) {
+// verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
+func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
 	t.Helper()
 
-	// Parse JWT claims without verification (we just need to check the structure)
-	claims := jwt.RegisteredClaims{}
+	// Parse the token, verifying its signature against the test signing key.
+	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(tokenString, &claims, func(_ *jwt.Token) (interface{}, error) {
-		// Return the key for verification (we're using a test key)
 		return []byte(config.ConsoleConfig.JWTKey), nil
 	})
 	require.NoError(t, err, "token should be parseable")
 
-	// Verify ExpiresAt is set
-	require.NotNil(t, claims.ExpiresAt, "token should have expiration time")
+	// deviceId must be the device GUID
+	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
+
+	// Verify expiration is set
+	exp, err := claims.GetExpirationTime()
+	require.NoError(t, err)
+	require.NotNil(t, exp, "token should have expiration time")
 
 	// Calculate expected expiration window
 	now := time.Now()
-	expirationTime := claims.ExpiresAt.Time
-	timeDiff := expirationTime.Sub(now)
+	timeDiff := exp.Sub(now)
 
 	// Should be approximately 5 minutes (with some tolerance for test execution time)
 	expectedDuration := config.ConsoleConfig.RedirectionJWTExpiration
