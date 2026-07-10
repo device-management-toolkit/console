@@ -22,7 +22,7 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize"),
 		fuego.OptionDescription("Authenticate and return an access token"),
-		apiRouteOptions(),
+		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
 	)
 
 	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
