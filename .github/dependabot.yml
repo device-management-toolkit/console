@@ -17,6 +17,11 @@ updates:
     schedule:
       interval: daily
     open-pull-requests-limit: 10
+    # codeql-action's sub-actions release in lockstep; one PR instead of four.
+    groups:
+      codeql-action:
+        patterns:
+          - 'github/codeql-action*'
 
   - package-ecosystem: docker
     directory: /integration-test
