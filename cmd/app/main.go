@@ -22,10 +22,20 @@ import (
 var (
 	ErrSecretStoreAddressNotConfigured = errors.New("secret store address not configured")
 	ErrSecretStoreTokenNotConfigured   = errors.New("secret store token not configured")
+	ErrJWTKeyMissing                   = errors.New("JWT signing key is empty")
+	ErrJWTKeyInsecure                  = errors.New("JWT signing key is the known-insecure default")
 )
 
 // adminPasswordLength is the length of generated admin passwords.
 const adminPasswordLength = 16
+
+const (
+	insecureDefaultJWTKey   = "your_secret_jwt_key"  // rejected at startup
+	jwtKeyStorageKey        = "jwt-signing-key"      // secret store / keyring key
+	encryptionKeyStorageKey = "default-security-key" // secret store / keyring key
+	jwtKeyBytes             = 32                     // 256-bit, matches HS256
+	keyringServiceName      = "device-management-toolkit"
+)
 
 // Function pointers for better testability.
 var (
@@ -67,6 +77,7 @@ func main() {
 
 	handleEncryptionKey(cfg)
 	handleAdminPassword(cfg)
+	handleJWTKey(cfg)
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
@@ -133,92 +144,16 @@ func handleSecretsConfig(cfg *config.Config) (security.Storager, error) {
 }
 
 func handleEncryptionKey(cfg *config.Config) {
-	// If encryption key is already provided via config/env, just use it
 	if cfg.EncryptionKey != "" {
 		log.Println("Encryption key loaded from environment")
 
 		return
 	}
 
-	toolkitCrypto := security.Crypto{}
+	store := newSecretStore(cfg)
 
-	// Try to initialize secret store client for encryption key retrieval
-	remoteStorage, err := handleSecretsConfig(cfg)
+	key, err := store.get(encryptionKeyStorageKey)
 	if err != nil {
-		remoteStorage = nil
-	}
-
-	// Try remote storage first
-	if done := tryRemoteStorage(cfg, remoteStorage); done {
-		return
-	}
-
-	// Try local keyring storage
-	localStorage := security.NewKeyRingStorage("device-management-toolkit")
-
-	if done := tryLocalStorage(cfg, localStorage, remoteStorage); done {
-		return
-	}
-
-	// Key not found anywhere, generate a new one
-	cfg.EncryptionKey = handleKeyNotFound(toolkitCrypto, remoteStorage, localStorage)
-
-	if err := saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage); err != nil {
-		log.Printf("Warning: Failed to save encryption key: %v", err)
-	}
-}
-
-// tryRemoteStorage attempts to store/retrieve the encryption key from remote storage.
-func tryRemoteStorage(cfg *config.Config, remoteStorage security.Storager) bool {
-	if remoteStorage == nil {
-		return false
-	}
-
-	if cfg.EncryptionKey != "" {
-		// Store static key in secret store (not recommended)
-		if err := remoteStorage.SetKeyValue("default-security-key", cfg.EncryptionKey); err == nil {
-			log.Println("Encryption key stored in secret store")
-
-			return true
-		}
-	} else {
-		// Retrieve from secret store
-		key, err := remoteStorage.GetKeyValue("default-security-key")
-		if err == nil {
-			cfg.EncryptionKey = key
-
-			log.Println("Encryption key loaded from secret store")
-
-			return true
-		}
-	}
-
-	return false
-}
-
-// tryLocalStorage attempts to store/retrieve the encryption key from local keyring.
-func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.Storager) bool {
-	var err error
-
-	if cfg.EncryptionKey != "" {
-		err = localStorage.SetKeyValue("default-security-key", cfg.EncryptionKey)
-		if err == nil {
-			log.Println("Encryption key stored in local keyring")
-
-			return true
-		}
-	} else {
-		cfg.EncryptionKey, err = localStorage.GetKeyValue("default-security-key")
-		if err == nil {
-			log.Println("Encryption key loaded from local keyring")
-			syncKeyToRemote(cfg.EncryptionKey, remoteStorage)
-
-			return true
-		}
-	}
-
-	// Check for unexpected errors
-	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
 		log.Fatalf(
 			"Local keyring unavailable (%v).\n"+
 				"Set APP_ENCRYPTION_KEY in the environment (or encryption_key in config) "+
@@ -227,45 +162,23 @@ func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.St
 		)
 	}
 
-	return false
-}
+	if key != "" {
+		cfg.EncryptionKey = key
 
-// syncKeyToRemote syncs an encryption key to the remote storage if available.
-func syncKeyToRemote(key string, remoteStorage security.Storager) {
-	if remoteStorage == nil {
+		log.Println("Encryption key loaded from secure storage")
+
 		return
 	}
 
-	if err := remoteStorage.SetKeyValue("default-security-key", key); err != nil {
-		log.Printf("Warning: Failed to sync key to secret store: %v", err)
-	} else {
-		log.Println("Encryption key synced to secret store")
+	// Not found anywhere: prompt (losing this key prevents access to existing data), then store.
+	cfg.EncryptionKey = handleKeyNotFound()
+
+	if err := store.set(encryptionKeyStorageKey, cfg.EncryptionKey); err != nil {
+		log.Printf("Warning: Failed to save encryption key: %v", err)
 	}
 }
 
-func saveEncryptionKey(key string, remoteStorage, localStorage security.Storager) error {
-	if remoteStorage != nil {
-		err := remoteStorage.SetKeyValue("default-security-key", key)
-		if err == nil {
-			log.Println("Encryption key saved to secret store")
-
-			return nil
-		}
-
-		return err
-	}
-
-	err := localStorage.SetKeyValue("default-security-key", key)
-	if err == nil {
-		log.Println("Encryption key saved to local keyring")
-
-		return nil
-	}
-
-	return err
-}
-
-func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) string {
+func handleKeyNotFound() string {
 	log.Print("\033[31mWarning: Key Not Found, Generate new key? -- This will prevent access to existing data? Y/N: \033[0m")
 
 	var response string
@@ -283,7 +196,7 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 		return ""
 	}
 
-	return toolkitCrypto.GenerateKey()
+	return security.Crypto{}.GenerateKey()
 }
 
 // generateRandomPassword creates a cryptographically secure random password.
@@ -324,4 +237,74 @@ func handleAdminPassword(cfg *config.Config) {
 	}
 
 	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
+}
+
+// handleJWTKey resolves the JWT key: env/config, else secret store / keyring, else generate.
+// Rejects the insecure default; never writes the key to config.yml.
+func handleJWTKey(cfg *config.Config) {
+	if cfg.JWTKey == insecureDefaultJWTKey {
+		log.Fatalf("insecure default JWT key; unset auth.jwtKey or set AUTH_JWT_KEY to a strong value")
+	}
+
+	if cfg.JWTKey != "" {
+		log.Println("JWT signing key loaded from environment/config")
+
+		return
+	}
+
+	store := newSecretStore(cfg)
+
+	// Losing the JWT key is harmless (tokens re-issue), so warn on storage errors rather than fatal.
+	key, err := store.get(jwtKeyStorageKey)
+	if err != nil {
+		log.Printf("Warning: keyring unavailable for JWT signing key: %v", err)
+	}
+
+	if key != "" {
+		cfg.JWTKey = key
+
+		log.Println("JWT signing key loaded from secure storage")
+
+		return
+	}
+
+	generated, genErr := generateJWTKey()
+	if genErr != nil {
+		log.Fatalf("Failed to generate JWT signing key: %v", genErr)
+	}
+
+	cfg.JWTKey = generated
+
+	if saveErr := store.set(jwtKeyStorageKey, cfg.JWTKey); saveErr != nil {
+		log.Printf("Warning: generated JWT signing key but could not persist it (%v); "+
+			"a new key will be generated on restart", saveErr)
+	} else {
+		log.Println("Generated and stored new JWT signing key")
+	}
+
+	if valErr := validateJWTKey(cfg.JWTKey); valErr != nil {
+		log.Fatalf("JWT signing key unusable: %v", valErr)
+	}
+}
+
+// validateJWTKey rejects an empty or known-insecure signing key.
+func validateJWTKey(key string) error {
+	switch key {
+	case "":
+		return ErrJWTKeyMissing
+	case insecureDefaultJWTKey:
+		return ErrJWTKeyInsecure
+	default:
+		return nil
+	}
+}
+
+// generateJWTKey returns a base64-encoded 256-bit random key.
+func generateJWTKey() (string, error) {
+	b := make([]byte, jwtKeyBytes)
+	if _, err := rand.Read(b); err != nil {
+		return "", err
+	}
+
+	return base64.StdEncoding.EncodeToString(b), nil
 }

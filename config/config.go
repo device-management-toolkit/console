@@ -94,7 +94,7 @@ type (
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -187,7 +187,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "", // resolved/generated at startup
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			// OAUTH CONFIG, if provided will not use basic auth
@@ -247,18 +247,29 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 	return err
 }
 
+// Owner-only permissions: config.yml persists the admin password in plaintext.
+const (
+	configDirPerm  = 0o700
+	configFilePerm = 0o600
+)
+
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
 func writeConfig(configPath string, cfg *Config) error {
 	configDir := filepath.Dir(configPath)
-	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+	if mkErr := os.MkdirAll(configDir, configDirPerm); mkErr != nil {
 		return mkErr
 	}
 
-	file, err := os.Create(configPath)
+	file, err := os.OpenFile(configPath, os.O_WRONLY|os.O_CREATE|os.O_TRUNC, configFilePerm)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	// Enforce perms even if the file pre-existed with looser bits.
+	if chmodErr := os.Chmod(configPath, configFilePerm); chmodErr != nil {
+		return chmodErr
+	}
 
 	encoder := yaml.NewEncoder(file)
 	defer encoder.Close()

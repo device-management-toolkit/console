@@ -40,6 +40,9 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, "info", cfg.Level)
 
 	assert.Equal(t, 2, cfg.PoolMax)
+
+	// JWT key has no hardcoded default; it is resolved/generated at startup.
+	assert.Equal(t, "", cfg.JWTKey)
 }
 
 func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
