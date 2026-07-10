@@ -7,7 +7,7 @@ go 1.25.0
 require (
 	fyne.io/systray v1.12.2
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.19.0
+	github.com/coreos/go-oidc/v3 v3.20.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.48.1
 	github.com/getkin/kin-openapi v0.140.0
 	github.com/gin-contrib/cors v1.7.7
@@ -120,7 +120,7 @@ require (
 	golang.org/x/crypto v0.52.0 // indirect
 	golang.org/x/net v0.55.0 // indirect
 	golang.org/x/sync v0.20.0 // indirect
-	golang.org/x/sys v0.45.0
+	golang.org/x/sys v0.47.0
 	golang.org/x/text v0.37.0 // indirect
 	google.golang.org/protobuf v1.36.10 // indirect
 	gopkg.in/yaml.v3 v3.0.1 // indirect
