@@ -4,7 +4,10 @@ package tray
 
 import (
 	"context"
+	"errors"
+	"os"
 	"os/exec"
+	"path/filepath"
 	"runtime"
 	"sync"
 
@@ -134,16 +137,44 @@ func openBrowser(url string) error {
 		cmd = "open"
 		args = []string{url}
 	case "windows":
-		// rundll32 invokes the URL handler directly, avoiding cmd.exe's
-		// metacharacter parsing that affects "cmd /c start <url>".
-		cmd = "rundll32"
-		args = []string{"url.dll,FileProtocolHandler", url}
+		return openBrowserWindows(url)
 	default:
 		cmd = "xdg-open"
 		args = []string{url}
 	}
 
 	return exec.CommandContext(context.Background(), cmd, args...).Start()
+}
+
+func openBrowserWindows(url string) error {
+	var launchErrs []error
+
+	if windir := os.Getenv("WINDIR"); windir != "" {
+		rundll32Path := filepath.Join(windir, "System32", "rundll32.exe")
+		if _, err := os.Stat(rundll32Path); err == nil {
+			if err := exec.CommandContext(context.Background(), rundll32Path, "url.dll,FileProtocolHandler", url).Start(); err == nil {
+				return nil
+			} else {
+				launchErrs = append(launchErrs, err)
+			}
+		}
+	}
+
+	// Fallback to PATH lookup.
+	if err := exec.CommandContext(context.Background(), "rundll32", "url.dll,FileProtocolHandler", url).Start(); err == nil {
+		return nil
+	} else {
+		launchErrs = append(launchErrs, err)
+	}
+
+	// Final fallback for hardened environments where rundll32 is blocked.
+	if err := exec.CommandContext(context.Background(), "cmd", "/c", "start", "", url).Start(); err == nil {
+		return nil
+	} else {
+		launchErrs = append(launchErrs, err)
+	}
+
+	return errors.Join(launchErrs...)
 }
 
 // getIcon returns the icon bytes for the system tray.
