@@ -159,7 +159,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 		err      error
 	}{
 		{
-			name: "success - eraseMask 0 erases all",
+			name: "no options selected returns ValidationError before reaching WSMAN",
 			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
@@ -168,16 +168,13 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 				man2.EXPECT().
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				man2.EXPECT().
-					SetRemoteEraseOptions(0, "").
-					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			err: nil,
+			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check erase options", "at least one erase option must be selected"),
 		},
 		{
 			name: "success - specific supported eraseMask",
@@ -328,7 +325,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 		},
 		{
 			name: "SetRemoteEraseOptions wsman call returns error",
-			req:  dto.RemoteEraseRequest{},
+			req:  dto.RemoteEraseRequest{SecureEraseAllSSDs: true},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
@@ -337,7 +334,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0, "").
+					SetRemoteEraseOptions(0x04, ""). // platformEraseSecureErase
 					Return(ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -408,7 +405,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "SetRemoteEraseOptions returns ErrRPENotEnabled - converted to NotSupportedError",
+			name: "no erase options selected returns ValidationError",
 			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
@@ -417,8 +414,26 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 				man2.EXPECT().
 					GetBootCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check erase options", "at least one erase option must be selected"),
+		},
+		{
+			name: "SetRemoteEraseOptions returns ErrRPENotEnabled - converted to NotSupportedError",
+			req:  dto.RemoteEraseRequest{SecureEraseAllSSDs: true},
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0, "").
+					GetBootCapabilities().
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
+				man2.EXPECT().
+					SetRemoteEraseOptions(0x04, "").
 					Return(devicewsman.ErrRPENotEnabled)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {

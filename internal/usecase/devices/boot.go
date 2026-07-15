@@ -84,6 +84,10 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 		eraseMask |= platformEraseCSMEUnconfigure
 	}
 
+	if eraseMask == 0 {
+		return ValidationError{}.Wrap("SetRemoteEraseOptions", "check erase options", "at least one erase option must be selected")
+	}
+
 	uc.log.Debug(
 		"SetRemoteEraseOptions guid=%s eraseMask=0x%x secureErase=%v tpmClear=%v biosReload=%v csmeReset=%v",
 		guid, eraseMask,
