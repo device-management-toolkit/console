@@ -88,7 +88,14 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 			"password",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+			"id",
+			"createddate",
+			"lastupdate",
+			"isdeleted",
+			"deleteddate",
+			"producttype",
+			"connectiontype").
 		From("devices").
 		Where("tenantid = ?", tenantID).
 		OrderBy("guid").
@@ -115,7 +122,7 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdate, &d.IsDeleted, &d.DeletedDate, &d.ProductType, &d.ConnectionType)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
@@ -146,7 +153,15 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 			"mebxpassword",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+			"id",
+			"createddate",
+			"lastupdate",
+			"isdeleted",
+			"deleteddate",
+			"producttype",
+			"connectiontype",
+		).
 		From("devices").
 		Where("guid = ? and tenantid = ?").
 		ToSql()
@@ -170,7 +185,7 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	for rows.Next() {
 		d := &entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdate, &d.IsDeleted, &d.DeletedDate, &d.ProductType, &d.ConnectionType)
 		if err != nil {
 			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
@@ -237,7 +252,14 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 			"tenantid",
 			"friendlyname",
 			"dnssuffix",
-			"deviceinfo").
+			"deviceinfo",
+			"id",
+			"createddate",
+			"lastupdate",
+			"isdeleted",
+			"deleteddate",
+			"producttype",
+			"connectiontype").
 		From("devices")
 
 	var params []interface{}
@@ -293,7 +315,7 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 
 	for rows.Next() {
 		var d entity.Device
-		if err := rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo); err != nil {
+		if err := rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.ID, &d.CreatedDate, &d.LastUpdate, &d.IsDeleted, &d.DeletedDate, &d.ProductType, &d.ConnectionType); err != nil {
 			return nil, ErrDeviceDatabase.Wrap("GetByTags", "rows.Scan", err)
 		}
 
@@ -347,6 +369,13 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		Set("useTLS", d.UseTLS).
 		Set("allowSelfSigned", d.AllowSelfSigned).
 		Set("certhash", d.CertHash).
+		Set("isdeleted", d.IsDeleted).
+		Set("producttype", d.ProductType).
+		Set("connectiontype", d.ConnectionType).
+		// Refreshed on every record edit; the use case stamps d.LastUpdate first.
+		Set("lastupdate", d.LastUpdate).
+		// id, createddate, and deleteddate are immutable — intentionally not Set
+		// here (deleteddate is written only by the soft-delete op, a separate PR).
 		Where("guid = ? AND tenantid = ?", d.GUID, d.TenantID).
 		ToSql()
 	if err != nil {
@@ -366,7 +395,8 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 	return rowsAffected > 0, nil
 }
 
-// UpdateConnectionStatus updates only the connection status and timestamps for a device.
+// UpdateConnectionStatus updates only the connection status and timestamps.
+// It must not touch lastupdate (that tracks record edits, not connection churn).
 func (r *DeviceRepo) UpdateConnectionStatus(_ context.Context, guid string, status bool) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 
@@ -394,7 +424,8 @@ func (r *DeviceRepo) UpdateConnectionStatus(_ context.Context, guid string, stat
 	return nil
 }
 
-// UpdateLastSeen updates the lastseen timestamp for a device.
+// UpdateLastSeen updates the lastseen timestamp. Fires on every CIRA heartbeat,
+// so it touches only lastseen — never lastupdate (would amplify writes at scale).
 func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
 	now := time.Now().Format("2006-01-02 15:04:05")
 
@@ -419,8 +450,8 @@ func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
 func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error) {
 	insertBuilder := r.Builder.
 		Insert("devices").
-		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash").
-		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash)
+		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash", "id", "createddate", "lastupdate", "isdeleted", "deleteddate", "producttype", "connectiontype").
+		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash, d.ID, d.CreatedDate, d.LastUpdate, d.IsDeleted, d.DeletedDate, d.ProductType, d.ConnectionType)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
@@ -467,7 +498,15 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 			"password",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+			"id",
+			"createddate",
+			"lastupdate",
+			"isdeleted",
+			"deleteddate",
+			"producttype",
+			"connectiontype",
+		).
 		From("devices").
 		Where(columnName+" = ? AND tenantid = ?", queryValue, tenantID).
 		ToSql()
@@ -491,7 +530,7 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdate, &d.IsDeleted, &d.DeletedDate, &d.ProductType, &d.ConnectionType)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
