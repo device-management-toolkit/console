@@ -52,6 +52,8 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 
 	if device.CertHash != nil {
 		clientParams.PinnedCert = *device.CertHash
+	} else if device.UseTLS {
+		g.log.Warn("AMT Explorer TLS connection proceeding without stored certificate pin", "guid", device.GUID, "hostname", device.Hostname)
 	}
 
 	decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)

@@ -480,6 +480,39 @@ func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestDevicesUpdatePartialPatchTracksCertHash(t *testing.T) {
+	t.Parallel()
+
+	guid := testDeviceGUID
+	certHash := "abc123deadbeef"
+
+	incoming := &dto.Device{
+		GUID:     guid,
+		CertHash: certHash,
+	}
+
+	expectedFields := map[string]bool{
+		"guid":     true,
+		"certhash": true,
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"guid":"` + guid + `","certHash":"` + certHash + `"}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestCollectNestedJSONFields(t *testing.T) {
 	t.Parallel()
 

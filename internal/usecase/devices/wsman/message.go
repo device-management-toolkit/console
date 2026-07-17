@@ -213,6 +213,8 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 
 	if device.CertHash != nil && *device.CertHash != "" {
 		clientParams.PinnedCert = *device.CertHash
+	} else if device.UseTLS {
+		g.log.Warn("AMT TLS connection proceeding without stored certificate pin", "guid", device.GUID, "hostname", device.Hostname)
 	}
 
 	timer := time.AfterFunc(expireAfter, func() {
