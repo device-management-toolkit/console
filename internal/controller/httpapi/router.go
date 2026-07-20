@@ -40,6 +40,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Public routes
 	login := v1.NewLoginRoute(cfg)
 	handler.POST("/api/v1/authorize", login.Login)
+	handler.POST("/api/v1/logout", login.Logout)
 
 	// Setup UI routes (no-op in noui builds)
 	setupUIRoutes(handler, l, cfg)
