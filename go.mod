@@ -8,7 +8,7 @@ require (
 	fyne.io/systray v1.12.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.20.0
-	github.com/device-management-toolkit/go-wsman-messages/v2 v2.48.1
+	github.com/device-management-toolkit/go-wsman-messages/v2 v2.48.2
 	github.com/getkin/kin-openapi v0.142.0
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-contrib/pprof v1.5.4
