@@ -239,7 +239,8 @@ func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) 
 }
 
 func exampleDeviceInfo() *dto.DeviceInfo {
-	lastUpdated := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
+	firstDiscovered := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
 	lmsInstalled := true
 	amtEnabledInBIOS := true
 	dhcpEnabled := true
@@ -251,10 +252,11 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 		FWVersion:            "16.1.30",
 		FWBuild:              "3400",
 		FWSku:                "11",
+		FirstDiscovered:      &firstDiscovered,
 		CurrentMode:          "Admin",
 		Features:             "SOL,IDER,KVM",
 		IPAddress:            "10.0.0.12",
-		LastUpdated:          &lastUpdated,
+		LastSynced:           &lastSynced,
 		LMSInstalled:         &lmsInstalled,
 		LMSVersion:           "2410.5.0.0",
 		TLSMode:              "TLS 1.2",

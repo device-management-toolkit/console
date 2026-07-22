@@ -21,7 +21,7 @@ jobs:
       version: ${{ steps.semantic-release.outputs.version }}
     steps:
       - name: Checkout Console
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
@@ -44,11 +44,15 @@ jobs:
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Version
-        run: echo "The next version is ${{ steps.semantic-release.outputs.version }}"
+        env:
+          VERSION: ${{ steps.semantic-release.outputs.version }}
+        run: echo "The next version is $VERSION"
 
       - name: Fail if version is empty
+        env:
+          VERSION: ${{ steps.semantic-release.outputs.version }}
         run: |
-          if [ -z "${{ steps.semantic-release.outputs.version }}" ]; then
+          if [ -z "$VERSION" ]; then
             echo "Version output is empty. Failing the job."
             exit 1
           fi
@@ -56,6 +60,8 @@ jobs:
   build:
     needs: prepare
     runs-on: ubuntu-latest
+    env:
+      VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - name: Harden Runner
         uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
@@ -63,13 +69,14 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Console
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
 
       - name: Check out Sample Web UI
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           repository: device-management-toolkit/sample-web-ui
           ref: main
           path: ./temp
@@ -93,7 +100,7 @@ jobs:
           go-version: ">=1.23.0"
 
       - name: Version
-        run: echo "The next version is ${{ needs.prepare.outputs.version }}"
+        run: echo "The next version is $VERSION"
 
       - shell: bash
         run: |
@@ -102,28 +109,28 @@ jobs:
       # Cross-compile all platform binaries from a single runner using CGO_ENABLED=0
       # Static Go binaries are cross-platform compatible, so we can build all targets from Linux
       - name: Build Linux x64
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
 
       - name: Build Linux x64 headless
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
 
       - name: Build Linux arm64
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_arm64 ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_arm64 ./cmd/app
 
       - name: Build Linux arm64 headless
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/linux/console_linux_arm64_headless ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_arm64_headless ./cmd/app
 
       - name: Build Windows x64
-        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
+        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
 
       - name: Build Windows x64 headless
-        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
+        run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
 
       - name: Build macOS arm64
-        run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
+        run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
 
       - name: Build macOS arm64 headless
-        run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=${{ needs.prepare.outputs.version }}'" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
+        run: CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/darwin/console_mac_arm64_headless ./cmd/app
 
       # Cache all build artifacts in a single step
       - uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
@@ -146,7 +153,7 @@ jobs:
           egress-policy: audit
 
       - name: Checkout Console
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
           fetch-depth: 2
@@ -182,8 +189,9 @@ jobs:
           go env -w GOTOOLCHAIN=local
 
       - name: Checkout Sample Web UI for license scan
-        uses: actions/checkout@9c091bb21b7c1c1d1991bb908d89e4e9dddfe3e0 # v7.0.0
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          persist-credentials: false
           repository: device-management-toolkit/sample-web-ui
           ref: main
           path: ./temp
@@ -262,7 +270,7 @@ jobs:
           API_NAME: ${{ vars.SWAGGERHUB_API_NAME }}
           API_VERSION: ${{ steps.semantic-release.outputs.new_release_version }}
         run: |
-          echo "Pushing OpenAPI spec to SwaggerHub with version ${{ steps.semantic-release.outputs.new_release_version }}..."
+          echo "Pushing OpenAPI spec to SwaggerHub with version ${API_VERSION}..."
           curl -X POST "https://api.swaggerhub.com/apis/${SWAGGERHUB_OWNER}/${API_NAME}/${API_VERSION}" \
             -H "Authorization: ${SWAGGERHUB_API_KEY}" \
             -H "Content-Type: application/json" \

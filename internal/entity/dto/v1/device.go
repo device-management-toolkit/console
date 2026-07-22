@@ -42,10 +42,11 @@ type DeviceInfo struct {
 	FWBuild              string                     `json:"fwBuild"`
 	FWSku                string                     `json:"fwSku"`
 	Discovered           *bool                      `json:"discovered,omitempty"`
+	FirstDiscovered      *time.Time                 `json:"firstDiscovered,omitempty"`
 	CurrentMode          string                     `json:"currentMode"`
 	Features             string                     `json:"features"`
 	IPAddress            string                     `json:"ipAddress"`
-	LastUpdated          *time.Time                 `json:"lastUpdated,omitempty"`
+	LastSynced           *time.Time                 `json:"lastSynced,omitempty"`
 	LMSInstalled         *bool                      `json:"lmsInstalled,omitempty"`
 	LMSVersion           string                     `json:"lmsVersion,omitempty"`
 	TLSMode              string                     `json:"tlsMode,omitempty"`
@@ -62,6 +63,29 @@ type DeviceInfo struct {
 	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
 	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
 	IEEE8021XEnabled     *bool                      `json:"ieee8021xEnabled,omitempty"`
+}
+
+// UnmarshalJSON implements custom JSON deserialization to support backwards compatibility
+// for the lastUpdated -> lastSynced field rename. Existing clients may send the old
+// "lastUpdated" key; this method migrates it to the new "lastSynced" field if present.
+func (d *DeviceInfo) UnmarshalJSON(data []byte) error {
+	type Alias DeviceInfo
+
+	type deviceInfoCompat struct {
+		*Alias
+		LegacyLastUpdated *time.Time `json:"lastUpdated,omitempty"`
+	}
+
+	aux := deviceInfoCompat{Alias: (*Alias)(d)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if d.LastSynced == nil && aux.LegacyLastUpdated != nil {
+		d.LastSynced = aux.LegacyLastUpdated
+	}
+
+	return nil
 }
 
 type Explorer struct {
