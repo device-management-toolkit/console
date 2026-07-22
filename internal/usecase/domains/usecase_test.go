@@ -2,12 +2,15 @@ package domains_test
 
 import (
 	"context"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -40,6 +43,40 @@ func domainsTest(t *testing.T) (*domains.UseCase, *mocks.MockDomainsRepository) 
 	crypto := mocks.MockCrypto{}
 	// Pass nil for certStore in tests - domain certs will be stored in DB
 	useCase := domains.New(repo, log, crypto, nil)
+
+	return useCase, repo
+}
+
+// mockObjectStore satisfies the domains.ObjectStorager interface for tests.
+type mockObjectStore struct {
+	setObjectErr error
+}
+
+func (m *mockObjectStore) GetKeyValue(_ string) (string, error) { return "", nil }
+func (m *mockObjectStore) SetKeyValue(_, _ string) error        { return nil }
+func (m *mockObjectStore) DeleteKeyValue(_ string) error        { return nil }
+func (m *mockObjectStore) GetObject(_ string) (map[string]string, error) {
+	return map[string]string{}, nil
+}
+func (m *mockObjectStore) SetObject(_ string, _ map[string]string) error { return m.setObjectErr }
+
+// mockBasicStore satisfies security.Storager only (not ObjectStorager).
+type mockBasicStore struct{}
+
+func (m *mockBasicStore) GetKeyValue(_ string) (string, error) { return "", nil }
+func (m *mockBasicStore) SetKeyValue(_, _ string) error        { return nil }
+func (m *mockBasicStore) DeleteKeyValue(_ string) error        { return nil }
+
+func domainsTestWithStore(t *testing.T, certStore security.Storager) (*domains.UseCase, *mocks.MockDomainsRepository) {
+	t.Helper()
+
+	mockCtl := gomock.NewController(t)
+	defer mockCtl.Finish()
+
+	repo := mocks.NewMockDomainsRepository(mockCtl)
+	log := logger.New("error")
+	crypto := mocks.MockCrypto{}
+	useCase := domains.New(repo, log, crypto, certStore)
 
 	return useCase, repo
 }
@@ -397,6 +434,9 @@ func TestUpdate(t *testing.T) {
 			name: "successful update",
 			mock: func(repo *mocks.MockDomainsRepository) {
 				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(domain, nil)
+				repo.EXPECT().
 					Update(context.Background(), domain).
 					Return(true, nil)
 				repo.EXPECT().
@@ -407,8 +447,21 @@ func TestUpdate(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "update fails - not found",
+			name: "update fails - not found initially",
 			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(nil, nil)
+			},
+			res: (*dto.Domain)(nil),
+			err: domains.ErrNotFound,
+		},
+		{
+			name: "update fails - not found on update",
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(domain, nil)
 				repo.EXPECT().
 					Update(context.Background(), domain).
 					Return(false, nil)
@@ -420,8 +473,23 @@ func TestUpdate(t *testing.T) {
 			name: "update fails - database error",
 			mock: func(repo *mocks.MockDomainsRepository) {
 				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(domain, nil)
+				repo.EXPECT().
 					Update(context.Background(), domain).
 					Return(false, domains.ErrDatabase)
+			},
+			res: (*dto.Domain)(nil),
+			err: domains.ErrDatabase,
+		},
+		{
+			// Verifies the fix: ErrDatabase from the initial lookup must be propagated
+			// as-is, not masked as ErrNotFound.
+			name: "database error from initial lookup propagated not masked as ErrNotFound",
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), domain.ProfileName, domain.TenantID).
+					Return(nil, domains.ErrDatabase)
 			},
 			res: (*dto.Domain)(nil),
 			err: domains.ErrDatabase,
@@ -438,6 +506,210 @@ func TestUpdate(t *testing.T) {
 			tc.mock(repo)
 
 			result, err := useCase.Update(context.Background(), domainDTO)
+
+			require.Equal(t, tc.res, result)
+			require.IsType(t, tc.err, err)
+		})
+	}
+}
+
+func TestUpdateCertStore(t *testing.T) {
+	t.Parallel()
+
+	// noCertDTO is the update request that carries no new certificate.
+	noCertDTO := &dto.Domain{
+		ProfileName: "example-domain",
+		TenantID:    "tenant-id-456",
+		Version:     "1.0.0",
+	}
+
+	// certDTO is the update request that provides a new certificate.
+	certDTO := &dto.Domain{
+		ProfileName:              "example-domain",
+		TenantID:                 "tenant-id-456",
+		ProvisioningCert:         generateTestPFX(),
+		ProvisioningCertPassword: "P@ssw0rd",
+		Version:                  "1.0.0",
+	}
+
+	// newVaultBackedOldDomain returns a fresh existing DB record where the cert lives
+	// in Vault. A new instance is returned per call because GetByNameWithCert mutates
+	// the returned entity and the subtests run in parallel.
+	newVaultBackedOldDomain := func() *entity.Domain {
+		return &entity.Domain{
+			ProfileName: "example-domain",
+			TenantID:    "tenant-id-456",
+			Version:     "1.0.0",
+		}
+	}
+
+	// newLegacyOldDomain returns a fresh existing DB record that still stores its cert
+	// in the DB. A new instance is returned per call to avoid shared mutable state
+	// across parallel subtests.
+	newLegacyOldDomain := func() *entity.Domain {
+		return &entity.Domain{
+			ProfileName:              "example-domain",
+			TenantID:                 "tenant-id-456",
+			ProvisioningCert:         "legacy-cert",
+			ProvisioningCertPassword: "legacy-pass",
+			Version:                  "1.0.0",
+		}
+	}
+
+	// Entity expected by repo.Update when no cert update and the domain is Vault-backed
+	// (cert fields must be cleared so they are not written to the DB).
+	vaultBackedUpdateEntity := &entity.Domain{
+		ProfileName: "example-domain",
+		TenantID:    "tenant-id-456",
+		Version:     "1.0.0",
+	}
+
+	// Entity expected by repo.Update when no cert update and the domain is legacy
+	// (cert fields must be preserved so they are not wiped from the DB).
+	legacyUpdateEntity := &entity.Domain{
+		ProfileName:              "example-domain",
+		TenantID:                 "tenant-id-456",
+		ProvisioningCert:         "legacy-cert",
+		ProvisioningCertPassword: "legacy-pass",
+		Version:                  "1.0.0",
+	}
+
+	// Entity expected by repo.Update after a cert-update with Vault storage:
+	// cert is stripped from the DB record after being written to Vault.
+	certUpdateEntity := &entity.Domain{
+		ProfileName:    "example-domain",
+		TenantID:       "tenant-id-456",
+		ExpirationDate: "2033-08-01T07:12:09Z",
+		Version:        "1.0.0",
+	}
+
+	// Shared DTO returned by the final GetByName call for non-cert scenarios.
+	returnDTO := &dto.Domain{
+		ProfileName: "example-domain",
+		TenantID:    "tenant-id-456",
+		Version:     "1.0.0",
+	}
+
+	// DTO returned after a cert-update (ExpirationDate is populated).
+	certReturnDTO := &dto.Domain{
+		ProfileName:    "example-domain",
+		TenantID:       "tenant-id-456",
+		ExpirationDate: time.Date(2033, time.August, 1, 7, 12, 9, 0, time.UTC),
+		Version:        "1.0.0",
+	}
+
+	tests := []struct {
+		name      string
+		certStore security.Storager
+		input     *dto.Domain
+		mock      func(repo *mocks.MockDomainsRepository)
+		res       *dto.Domain
+		err       error
+	}{
+		{
+			// Vault-backed domain has an empty ProvisioningCert in the DB.
+			// The else-if branch must clear cert fields so they are not written back.
+			name:      "vault-backed domain: cert fields cleared in DB on no-cert update",
+			certStore: &mockObjectStore{},
+			input:     noCertDTO,
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newVaultBackedOldDomain(), nil)
+				repo.EXPECT().
+					Update(context.Background(), vaultBackedUpdateEntity).
+					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newVaultBackedOldDomain(), nil)
+			},
+			res: returnDTO,
+			err: nil,
+		},
+		{
+			// Legacy domain stores its cert directly in the DB (ProvisioningCert != "").
+			// The else-if branch must NOT clear cert fields so the DB record is preserved.
+			name:      "legacy domain: cert fields preserved in DB on no-cert update",
+			certStore: &mockObjectStore{},
+			input:     noCertDTO,
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newLegacyOldDomain(), nil)
+				repo.EXPECT().
+					Update(context.Background(), legacyUpdateEntity).
+					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newLegacyOldDomain(), nil)
+			},
+			res: returnDTO,
+			err: nil,
+		},
+		{
+			// A certStore that does not implement ObjectStorager must never clear cert fields,
+			// regardless of what the DB record contains.
+			name:      "non-ObjectStorager store: cert fields always preserved",
+			certStore: &mockBasicStore{},
+			input:     noCertDTO,
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newLegacyOldDomain(), nil)
+				repo.EXPECT().
+					Update(context.Background(), legacyUpdateEntity).
+					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newLegacyOldDomain(), nil)
+			},
+			res: returnDTO,
+			err: nil,
+		},
+		{
+			// When a new certificate is provided and the store is an ObjectStorager,
+			// the cert must be written to Vault and the DB entity must have empty cert fields.
+			name:      "cert update: certificate written to vault and cleared from DB record",
+			certStore: &mockObjectStore{},
+			input:     certDTO,
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newVaultBackedOldDomain(), nil)
+				repo.EXPECT().
+					Update(context.Background(), certUpdateEntity).
+					Return(true, nil)
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(certUpdateEntity, nil)
+			},
+			res: certReturnDTO,
+			err: nil,
+		},
+		{
+			// A Vault write failure must surface as ErrCertStore, not a generic error.
+			name:      "cert update: vault write error returns ErrCertStore",
+			certStore: &mockObjectStore{setObjectErr: errors.New("vault unavailable")},
+			input:     certDTO,
+			mock: func(repo *mocks.MockDomainsRepository) {
+				repo.EXPECT().
+					GetByName(context.Background(), "example-domain", "tenant-id-456").
+					Return(newVaultBackedOldDomain(), nil)
+			},
+			res: (*dto.Domain)(nil),
+			err: domains.ErrCertStore,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo := domainsTestWithStore(t, tc.certStore)
+			tc.mock(repo)
+
+			result, err := useCase.Update(context.Background(), tc.input)
 
 			require.Equal(t, tc.res, result)
 			require.IsType(t, tc.err, err)
