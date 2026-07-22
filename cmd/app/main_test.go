@@ -3,6 +3,7 @@ package main
 import (
 	"crypto/rsa"
 	"crypto/x509"
+	"encoding/base64"
 	"os"
 	"testing"
 
@@ -100,4 +101,67 @@ func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
 	handleAdminPassword(cfg)
 
 	assert.Equal(t, "already-set", cfg.AdminPassword)
+}
+
+// TestGenerateJWTKey checks the key is a decodable 256-bit random value.
+func TestGenerateJWTKey(t *testing.T) {
+	t.Parallel()
+
+	key, err := generateJWTKey()
+	require.NoError(t, err)
+
+	decoded, err := base64.StdEncoding.DecodeString(key)
+	require.NoError(t, err)
+	assert.Len(t, decoded, jwtKeyBytes)
+}
+
+// TestGenerateJWTKey_Uniqueness ensures generated keys are unique.
+func TestGenerateJWTKey_Uniqueness(t *testing.T) {
+	t.Parallel()
+
+	keys := make(map[string]bool)
+
+	for range 100 {
+		key, err := generateJWTKey()
+		require.NoError(t, err)
+		assert.False(t, keys[key], "generated duplicate JWT key")
+
+		keys[key] = true
+	}
+}
+
+// TestValidateJWTKey covers empty, known-insecure, and valid keys.
+func TestValidateJWTKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		key     string
+		wantErr error
+	}{
+		{"empty", "", ErrJWTKeyMissing},
+		{"insecure default", insecureDefaultJWTKey, ErrJWTKeyInsecure},
+		{"valid", "a-strong-random-key", nil},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.ErrorIs(t, validateJWTKey(tc.key), tc.wantErr)
+		})
+	}
+}
+
+// TestHandleJWTKey_AlreadyConfigured keeps an operator-supplied key untouched.
+func TestHandleJWTKey_AlreadyConfigured(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Auth: config.Auth{JWTKey: "operator-supplied-key"},
+	}
+
+	handleJWTKey(cfg)
+
+	assert.Equal(t, "operator-supplied-key", cfg.JWTKey)
 }
