@@ -76,8 +76,8 @@ var (
 	connectionsMu       sync.RWMutex
 	waitForAuthTickTime = 1 * time.Second
 	queueTickTime       = 500 * time.Millisecond
-	expireAfter         = 30 * time.Second                    // expire the stored connection after 30 seconds
-	waitForAuth         = 3 * time.Second                     // wait for 3 seconds for the connection to authenticate, prevents multiple api calls trying to auth at the same time
+	expireAfter         = 60 * time.Second                    // expire the stored connection after 60 seconds
+	waitForAuth         = 30 * time.Second                    // wait for 30 seconds for the connection to authenticate, prevents multiple api calls trying to auth at the same time
 	requestQueue        = make(chan func(), deviceCallBuffer) // Buffered channel to queue requests
 	shutdownSignal      = make(chan struct{})
 
