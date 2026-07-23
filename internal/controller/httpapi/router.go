@@ -13,6 +13,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
+	"github.com/device-management-toolkit/console/internal/controller/mcp"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
@@ -86,6 +87,10 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v2.NewAmtRoutes(h3, t.Devices, l)
 	}
+
+	// MCP (Model Context Protocol) server, mounted at /api/mcp on the same
+	// protected group so it inherits the JWT auth middleware.
+	mcp.Register(protected, t.Devices, l)
 }
 
 func registerCustomValidators(l logger.Interface) {
