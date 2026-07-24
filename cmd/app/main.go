@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
@@ -44,6 +45,15 @@ func main() {
 		runHealthCheck()
 	}
 
+	handled, err := handleAdminCLI(os.Args[1:], newKeyringStorageFunc(), bufio.NewReader(os.Stdin), os.Stdout)
+	if err != nil {
+		log.Fatalf("Admin command error: %v", err)
+	}
+
+	if handled {
+		return
+	}
+
 	cfg, err := initializeConfigFunc()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)
@@ -66,7 +76,7 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-	handleAdminPassword(cfg)
+	handleAdminCredentials(cfg)
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {

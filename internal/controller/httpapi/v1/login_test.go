@@ -9,6 +9,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/console/config"
 )
@@ -16,8 +17,11 @@ import (
 func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	t.Parallel()
 
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
 	engine := gin.New()
-	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: "secret"}}}
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: string(hash)}}}
 	engine.POST("/api/v1/authorize", route.Login)
 
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))

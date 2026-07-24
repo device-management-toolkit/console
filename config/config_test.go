@@ -5,6 +5,7 @@ import (
 	"testing"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func clearEnv() {
@@ -106,4 +107,38 @@ postgres:
 	assert.Equal(t, "debug", cfg.Level)
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
+}
+
+func TestDefaultConfig_JWTKeyEmptyByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	assert.Empty(t, cfg.JWTKey)
+}
+
+func TestEnsureRuntimeJWTKey_GeneratesWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	require.Empty(t, cfg.JWTKey)
+
+	err := ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.NotEmpty(t, cfg.JWTKey)
+
+	firstKey := cfg.JWTKey
+	err = ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, firstKey, cfg.JWTKey)
+}
+
+func TestEnsureRuntimeJWTKey_PreservesConfiguredValue(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "configured-jwt-key"
+
+	err := ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "configured-jwt-key", cfg.JWTKey)
 }

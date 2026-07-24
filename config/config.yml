@@ -20,7 +20,7 @@ http:
     - "*"
 logger:
   log_level: info
-secrets: 
+secrets:
   address: http://localhost:8200
   token: ""
 postgres:
@@ -37,14 +37,18 @@ ea:
   password: ""
 auth:
   disabled: false
-  adminUsername: standalone
-  adminPassword: 
-  jwtKey: your_secret_jwt_key
+  # adminUsername: prefer keystore > .env (AUTH_ADMIN_USERNAME) > here
+  adminUsername: ""
+  # adminPassword: prefer keystore > .env (AUTH_ADMIN_PASSWORD) > here
+  # WARNING: storing plaintext passwords here is a fallback only; use keystore when possible.
+  adminPassword: ""
+  # jwtKey: set for shared multi-pod deployments; if empty, standalone generates a runtime-only key
+  jwtKey: ""
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
   clientId: ""
   issuer: ""
-  ui: 
+  ui:
     clientId: ""
     issuer: ""
     scope: ""
