@@ -54,7 +54,6 @@ type Management interface {
 	// migrated from GetBootCapabilities while still consuming the same raw AMT
 	// BootCapabilities payload.
 	GetPowerCapabilities() (boot.BootCapabilitiesResponse, error)
-	GetBootCapabilities() (boot.BootCapabilitiesResponse, error)
 	GetGeneralSettings() (interface{}, error)
 	CancelUserConsentRequest() (optin.Response, error)
 	GetUserConsentCode() (optin.Response, error)

@@ -590,7 +590,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			res:   featureSetNoOCR,
 			resV2: featureSetV2NoOCR,
-			err:   nil,
+			err:   ErrGeneral,
 		},
 		{
 			name:   "GetFeatures fails on boot service",
@@ -648,7 +648,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			res:   featureSetNoOCR,
 			resV2: featureSetV2NoOCR,
-			err:   nil,
+			err:   ErrGeneral,
 		},
 		{
 			name:   "GetFeatures fails on boot source setting",
@@ -717,7 +717,7 @@ func TestGetFeatures(t *testing.T) {
 				Redirection:  true,
 				KVMAvailable: true,
 				OptInState:   1,
-				OCR:          true, // GetBootService succeeded with EnabledState=32769
+				OCR:          false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
@@ -727,9 +727,9 @@ func TestGetFeatures(t *testing.T) {
 				Redirection:  true,
 				KVMAvailable: true,
 				OptInState:   1,
-				OCR:          true,
+				OCR:          false,
 			},
-			err: nil,
+			err: ErrGeneral,
 		},
 		{
 			name:   "GetFeatures succeeds with zero capabilities when boot capabilities unavailable",
@@ -808,7 +808,7 @@ func TestGetFeatures(t *testing.T) {
 				Redirection:  true,
 				KVMAvailable: true,
 				OptInState:   1,
-				OCR:          true, // GetBootService succeeded with EnabledState=32769
+				OCR:          false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
@@ -818,9 +818,9 @@ func TestGetFeatures(t *testing.T) {
 				Redirection:  true,
 				KVMAvailable: true,
 				OptInState:   1,
-				OCR:          true,
+				OCR:          false,
 			},
-			err: nil,
+			err: ErrGeneral,
 		},
 		{
 			name:   "GetFeatures fails on boot data",
@@ -903,7 +903,7 @@ func TestGetFeatures(t *testing.T) {
 				Redirection:  true,
 				KVMAvailable: true,
 				OptInState:   1,
-				OCR:          true, // GetBootService succeeded with EnabledState=32769
+				OCR:          false,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
@@ -913,9 +913,9 @@ func TestGetFeatures(t *testing.T) {
 				Redirection:  true,
 				KVMAvailable: true,
 				OptInState:   1,
-				OCR:          true,
+				OCR:          false,
 			},
-			err: nil,
+			err: ErrGeneral,
 		},
 		{
 			name:   "GetFeatures on ISM",
@@ -1248,7 +1248,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			res:   featureSetNoOCR,
 			resV2: featureSetV2NoOCR,
-			err:   nil,
+			err:   ErrGeneral,
 		},
 		{
 			name:   "GetFeatures with RPE only enabled (state 32770)",

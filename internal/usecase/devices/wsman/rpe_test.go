@@ -70,7 +70,7 @@ func TestBuildRPETLVParams(t *testing.T) {
 		},
 		{
 			name:          "CSME bit already stripped (0x10000 absent from tlvMask)",
-			tlvMask:       0x40, // e.g. 0x10040 &^ rpeCSMEBit = 0x40
+			tlvMask:       0x40, // e.g. 0x10040 &^ RPEConfigurationDataResetSignalBit = 0x40
 			wantNumParams: 1,
 			wantVendor:    intelVendorPrefix,
 			wantTypeID:    1,

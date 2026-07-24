@@ -24,18 +24,18 @@ func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid string) (d
 		return dto.BootCapabilities{}, err
 	}
 
-	capabilities, err := device.GetBootCapabilities()
+	capabilities, err := device.GetPowerCapabilities()
 	if err != nil {
 		return dto.BootCapabilities{}, err
 	}
 
-	uc.log.Debug("getRemoteEraseCapabilities: PlatformErase capability", "guid", guid, "PlatformErase", capabilities.PlatformErase, "supported", capabilities.PlatformErase != 0)
+	uc.log.Debug("getRemoteEraseCapabilities: PlatformErase capability", "guid", guid, "PlatformErase", capabilities.PlatformErase, "supported", capabilities.PlatformErase != 0, "ConfigurationDataReset", capabilities.ConfigurationDataReset)
 
 	return dto.BootCapabilities{
 		SecureEraseAllSSDs: capabilities.PlatformErase&platformEraseSecureErase != 0,
 		TPMClear:           capabilities.PlatformErase&platformEraseTPMClear != 0,
 		RestoreBIOSToEOM:   capabilities.PlatformErase&platformEraseBIOSReload != 0,
-		UnconfigureCSME:    capabilities.PlatformErase&platformEraseCSMEUnconfigure != 0,
+		UnconfigureCSME:    capabilities.ConfigurationDataReset,
 	}, nil
 }
 
@@ -54,7 +54,7 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 		return err
 	}
 
-	capabilities, err := device.GetBootCapabilities()
+	capabilities, err := device.GetPowerCapabilities()
 	if err != nil {
 		return err
 	}
@@ -77,11 +77,7 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 	}
 
 	if req.UnconfigureCSME {
-		if capabilities.PlatformErase&platformEraseCSMEUnconfigure == 0 {
-			return ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support CSME unconfigure")
-		}
-
-		eraseMask |= platformEraseCSMEUnconfigure
+		eraseMask |= deviceManagement.RPEConfigurationDataResetSignalBit
 	}
 
 	if eraseMask == 0 {

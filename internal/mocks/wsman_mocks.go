@@ -303,21 +303,6 @@ func (mr *MockManagementMockRecorder) GetAuditLog(startIndex any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockManagement)(nil).GetAuditLog), startIndex)
 }
 
-// GetBootCapabilities mocks base method.
-func (m *MockManagement) GetBootCapabilities() (boot.BootCapabilitiesResponse, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "GetBootCapabilities")
-	ret0, _ := ret[0].(boot.BootCapabilitiesResponse)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// GetBootCapabilities indicates an expected call of GetBootCapabilities.
-func (mr *MockManagementMockRecorder) GetBootCapabilities() *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootCapabilities", reflect.TypeOf((*MockManagement)(nil).GetBootCapabilities))
-}
-
 // GetBootData mocks base method.
 func (m *MockManagement) GetBootData() (boot.BootSettingDataResponse, error) {
 	m.ctrl.T.Helper()

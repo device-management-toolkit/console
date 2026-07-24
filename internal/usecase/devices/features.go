@@ -40,11 +40,10 @@ const (
 
 // PlatformErase capability bitmask bits (AMT_BootCapabilities.PlatformErase).
 const (
-	platformEraseRPESupport      = 0x01      // Bit 0: RPE overall support
-	platformEraseSecureErase     = 0x04      // Bit 2: Secure Erase All SSDs
-	platformEraseTPMClear        = 0x40      // Bit 6: TPM Clear
-	platformEraseCSMEUnconfigure = 0x10000   // Bit 16: CSME Unconfigure (UI sentinel)
-	platformEraseBIOSReload      = 0x4000000 // Bit 26: BIOS Reload of Golden Configuration
+	platformEraseRPESupport  = 0x01      // Bit 0: RPE overall support
+	platformEraseSecureErase = 0x04      // Bit 2: Secure Erase All SSDs
+	platformEraseTPMClear    = 0x40      // Bit 6: TPM Clear
+	platformEraseBIOSReload  = 0x4000000 // Bit 26: BIOS Reload of Golden Configuration
 )
 
 type BootConfiguration struct {
@@ -101,7 +100,10 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	settingsResults.KVMAvailable = settingsResultsV2.KVMAvailable
 
 	// Get boot service related settings
-	getBootConfigurationSettings(&settingsResultsV2, device)
+	err = getBootConfigurationSettings(&settingsResultsV2, device)
+	if err != nil {
+		return settingsResults, settingsResultsV2, err
+	}
 
 	settingsResults.OCR = settingsResultsV2.OCR
 	settingsResults.RPE = settingsResultsV2.RPE
@@ -115,30 +117,53 @@ func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults 
 	return settingsResults, settingsResultsV2, nil
 }
 
-func getBootConfiguration(device wsman.Management) BootConfiguration {
-	// These are non-fatal: if unavailable, OCR/RPE state and boot settings default to zero values
-	bootService, _ := device.GetBootService()
+func getBootConfiguration(device wsman.Management) (BootConfiguration, error) {
+	config := BootConfiguration{}
 
-	var bootSourceSettings cimBoot.Response
-
-	bootSourceSettings, _ = device.GetCIMBootSourceSetting()
-
-	// Non-fatal: older devices that do not support OCR/RPE will return an error here;
-	// all capability-derived fields will default to false/zero.
-	capabilities, _ := device.GetPowerCapabilities()
-
-	bootData, _ := device.GetBootData()
-
-	return BootConfiguration{
-		bootService:        bootService,
-		bootSourceSettings: bootSourceSettings.Body.PullResponse.BootSourceSettingItems,
-		capabilities:       capabilities,
-		bootData:           bootData,
+	bootService, err := device.GetBootService()
+	if err != nil {
+		if !isUnsupportedBootConfigurationError(err) {
+			return BootConfiguration{}, err
+		}
+	} else {
+		config.bootService = bootService
 	}
+
+	bootSourceSettings, err := device.GetCIMBootSourceSetting()
+	if err != nil {
+		if !isUnsupportedBootConfigurationError(err) {
+			return BootConfiguration{}, err
+		}
+	} else {
+		config.bootSourceSettings = bootSourceSettings.Body.PullResponse.BootSourceSettingItems
+	}
+
+	capabilities, err := device.GetPowerCapabilities()
+	if err != nil {
+		if !isUnsupportedBootConfigurationError(err) {
+			return BootConfiguration{}, err
+		}
+	} else {
+		config.capabilities = capabilities
+	}
+
+	bootData, err := device.GetBootData()
+	if err != nil {
+		if !isUnsupportedBootConfigurationError(err) {
+			return BootConfiguration{}, err
+		}
+	} else {
+		config.bootData = bootData
+	}
+
+	return config, nil
 }
 
-func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsman.Management) {
-	bootConfig := getBootConfiguration(device)
+func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsman.Management) error {
+	bootConfig, err := getBootConfiguration(device)
+	if err != nil {
+		return err
+	}
 
 	isOCR := bootConfig.bootService.EnabledState == enabledStateOCREnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
 	isRPE := bootConfig.bootService.EnabledState == enabledStateRPEEnabled || bootConfig.bootService.EnabledState == enabledStateOCRAndRPEEnabled
@@ -153,6 +178,21 @@ func getBootConfigurationSettings(settingsResultsV2 *dtov2.Features, device wsma
 	settingsResultsV2.WinREBootSupported = result.IsWinREExists && bootConfig.bootData.WinREBootEnabled && bootConfig.capabilities.ForceWinREBoot
 	settingsResultsV2.LocalPBABootSupported = result.IsPBAExists && bootConfig.bootData.UEFILocalPBABootEnabled && bootConfig.capabilities.ForceUEFILocalPBABoot
 	settingsResultsV2.RPESupported = bootConfig.capabilities.PlatformErase&platformEraseRPESupport != 0
+
+	return nil
+}
+
+func isUnsupportedBootConfigurationError(err error) bool {
+	amtErr := &amterror.AMTError{}
+	if !errors.As(err, &amtErr) {
+		return false
+	}
+
+	subCode := strings.ToLower(amtErr.SubCode)
+
+	return strings.Contains(subCode, "actionnotsupported") ||
+		strings.Contains(subCode, "notsupported") ||
+		strings.Contains(subCode, "invalidresourceuri")
 }
 
 func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dtov2.BootSettings {
@@ -251,8 +291,14 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	_, err = device.BootServiceStateChange(requestedState)
 	if err == nil {
 		// Get OCR settings
-		getBootConfigurationSettings(&settingsResultsV2, device)
+		err = getBootConfigurationSettings(&settingsResultsV2, device)
+		if err != nil {
+			return settingsResults, settingsResultsV2, err
+		}
+
 		settingsResults.OCR = settingsResultsV2.OCR
+		settingsResults.RPE = settingsResultsV2.RPE
+		settingsResults.RPESupported = settingsResultsV2.RPESupported
 		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
 		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
 		settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported

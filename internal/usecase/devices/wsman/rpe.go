@@ -14,11 +14,12 @@ import (
 const (
 	intelVendorPrefix = 0x8086 // Intel PCI vendor ID used as TLV vendor prefix
 	rpeTLVValueLen    = 4      // TLV value length (uint32 bitmask)
-	// rpeCSMEBit is the eraseMask bit the UI sets when the user selects
-	// "Unconfigure Intel CSME Firmware". It is NOT a TLV device-bitmask target;
-	// it signals that ConfigurationDataReset=true should be set in the PUT body
-	// and the TLV should be omitted (the C# SDK never uses PlatformErase for CSME).
-	rpeCSMEBit = 0x10000
+	// RPEConfigurationDataResetSignalBit is the API eraseMask signal for
+	// "Unconfigure Intel CSME Firmware". Although this numeric value matches
+	// AMT_BootCapabilities.PlatformErase bit 16 (OEM Custom Action), this code
+	// does NOT interpret it as a capability bit. It is only used as an input
+	// signal to set ConfigurationDataReset=true and omit TLV hardware targets.
+	RPEConfigurationDataResetSignalBit = 0x10000
 )
 
 var (
@@ -93,10 +94,10 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword strin
 
 	// Separate the CSME-unconfigure signal from the hardware TLV targets early so step 1a
 	// can be skipped for hardware-only operations (TPM, SSDs, BIOS NVM, ...).
-	// rpeCSMEBit is NOT a valid TLV device-bitmask bit; it is a UI-level sentinel that tells
+	// RPEConfigurationDataResetSignalBit is NOT a valid TLV device-bitmask bit; it tells
 	// us to set ConfigurationDataReset=true (AMT NV provisioning wipe) in the PUT request.
-	wantCSMEReset := eraseMask&rpeCSMEBit != 0
-	tlvMask := eraseMask &^ rpeCSMEBit // hardware targets only
+	wantCSMEReset := eraseMask&RPEConfigurationDataResetSignalBit != 0
+	tlvMask := eraseMask &^ RPEConfigurationDataResetSignalBit // hardware targets only
 
 	// Step 1a (CSME path only): Clear any active boot source override before
 	// configuring the CSME reset flags.  An existing boot source (e.g. from a prior OCR

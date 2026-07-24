@@ -26,7 +26,8 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 	}
 
 	fullCapabilities := boot.BootCapabilitiesResponse{
-		PlatformErase: 0x10000, // CSME bit only
+		PlatformErase:          0x01, // RPE support bit
+		ConfigurationDataReset: true,
 	}
 
 	expectedDTO := dto.BootCapabilities{
@@ -47,7 +48,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(fullCapabilities, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -107,13 +108,13 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name: "GetBootCapabilities wsman call returns error",
+			name: "GetPowerCapabilities wsman call returns error",
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -166,7 +167,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -184,7 +185,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(0x44, "").
@@ -205,7 +206,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(0x4000000, "").
@@ -226,7 +227,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 0}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -244,7 +245,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(4, "").
@@ -313,7 +314,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -331,7 +332,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(0x04, ""). // platformEraseSecureErase
@@ -352,8 +353,8 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 0x10001}, nil) // RPE + CSME bits
+					GetPowerCapabilities().
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 0x01}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(0x10000, "").
 					Return(nil)
@@ -366,22 +367,25 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "UnconfigureCSME not supported by device",
+			name: "UnconfigureCSME allowed when RPE is supported",
 			req:  dto.RemoteEraseRequest{UnconfigureCSME: true},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil) // CSME bit (0x10000) not set
+					GetPowerCapabilities().
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
+				man2.EXPECT().
+					SetRemoteEraseOptions(0x10000, "").
+					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "").
 					Return(device, nil)
 			},
-			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support CSME unconfigure"),
+			err: nil,
 		},
 		{
 			name: "success - SSD password forwarded to wsman",
@@ -391,7 +395,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(4, "s3cr3t").
@@ -412,7 +416,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -430,7 +434,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
 					Return(man2, nil)
 				man2.EXPECT().
-					GetBootCapabilities().
+					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
 					SetRemoteEraseOptions(0x04, "").
