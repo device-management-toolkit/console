@@ -933,6 +933,20 @@ func (mr *MockManagementMockRecorder) SetLinkPreference(linkPreference, timeout 
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockManagement)(nil).SetLinkPreference), linkPreference, timeout)
 }
 
+// SetRemoteEraseOptions mocks base method.
+func (m *MockManagement) SetRemoteEraseOptions(eraseMask int, ssdPassword string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", eraseMask, ssdPassword)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
+func (mr *MockManagementMockRecorder) SetRemoteEraseOptions(eraseMask, ssdPassword any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockManagement)(nil).SetRemoteEraseOptions), eraseMask, ssdPassword)
+}
+
 // UpdateWiFiSettings mocks base method.
 func (m *MockManagement) UpdateWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, clientCredential, caCredential string) (wifiportconfiguration.Response, error) {
 	m.ctrl.T.Helper()

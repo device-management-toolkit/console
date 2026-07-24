@@ -285,6 +285,21 @@ func (mr *MockFeatureMockRecorder) GetAuditLog(ctx, startIndex, guid any) *gomoc
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetAuditLog", reflect.TypeOf((*MockFeature)(nil).GetAuditLog), ctx, startIndex, guid)
 }
 
+// GetBootCapabilities mocks base method.
+func (m *MockFeature) GetBootCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetBootCapabilities", ctx, guid)
+	ret0, _ := ret[0].(dto.BootCapabilities)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetBootCapabilities indicates an expected call of GetBootCapabilities.
+func (mr *MockFeatureMockRecorder) GetBootCapabilities(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetBootCapabilities", reflect.TypeOf((*MockFeature)(nil).GetBootCapabilities), ctx, guid)
+}
+
 // GetBootSourceSetting mocks base method.
 func (m *MockFeature) GetBootSourceSetting(ctx context.Context, guid string) ([]dto.BootSources, error) {
 	m.ctrl.T.Helper()
@@ -541,6 +556,21 @@ func (mr *MockFeatureMockRecorder) GetPowerState(ctx, guid any) *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetPowerState", reflect.TypeOf((*MockFeature)(nil).GetPowerState), ctx, guid)
 }
 
+// GetRemoteEraseCapabilities mocks base method.
+func (m *MockFeature) GetRemoteEraseCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetRemoteEraseCapabilities", ctx, guid)
+	ret0, _ := ret[0].(dto.BootCapabilities)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetRemoteEraseCapabilities indicates an expected call of GetRemoteEraseCapabilities.
+func (mr *MockFeatureMockRecorder) GetRemoteEraseCapabilities(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetRemoteEraseCapabilities", reflect.TypeOf((*MockFeature)(nil).GetRemoteEraseCapabilities), ctx, guid)
+}
+
 // GetTLSSettingData mocks base method.
 func (m *MockFeature) GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error) {
 	m.ctrl.T.Helper()
@@ -794,6 +824,20 @@ func (m *MockFeature) SetLinkPreference(c context.Context, guid string, req dto.
 func (mr *MockFeatureMockRecorder) SetLinkPreference(c, guid, req any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockFeature)(nil).SetLinkPreference), c, guid, req)
+}
+
+// SetRemoteEraseOptions mocks base method.
+func (m *MockFeature) SetRemoteEraseOptions(ctx context.Context, guid string, req dto.RemoteEraseRequest) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", ctx, guid, req)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
+func (mr *MockFeatureMockRecorder) SetRemoteEraseOptions(ctx, guid, req any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockFeature)(nil).SetRemoteEraseOptions), ctx, guid, req)
 }
 
 // SetWirelessProfileSync mocks base method.
