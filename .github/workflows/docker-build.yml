@@ -25,7 +25,7 @@ jobs:
       run: docker build --file Dockerfile --tag  vprodemo.azurecr.io/console:latest --tag vprodemo.azurecr.io/console:${{ github.sha }} .
     - name: Docker Login
       if: ${{ github.ref == 'refs/heads/main' }}      
-      uses: docker/login-action@af1e73f918a031802d376d3c8bbc3fe56130a9b0 # v4.4.0
+      uses: docker/login-action@06fb636fac595d6fb4b28a5dfcb21a6f5091859c # v4.5.0
       with:
         registry: vprodemo.azurecr.io
         username: ${{ secrets.DOCKER_USERNAME }}
