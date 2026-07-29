@@ -70,10 +70,13 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 		return
 	}
-	// Create JWT token with short expiration (5 minutes) for device redirection
+	// Short-lived token (5 minutes) bound to the AMT GUID (deviceId).
+	// GUIDs are stored and matched lowercase, so the claim is normalized to match.
 	expirationTime := time.Now().Add(config.ConsoleConfig.RedirectionJWTExpiration)
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
+	claims := jwt.MapClaims{
+		"exp":      expirationTime.Unix(),
+		"iss":      config.ConsoleConfig.Issuer,
+		"deviceId": strings.ToLower(deviceID),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

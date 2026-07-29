@@ -33,16 +33,54 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
+	connectionsMu.Lock()
+	defer connectionsMu.Unlock()
+
 	if entry, ok := connections[device.GUID]; ok {
 		entry.Timer.Stop()
-		removeConnection(device.GUID)
+		delete(connections, device.GUID)
 	}
 }
 
 func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) (AMTExplorer, error) {
+	decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	// CIRA device: route through the APF tunnel registered by the TCP CIRA handler.
+	if device.MPSUsername != "" {
+		connection := wsmanAPI.GetConnectionEntry(device.GUID)
+		if connection == nil || !connection.IsCIRA {
+			return nil, wsmanAPI.ErrCIRADeviceNotConnected
+		}
+
+		cp := client.Parameters{
+			Target:            device.GUID,
+			IsRedirection:     false,
+			Username:          device.Username,
+			Password:          decryptedPassword,
+			SelfSignedAllowed: true,
+			UseDigest:         true,
+			LogAMTMessages:    logAMTMessages,
+			IsCIRA:            true,
+			CIRAManager:       connection,
+		}
+
+		// Create a local, request-scoped entry so we never mutate the shared
+		// ConnectionEntry that the TCP CIRA handler owns. This avoids a data race
+		// between concurrent explorer calls and concurrent Get* method calls on
+		// the same entry.
+		return &wsmanAPI.ConnectionEntry{
+			WsmanMessages: wsman.NewMessages(cp),
+			IsCIRA:        true,
+		}, nil
+	}
+
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
+		Password:          decryptedPassword,
 		UseDigest:         true,
 		UseTLS:            device.UseTLS,
 		SelfSignedAllowed: device.AllowSelfSigned,
@@ -53,13 +91,6 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 	if device.CertHash != nil {
 		clientParams.PinnedCert = *device.CertHash
 	}
-
-	decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	clientParams.Password = decryptedPassword
 
 	connectionsMu.Lock()
 	defer connectionsMu.Unlock()

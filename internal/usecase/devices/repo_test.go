@@ -4,6 +4,7 @@ import (
 	"context"
 	"encoding/json"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
@@ -759,6 +760,9 @@ func TestUpdatePartial(t *testing.T) {
 		MEBXPassword: ptr("encrypted-mebx"),
 	}
 
+	firstDiscovered := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
+
 	// Client sends guid, a new hostname, and a partial deviceInfo update.
 	discovered := true
 	incoming := &dto.Device{
@@ -766,26 +770,30 @@ func TestUpdatePartial(t *testing.T) {
 		TenantID: "tenant-id-456",
 		Hostname: "new-hostname",
 		DeviceInfo: &dto.DeviceInfo{
-			FWVersion:    "16.1.30",
-			Discovered:   &discovered,
-			IPAddress:    "10.0.0.55",
-			LMSInstalled: boolPtr(true),
+			FWVersion:       "16.1.30",
+			Discovered:      &discovered,
+			FirstDiscovered: &firstDiscovered,
+			IPAddress:       "10.0.0.55",
+			LastSynced:      &lastSynced,
+			LMSInstalled:    boolPtr(true),
 		},
 	}
 	fields := map[string]bool{
-		"guid":                    true,
-		"tenantId":                true,
-		"hostname":                true,
-		"deviceinfo":              true,
-		"deviceinfo.fwversion":    true,
-		"deviceinfo.discovered":   true,
-		"deviceinfo.ipaddress":    true,
-		"deviceinfo.lmsinstalled": true,
+		"guid":                       true,
+		"tenantId":                   true,
+		"hostname":                   true,
+		"deviceinfo":                 true,
+		"deviceinfo.fwversion":       true,
+		"deviceinfo.discovered":      true,
+		"deviceinfo.firstdiscovered": true,
+		"deviceinfo.ipaddress":       true,
+		"deviceinfo.lastsynced":      true,
+		"deviceinfo.lmsinstalled":    true,
 	}
 
 	// After merge + dtoToEntity (MockCrypto re-encrypts plaintext to "encrypted"):
 	// Only fields without omitempty tag are included in JSON for zero values.
-	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"currentMode":"","features":"","ipAddress":"10.0.0.55","lmsInstalled":true}`
+	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"firstDiscovered":"2026-05-20T00:00:00Z","currentMode":"","features":"","ipAddress":"10.0.0.55","lastSynced":"2026-05-21T00:00:00Z","lmsInstalled":true}`
 	expectedEntity := &entity.Device{
 		GUID:         "device-guid-123",
 		TenantID:     "tenant-id-456",
@@ -804,11 +812,13 @@ func TestUpdatePartial(t *testing.T) {
 		TenantID: "tenant-id-456",
 		Hostname: "new-hostname",
 		DeviceInfo: &dto.DeviceInfo{
-			FWVersion:    "16.1.30",
-			FWBuild:      "3400",
-			Discovered:   boolPtr(true),
-			IPAddress:    "10.0.0.55",
-			LMSInstalled: boolPtr(true),
+			FWVersion:       "16.1.30",
+			FWBuild:         "3400",
+			Discovered:      boolPtr(true),
+			FirstDiscovered: &firstDiscovered,
+			IPAddress:       "10.0.0.55",
+			LastSynced:      &lastSynced,
+			LMSInstalled:    boolPtr(true),
 		},
 		Tags:         []string{"lab", "floor-2"},
 		MPSUsername:  "admin",
@@ -884,6 +894,137 @@ func TestUpdatePartial(t *testing.T) {
 		require.Error(t, err)
 		require.Contains(t, err.Error(), devices.ErrDatabase.Error())
 	})
+}
+
+// TestUpdatePreservesFirstDiscovered verifies firstDiscovered and discovered are
+// immutable once set: a client PATCH cannot overwrite the stored values, while
+// lastSynced still advances.
+func TestUpdatePreservesFirstDiscovered(t *testing.T) {
+	t.Parallel()
+
+	original := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+
+	// Stored record already discovered on 2026-05-20.
+	existing := &entity.Device{
+		GUID:       "device-guid-123",
+		TenantID:   "tenant-id-456",
+		DeviceInfo: `{"discovered":false,"firstDiscovered":"2026-05-20T00:00:00Z","lastSynced":"2026-05-20T00:00:00Z"}`,
+		Password:   "encrypted-amt",
+	}
+
+	// Client tries to change firstDiscovered/discovered and bumps lastSynced.
+	tampered := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	newSync := time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	discoveredTrue := true
+	incoming := &dto.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		DeviceInfo: &dto.DeviceInfo{
+			Discovered:      &discoveredTrue,
+			FirstDiscovered: &tampered,
+			LastSynced:      &newSync,
+		},
+	}
+	fields := map[string]bool{
+		"deviceinfo":                 true,
+		"deviceinfo.discovered":      true,
+		"deviceinfo.firstdiscovered": true,
+		"deviceinfo.lastsynced":      true,
+	}
+
+	useCase, repo, management := devicesTest(t)
+
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(existing, nil)
+	repo.EXPECT().
+		Update(context.Background(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, actualEntity *entity.Device) (bool, error) {
+			var info dto.DeviceInfo
+			require.NoError(t, json.Unmarshal([]byte(actualEntity.DeviceInfo), &info))
+
+			// Immutable fields keep their stored values.
+			require.NotNil(t, info.FirstDiscovered)
+			require.Equal(t, original, *info.FirstDiscovered)
+			require.NotNil(t, info.Discovered)
+			require.False(t, *info.Discovered)
+
+			// lastSynced advances.
+			require.NotNil(t, info.LastSynced)
+			require.Equal(t, newSync, *info.LastSynced)
+
+			return true, nil
+		})
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(existing, nil)
+	management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+	_, err := useCase.Update(context.Background(), incoming, fields)
+	require.NoError(t, err)
+}
+
+// TestUpdatePreservesFirstDiscoveredWholesale covers the backward-compat path where
+// the caller sends only a top-level "deviceinfo" key (no nested deviceinfo.* keys),
+// which replaces DeviceInfo wholesale. firstDiscovered/discovered must still be kept
+// from the stored record.
+func TestUpdatePreservesFirstDiscoveredWholesale(t *testing.T) {
+	t.Parallel()
+
+	original := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+
+	existing := &entity.Device{
+		GUID:       "device-guid-123",
+		TenantID:   "tenant-id-456",
+		DeviceInfo: `{"discovered":false,"firstDiscovered":"2026-05-20T00:00:00Z","lastSynced":"2026-05-20T00:00:00Z"}`,
+		Password:   "encrypted-amt",
+	}
+
+	tampered := time.Date(2026, 6, 1, 0, 0, 0, 0, time.UTC)
+	newSync := time.Date(2026, 5, 25, 0, 0, 0, 0, time.UTC)
+	discoveredTrue := true
+	incoming := &dto.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		DeviceInfo: &dto.DeviceInfo{
+			Discovered:      &discoveredTrue,
+			FirstDiscovered: &tampered,
+			LastSynced:      &newSync,
+		},
+	}
+	// Only the top-level key — no nested deviceinfo.* keys.
+	fields := map[string]bool{"deviceinfo": true}
+
+	useCase, repo, management := devicesTest(t)
+
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(existing, nil)
+	repo.EXPECT().
+		Update(context.Background(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, actualEntity *entity.Device) (bool, error) {
+			var info dto.DeviceInfo
+			require.NoError(t, json.Unmarshal([]byte(actualEntity.DeviceInfo), &info))
+
+			// Immutable fields keep their stored values even on wholesale replace.
+			require.NotNil(t, info.FirstDiscovered)
+			require.Equal(t, original, *info.FirstDiscovered)
+			require.NotNil(t, info.Discovered)
+			require.False(t, *info.Discovered)
+
+			// Non-immutable field is taken from the incoming payload.
+			require.NotNil(t, info.LastSynced)
+			require.Equal(t, newSync, *info.LastSynced)
+
+			return true, nil
+		})
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(existing, nil)
+	management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+	_, err := useCase.Update(context.Background(), incoming, fields)
+	require.NoError(t, err)
 }
 
 func TestUpdateConnectionStatus(t *testing.T) {

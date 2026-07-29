@@ -18,18 +18,20 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	ethernetAdapterCount := 2
 	monitorConnected := true
 	ieee8021xEnabled := false
-	lastUpdated := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
+	firstDiscovered := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
 
 	info := DeviceInfo{
-		FWVersion:   "16.1.30",
-		FWBuild:     "3400",
-		FWSku:       "11",
-		Discovered:  &discovered,
-		CurrentMode: "Admin",
-		Features:    "SOL,IDER,KVM",
-		IPAddress:   "10.0.0.12",
-		LastUpdated: &lastUpdated,
-		TLSMode:     "TLS 1.2",
+		FWVersion:       "16.1.30",
+		FWBuild:         "3400",
+		FWSku:           "11",
+		Discovered:      &discovered,
+		FirstDiscovered: &firstDiscovered,
+		CurrentMode:     "Admin",
+		Features:        "SOL,IDER,KVM",
+		IPAddress:       "10.0.0.12",
+		LastSynced:      &lastSynced,
+		TLSMode:         "TLS 1.2",
 		UPID: map[string]json.RawMessage{
 			"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
 			"oemId":             json.RawMessage(`""`),
@@ -65,4 +67,20 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	require.Equal(t, *info.Discovered, *decoded.Discovered)
 	require.NotNil(t, decoded.LMSInstalled)
 	require.Equal(t, *info.LMSInstalled, *decoded.LMSInstalled)
+	require.NotNil(t, decoded.FirstDiscovered)
+	require.Equal(t, *info.FirstDiscovered, *decoded.FirstDiscovered)
+	require.NotNil(t, decoded.LastSynced)
+	require.Equal(t, *info.LastSynced, *decoded.LastSynced)
+}
+
+func TestDeviceInfoJSONLegacyLastUpdatedMapsToLastSynced(t *testing.T) {
+	t.Parallel()
+
+	legacy := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
+	payload := []byte(`{"fwVersion":"16.1.30","lastUpdated":"` + legacy.Format(time.RFC3339Nano) + `"}`)
+
+	var decoded DeviceInfo
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	require.NotNil(t, decoded.LastSynced)
+	require.Equal(t, legacy, *decoded.LastSynced)
 }

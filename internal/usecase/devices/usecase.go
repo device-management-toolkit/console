@@ -166,11 +166,13 @@ var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
 	"fwversion":            func(dst, src *dto.DeviceInfo) { dst.FWVersion = src.FWVersion },
 	"fwbuild":              func(dst, src *dto.DeviceInfo) { dst.FWBuild = src.FWBuild },
 	"fwsku":                func(dst, src *dto.DeviceInfo) { dst.FWSku = src.FWSku },
-	"discovered":           func(dst, src *dto.DeviceInfo) { dst.Discovered = src.Discovered },
+	"discovered":           setDiscoveredOnce,
+	"firstdiscovered":      setFirstDiscoveredOnce,
 	"currentmode":          func(dst, src *dto.DeviceInfo) { dst.CurrentMode = src.CurrentMode },
 	"features":             func(dst, src *dto.DeviceInfo) { dst.Features = src.Features },
 	"ipaddress":            func(dst, src *dto.DeviceInfo) { dst.IPAddress = src.IPAddress },
-	"lastupdated":          func(dst, src *dto.DeviceInfo) { dst.LastUpdated = src.LastUpdated },
+	"lastupdated":          func(dst, src *dto.DeviceInfo) { dst.LastSynced = src.LastSynced }, // legacy alias for lastsynced
+	"lastsynced":           func(dst, src *dto.DeviceInfo) { dst.LastSynced = src.LastSynced },
 	"tlsmode":              func(dst, src *dto.DeviceInfo) { dst.TLSMode = src.TLSMode },
 	"upid":                 func(dst, src *dto.DeviceInfo) { dst.UPID = src.UPID },
 	"amtenabledinbios":     func(dst, src *dto.DeviceInfo) { dst.AMTEnabledInBIOS = src.AMTEnabledInBIOS },
@@ -187,6 +189,20 @@ var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
 	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
 	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
 	"ieee8021xenabled":     func(dst, src *dto.DeviceInfo) { dst.IEEE8021XEnabled = src.IEEE8021XEnabled },
+}
+
+// firstDiscovered and discovered are set once at initial discovery and are immutable
+// thereafter: dst is the stored record, so keep its existing value if already present.
+func setFirstDiscoveredOnce(dst, src *dto.DeviceInfo) {
+	if dst.FirstDiscovered == nil {
+		dst.FirstDiscovered = src.FirstDiscovered
+	}
+}
+
+func setDiscoveredOnce(dst, src *dto.DeviceInfo) {
+	if dst.Discovered == nil {
+		dst.Discovered = src.Discovered
+	}
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
@@ -232,8 +248,28 @@ func mergeDeviceInfo(dst, src *dto.Device, fields map[string]bool) {
 	}
 
 	if !hasNestedFields {
-		// Backward compatibility for callers that only send top-level field maps.
-		dst.DeviceInfo = src.DeviceInfo
+		// Backward compatibility for callers that only send a top-level "deviceinfo"
+		// key: replace wholesale, but keep the stored write-once fields.
+		replaceDeviceInfoPreservingImmutable(dst, src.DeviceInfo)
+	}
+}
+
+// replaceDeviceInfoPreservingImmutable replaces dst.DeviceInfo with src, keeping the
+// stored write-once fields (firstDiscovered/discovered) so they stay immutable.
+func replaceDeviceInfoPreservingImmutable(dst *dto.Device, src *dto.DeviceInfo) {
+	stored := dst.DeviceInfo
+	dst.DeviceInfo = src
+
+	if stored == nil {
+		return
+	}
+
+	if stored.FirstDiscovered != nil {
+		dst.DeviceInfo.FirstDiscovered = stored.FirstDiscovered
+	}
+
+	if stored.Discovered != nil {
+		dst.DeviceInfo.Discovered = stored.Discovered
 	}
 }
 
