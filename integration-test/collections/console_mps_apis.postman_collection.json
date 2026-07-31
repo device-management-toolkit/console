@@ -1716,6 +1716,7 @@
 									"    pm.expect(jsonData.tags.length).to.be.equal(0);\r",
 									"    pm.expect(jsonData.mpsInstance).to.be.equal(\"\");\r",
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false);\r",
+									"    pm.expect(jsonData.useTLS).to.be.equal(true);\r",
 									"})"
 								],
 								"type": "text/javascript",
