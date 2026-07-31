@@ -2,6 +2,7 @@ package logger
 
 import (
 	"bytes"
+	"io"
 	"log"
 
 	"github.com/gin-gonic/gin"
@@ -49,28 +50,39 @@ func SetupGin(l Interface) {
 	gin.DefaultErrorWriter = writerAdapter{l: l, level: adapterLevelError}
 }
 
-// logrusHook forwards logrus Trace-level entries to the console logger as Debug messages.
-// This surfaces the WSMAN request/response XML that go-wsman-messages emits via logrus.Trace
-// when LogAMTMessages is true.
+// logrusHook forwards selected logrus entries through the console logger so
+// formatting is consistent with all other console logs.
 type logrusHook struct {
 	l Interface
 }
 
 func (h *logrusHook) Levels() []logrus.Level {
-	return []logrus.Level{logrus.TraceLevel}
+	return []logrus.Level{
+		logrus.DebugLevel,
+		logrus.InfoLevel,
+		logrus.WarnLevel,
+		logrus.ErrorLevel,
+	}
 }
 
 func (h *logrusHook) Fire(entry *logrus.Entry) error {
-	h.l.Debug("wsman: " + entry.Message)
+	switch entry.Level {
+	case logrus.DebugLevel:
+		h.l.Debug(entry.Message)
+	case logrus.InfoLevel:
+		h.l.Info(entry.Message)
+	case logrus.WarnLevel:
+		h.l.Warn(entry.Message)
+	case logrus.ErrorLevel:
+		h.l.Error(entry.Message)
+	}
 
 	return nil
 }
 
-// SetupLogrus installs a logrus hook that forwards WSMAN trace messages (request/response XML)
-// to the console logger at Debug level, and sets the logrus level to Trace so the messages
-// are not dropped before reaching the hook.
-// Call this only when the console log level is "debug".
+// SetupLogrus installs a logrus hook and disables default logrus output so
+// forwarded entries appear only in console logger format.
 func SetupLogrus(l Interface) {
-	logrus.SetLevel(logrus.TraceLevel)
+	logrus.SetOutput(io.Discard)
 	logrus.AddHook(&logrusHook{l: l})
 }

@@ -7,7 +7,6 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
-	"strings"
 	"syscall"
 
 	"github.com/gin-contrib/cors"
@@ -38,10 +37,8 @@ func Run(cfg *config.Config, log logger.Interface) {
 	// route standard and Gin logs through our JSON logger
 	logger.SetupStdLog(log)
 	logger.SetupGin(log)
+	logger.SetupLogrus(log)
 
-	if strings.EqualFold(cfg.Log.Level, "debug") {
-		logger.SetupLogrus(log)
-	}
 	// Repositories — provider (postgres/sqlite/mongo) chosen by config.
 	repos, err := buildRepos(cfg, log)
 	if err != nil {
