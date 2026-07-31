@@ -33,6 +33,7 @@ type UseCase struct {
 	log               logger.Interface
 	domains           domains.Feature
 	safeRequirements  security.Cryptor
+	disableCIRA       bool
 }
 
 var (
@@ -43,7 +44,10 @@ var (
 
 	ErrAMTPasswordRequired  = errors.New("amtPassword is required when generateRandomPassword is false")
 	ErrMEBXPasswordRequired = errors.New("mebxPassword is required when activation is acmactivate and generateRandomMEBxPassword is false")
+	ErrCIRADisabled         = errors.New("CIRA is disabled on this instance")
 )
+
+const CIRADisabledHint = "Re-enable CIRA on this instance, or change the connection mode on this profile."
 
 // validateProfileCreate enforces password-required invariants that only apply on
 // POST: PATCH may omit either password to leave the stored value untouched.
@@ -60,7 +64,7 @@ func validateProfileCreate(d *dto.Profile) error {
 }
 
 // New -.
-func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor) *UseCase {
+func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor, disableCIRA bool) *UseCase {
 	return &UseCase{
 		repo:              r,
 		wifiConfig:        wifiConfig,
@@ -70,6 +74,7 @@ func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.F
 		log:               log,
 		domains:           d,
 		safeRequirements:  safeRequirements,
+		disableCIRA:       disableCIRA,
 	}
 }
 
@@ -412,6 +417,10 @@ func (uc *UseCase) Export(ctx context.Context, profileName, domainName, tenantID
 		return "", "", ErrNotFound
 	}
 
+	if err := uc.validateCIRAConfig(data.CIRAConfigName); err != nil {
+		return "", "", err
+	}
+
 	err = uc.DecryptPasswords(data)
 	if err != nil {
 		return "", "", err
@@ -516,6 +525,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 		d = merged
 	}
 
+	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {
+		return nil, err
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
@@ -559,6 +572,10 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 		return nil, ErrNotValid.Wrap("Insert", "validateProfileCreate", err)
 	}
 
+	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {
+		return nil, err
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
@@ -589,6 +606,21 @@ func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Prof
 	}
 
 	return uc.checkIEEE8021xProfile(ctx, *d1.IEEE8021xProfileName, d1.TenantID, action)
+}
+
+// validateCIRAConfig rejects a profile that references a CIRA configuration when
+// CIRA is disabled on this instance (APP_DISABLE_CIRA=true). Such a profile's CIRA
+// management connection can never be established, so it must not be created,
+// updated, or exported for activation — fail loudly instead of provisioning a
+// device that silently cannot connect. This mirrors the ciradisabled HTTP guard
+// for non-UI callers (scripts, partner tooling) that bypass the CIRA endpoints.
+// The controller maps ErrCIRADisabled to a 400 with its message.
+func (uc *UseCase) validateCIRAConfig(ciraConfigName *string) error {
+	if uc.disableCIRA && ciraConfigName != nil && *ciraConfigName != "" {
+		return ErrCIRADisabled
+	}
+
+	return nil
 }
 
 func (uc *UseCase) checkIEEE8021xProfile(ctx context.Context, profileName, tenantID, action string) error {

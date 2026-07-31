@@ -220,6 +220,7 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 
 	// translate v2 features to v1 - remove this once v1 is deprecated
 	settingsResults.EnableKVM = settingsResultsV2.EnableKVM
+	settingsResults.KVMAvailable = settingsResultsV2.KVMAvailable
 
 	// get and put redirection
 	err = setRedirectionService(state, listenerEnabled, kvmListenerEnabled, device)

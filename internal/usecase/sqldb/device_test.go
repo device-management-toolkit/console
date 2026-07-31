@@ -663,7 +663,8 @@ func TestDeviceRepo_Delete(t *testing.T) {
 					mpspassword TEXT,
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
-					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE
+					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
+					certhash TEXT NOT NULL DEFAULT ''
 				);
 			`)
 			require.NoError(t, err)

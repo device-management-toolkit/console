@@ -442,22 +442,208 @@ func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
+	t.Parallel()
+
+	guid := testDeviceGUID
+	discovered := true
+
+	incoming := &dto.Device{
+		GUID: guid,
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:  "16.1.30",
+			Discovered: &discovered,
+		},
+	}
+
+	expectedFields := map[string]bool{
+		"guid":                  true,
+		"deviceinfo":            true,
+		"deviceinfo.fwversion":  true,
+		"deviceinfo.discovered": true,
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"guid":"` + guid + `","deviceInfo":{"fwVersion":"16.1.30","discovered":true}}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCollectNestedJSONFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collects nested keys", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30","upid":{"csmeId":"x"}}`), fields, 0)
+
+		require.True(t, fields["deviceinfo.fwversion"])
+		require.True(t, fields["deviceinfo.upid"])
+		require.True(t, fields["deviceinfo.upid.csmeid"])
+	})
+
+	t.Run("stops at max depth", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30"}`), fields, maxNestedJSONFieldDepth)
+
+		require.Empty(t, fields)
+	})
+
+	t.Run("ignores non-object payload", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`"not-an-object"`), fields, 0)
+
+		require.Empty(t, fields)
+	})
+}
+
+func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
+	t.Parallel()
+
+	lmsInstalled := false
+	discovered := true
+	amtEnabledInBIOS := true
+	dhcpEnabled := true
+	ethernetAdapterCount := 2
+	monitorConnected := true
+	ieee8021xEnabled := false
+
+	incoming := &dto.Device{
+		GUID:     testDeviceGUID,
+		Hostname: "test-device",
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:       "16.1.30",
+			FWBuild:         "3400",
+			FWSku:           "11",
+			Discovered:      &discovered,
+			CurrentMode:     "Admin",
+			Features:        "SOL,IDER,KVM",
+			IPAddress:       "10.0.0.12",
+			FirstDiscovered: &timeNow,
+			LastSynced:      &timeNow,
+			TLSMode:         "TLS 1.2",
+			UPID: map[string]json.RawMessage{
+				"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
+				"oemId":             json.RawMessage(`""`),
+				"csmeId":            json.RawMessage(`"4A45A39C5ED9462082510000"`),
+			},
+			AMTEnabledInBIOS:     &amtEnabledInBIOS,
+			MEInterfaceVersion:   "16.1.25.2124",
+			DHCPEnabled:          &dhcpEnabled,
+			CertHashes:           []string{"a1b2c3", "d4e5f6"},
+			LMSInstalled:         &lmsInstalled,
+			LMSVersion:           "2410.5.0.0",
+			OSName:               "linux",
+			OSVersion:            "6.8.0-51-generic",
+			OSDistro:             "Ubuntu 24.04 LTS",
+			CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
+			OSIPAddress:          "10.49.76.163",
+			EthernetAdapterCount: &ethernetAdapterCount,
+			MonitorConnected:     &monitorConnected,
+			IEEE8021XEnabled:     &ieee8021xEnabled,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Insert(context.Background(), incoming).
+		Return(incoming, nil)
+
+	body := []byte(`{
+		"guid":"` + testDeviceGUID + `",
+		"hostname":"test-device",
+		"deviceInfo":{
+			"fwVersion":"16.1.30",
+			"fwBuild":"3400",
+			"fwSku":"11",
+			"discovered":true,
+			"currentMode":"Admin",
+			"features":"SOL,IDER,KVM",
+			"ipAddress":"10.0.0.12",
+			"firstDiscovered":"` + timeNow.Format(time.RFC3339Nano) + `",
+			"lastSynced":"` + timeNow.Format(time.RFC3339Nano) + `",
+			"tlsMode":"TLS 1.2",
+			"upid":{
+				"oemPlatformIdType":"Not Set (0)",
+				"oemId":"",
+				"csmeId":"4A45A39C5ED9462082510000"
+			},
+			"amtEnabledInBIOS":true,
+			"meInterfaceVersion":"16.1.25.2124",
+			"dhcpEnabled":true,
+			"certHashes":["a1b2c3","d4e5f6"],
+			"lmsInstalled":false,
+			"lmsVersion":"2410.5.0.0",
+			"osName":"linux",
+			"osVersion":"6.8.0-51-generic",
+			"osDistro":"Ubuntu 24.04 LTS",
+			"cpuModel":"Intel(R) Core(TM) Ultra 7 165H",
+			"osIpAddress":"10.49.76.163",
+			"ethernetAdapterCount":2,
+			"monitorConnected":true,
+			"ieee8021xEnabled":false
+		}
+	}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	expected, _ := json.Marshal(incoming)
+	require.Equal(t, string(expected), w.Body.String())
+}
+
 // TestLoginRedirection verifies the device redirection token endpoint
 func TestLoginRedirection(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name         string
-		deviceID     string
-		mock         func(devFeature *mocks.MockDeviceManagementFeature)
-		expectedCode int
-		expectedErr  bool
+		name string
+		// deviceID is the GUID as it appears in the request path.
+		deviceID string
+		// expectedClaim is the deviceId the token must carry; empty means deviceID.
+		expectedClaim string
+		mock          func(devFeature *mocks.MockDeviceManagementFeature)
+		expectedCode  int
+		expectedErr   bool
 	}{
 		{
 			name:     "login redirection - success",
 			deviceID: "test-device-guid",
 			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
 				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedErr:  false,
+		},
+		{
+			name:          "login redirection - mixed-case guid is normalized in claim",
+			deviceID:      "Test-Device-GUID",
+			expectedClaim: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "Test-Device-GUID", "", false).
 					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -513,32 +699,40 @@ func TestLoginRedirection(t *testing.T) {
 				require.True(t, ok, "token field not found in response")
 				require.NotEmpty(t, tokenString)
 
-				// Decode and verify token expiration
-				verifyRedirectionTokenExpiration(t, tokenString)
+				expectedClaim := tc.expectedClaim
+				if expectedClaim == "" {
+					expectedClaim = tc.deviceID
+				}
+
+				// Decode and verify token expiration and device binding
+				verifyRedirectionToken(t, tokenString, expectedClaim)
 			}
 		})
 	}
 }
 
-// verifyRedirectionTokenExpiration decodes JWT token and verifies 5-minute expiration
-func verifyRedirectionTokenExpiration(t *testing.T, tokenString string) {
+// verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
+func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
 	t.Helper()
 
-	// Parse JWT claims without verification (we just need to check the structure)
-	claims := jwt.RegisteredClaims{}
+	// Parse the token, verifying its signature against the test signing key.
+	claims := jwt.MapClaims{}
 	_, err := jwt.ParseWithClaims(tokenString, &claims, func(_ *jwt.Token) (interface{}, error) {
-		// Return the key for verification (we're using a test key)
 		return []byte(config.ConsoleConfig.JWTKey), nil
 	})
 	require.NoError(t, err, "token should be parseable")
 
-	// Verify ExpiresAt is set
-	require.NotNil(t, claims.ExpiresAt, "token should have expiration time")
+	// deviceId must be the device GUID
+	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
+
+	// Verify expiration is set
+	exp, err := claims.GetExpirationTime()
+	require.NoError(t, err)
+	require.NotNil(t, exp, "token should have expiration time")
 
 	// Calculate expected expiration window
 	now := time.Now()
-	expirationTime := claims.ExpiresAt.Time
-	timeDiff := expirationTime.Sub(now)
+	timeDiff := exp.Sub(now)
 
 	// Should be approximately 5 minutes (with some tolerance for test execution time)
 	expectedDuration := config.ConsoleConfig.RedirectionJWTExpiration

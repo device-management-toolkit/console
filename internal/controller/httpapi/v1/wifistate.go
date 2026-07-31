@@ -8,7 +8,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 
-	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
@@ -41,6 +41,15 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, requestedState)
 	if err != nil {
 		r.l.Error(err, "http - v1 - requestWirelessStateChange")
+
+		if errors.Is(err, wsman.ErrNoWiFiPort) {
+			c.JSON(http.StatusNotFound, gin.H{
+				errorKey: "Request Wireless State Change failed for guid: " + guid + ". - " + err.Error(),
+			})
+
+			return
+		}
+
 		ErrorResponse(c, err)
 
 		return

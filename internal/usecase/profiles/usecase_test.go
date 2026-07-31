@@ -34,6 +34,12 @@ type test struct {
 func profilesTest(t *testing.T) (*profiles.UseCase, *mocks.MockProfilesRepository, *mocks.MockWiFiConfigsRepository, *mocks.MockProfileWiFiConfigsFeature) {
 	t.Helper()
 
+	return newProfilesTest(t, false)
+}
+
+func newProfilesTest(t *testing.T, disableCIRA bool) (*profiles.UseCase, *mocks.MockProfilesRepository, *mocks.MockWiFiConfigsRepository, *mocks.MockProfileWiFiConfigsFeature) {
+	t.Helper()
+
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
 
@@ -45,7 +51,7 @@ func profilesTest(t *testing.T) (*profiles.UseCase, *mocks.MockProfilesRepositor
 	cira := mocks.NewMockCIRAConfigsRepository(mockCtl)
 	security := mocks.MockCrypto{}
 	log := logger.New("error")
-	useCase := profiles.New(repo, wificonfigs, profilewificonfigs, ieeeMock, log, domains, cira, security)
+	useCase := profiles.New(repo, wificonfigs, profilewificonfigs, ieeeMock, log, domains, cira, security, disableCIRA)
 
 	return useCase, repo, wificonfigs, profilewificonfigs
 }
@@ -496,7 +502,7 @@ func TestUpdateRejectsUnknownIEEE8021xProfile(t *testing.T) {
 	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
 	domainsMock := mocks.NewMockDomainsFeature(mockCtl)
 	ciraMock := mocks.NewMockCIRAConfigsRepository(mockCtl)
-	useCase := profiles.New(repo, wifiConfig, profileWifi, ieeeMock, logger.New("error"), domainsMock, ciraMock, mocks.MockCrypto{})
+	useCase := profiles.New(repo, wifiConfig, profileWifi, ieeeMock, logger.New("error"), domainsMock, ciraMock, mocks.MockCrypto{}, false)
 
 	ieeeMock.EXPECT().
 		GetByName(context.Background(), ieeeName, tenantID).
@@ -694,7 +700,7 @@ func TestHandleIEEE8021xSettings(t *testing.T) {
 
 			tc.mock(ieeeMock)
 
-			useCase := profiles.New(nil, nil, nil, ieeeMock, nil, nil, nil, nil)
+			useCase := profiles.New(nil, nil, nil, ieeeMock, nil, nil, nil, nil, false)
 
 			err := useCase.HandleIEEE8021xSettings(ctx, tc.data, configuration, tenantID)
 
@@ -758,7 +764,7 @@ func TestGetProfileData(t *testing.T) {
 
 			tc.mock(repoMock)
 
-			useCase := profiles.New(repoMock, nil, nil, nil, nil, nil, nil, nil)
+			useCase := profiles.New(repoMock, nil, nil, nil, nil, nil, nil, nil, false)
 
 			data, err := useCase.GetProfileData(ctx, tc.profileName, tenantID)
 
@@ -839,7 +845,7 @@ func TestGetDomainInformation(t *testing.T) {
 
 			tc.mock(domainsMock)
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, domainsMock, nil, cryptoMock)
+			useCase := profiles.New(nil, nil, nil, nil, nil, domainsMock, nil, cryptoMock, false)
 
 			domain, err := useCase.GetDomainInformation(ctx, tc.activation, tc.domainName, tenantID)
 
@@ -884,7 +890,7 @@ func TestDecryptPasswords(t *testing.T) {
 
 			cryptoMock := &mocks.MockCrypto{}
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, cryptoMock)
+			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, cryptoMock, false)
 
 			err := useCase.DecryptPasswords(tc.data)
 
@@ -956,7 +962,7 @@ func TestBuildWirelessProfiles(t *testing.T) {
 
 			tc.mock(wifiMock)
 
-			useCase := profiles.New(nil, wifiMock, nil, ieeeMock, nil, nil, nil, cryptoMock)
+			useCase := profiles.New(nil, wifiMock, nil, ieeeMock, nil, nil, nil, cryptoMock, false)
 
 			wifiProfiles, err := useCase.BuildWirelessProfiles(ctx, wifiConfigs, tenantID)
 
@@ -1237,7 +1243,7 @@ func TestBuildConfigurationObject(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, nil)
+			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, nil, false)
 
 			result := useCase.BuildConfigurationObject(tc.profile.ProfileName, tc.profile, tc.domain, tc.wifi, tc.cira)
 
@@ -1297,7 +1303,7 @@ func TestGetWiFiConfigurations(t *testing.T) {
 
 			tc.mock(profileWiFiMock)
 
-			useCase := profiles.New(nil, nil, profileWiFiMock, nil, nil, nil, nil, nil)
+			useCase := profiles.New(nil, nil, profileWiFiMock, nil, nil, nil, nil, nil, false)
 
 			wifiConfigs, err := useCase.GetWiFiConfigurations(ctx, profileName, tenantID)
 
@@ -1345,7 +1351,7 @@ func TestSerializeAndEncryptYAML(t *testing.T) {
 
 			cryptoMock := &mocks.MockCrypto{}
 
-			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, cryptoMock)
+			useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, cryptoMock, false)
 
 			encryptedData, encryptionKey, err := useCase.SerializeAndEncryptYAML(tc.configuration)
 
@@ -1360,4 +1366,89 @@ func TestSerializeAndEncryptYAML(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestInsertRejectsCIRAProfileWhenCIRADisabled(t *testing.T) {
+	t.Parallel()
+
+	ciraName := "ciraconfig1"
+	useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, nil, true)
+
+	_, err := useCase.Insert(context.Background(), &dto.Profile{
+		ProfileName:                "p1",
+		GenerateRandomPassword:     true,
+		GenerateRandomMEBxPassword: true,
+		CIRAConfigName:             &ciraName,
+	})
+
+	require.ErrorIs(t, err, profiles.ErrCIRADisabled)
+}
+
+func TestUpdateRejectsCIRAProfileWhenCIRADisabled(t *testing.T) {
+	t.Parallel()
+
+	ciraName := "ciraconfig1"
+	useCase := profiles.New(nil, nil, nil, nil, nil, nil, nil, nil, true)
+
+	_, err := useCase.Update(context.Background(), &dto.Profile{
+		ProfileName:    "p1",
+		CIRAConfigName: &ciraName,
+	}, nil)
+
+	require.ErrorIs(t, err, profiles.ErrCIRADisabled)
+}
+
+func TestExportRejectsCIRAProfileWhenCIRADisabled(t *testing.T) {
+	t.Parallel()
+
+	ciraName := "ciraconfig1"
+	useCase, repo, _, _ := newProfilesTest(t, true)
+
+	repo.EXPECT().
+		GetByName(context.Background(), "p1", "tenant-id-456").
+		Return(&entity.Profile{ProfileName: "p1", TenantID: "tenant-id-456", CIRAConfigName: &ciraName}, nil)
+
+	_, _, err := useCase.Export(context.Background(), "p1", "", "tenant-id-456")
+
+	require.ErrorIs(t, err, profiles.ErrCIRADisabled)
+}
+
+// A profile that does not use CIRA must still work when CIRA is disabled.
+func TestUpdateAllowsNonCIRAProfileWhenCIRADisabled(t *testing.T) {
+	t.Parallel()
+
+	profile := &entity.Profile{
+		ProfileName:  "example-profile",
+		TenantID:     "tenant-id-456",
+		Version:      "1.0.0",
+		AMTPassword:  "encrypted",
+		MEBXPassword: "encrypted",
+	}
+
+	profileDTO := &dto.Profile{
+		ProfileName: "example-profile",
+		TenantID:    "tenant-id-456",
+		Version:     "1.0.0",
+		Tags:        []string{""},
+		WiFiConfigs: []dto.ProfileWiFiConfigs{
+			{
+				ProfileName:         "example-profile",
+				WirelessProfileName: "wireless-profile-1",
+			},
+		},
+	}
+
+	useCase, repo, wifiFeat, pwfFeat := newProfilesTest(t, true)
+
+	repo.EXPECT().Update(context.Background(), profile).Return(true, nil)
+	pwfFeat.EXPECT().DeleteByProfileName(context.Background(), profile.ProfileName, profile.TenantID).Return(nil)
+	repo.EXPECT().GetByName(context.Background(), profile.ProfileName, profile.TenantID).Return(profile, nil)
+	wifiFeat.EXPECT().
+		CheckProfileExists(context.Background(), profileDTO.WiFiConfigs[0].WirelessProfileName, profileDTO.TenantID).
+		Return(true, nil)
+
+	result, err := useCase.Update(context.Background(), profileDTO, nil)
+
+	require.NoError(t, err)
+	require.Equal(t, profileDTO, result)
 }

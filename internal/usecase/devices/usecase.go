@@ -1,6 +1,7 @@
 package devices
 
 import (
+	"encoding/json"
 	"strings"
 	"sync"
 
@@ -34,6 +35,9 @@ const (
 
 	// MinAMTVersion - minimum AMT version required for certain features in power capabilities.
 	MinAMTVersion = 9
+
+	deviceInfoFieldKey    = "deviceinfo"
+	deviceInfoFieldPrefix = deviceInfoFieldKey + "."
 )
 
 // UseCase -.
@@ -74,6 +78,11 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 
 	tags := strings.Join(d.Tags, ",")
 
+	deviceInfo, err := marshalDeviceInfo(d.DeviceInfo)
+	if err != nil {
+		return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "marshalDeviceInfo", err)
+	}
+
 	d1 := &entity.Device{
 		ConnectionStatus: d.ConnectionStatus,
 		MPSInstance:      d.MPSInstance,
@@ -87,14 +96,12 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		LastConnected:    d.LastConnected,
 		LastSeen:         d.LastSeen,
 		LastDisconnected: d.LastDisconnected,
-		// DeviceInfo:       d.DeviceInfo,
-		Username:        d.Username,
-		Password:        d.Password,
-		UseTLS:          d.UseTLS,
-		AllowSelfSigned: d.AllowSelfSigned,
+		DeviceInfo:       deviceInfo,
+		Username:         d.Username,
+		Password:         d.Password,
+		UseTLS:           d.UseTLS,
+		AllowSelfSigned:  d.AllowSelfSigned,
 	}
-
-	var err error
 
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
 	if err != nil {
@@ -133,8 +140,7 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 }
 
 // Keys are lowercased to match encoding/json's case-insensitive unmarshal.
-// guid and tenantId identify the record; deviceInfo doesn't round-trip through
-// dtoToEntity/entityToDTO — all three are intentionally omitted.
+// guid and tenantId identify the record and are intentionally omitted.
 var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"connectionstatus": func(dst, src *dto.Device) { dst.ConnectionStatus = src.ConnectionStatus },
 	"mpsinstance":      func(dst, src *dto.Device) { dst.MPSInstance = src.MPSInstance },
@@ -153,22 +159,131 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"usetls":           func(dst, src *dto.Device) { dst.UseTLS = src.UseTLS },
 	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
 	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
+	deviceInfoFieldKey: func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+}
+
+var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
+	"fwversion":            func(dst, src *dto.DeviceInfo) { dst.FWVersion = src.FWVersion },
+	"fwbuild":              func(dst, src *dto.DeviceInfo) { dst.FWBuild = src.FWBuild },
+	"fwsku":                func(dst, src *dto.DeviceInfo) { dst.FWSku = src.FWSku },
+	"discovered":           setDiscoveredOnce,
+	"firstdiscovered":      setFirstDiscoveredOnce,
+	"currentmode":          func(dst, src *dto.DeviceInfo) { dst.CurrentMode = src.CurrentMode },
+	"features":             func(dst, src *dto.DeviceInfo) { dst.Features = src.Features },
+	"ipaddress":            func(dst, src *dto.DeviceInfo) { dst.IPAddress = src.IPAddress },
+	"lastupdated":          func(dst, src *dto.DeviceInfo) { dst.LastSynced = src.LastSynced }, // legacy alias for lastsynced
+	"lastsynced":           func(dst, src *dto.DeviceInfo) { dst.LastSynced = src.LastSynced },
+	"tlsmode":              func(dst, src *dto.DeviceInfo) { dst.TLSMode = src.TLSMode },
+	"upid":                 func(dst, src *dto.DeviceInfo) { dst.UPID = src.UPID },
+	"amtenabledinbios":     func(dst, src *dto.DeviceInfo) { dst.AMTEnabledInBIOS = src.AMTEnabledInBIOS },
+	"meinterfaceversion":   func(dst, src *dto.DeviceInfo) { dst.MEInterfaceVersion = src.MEInterfaceVersion },
+	"dhcpenabled":          func(dst, src *dto.DeviceInfo) { dst.DHCPEnabled = src.DHCPEnabled },
+	"certhashes":           func(dst, src *dto.DeviceInfo) { dst.CertHashes = src.CertHashes },
+	"lmsinstalled":         func(dst, src *dto.DeviceInfo) { dst.LMSInstalled = src.LMSInstalled },
+	"lmsversion":           func(dst, src *dto.DeviceInfo) { dst.LMSVersion = src.LMSVersion },
+	"osname":               func(dst, src *dto.DeviceInfo) { dst.OSName = src.OSName },
+	"osversion":            func(dst, src *dto.DeviceInfo) { dst.OSVersion = src.OSVersion },
+	"osdistro":             func(dst, src *dto.DeviceInfo) { dst.OSDistro = src.OSDistro },
+	"cpumodel":             func(dst, src *dto.DeviceInfo) { dst.CPUModel = src.CPUModel },
+	"osipaddress":          func(dst, src *dto.DeviceInfo) { dst.OSIPAddress = src.OSIPAddress },
+	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
+	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
+	"ieee8021xenabled":     func(dst, src *dto.DeviceInfo) { dst.IEEE8021XEnabled = src.IEEE8021XEnabled },
+}
+
+// firstDiscovered and discovered are set once at initial discovery and are immutable
+// thereafter: dst is the stored record, so keep its existing value if already present.
+func setFirstDiscoveredOnce(dst, src *dto.DeviceInfo) {
+	if dst.FirstDiscovered == nil {
+		dst.FirstDiscovered = src.FirstDiscovered
+	}
+}
+
+func setDiscoveredOnce(dst, src *dto.DeviceInfo) {
+	if dst.Discovered == nil {
+		dst.Discovered = src.Discovered
+	}
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
 	for key := range fields {
+		if key == deviceInfoFieldKey || strings.HasPrefix(key, deviceInfoFieldPrefix) {
+			continue
+		}
+
 		if apply, ok := deviceFieldSetters[key]; ok {
 			apply(dst, src)
 		}
 	}
+
+	if fields[deviceInfoFieldKey] {
+		mergeDeviceInfo(dst, src, fields)
+	}
+}
+
+func mergeDeviceInfo(dst, src *dto.Device, fields map[string]bool) {
+	if src.DeviceInfo == nil {
+		dst.DeviceInfo = nil
+
+		return
+	}
+
+	hasNestedFields := false
+
+	if dst.DeviceInfo == nil {
+		dst.DeviceInfo = &dto.DeviceInfo{}
+	}
+
+	for key := range fields {
+		if !strings.HasPrefix(key, deviceInfoFieldPrefix) {
+			continue
+		}
+
+		hasNestedFields = true
+
+		subfield := strings.TrimPrefix(key, deviceInfoFieldPrefix)
+		if apply, ok := deviceInfoFieldSetters[subfield]; ok {
+			apply(dst.DeviceInfo, src.DeviceInfo)
+		}
+	}
+
+	if !hasNestedFields {
+		// Backward compatibility for callers that only send a top-level "deviceinfo"
+		// key: replace wholesale, but keep the stored write-once fields.
+		replaceDeviceInfoPreservingImmutable(dst, src.DeviceInfo)
+	}
+}
+
+// replaceDeviceInfoPreservingImmutable replaces dst.DeviceInfo with src, keeping the
+// stored write-once fields (firstDiscovered/discovered) so they stay immutable.
+func replaceDeviceInfoPreservingImmutable(dst *dto.Device, src *dto.DeviceInfo) {
+	stored := dst.DeviceInfo
+	dst.DeviceInfo = src
+
+	if stored == nil {
+		return
+	}
+
+	if stored.FirstDiscovered != nil {
+		dst.DeviceInfo.FirstDiscovered = stored.FirstDiscovered
+	}
+
+	if stored.Discovered != nil {
+		dst.DeviceInfo.Discovered = stored.Discovered
+	}
 }
 
 // convert entity.Device to dto.Device.
-func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
+func (uc *UseCase) entityToDTO(d *entity.Device) (*dto.Device, error) {
 	// convert comma separated string to []string
 	var tags []string
 	if d.Tags != "" {
 		tags = strings.Split(d.Tags, ",")
+	}
+
+	deviceInfo, err := unmarshalDeviceInfo(d.DeviceInfo, d.GUID)
+	if err != nil {
+		return nil, err
 	}
 
 	d1 := &dto.Device{
@@ -184,11 +299,10 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 		LastConnected:    d.LastConnected,
 		LastSeen:         d.LastSeen,
 		LastDisconnected: d.LastDisconnected,
-		// DeviceInfo:       d.DeviceInfo,
-		Username: d.Username,
-		// Password:        d.Password,
-		UseTLS:          d.UseTLS,
-		AllowSelfSigned: d.AllowSelfSigned,
+		DeviceInfo:       deviceInfo,
+		Username:         d.Username,
+		UseTLS:           d.UseTLS,
+		AllowSelfSigned:  d.AllowSelfSigned,
 	}
 
 	if d.CertHash != nil {
@@ -203,5 +317,31 @@ func (uc *UseCase) entityToDTO(d *entity.Device) *dto.Device {
 		d1.MEBXPassword = *d.MEBXPassword
 	}
 
-	return d1
+	return d1, nil
+}
+
+func marshalDeviceInfo(info *dto.DeviceInfo) (string, error) {
+	if info == nil {
+		return "", nil
+	}
+
+	b, err := json.Marshal(info)
+	if err != nil {
+		return "", err
+	}
+
+	return string(b), nil
+}
+
+func unmarshalDeviceInfo(raw, guid string) (*dto.DeviceInfo, error) {
+	if raw == "" {
+		return nil, nil
+	}
+
+	var info dto.DeviceInfo
+	if err := json.Unmarshal([]byte(raw), &info); err != nil {
+		return nil, ErrDeviceUseCase.Wrap("unmarshalDeviceInfo", "failed to unmarshal deviceInfo for device "+guid, err)
+	}
+
+	return &info, nil
 }

@@ -485,11 +485,6 @@ func (c *ConnectionEntry) hardwareGets() (GetHWResults, error) {
 		return results, err
 	}
 
-	results.ProcessorResult, err = c.WsmanMessages.CIM.Processor.Get()
-	if err != nil {
-		return results, err
-	}
-
 	return results, nil
 }
 
@@ -518,6 +513,20 @@ func (c *ConnectionEntry) hardwarePulls() (PullHWResults, error) {
 		return results, err
 	}
 
+	// Processor is fetched via Enumerate/Pull rather than Get: on some platforms
+	// (e.g. AMT 21) the device reports zero CIM_Processor instances, and a
+	// WS-Transfer Get against a resource with no instance faults with
+	// b:DestinationUnreachable. Enumerate/Pull returns an empty set instead.
+	processorEnumerateResult, err := c.WsmanMessages.CIM.Processor.Enumerate()
+	if err != nil {
+		return results, err
+	}
+
+	results.ProcessorResult, err = c.WsmanMessages.CIM.Processor.Pull(processorEnumerateResult.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return results, err
+	}
+
 	return results, nil
 }
 
@@ -538,19 +547,19 @@ func (c *ConnectionEntry) GetHardwareInfo() (HWResults, error) {
 		CardResult:           getHWResults.CardResult,
 		PhysicalMemoryResult: pullHWResults.PhysicalMemoryResult,
 		BiosResult:           getHWResults.BiosResult,
-		ProcessorResult:      getHWResults.ProcessorResult,
+		ProcessorResult:      pullHWResults.ProcessorResult,
 	}, nil
 }
 
 type GetHWResults struct {
-	ChassisResult   chassis.Response
-	CardResult      card.Response
-	BiosResult      bios.Response
-	ProcessorResult processor.Response
+	ChassisResult chassis.Response
+	CardResult    card.Response
+	BiosResult    bios.Response
 }
 type PullHWResults struct {
 	PhysicalMemoryResult physical.Response
 	ChipResult           chip.Response
+	ProcessorResult      processor.Response
 }
 type HWResults struct {
 	ChassisResult        chassis.Response
@@ -949,6 +958,27 @@ func (c *ConnectionEntry) PullWiFiPort(enumerationContext string) (response wifi
 	return c.WsmanMessages.CIM.WiFiPort.Pull(enumerationContext)
 }
 
+// GetWiFiPorts enumerates and pulls the device's WiFi ports. It returns
+// ErrNoWiFiPort when the device exposes no WiFi interface, so callers across
+// WiFi-related flows get a consistent signal instead of a downstream AMT fault.
+func (c *ConnectionEntry) GetWiFiPorts() ([]wifi.WiFiPort, error) {
+	enumerateResponse, err := c.EnumerateWiFiPort()
+	if err != nil {
+		return nil, err
+	}
+
+	pullResponse, err := c.PullWiFiPort(enumerateResponse.Body.EnumerateResponse.EnumerationContext)
+	if err != nil {
+		return nil, err
+	}
+
+	if len(pullResponse.Body.PullResponse.WiFiPortItems) == 0 {
+		return nil, ErrNoWiFiPort
+	}
+
+	return pullResponse.Body.PullResponse.WiFiPortItems, nil
+}
+
 func (c *ConnectionEntry) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
 	// if local sync not enable, enable it
 	// if response.Body.WiFiPortConfigurationService.LocalProfileSynchronizationEnabled == wifiportconfiguration.LocalSyncDisabled {
@@ -985,6 +1015,10 @@ func (c *ConnectionEntry) WiFiRequestStateChange(requestedState wifi.RequestedSt
 
 func (c *ConnectionEntry) AddWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, wifiEndpoint, clientCredential, caCredential string) (response wifiportconfiguration.Response, err error) {
 	return c.WsmanMessages.AMT.WiFiPortConfigurationService.AddWiFiSettings(wifiEndpointSettings, ieee8021xSettings, wifiEndpoint, clientCredential, caCredential)
+}
+
+func (c *ConnectionEntry) UpdateWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, clientCredential, caCredential string) (response wifiportconfiguration.Response, err error) {
+	return c.WsmanMessages.AMT.WiFiPortConfigurationService.UpdateWiFiSettings(wifiEndpointSettings, ieee8021xSettings, clientCredential, caCredential)
 }
 
 func (c *ConnectionEntry) PUTTLSSettings(instanceID string, tlsSettingData tls.SettingDataRequest) (response tls.Response, err error) {

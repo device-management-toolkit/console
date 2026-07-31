@@ -62,29 +62,21 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
 	}
 
-	// Register custom validators once
-	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
-		if err := v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore); err != nil {
-			l.Error("failed to register custom validation: " + err.Error())
-		}
-
-		if err := v.RegisterValidation("wifistate", dto.ValidateWirelessState); err != nil {
-			l.Error("failed to register custom validation: " + err.Error())
-		}
-	}
+	registerCustomValidators(l)
 
 	// Routers
 	h2 := protected.Group("/v1")
 	{
 		v1.NewDeviceRoutes(h2, t.Devices, l)
 		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, t.Exporter, l)
-		v1.NewCIRACertRoutes(h2, l)
+		v1.NewCIRACertRoutes(h2, l, cfg)
+		v1.NewServerRoutes(h2, cfg)
 	}
 
 	h := protected.Group("/v1/admin")
 	{
 		v1.NewDomainRoutes(h, t.Domains, l)
-		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l)
+		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l, cfg)
 		v1.NewProfileRoutes(h, t.Profiles, l)
 		v1.NewWirelessConfigRoutes(h, t.WirelessProfiles, l)
 		v1.NewIEEE8021xConfigRoutes(h, t.IEEE8021xProfiles, l)
@@ -94,4 +86,21 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v2.NewAmtRoutes(h3, t.Devices, l)
 	}
+}
+
+func registerCustomValidators(l logger.Interface) {
+	v, ok := binding.Validator.Engine().(*validator.Validate)
+	if !ok {
+		return
+	}
+
+	registerValidation := func(tag string, validationFunc validator.Func) {
+		if err := v.RegisterValidation(tag, validationFunc); err != nil {
+			l.Error("failed to register custom validation: " + err.Error())
+		}
+	}
+
+	registerValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore)
+	registerValidation("wifistate", dto.ValidateWirelessState)
+	registerValidation("wirelessprofile", dto.ValidateWirelessProfile)
 }

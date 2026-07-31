@@ -143,8 +143,15 @@ func verifyDTOToEntity(t *testing.T, uc *UseCase, guid, certHash string, buildDT
 func verifyEntityToDTO(t *testing.T, uc *UseCase, buildEntity func() *entity.Device) {
 	t.Helper()
 
-	firstDTO := uc.entityToDTO(buildEntity())
-	secondDTO := uc.entityToDTO(buildEntity())
+	firstDTO, err := uc.entityToDTO(buildEntity())
+	if err != nil {
+		t.Fatalf("entityToDTO first call: %v", err)
+	}
+
+	secondDTO, err := uc.entityToDTO(buildEntity())
+	if err != nil {
+		t.Fatalf("entityToDTO second call: %v", err)
+	}
 
 	if !reflect.DeepEqual(firstDTO, secondDTO) {
 		t.Fatalf("entityToDTO result mismatch")

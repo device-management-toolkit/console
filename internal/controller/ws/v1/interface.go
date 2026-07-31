@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/gorilla/websocket"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 
@@ -59,8 +60,16 @@ type Feature interface {
 	GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
 	Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error
 	GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
+	GetWiredNetworkSettings(c context.Context, guid string) (dto.WiredNetworkInfo, error)
+	PatchWiredNetworkSettings(c context.Context, guid string, req dto.WiredNetworkConfigRequest) error
 	RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
 	GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
+	GetWirelessProfileSync(c context.Context, guid string) (dto.WirelessProfileSyncResponse, error)
+	SetWirelessProfileSync(c context.Context, guid string, req dto.WirelessProfileSyncRequest) (dto.WirelessProfileSyncResponse, error)
+	GetWirelessProfiles(c context.Context, guid string) ([]dto.WirelessProfileResponse, error)
+	AddWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
+	DeleteWirelessProfile(c context.Context, guid, profileName string) error
+	UpdateWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
 	GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)
 	GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
 	GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)

@@ -12,16 +12,43 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
 
 // errorKey is the JSON field name used for error messages in gin.H responses.
-const errorKey = "error"
+// messageKey is the JSON field name used for human-readable messages in gin.H responses.
+const (
+	errorKey   = "error"
+	messageKey = "message"
+)
 
 type response struct {
 	Error   string `json:"error,omitempty" example:"message"`
 	Message string `json:"message,omitempty" example:"message"`
+}
+
+// handleSentinelErrors handles well-known sentinel errors that are checked with
+// errors.Is before the typed-error switch. Returns true if the error was handled.
+func handleSentinelErrors(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, profiles.ErrCIRADisabled):
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{
+			Error:   profiles.ErrCIRADisabled.Error(),
+			Message: profiles.CIRADisabledHint,
+		})
+
+		return true
+	case errors.Is(err, wsmanAPI.ErrCIRADeviceNotConnected):
+		msg := wsmanAPI.ErrCIRADeviceNotConnected.Error()
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, response{Error: msg, Message: msg})
+
+		return true
+	}
+
+	return false
 }
 
 func ErrorResponse(c *gin.Context, err error) {
@@ -39,6 +66,10 @@ func ErrorResponse(c *gin.Context, err error) {
 		certPasswordErr domains.CertPasswordError
 		netErr          net.Error
 	)
+
+	if handleSentinelErrors(c, err) {
+		return
+	}
 
 	switch {
 	case errors.As(err, &netErr):

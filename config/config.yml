@@ -38,7 +38,7 @@ ea:
 auth:
   disabled: false
   adminUsername: standalone
-  adminPassword: G@ppm0ym
+  adminPassword: 
   jwtKey: your_secret_jwt_key
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
