@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/mock"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 type MockCommandExecutor struct {
@@ -98,7 +99,7 @@ func TestLaunchBrowserEmptyHostDefaultsToLocalhost(t *testing.T) { //nolint:para
 	cmd, args := expectedOpenBrowserArgs("http://localhost:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -121,7 +122,7 @@ func TestLaunchBrowserExplicitHostUsed(t *testing.T) { //nolint:paralleltest // 
 	cmd, args := expectedOpenBrowserArgs("http://192.168.1.100:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -145,7 +146,7 @@ func TestLaunchBrowserTLSUsesHTTPS(t *testing.T) { //nolint:paralleltest // cann
 	cmd, args := expectedOpenBrowserArgs("https://myserver:8443")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -169,7 +170,7 @@ func TestLaunchBrowserTLSAndEmptyHostDefaultsToLocalhost(t *testing.T) { //nolin
 	cmd, args := expectedOpenBrowserArgs("https://localhost:8443")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -189,7 +190,7 @@ func TestLaunchBrowserWildcard0000DefaultsToLocalhost(t *testing.T) { //nolint:p
 	cmd, args := expectedOpenBrowserArgs("http://localhost:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -209,7 +210,7 @@ func TestLaunchBrowserWildcardIPv6DefaultsToLocalhost(t *testing.T) { //nolint:p
 	cmd, args := expectedOpenBrowserArgs("http://localhost:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -229,7 +230,7 @@ func TestLaunchBrowserWildcardBracketedIPv6DefaultsToLocalhost(t *testing.T) { /
 	cmd, args := expectedOpenBrowserArgs("http://localhost:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -249,7 +250,7 @@ func TestLaunchBrowserIPv6LoopbackWrappedInBrackets(t *testing.T) { //nolint:par
 	cmd, args := expectedOpenBrowserArgs("http://[::1]:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }
@@ -269,7 +270,7 @@ func TestLaunchBrowserBracketedIPv6LoopbackStrippedThenRewrapped(t *testing.T) {
 	cmd, args := expectedOpenBrowserArgs("http://[::1]:8181")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
-	launchBrowser(cfg)
+	launchBrowser(cfg, logger.New("error"))
 
 	mockCmdExecutor.AssertExpectations(t)
 }

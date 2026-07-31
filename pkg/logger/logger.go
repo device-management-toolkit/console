@@ -23,6 +23,8 @@ type logger struct {
 	logger *zerolog.Logger
 }
 
+const callerPrefixToTrim = "github.com/device-management-toolkit/"
+
 // New -.
 func New(level string) Interface {
 	var l zerolog.Level
@@ -42,7 +44,13 @@ func New(level string) Interface {
 		l = zerolog.InfoLevel
 	}
 
-	skipFrameCount := 3
+	skipFrameCount := 2
+
+	zerolog.CallerMarshalFunc = func(_ uintptr, file string, line int) string {
+		caller := fmt.Sprintf("%s:%d", file, line)
+
+		return strings.TrimPrefix(caller, callerPrefixToTrim)
+	}
 
 	var z zerolog.Logger
 
@@ -53,6 +61,7 @@ func New(level string) Interface {
 			CallerWithSkipFrameCount(zerolog.CallerSkipFrameCount + skipFrameCount).
 			Logger().
 			Level(l)
+
 	} else {
 		z = zerolog.New(os.Stdout).
 			With().
@@ -60,6 +69,7 @@ func New(level string) Interface {
 			CallerWithSkipFrameCount(zerolog.CallerSkipFrameCount + skipFrameCount).
 			Logger().
 			Level(l)
+
 	}
 
 	zerolog.SetGlobalLevel(l)
