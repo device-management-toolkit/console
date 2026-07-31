@@ -190,11 +190,24 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 
 func (dr *deviceRoutes) insert(c *gin.Context) {
 	var device dto.Device
-	if err := c.ShouldBindJSON(&device); err != nil {
+	if err := c.ShouldBindBodyWithJSON(&device); err != nil {
 		validationErr := ErrValidationDevices.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
 		return
+	}
+
+	fields, err := providedJSONFields(c)
+	if err != nil {
+		validationErr := ErrValidationDevices.Wrap("insert", "providedJSONFields", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	// Security default: if useTLS is omitted on create, default to TLS enabled.
+	if !fields["usetls"] {
+		device.UseTLS = true
 	}
 
 	newDevice, err := dr.t.Insert(c.Request.Context(), &device)
