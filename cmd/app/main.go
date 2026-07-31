@@ -107,7 +107,7 @@ func handleDebugMode(cfg *config.Config, l logger.Interface) {
 	}
 
 	if os.Getenv("GIN_MODE") != "debug" {
-		go launchBrowser(cfg)
+		go launchBrowser(cfg, l)
 	}
 }
 

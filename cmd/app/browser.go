@@ -4,15 +4,15 @@ package main
 
 import (
 	"context"
-	"log"
 	"net"
 	"os/exec"
 	"runtime"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-func launchBrowser(cfg *config.Config) {
+func launchBrowser(cfg *config.Config, l logger.Interface) {
 	scheme := "http"
 	if cfg.TLS.Enabled {
 		scheme = "https"
@@ -21,10 +21,10 @@ func launchBrowser(cfg *config.Config) {
 	host := navigableHost(cfg.Host)
 
 	url := scheme + "://" + net.JoinHostPort(host, cfg.Port)
-	log.Printf("launchBrowser: opening %s", url)
+	l.Info("launchBrowser: opening %s", url)
 
 	if err := openBrowser(url, runtime.GOOS); err != nil {
-		log.Printf("Skipping browser launch: %v", err)
+		l.Warn("Skipping browser launch: %v", err)
 	}
 }
 
