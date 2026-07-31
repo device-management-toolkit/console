@@ -469,6 +469,22 @@ func TestDevicesInsertHonorsExplicitUseTLSFalse(t *testing.T) {
 	require.Equal(t, string(jsonBytes), w.Body.String())
 }
 
+func TestDevicesInsertRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	_, engine := devicesTest(t)
+
+	// Invalid JSON should fail during request binding.
+	body := []byte(`{invalid json}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 // encoding/json unmarshals case-insensitively; the merge must see the field as
 // provided regardless of the casing the client used.
 func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
