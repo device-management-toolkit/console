@@ -411,6 +411,64 @@ func TestDevicesUpdatePartialPatch(t *testing.T) {
 	require.Equal(t, string(expected), w.Body.String())
 }
 
+func TestDevicesInsertDefaultsUseTLSToTrueWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-no-tls-field",
+		GUID:             "123e4567-e89b-12d3-a456-426614174000",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           true,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-no-tls-field","guid":"123e4567-e89b-12d3-a456-426614174000","username":"admin1","password":"password1"}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertHonorsExplicitUseTLSFalse(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-explicit-false",
+		GUID:             "123e4567-e89b-12d3-a456-426614174001",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           false,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-explicit-false","guid":"123e4567-e89b-12d3-a456-426614174001","username":"admin1","password":"password1","useTLS":false}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
 // encoding/json unmarshals case-insensitively; the merge must see the field as
 // provided regardless of the casing the client used.
 func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
@@ -527,6 +585,7 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	incoming := &dto.Device{
 		GUID:     testDeviceGUID,
 		Hostname: "test-device",
+		UseTLS:   true,
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:       "16.1.30",
 			FWBuild:         "3400",
