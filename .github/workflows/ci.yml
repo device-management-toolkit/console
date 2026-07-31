@@ -23,6 +23,9 @@ jobs:
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           persist-credentials: false
+      - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
+        with:
+          go-version-file: go.mod
       - name: Format
         run: if [ "$(gofmt -s -l . | wc -l)" -gt 0 ]; then exit 1; fi
       - name: Run go vet
@@ -174,10 +177,11 @@ jobs:
           export GOPATH="$HOME/go/"
           export PATH=$PATH:$GOPATH/bin
           go install github.com/jstemmer/go-junit-report/v2@latest
-          go test -covermode=atomic -coverprofile=coverage.out -race -v ./... > test_output.txt 2>&1 || true
+          test_status=0
+          go test -covermode=atomic -coverprofile=coverage.out -race -v ./... > test_output.txt 2>&1 || test_status=$?
           cat test_output.txt
-          cat test_output.txt | go-junit-report -set-exit-code > junit-${{matrix.os}}-${{matrix.go-version}}-${{github.run_attempt}}.xml
-          if grep -q "FAIL" test_output.txt; then exit 1; fi
+          go-junit-report -set-exit-code < test_output.txt > junit-${{matrix.os}}-${{matrix.go-version}}-${{github.run_attempt}}.xml
+          exit "$test_status"
       - name: Upload Coverage Results
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7.0.0
         with:
