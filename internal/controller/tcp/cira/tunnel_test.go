@@ -1,8 +1,18 @@
 package cira
 
 import (
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/tls"
+	"crypto/x509"
+	"crypto/x509/pkix"
+	"encoding/pem"
 	"errors"
+	"math/big"
 	"net"
+	"os"
+	"path/filepath"
 	"testing"
 	"time"
 
@@ -17,6 +27,36 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
+
+func writeTestCertPair(t *testing.T) (certFile, keyFile string) {
+	t.Helper()
+
+	priv, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	template := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		Subject:      pkix.Name{CommonName: "cira-test"},
+		NotBefore:    time.Now(),
+		NotAfter:     time.Now().Add(time.Hour),
+		KeyUsage:     x509.KeyUsageDigitalSignature,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, template, template, &priv.PublicKey, priv)
+	require.NoError(t, err)
+
+	keyBytes, err := x509.MarshalECPrivateKey(priv)
+	require.NoError(t, err)
+
+	dir := t.TempDir()
+	certFile = filepath.Join(dir, "cert.pem")
+	keyFile = filepath.Join(dir, "key.pem")
+
+	require.NoError(t, os.WriteFile(certFile, pem.EncodeToMemory(&pem.Block{Type: "CERTIFICATE", Bytes: der}), 0o600))
+	require.NoError(t, os.WriteFile(keyFile, pem.EncodeToMemory(&pem.Block{Type: "EC PRIVATE KEY", Bytes: keyBytes}), 0o600))
+
+	return certFile, keyFile
+}
 
 type cleanupTestCase struct {
 	name             string
@@ -222,6 +262,56 @@ func verifyConnectionRemoved(t *testing.T, authenticated bool, deviceID string) 
 // fakeConn is a minimal net.Conn implementation for tests.
 type fakeConn struct{ net.Conn }
 
+func TestServer_cipherSuites(t *testing.T) {
+	t.Parallel()
+
+	secureIDs := make([]uint16, 0, len(tls.CipherSuites()))
+	for _, suite := range tls.CipherSuites() {
+		secureIDs = append(secureIDs, suite.ID)
+	}
+
+	t.Run("insecure suites are not advertised by default", func(t *testing.T) {
+		t.Parallel()
+
+		s := &Server{log: logger.New("error")}
+
+		suites := s.cipherSuites()
+
+		assert.Equal(t, secureIDs, suites)
+
+		for _, insecure := range insecureCipherSuites {
+			assert.NotContains(t, suites, insecure, "insecure suite must be opt-in")
+		}
+	})
+
+	t.Run("insecure suites are advertised when explicitly allowed", func(t *testing.T) {
+		t.Parallel()
+
+		s := &Server{log: logger.New("error"), allowInsecureCiphers: true}
+
+		suites := s.cipherSuites()
+
+		want := make([]uint16, 0, len(secureIDs)+len(insecureCipherSuites))
+		want = append(want, secureIDs...)
+		want = append(want, insecureCipherSuites...)
+
+		assert.Equal(t, want, suites)
+	})
+
+	t.Run("every opt-in suite is one Go considers insecure", func(t *testing.T) {
+		t.Parallel()
+
+		goInsecure := make([]uint16, 0, len(tls.InsecureCipherSuites()))
+		for _, suite := range tls.InsecureCipherSuites() {
+			goInsecure = append(goInsecure, suite.ID)
+		}
+
+		for _, suite := range insecureCipherSuites {
+			assert.Contains(t, goInsecure, suite)
+		}
+	})
+}
+
 func TestConnectionContext_registerDevice(t *testing.T) {
 	t.Parallel()
 
@@ -278,5 +368,51 @@ func TestConnectionContext_registerDevice(t *testing.T) {
 		assert.NotNil(t, wsman.GetConnectionEntry("dev-456"))
 
 		t.Cleanup(func() { wsman.RemoveConnection("dev-456") })
+	})
+}
+
+func TestNewServer(t *testing.T) {
+	t.Parallel()
+
+	t.Run("returns an error for an invalid cert path", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+
+		var devicesFeature devices.Feature = mockDevices
+
+		s, err := NewServer("does-not-exist-cert.pem", "does-not-exist-key.pem", false, devicesFeature, logger.New("error"))
+
+		require.Error(t, err)
+		assert.Nil(t, s)
+	})
+
+	//nolint:paralleltest // binds the real :4433 port; must not race other subtests for it
+	t.Run("starts listening and shuts down cleanly", func(t *testing.T) {
+		certFile, keyFile := writeTestCertPair(t)
+
+		ctrl := gomock.NewController(t)
+		mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+
+		var devicesFeature devices.Feature = mockDevices
+
+		s, err := NewServer(certFile, keyFile, true, devicesFeature, logger.New("error"))
+
+		require.NoError(t, err)
+		require.NotNil(t, s)
+
+		require.Eventually(t, func() bool {
+			conn, dialErr := net.Dial("tcp", "127.0.0.1:"+port)
+			if dialErr != nil {
+				return false
+			}
+
+			_ = conn.Close()
+
+			return true
+		}, time.Second, 5*time.Millisecond, "CIRA server never started listening on port %s", port)
+
+		require.NoError(t, s.Shutdown())
 	})
 }
