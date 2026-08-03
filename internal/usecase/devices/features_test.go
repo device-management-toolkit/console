@@ -2609,7 +2609,7 @@ func TestSetFeatures(t *testing.T) {
 			err: ErrGeneral,
 		},
 		{
-			name:   "setRPE succeeds with PlatformErase supported and enabled",
+			name:   "setRPE succeeds but BootServiceStateChange fails returns error",
 			action: 0,
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
@@ -2663,11 +2663,9 @@ func TestSetFeatures(t *testing.T) {
 				man2.EXPECT().
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				// BootServiceStateChange fails (non-fatal), so getOneClickRecoverySettings
-				// is skipped and the RPE fields set by setRPE are preserved.
-				// OCR=true + RPE=true → state 32771
+				// OCR=true + RPE=false (featureSet default) → state 32769
 				man2.EXPECT().
-					BootServiceStateChange(32771).
+					BootServiceStateChange(32769).
 					Return(cimBoot.BootService{}, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -2682,9 +2680,6 @@ func TestSetFeatures(t *testing.T) {
 				EnableKVM:    true,
 				Redirection:  true,
 				KVMAvailable: true,
-				OCR:          false,
-				RPE:          true,
-				RPESupported: true,
 			},
 			resV2: dtov2.Features{
 				UserConsent:  "kvm",
@@ -2693,11 +2688,8 @@ func TestSetFeatures(t *testing.T) {
 				EnableKVM:    true,
 				Redirection:  true,
 				KVMAvailable: true,
-				OCR:          false,
-				RPE:          true,
-				RPESupported: true,
 			},
-			err: nil,
+			err: ErrGeneral,
 		},
 		{
 			name:   "setRPE succeeds with OCR and RPE both enabled",

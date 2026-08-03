@@ -289,22 +289,22 @@ func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Feat
 	requestedState := ocrBootState(features.OCR, features.RPE)
 
 	_, err = device.BootServiceStateChange(requestedState)
-	if err == nil {
-		// Get OCR settings
-		err = getBootConfigurationSettings(&settingsResultsV2, device)
-		if err != nil {
-			return settingsResults, settingsResultsV2, err
-		}
-
-		settingsResults.OCR = settingsResultsV2.OCR
-		settingsResults.RPE = settingsResultsV2.RPE
-		settingsResults.RPESupported = settingsResultsV2.RPESupported
-		settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
-		settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
-		settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
-
+	if err != nil {
 		return settingsResults, settingsResultsV2, err
 	}
+
+	// Get OCR settings
+	err = getBootConfigurationSettings(&settingsResultsV2, device)
+	if err != nil {
+		return settingsResults, settingsResultsV2, err
+	}
+
+	settingsResults.OCR = settingsResultsV2.OCR
+	settingsResults.RPE = settingsResultsV2.RPE
+	settingsResults.RPESupported = settingsResultsV2.RPESupported
+	settingsResults.HTTPSBootSupported = settingsResultsV2.HTTPSBootSupported
+	settingsResults.WinREBootSupported = settingsResultsV2.WinREBootSupported
+	settingsResults.LocalPBABootSupported = settingsResultsV2.LocalPBABootSupported
 
 	return settingsResults, settingsResultsV2, nil
 }
