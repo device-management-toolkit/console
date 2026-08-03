@@ -102,11 +102,9 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword strin
 	// Step 1a (CSME path only): Clear any active boot source override before
 	// configuring the CSME reset flags.  An existing boot source (e.g. from a prior OCR
 	// session) will take priority and must be cleared first (equivalent to ClearBootOptions
-	// in the Intel AMT C# SDK).  NOT called for hardware-only targets (TPM, SSDs, …)
-	// because clearing the boot order for those operations causes undefined BIOS behavior.
-	// Also skipped when hardware TLV targets are present alongside CSME: a combined mask
-	// should not reach here (the UI enforces CSME-only), but if the API is called directly
-	// we must not poison the hardware targets by clearing the boot order they depend on.
+	// in the Intel AMT C# SDK).  NOT called when hardware TLV targets are present
+	// (with or without CSME) because clearing the boot order for those operations
+	// causes undefined BIOS behavior.
 	if wantCSMEReset && tlvMask == 0 {
 		_, _ = c.WsmanMessages.CIM.BootConfigSetting.ChangeBootOrder("")
 	}

@@ -220,7 +220,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			err: nil,
 		},
 		{
-			name: "device does not support RPE - PlatformErase is 0",
+			name: "device does not support RPE - PlatformErase is 0 and ConfigurationDataReset false",
 			req:  dto.RemoteEraseRequest{},
 			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
 				man.EXPECT().
@@ -228,7 +228,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					Return(man2, nil)
 				man2.EXPECT().
 					GetPowerCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 0}, nil)
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 0, ConfigurationDataReset: false}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
@@ -236,6 +236,27 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					Return(device, nil)
 			},
 			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support Remote Platform Erase"),
+		},
+		{
+			name: "CSME-only device - PlatformErase 0 but ConfigurationDataReset true - UnconfigureCSME accepted",
+			req:  dto.RemoteEraseRequest{UnconfigureCSME: true},
+			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
+				man.EXPECT().
+					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
+					Return(man2, nil)
+				man2.EXPECT().
+					GetPowerCapabilities().
+					Return(boot.BootCapabilitiesResponse{PlatformErase: 0, ConfigurationDataReset: true}, nil)
+				man2.EXPECT().
+					SetRemoteEraseOptions(0x10000, "").
+					Return(nil)
+			},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, "").
+					Return(device, nil)
+			},
+			err: nil,
 		},
 		{
 			name: "eraseMask with PlatformErase nonzero succeeds regardless of specific bits",

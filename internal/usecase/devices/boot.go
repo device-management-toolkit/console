@@ -59,7 +59,7 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto
 		return err
 	}
 
-	if capabilities.PlatformErase == 0 {
+	if capabilities.PlatformErase == 0 && !capabilities.ConfigurationDataReset {
 		return ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support Remote Platform Erase")
 	}
 
