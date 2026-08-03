@@ -652,10 +652,6 @@ func (f *FuegoAdapter) getPowerCapabilities(_ fuego.ContextNoBody) (dto.PowerCap
 	return dto.PowerCapabilities{}, nil
 }
 
-func (f *FuegoAdapter) getBootCapabilities(_ fuego.ContextNoBody) (dto.BootCapabilities, error) {
-	return dto.BootCapabilities{}, nil
-}
-
 func (f *FuegoAdapter) getRemoteEraseCapabilities(_ fuego.ContextNoBody) (dto.BootCapabilities, error) {
 	return dto.BootCapabilities{}, nil
 }
