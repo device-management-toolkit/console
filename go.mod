@@ -8,7 +8,7 @@ require (
 	fyne.io/systray v1.12.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.20.0
-	github.com/device-management-toolkit/go-wsman-messages/v2 v2.48.2
+	github.com/device-management-toolkit/go-wsman-messages/v2 v2.48.3
 	github.com/getkin/kin-openapi v0.145.0
 	github.com/gin-contrib/cors v1.7.7
 	github.com/gin-contrib/pprof v1.5.4
@@ -27,7 +27,7 @@ require (
 	go.mongodb.org/mongo-driver/v2 v2.8.0
 	go.uber.org/mock v0.6.0
 	gopkg.in/yaml.v2 v2.4.0
-	modernc.org/sqlite v1.54.0
+	modernc.org/sqlite v1.55.0
 	software.sslmate.com/src/go-pkcs12 v0.7.3
 )
 
