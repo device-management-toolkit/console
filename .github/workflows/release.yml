@@ -40,25 +40,27 @@ jobs:
         run: |
           # unset GITHUB_ACTIONS
           npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF"
-          version=$(cat .VERSION)
+          # No .VERSION means no release-triggering commits, not a failure.
+          if [ -f .VERSION ]; then
+            version=$(cat .VERSION)
+          else
+            version=""
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Version
         env:
           VERSION: ${{ steps.semantic-release.outputs.version }}
-        run: echo "The next version is $VERSION"
-
-      - name: Fail if version is empty
-        env:
-          VERSION: ${{ steps.semantic-release.outputs.version }}
         run: |
           if [ -z "$VERSION" ]; then
-            echo "Version output is empty. Failing the job."
-            exit 1
+            echo "No release-triggering commits; skipping build and release."
+          else
+            echo "The next version is $VERSION"
           fi
 
   build:
     needs: prepare
+    if: needs.prepare.outputs.version != ''
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
