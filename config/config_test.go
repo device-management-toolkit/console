@@ -3,8 +3,10 @@ package config
 import (
 	"os"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 )
 
 func clearEnv() {
@@ -106,4 +108,73 @@ postgres:
 	assert.Equal(t, "debug", cfg.Level)
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
+}
+
+func TestValidate_ZeroJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTExpiration = 0
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+}
+
+func TestValidate_NegativeJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTExpiration = -1 * time.Hour
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+}
+
+func TestValidate_SubMinuteJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTExpiration = 30 * time.Second
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+}
+
+func TestValidate_ZeroRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = 0
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = -5 * time.Minute
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = 30 * time.Second
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_ValidDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+
+	err := cfg.validate()
+	require.NoError(t, err)
 }

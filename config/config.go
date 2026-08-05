@@ -17,6 +17,11 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
+var (
+	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
+	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
+)
+
 const defaultHost = "localhost"
 
 type (
@@ -296,6 +301,21 @@ func SaveAdminPassword(adminPassword string) error {
 	return writeConfig(configPath, fileCfg)
 }
 
+// validate checks that all Config values are sane.
+// It returns an error for any setting that would cause a runtime failure or
+// deny all service to legitimate users (e.g. zero/negative JWT expiration).
+func (c *Config) validate() error {
+	if c.JWTExpiration < time.Minute {
+		return ErrJWTExpirationInvalid
+	}
+
+	if c.RedirectionJWTExpiration < time.Minute {
+		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	return nil
+}
+
 // NewConfig returns app config.
 func NewConfig() (*Config, error) {
 	// set defaults
@@ -326,6 +346,12 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
+		return nil, err
+	}
+
+	if err := ConsoleConfig.validate(); err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
