@@ -5,9 +5,10 @@ package httpapi
 import (
 	"net/http"
 
+	"github.com/gin-gonic/gin"
+
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/pkg/logger"
-	"github.com/gin-gonic/gin"
 )
 
 func HasUI() bool { return false }
