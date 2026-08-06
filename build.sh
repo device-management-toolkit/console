@@ -7,6 +7,9 @@
 # Get version from the first argument
 version=$1
 
+# Required for Dockerfile RUN --mount=type=cache directives
+export DOCKER_BUILDKIT=1
+
 # Build Docker images for each variant
 # Full build (with UI)
 docker build -t vprodemo.azurecr.io/console:v$version \
