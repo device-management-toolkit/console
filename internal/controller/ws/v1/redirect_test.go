@@ -29,7 +29,7 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 	_, _ = config.NewConfig()
 
 	config.ConsoleConfig.Disabled = true
-	mockFeature := mocks.NewMockFeature(ctrl)
+	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 	mockUpgrader := mocks.NewMockUpgrader(ctrl)
 	mockLogger := mocks.NewMockLogger(ctrl)
 
@@ -127,7 +127,7 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 	}
 
 	t.Run("rejects token whose deviceId does not match host", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockFeature(ctrl)
+		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 		mockUpgrader := mocks.NewMockUpgrader(ctrl)
 		mockLogger := mocks.NewMockLogger(ctrl)
 		mockLogger.EXPECT().Warn("redirection token not authorized for requested device", "host", "deviceB")
@@ -145,7 +145,7 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 	})
 
 	t.Run("rejects login token with no deviceId", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockFeature(ctrl)
+		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 		mockUpgrader := mocks.NewMockUpgrader(ctrl)
 		mockLogger := mocks.NewMockLogger(ctrl)
 		mockLogger.EXPECT().Warn("redirection token not authorized for requested device", "host", "deviceA")
@@ -163,7 +163,7 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 	})
 
 	t.Run("rejects login token when host is also empty", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockFeature(ctrl)
+		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 		mockUpgrader := mocks.NewMockUpgrader(ctrl)
 		mockLogger := mocks.NewMockLogger(ctrl)
 		mockLogger.EXPECT().Warn("redirection token not authorized for requested device", "host", "")
@@ -181,7 +181,7 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 	})
 
 	t.Run("accepts token whose deviceId matches host", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockFeature(ctrl)
+		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 		mockUpgrader := mocks.NewMockUpgrader(ctrl)
 		mockLogger := mocks.NewMockLogger(ctrl)
 
@@ -205,7 +205,7 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 	})
 
 	t.Run("accepts token whose deviceId matches host in different case", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockFeature(ctrl)
+		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 		mockUpgrader := mocks.NewMockUpgrader(ctrl)
 		mockLogger := mocks.NewMockLogger(ctrl)
 
@@ -275,7 +275,7 @@ func TestWebSocketHandlerTokenValidation(t *testing.T) { //nolint:paralleltest /
 	for _, tc := range tests { //nolint:paralleltest // logging library is not thread-safe for tests
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			mockFeature := mocks.NewMockFeature(ctrl)
+			mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 			mockUpgrader := mocks.NewMockUpgrader(ctrl)
 			mockLogger := mocks.NewMockLogger(ctrl)
 
