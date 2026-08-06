@@ -190,11 +190,24 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 
 func (dr *deviceRoutes) insert(c *gin.Context) {
 	var device dto.Device
-	if err := c.ShouldBindJSON(&device); err != nil {
-		validationErr := ErrValidationDevices.Wrap("insert", "ShouldBindJSON", err)
+	if err := c.ShouldBindBodyWithJSON(&device); err != nil {
+		validationErr := ErrValidationDevices.Wrap("insert", "ShouldBindBodyWithJSON", err)
 		ErrorResponse(c, validationErr)
 
 		return
+	}
+
+	hasUseTLS, err := hasTopLevelJSONField(c, "usetls")
+	if err != nil {
+		validationErr := ErrValidationDevices.Wrap("insert", "hasTopLevelJSONField", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	// Security default: if useTLS is omitted on create, default to TLS enabled.
+	if !hasUseTLS {
+		device.UseTLS = true
 	}
 
 	newDevice, err := dr.t.Insert(c.Request.Context(), &device)
@@ -206,6 +219,22 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, newDevice)
+}
+
+func hasTopLevelJSONField(c *gin.Context, field string) (bool, error) {
+	var raw map[string]json.RawMessage
+	if err := c.ShouldBindBodyWithJSON(&raw); err != nil {
+		return false, err
+	}
+
+	needle := strings.ToLower(field)
+	for k := range raw {
+		if strings.EqualFold(k, needle) {
+			return true, nil
+		}
+	}
+
+	return false, nil
 }
 
 // Keys are lowercased so callers can match against setter maps regardless of
