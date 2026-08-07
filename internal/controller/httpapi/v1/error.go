@@ -30,6 +30,98 @@ type response struct {
 	Message string `json:"message,omitempty" example:"message"`
 }
 
+// handleValidationErrors handles all validation-related errors.
+func handleValidationErrors(c *gin.Context, err error) bool {
+	var (
+		odataValidationErr *ValidationError
+		validatorErr       validator.ValidationErrors
+		notValidErr        dto.NotValidError
+		validationErr      devices.ValidationError
+	)
+
+	switch {
+	case errors.As(err, &odataValidationErr) || errors.Is(err, ErrInvalidInteger) ||
+		errors.Is(err, ErrExceedsMaxRange) || errors.Is(err, ErrNegativeValue) || errors.Is(err, ErrInvalidBoolean):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &validatorErr):
+		validatorErrorHandle(c, validatorErr)
+
+		return true
+	case errors.As(err, &notValidErr):
+		notValidErrorHandle(c, notValidErr)
+
+		return true
+	case errors.As(err, &validationErr):
+		msg := validationErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	}
+
+	return false
+}
+
+// handleDomainErrors handles domain-specific errors.
+func handleDomainErrors(c *gin.Context, err error) bool {
+	var (
+		certExpErr      domains.CertExpirationError
+		certPasswordErr domains.CertPasswordError
+		notSupportedErr devices.NotSupportedError
+	)
+
+	switch {
+	case errors.As(err, &certExpErr):
+		msg := certExpErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &certPasswordErr):
+		msg := certPasswordErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &notSupportedErr):
+		msg := notSupportedErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusNotImplemented, response{Error: msg, Message: msg})
+
+		return true
+	}
+
+	return false
+}
+
+// handleTypedErrors handles remaining typed errors.
+func handleTypedErrors(c *gin.Context, err error) {
+	var (
+		netErr       net.Error
+		cancelledErr dto.CanceledError
+		nfErr        repoerrors.NotFoundError
+		dbErr        repoerrors.DatabaseError
+		notUniqueErr repoerrors.NotUniqueError
+		amtErr       devices.AMTError
+	)
+
+	switch {
+	case errors.As(err, &netErr):
+		netErrorHandle(c, netErr)
+	case errors.As(err, &cancelledErr):
+		cancelledErrorHandle(c, cancelledErr)
+	case errors.As(err, &nfErr):
+		notFoundErrorHandle(c, nfErr)
+	case errors.As(err, &dbErr):
+		dbErrorHandle(c, dbErr)
+	case errors.As(err, &notUniqueErr):
+		notUniqueErrorHandle(c, notUniqueErr)
+	case errors.As(err, &amtErr):
+		amtErrorHandle(c, amtErr)
+	default:
+		c.AbortWithStatusJSON(http.StatusInternalServerError, response{Error: "general error", Message: "general error"})
+	}
+}
+
 // handleSentinelErrors handles well-known sentinel errors that are checked with
 // errors.Is before the typed-error switch. Returns true if the error was handled.
 func handleSentinelErrors(c *gin.Context, err error) bool {
@@ -52,57 +144,19 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 }
 
 func ErrorResponse(c *gin.Context, err error) {
-	var (
-		validatorErr    validator.ValidationErrors
-		cancelledError  dto.CanceledError
-		nfErr           repoerrors.NotFoundError
-		notValidErr     dto.NotValidError
-		dbErr           repoerrors.DatabaseError
-		notUniqueErr    repoerrors.NotUniqueError
-		amtErr          devices.AMTError
-		notSupportedErr devices.NotSupportedError
-		validationErr   devices.ValidationError
-		certExpErr      domains.CertExpirationError
-		certPasswordErr domains.CertPasswordError
-		netErr          net.Error
-	)
-
 	if handleSentinelErrors(c, err) {
 		return
 	}
 
-	switch {
-	case errors.As(err, &netErr):
-		netErrorHandle(c, netErr)
-	case errors.As(err, &cancelledError):
-		cancelledErrorHandle(c, cancelledError)
-	case errors.As(err, &notValidErr):
-		notValidErrorHandle(c, notValidErr)
-	case errors.As(err, &validatorErr):
-		validatorErrorHandle(c, validatorErr)
-	case errors.As(err, &nfErr):
-		notFoundErrorHandle(c, nfErr)
-	case errors.As(err, &notUniqueErr):
-		notUniqueErrorHandle(c, notUniqueErr)
-	case errors.As(err, &dbErr):
-		dbErrorHandle(c, dbErr)
-	case errors.As(err, &amtErr):
-		amtErrorHandle(c, amtErr)
-	case errors.As(err, &validationErr):
-		msg := validationErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-	case errors.As(err, &notSupportedErr):
-		msg := notSupportedErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusNotImplemented, response{Error: msg, Message: msg})
-	case errors.As(err, &certExpErr):
-		msg := certExpErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-	case errors.As(err, &certPasswordErr):
-		msg := certPasswordErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-	default:
-		c.AbortWithStatusJSON(http.StatusInternalServerError, response{Error: "general error", Message: "general error"})
+	if handleValidationErrors(c, err) {
+		return
 	}
+
+	if handleDomainErrors(c, err) {
+		return
+	}
+
+	handleTypedErrors(c, err)
 }
 
 func netErrorHandle(c *gin.Context, netErr net.Error) {
