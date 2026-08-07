@@ -25,6 +25,8 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
 
+	handler.Use(securityHeaders())
+
 	// Add Prometheus middleware for automatic HTTP metrics
 	// Don't automatically register /metrics endpoint - we have our own
 	p := ginprometheus.NewPrometheus("gin")
@@ -85,6 +87,15 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	h3 := protected.Group("/v2")
 	{
 		v2.NewAmtRoutes(h3, t.Devices, l)
+	}
+}
+
+// securityHeaders sets X-Content-Type-Options: nosniff to stop MIME sniffing.
+func securityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+
+		c.Next()
 	}
 }
 
