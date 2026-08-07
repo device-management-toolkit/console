@@ -89,8 +89,8 @@ func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		validationErr := ErrValidationProfile.Wrap("get", "ShouldBindQuery", err)
+	if err := odata.BindAndValidate(c); err != nil {
+		validationErr := ErrValidationProfile.Wrap("get", "BindAndValidate", err)
 		ErrorResponse(c, validationErr)
 
 		return
