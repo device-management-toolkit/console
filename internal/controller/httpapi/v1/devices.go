@@ -2,6 +2,7 @@ package v1
 
 import (
 	"encoding/json"
+	"errors"
 	"net/http"
 	"strings"
 	"time"
@@ -21,7 +22,12 @@ type deviceRoutes struct {
 	l logger.Interface
 }
 
-var ErrValidationDevices = dto.NotValidError{Console: consoleerrors.CreateConsoleError("ProfileAPI")}
+var (
+	ErrValidationDevices = dto.NotValidError{Console: consoleerrors.CreateConsoleError("ProfileAPI")}
+	ErrHostnameRequired  = errors.New("hostname is required")
+	ErrUsernameRequired  = errors.New("username is required")
+	ErrPasswordRequired  = errors.New("password is required")
+)
 
 func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Interface) {
 	r := &deviceRoutes{t, l}
@@ -193,6 +199,24 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 	if err := c.ShouldBindJSON(&device); err != nil {
 		validationErr := ErrValidationDevices.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	if strings.TrimSpace(device.Hostname) == "" {
+		ErrorResponse(c, ErrValidationDevices.Wrap("insert", "validate", ErrHostnameRequired))
+
+		return
+	}
+
+	if strings.TrimSpace(device.Username) == "" {
+		ErrorResponse(c, ErrValidationDevices.Wrap("insert", "validate", ErrUsernameRequired))
+
+		return
+	}
+
+	if strings.TrimSpace(device.Password) == "" {
+		ErrorResponse(c, ErrValidationDevices.Wrap("insert", "validate", ErrPasswordRequired))
 
 		return
 	}
