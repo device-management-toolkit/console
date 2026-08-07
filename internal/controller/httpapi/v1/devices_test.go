@@ -321,6 +321,62 @@ func TestDevicesRoutes(t *testing.T) {
 			response:     dto.DeviceStatResponse{TotalCount: 5},
 			expectedCode: http.StatusOK,
 		},
+		{
+			name:         "insert device - empty hostname",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{Hostname: "", Username: "admin", Password: "password"},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "insert device - empty username",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{Hostname: "hostname", Username: "", Password: "password"},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "insert device - empty password",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{Hostname: "hostname", Username: "admin", Password: ""},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "insert device - all required fields empty",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "insert device - whitespace-only hostname",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{Hostname: "   ", Username: "admin", Password: "password"},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "insert device - whitespace-only username",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{Hostname: "hostname", Username: "   ", Password: "password"},
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "insert device - whitespace-only password",
+			method:       http.MethodPost,
+			url:          "/api/v1/devices",
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			requestBody:  dto.Device{Hostname: "hostname", Username: "admin", Password: "   "},
+			expectedCode: http.StatusBadRequest,
+		},
 	}
 
 	for _, tc := range tests {
@@ -527,6 +583,8 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	incoming := &dto.Device{
 		GUID:     testDeviceGUID,
 		Hostname: "test-device",
+		Username: "admin",
+		Password: "password",
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:       "16.1.30",
 			FWBuild:         "3400",
@@ -569,6 +627,8 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	body := []byte(`{
 		"guid":"` + testDeviceGUID + `",
 		"hostname":"test-device",
+		"username":"admin",
+		"password":"password",
 		"deviceInfo":{
 			"fwVersion":"16.1.30",
 			"fwBuild":"3400",
