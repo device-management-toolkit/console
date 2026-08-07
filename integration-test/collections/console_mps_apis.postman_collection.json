@@ -1751,6 +1751,53 @@
 					"response": []
 				},
 				{
+					"name": "Create Device - Duplicate Hostname",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 409\", function () {\r",
+									"    pm.response.to.have.status(409);\r",
+									"});\r",
+									"pm.test(\"Expect conflict error\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.include(\"resource already exists\");\r",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": []\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Device by GUID",
 					"event": [
 						{
@@ -1989,7 +2036,7 @@
 									"pm.test(\"Expect to return device info\",function(){\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.guid).to.be.equal(\"d12428be-9fa1-4226-9784-54b2038beab6\")\r",
-									"    pm.expect(jsonData.hostname).to.be.equal(\"hostname\")\r",
+									"    pm.expect(jsonData.hostname).to.be.equal(\"hostname2\")\r",
 									"    pm.expect(jsonData.tags.length).to.be.equal(1)  \r",
 									"    pm.expect(jsonData.mpsInstance).to.be.equal(\"\")\r",
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false)\r",
@@ -2005,7 +2052,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"guid\": \"d12428be-9fa1-4226-9784-54b2038beab6\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [\"ccm\"]\r\n}",
+							"raw": "{\r\n    \"guid\": \"d12428be-9fa1-4226-9784-54b2038beab6\",\r\n    \"hostname\": \"hostname2\",\r\n    \"tags\": [\"ccm\"]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2457,7 +2504,7 @@
 									"pm.test(\"Expect to return device info\",function(){\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.guid).to.be.equal(\"d12428be-9fa1-4226-9784-54b2038beab7\")\r",
-									"    pm.expect(jsonData.hostname).to.be.equal(\"hostname\")\r",
+									"    pm.expect(jsonData.hostname).to.be.equal(\"hostname3\")\r",
 									"    pm.expect(jsonData.tags.length).to.be.equal(1)  \r",
 									"    pm.expect(jsonData.mpsInstance).to.be.equal(\"\")\r",
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false)\r",
@@ -2473,7 +2520,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"guid\": \"d12428be-9fa1-4226-9784-54b2038beab7\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [\"acm\"]\r\n}",
+							"raw": "{\r\n    \"guid\": \"d12428be-9fa1-4226-9784-54b2038beab7\",\r\n    \"hostname\": \"hostname3\",\r\n    \"tags\": [\"acm\"]\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2597,6 +2644,40 @@
 								"v1",
 								"devices",
 								"d12428be-9fa1-4226-9784-54b2038beab6"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Device",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204\", function () {\r",
+									"    pm.response.to.have.status(204);\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/d12428be-9fa1-4226-9784-54b2038beab7",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"d12428be-9fa1-4226-9784-54b2038beab7"
 							]
 						}
 					},

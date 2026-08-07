@@ -17,6 +17,7 @@ var (
 	ErrDeviceUseCase = consoleerrors.CreateConsoleError("DevicesUseCase")
 	ErrDatabase      = repoerrors.DatabaseError{Console: ErrDeviceUseCase}
 	ErrNotFound      = repoerrors.NotFoundError{Console: ErrDeviceUseCase}
+	ErrNotUnique     = repoerrors.NotUniqueError{Console: ErrDeviceUseCase}
 	ErrCancelled     = dto.CanceledError{Console: ErrDeviceUseCase}
 )
 
@@ -245,6 +246,17 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
+	}
+
+	if d1.Hostname != "" {
+		existing, err := uc.repo.GetByColumn(ctx, "hostname", d1.Hostname, d1.TenantID)
+		if err != nil {
+			return nil, ErrDatabase.Wrap("Insert", "uc.repo.GetByColumn", err)
+		}
+
+		if len(existing) > 0 {
+			return nil, ErrNotUnique
+		}
 	}
 
 	if d1.GUID == "" {

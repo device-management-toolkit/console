@@ -447,6 +447,55 @@ func TestInsert(t *testing.T) {
 	}
 }
 
+func TestInsert_HostnameConflict(t *testing.T) {
+	t.Parallel()
+
+	t.Run("insertion fails - hostname already exists", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByColumn(context.Background(), "hostname", "test-hostname", "tenant-id-456").
+			Return([]entity.Device{{GUID: "existing-guid", Hostname: "test-hostname", TenantID: "tenant-id-456"}}, nil)
+
+		deviceDTO := &dto.Device{
+			Hostname: "test-hostname",
+			TenantID: "tenant-id-456",
+			Tags:     []string{},
+		}
+
+		result, err := useCase.Insert(context.Background(), deviceDTO)
+
+		require.Error(t, err)
+		require.Nil(t, result)
+
+		var notUnique repoerrors.NotUniqueError
+		require.ErrorAs(t, err, &notUnique)
+	})
+
+	t.Run("insertion fails - hostname lookup db error", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByColumn(context.Background(), "hostname", "test-hostname", "tenant-id-456").
+			Return(nil, devices.ErrDatabase)
+
+		deviceDTO := &dto.Device{
+			Hostname: "test-hostname",
+			TenantID: "tenant-id-456",
+			Tags:     []string{},
+		}
+
+		result, err := useCase.Insert(context.Background(), deviceDTO)
+
+		require.Error(t, err)
+		require.Nil(t, result)
+	})
+}
+
 func TestUpdateWithPasswords(t *testing.T) {
 	t.Parallel()
 
