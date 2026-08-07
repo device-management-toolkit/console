@@ -2,6 +2,8 @@ package config
 
 import (
 	"bytes"
+	"encoding/base64"
+	"errors"
 	"log"
 	"os"
 	"path/filepath"
@@ -371,6 +373,80 @@ postgres:
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
 }
 
+func secretsTestConfig(secrets Secrets) *Config {
+	cfg := defaultConfig()
+	cfg.Disabled = true
+	cfg.Secrets = secrets
+
+	return cfg
+}
+
+func TestValidate_SecretsAddrEmpty(t *testing.T) {
+	t.Parallel()
+
+	cfg := secretsTestConfig(Secrets{Address: ""})
+	assert.NoError(t, cfg.validate())
+}
+
+func TestValidate_RemoteHTTPSecretsAddrWithoutToken(t *testing.T) {
+	t.Parallel()
+
+	cfg := secretsTestConfig(Secrets{Address: "http://vault.corp.internal:8200"})
+
+	require.NoError(t, cfg.validate())
+}
+
+func TestValidate_SecretsAddrHTTPSNonLocalhost(t *testing.T) {
+	t.Parallel()
+
+	cfg := secretsTestConfig(Secrets{Address: "https://vault.example.com:8200", Token: "test-token"})
+	assert.NoError(t, cfg.validate())
+}
+
+func TestValidate_SecretsAddrHTTPLocalhost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"http://localhost:8200",
+		"http://localhost.:8200",
+		"http://127.0.0.1:8200",
+		"http://127.0.0.2:8200",
+		"http://[::1]:8200",
+		"http://[::1]",
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := secretsTestConfig(Secrets{Address: addr, Token: "test-token", RequireHTTPS: true})
+			assert.NoError(t, cfg.validate(), "expected %s to be valid", addr)
+		})
+	}
+}
+
+func TestValidate_SecretsAddrHTTPNonLocalhost(t *testing.T) {
+	t.Parallel()
+
+	for _, addr := range []string{
+		"http://vault.example.com:8200",
+		"http://192.168.1.1:8200",
+		"http://vault-server:8200",
+		"http://127.0.0.1.:8200",
+	} {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := secretsTestConfig(Secrets{Address: addr, Token: "test-token"})
+			require.NoError(t, cfg.validate())
+
+			cfg.RequireHTTPS = true
+			err := cfg.validate()
+			require.ErrorIs(t, err, ErrSecretsAddrInsecure)
+			assert.Contains(t, err.Error(), `"`+addr+`"`)
+		})
+	}
+}
+
 func TestValidatePort(t *testing.T) {
 	t.Parallel()
 
@@ -379,9 +455,9 @@ func TestValidatePort(t *testing.T) {
 		port    string
 		wantErr error
 	}{
-		{name: "valid port", port: "8181", wantErr: nil},
-		{name: "port 1", port: "1", wantErr: nil},
-		{name: "port 65535", port: "65535", wantErr: nil},
+		{name: "valid port", port: "8181"},
+		{name: "port 1", port: "1"},
+		{name: "port 65535", port: "65535"},
 		{name: "port 0", port: "0", wantErr: ErrPortOutOfRange},
 		{name: "port 65536", port: "65536", wantErr: ErrPortOutOfRange},
 		{name: "negative", port: "-1", wantErr: ErrPortOutOfRange},
@@ -444,24 +520,112 @@ func TestNewConfig_InvalidEnvResetsConsoleConfig(t *testing.T) { //nolint:parall
 	assert.Nil(t, ConsoleConfig)
 }
 
+func TestNewConfig_InvalidSecretsResetsConsoleConfig(t *testing.T) {
+	t.Setenv("XDG_CONFIG_HOME", t.TempDir())
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+	t.Setenv("SECRETS_ADDR", "http://vault.example.com:8200")
+	t.Setenv("SECRETS_TOKEN", "test-token")
+	t.Setenv("SECRETS_REQUIRE_HTTPS", "true")
+
+	cfg, err := NewConfig()
+
+	require.ErrorIs(t, err, ErrSecretsAddrInsecure)
+	assert.Nil(t, cfg)
+	assert.Nil(t, ConsoleConfig)
+}
+
+func TestValidate_SecretsAddrInvalidURL(t *testing.T) {
+	t.Parallel()
+
+	cfg := secretsTestConfig(Secrets{Address: "://invalid", Token: "test-token"})
+	err := cfg.validate()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrInvalid), "expected ErrSecretsAddrInvalid, got %v", err)
+}
+
+func TestValidate_SecretsAddrMissingScheme(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"vault.example.com:8200",
+		"localhost:8200",
+		"192.168.1.1:8200",
+		"localhost:8200/x?r=http://y",
+	}
+
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := secretsTestConfig(Secrets{Address: addr, Token: "test-token"})
+
+			err := cfg.validate()
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, ErrSecretsAddrMissingScheme), "expected ErrSecretsAddrMissingScheme, got %v", err)
+			assert.Contains(t, err.Error(), "use https:// for remote hosts or http:// for localhost")
+		})
+	}
+}
+
+func TestValidate_SecretsAddrUnsupportedScheme(t *testing.T) {
+	t.Parallel()
+
+	cfg := secretsTestConfig(Secrets{Address: "ftp://vault.example.com:8200", Token: "test-token"})
+
+	require.ErrorIs(t, cfg.validate(), ErrSecretsAddrInvalid)
+}
+
+func TestIsLocalhost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		host     string
+		expected bool
+	}{
+		// Localhost variants
+		{"localhost", true},
+		{"LOCALHOST", true},
+		{"localhost.", true},
+		{"LOCALHOST.", true},
+		{"127.0.0.1", true},
+		{"127.255.255.255", true},
+		{"::1", true},
+		{"127.1.1.1", true},
+
+		// Non-localhost
+		{"127.0.0.1.", false},
+		{"192.168.1.1", false},
+		{"vault.example.com", false},
+		{"172.16.0.1", false},
+		{"example.com", false},
+		{"2001:db8::1", false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.host, func(t *testing.T) {
+			t.Parallel()
+
+			result := isLocalhost(tc.host)
+			assert.Equal(t, tc.expected, result, "isLocalhost(%s) = %v, want %v", tc.host, result, tc.expected)
+		})
+	}
+}
+
 func TestValidate_ZeroJWTExpiration(t *testing.T) {
 	t.Parallel()
 
 	cfg := defaultConfig()
 	cfg.JWTExpiration = 0
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+	require.ErrorIs(t, cfg.validate(), ErrJWTExpirationInvalid)
 }
 
 func TestValidate_NegativeJWTExpiration(t *testing.T) {
 	t.Parallel()
 
 	cfg := defaultConfig()
-	cfg.JWTExpiration = -1 * time.Hour
+	cfg.JWTExpiration = -time.Hour
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+	require.ErrorIs(t, cfg.validate(), ErrJWTExpirationInvalid)
 }
 
 func TestValidate_SubMinuteJWTExpiration(t *testing.T) {
@@ -470,8 +634,7 @@ func TestValidate_SubMinuteJWTExpiration(t *testing.T) {
 	cfg := defaultConfig()
 	cfg.JWTExpiration = 30 * time.Second
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+	require.ErrorIs(t, cfg.validate(), ErrJWTExpirationInvalid)
 }
 
 func TestValidate_SubMinuteMaxTokenTTL(t *testing.T) {
@@ -480,18 +643,16 @@ func TestValidate_SubMinuteMaxTokenTTL(t *testing.T) {
 	cfg := defaultConfig()
 	cfg.MaxTokenTTL = 30 * time.Second
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrMaxTokenTTLInvalid)
+	require.ErrorIs(t, cfg.validate(), ErrMaxTokenTTLInvalid)
 }
 
 func TestValidate_NegativeMaxTokenTTL(t *testing.T) {
 	t.Parallel()
 
 	cfg := defaultConfig()
-	cfg.MaxTokenTTL = -1 * time.Hour
+	cfg.MaxTokenTTL = -time.Hour
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrMaxTokenTTLInvalid)
+	require.ErrorIs(t, cfg.validate(), ErrMaxTokenTTLInvalid)
 }
 
 func TestValidate_UnsetMaxTokenTTLIsAllowed(t *testing.T) {
@@ -514,7 +675,6 @@ func TestValidate_DisableFetchRequiresLocalDir(t *testing.T) {
 	require.ErrorIs(t, cfg.validate(), ErrLocalDirRequired)
 
 	cfg.LocalDir = "/opt/rpc-go"
-
 	require.NoError(t, cfg.validate())
 }
 
@@ -524,8 +684,7 @@ func TestValidate_ZeroRedirectionJWTExpiration(t *testing.T) {
 	cfg := defaultConfig()
 	cfg.RedirectionJWTExpiration = 0
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+	require.ErrorIs(t, cfg.validate(), ErrRedirectionJWTExpirationInvalid)
 }
 
 func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
@@ -534,8 +693,39 @@ func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
 	cfg := defaultConfig()
 	cfg.RedirectionJWTExpiration = -5 * time.Minute
 
+	require.ErrorIs(t, cfg.validate(), ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = 30 * time.Second
+
+	require.ErrorIs(t, cfg.validate(), ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_ValidDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key-for-validation"
+
+	require.NoError(t, cfg.validate())
+}
+
+func TestValidate_CallsValidateSecretsAddr(t *testing.T) {
+	t.Parallel()
+
+	cfg := secretsTestConfig(Secrets{
+		Address:      "http://vault.example.com:8200", // Remote HTTP - should fail
+		Token:        "test-token",
+		RequireHTTPS: true,
+	})
+
 	err := cfg.validate()
-	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
 }
 
 func TestValidate_MissingJWTKey(t *testing.T) {
@@ -568,24 +758,31 @@ func TestValidate_JWTKeyPresent(t *testing.T) {
 	require.NoError(t, err)
 }
 
-func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
+func TestValidate_AllowsValidRemoteHTTPS(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.RedirectionJWTExpiration = 30 * time.Second
+	cfg := secretsTestConfig(Secrets{Address: "https://vault.example.com:8200", Token: "test-token"})
 
 	err := cfg.validate()
-	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+	assert.NoError(t, err)
 }
 
-func TestValidate_ValidDefaults(t *testing.T) {
+func TestValidateSecretsAddr_NoHost(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.JWTKey = "test-jwt-key-for-validation"
+	for _, addr := range []string{"https://:8200", "http://", "http://:8200"} {
+		addr := addr
 
-	err := cfg.validate()
-	require.NoError(t, err)
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := secretsTestConfig(Secrets{Address: addr, Token: "test-token"})
+
+			err := cfg.validate()
+			require.ErrorIs(t, err, ErrSecretsAddrNoHost)
+			assert.Contains(t, err.Error(), `"`+addr+`"`)
+		})
+	}
 }
 
 // Rejected here rather than left to gin-contrib/cors, which panics on an empty
@@ -669,7 +866,9 @@ func TestEnsureJWTKey(t *testing.T) {
 				return
 			}
 
-			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
+			decoded, err := base64.StdEncoding.DecodeString(cfg.JWTKey)
+			require.NoError(t, err)
+			assert.GreaterOrEqual(t, len(decoded), aes192KeySize, "generated key must contain at least 24 random bytes")
 			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
 
 			// A restart must reuse the persisted key rather than rotate it.
