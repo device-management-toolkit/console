@@ -1,6 +1,7 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"testing"
 
@@ -13,6 +14,19 @@ func clearEnv() {
 	os.Unsetenv("LOG_LEVEL")
 	os.Unsetenv("DB_POOL_MAX")
 	os.Unsetenv("DB_URL")
+	os.Unsetenv("SECRETS_ADDR")
+}
+
+func TestNewConfig_InvalidEnvVar(t *testing.T) {
+	clearEnv()
+	defer clearEnv()
+
+	// DB_POOL_MAX expects an int; a non-numeric value causes cleanenv.ReadEnv to fail.
+	t.Setenv("DB_POOL_MAX", "not-a-number")
+
+	cfg, err := NewConfig()
+	assert.Error(t, err)
+	assert.Nil(t, cfg)
 }
 
 func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
@@ -106,4 +120,260 @@ postgres:
 	assert.Equal(t, "debug", cfg.Level)
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
+}
+
+func TestValidate_SecretsAddrEmpty(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "",
+		},
+	}
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestValidateSecretsAddr_Empty(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "",
+		},
+	}
+	err := cfg.validateSecretsAddr()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrEmpty), "expected ErrSecretsAddrEmpty, got %v", err)
+}
+
+func TestValidate_SecretsAddrHTTPSNonLocalhost(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "https://vault.example.com:8200",
+		},
+	}
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestValidate_SecretsAddrHTTPLocalhost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"http://localhost:8200",
+		"http://127.0.0.1:8200",
+		"http://127.0.0.2:8200",
+		"http://[::1]:8200",
+		"http://[::1]",
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+			assert.NoError(t, cfg.Validate(), "expected %s to be valid", addr)
+		})
+	}
+}
+
+func TestValidate_SecretsAddrHTTPNonLocalhost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"http://vault.example.com:8200",
+		"http://192.168.1.1:8200",
+		"http://vault-server:8200",
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+			err := cfg.Validate()
+			assert.Error(t, err, "expected %s to fail", addr)
+			assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
+		})
+	}
+}
+
+func TestValidate_SecretsAddrInvalidURL(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "://invalid",
+		},
+	}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrInvalid), "expected ErrSecretsAddrInvalid, got %v", err)
+}
+
+func TestValidate_SecretsAddrMissingScheme(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "vault.example.com:8200",
+		},
+	}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrMissingScheme), "expected ErrSecretsAddrMissingScheme, got %v", err)
+}
+
+func TestIsLocalhost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		host     string
+		expected bool
+	}{
+		// Localhost variants
+		{"localhost", true},
+		{"localhost:8200", true},
+		{"127.0.0.1", true},
+		{"127.0.0.1:8200", true},
+		{"127.255.255.255", true},
+		{"127.1.1.1:9000", true},
+		{"[::1]", true},
+		{"::1", true},
+		{"[::1]:8200", true},
+
+		// Non-localhost
+		{"192.168.1.1", false},
+		{"vault.example.com", false},
+		{"vault.example.com:8200", false},
+		{"172.16.0.1", false},
+		{"example.com", false},
+		{"[2001:db8::1]", false},
+		{"2001:db8::1", false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.host, func(t *testing.T) {
+			t.Parallel()
+
+			result := isLocalhost(tc.host)
+			assert.Equal(t, tc.expected, result, "isLocalhost(%s) = %v, want %v", tc.host, result, tc.expected)
+		})
+	}
+}
+
+func TestValidate_CallsValidateSecretsAddr(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "http://vault.example.com:8200", // Remote HTTP - should fail
+		},
+	}
+
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
+}
+
+func TestValidate_AllowsEmptySecretsAddr(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "", // Empty is valid (Vault is optional)
+		},
+	}
+
+	err := cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestValidate_AllowsValidRemoteHTTPS(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "https://vault.example.com:8200",
+		},
+	}
+
+	err := cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestValidateSecretsAddr_NoHost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"http://",       // Scheme but no host
+		"https://",      // Scheme but no host
+		"http://:8200",  // Scheme with port but no host
+		"https://:8200", // Scheme with port but no host
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+			err := cfg.validateSecretsAddr()
+			assert.Error(t, err, "expected %s to fail", addr)
+			assert.True(t, errors.Is(err, ErrSecretsAddrNoHost), "expected ErrSecretsAddrNoHost, got %v", err)
+		})
+	}
+}
+
+func TestStripPort(t *testing.T) {
+	t.Parallel()
+
+	testCases := map[string]struct {
+		input    string
+		expected string
+	}{
+		// IPv6 with brackets
+		"[::1]:8200":        {input: "[::1]:8200", expected: "::1"},
+		"[::1]":             {input: "[::1]", expected: "::1"},
+		"[fe80::1]:9090":    {input: "[fe80::1]:9090", expected: "fe80::1"},
+		"[2001:db8::1]:443": {input: "[2001:db8::1]:443", expected: "2001:db8::1"},
+
+		// IPv4 with port
+		"192.168.1.1:8200": {input: "192.168.1.1:8200", expected: "192.168.1.1"},
+		"127.0.0.1:9090":   {input: "127.0.0.1:9090", expected: "127.0.0.1"},
+
+		// Hostname with port
+		"localhost:8200":         {input: "localhost:8200", expected: "localhost"},
+		"vault.example.com:8200": {input: "vault.example.com:8200", expected: "vault.example.com"},
+
+		// No port (returned as-is by final return statement on line 407)
+		"localhost":         {input: "localhost", expected: "localhost"},
+		"192.168.1.1":       {input: "192.168.1.1", expected: "192.168.1.1"},
+		"127.0.0.1":         {input: "127.0.0.1", expected: "127.0.0.1"},
+		"vault.example.com": {input: "vault.example.com", expected: "vault.example.com"},
+		"::1":               {input: "::1", expected: "::1"},                 // Unbracketed IPv6, no port
+		"fe80::1":           {input: "fe80::1", expected: "fe80::1"},         // Unbracketed IPv6 with multiple colons
+		"2001:db8::1":       {input: "2001:db8::1", expected: "2001:db8::1"}, // Full IPv6, no port
+
+		// Edge cases
+		"[::1]incomplete": {input: "[::1]incomplete", expected: "[::1]incomplete"}, // Malformed bracket - no closing, returned as-is
+		"localhost:":      {input: "localhost:", expected: "localhost"},            // Trailing colon
+	}
+
+	for name, tc := range testCases {
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			result := stripPort(tc.input)
+			assert.Equal(t, tc.expected, result, "stripPort(%q) = %q, want %q", tc.input, result, tc.expected)
+		})
+	}
 }

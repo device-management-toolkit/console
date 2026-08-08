@@ -3,9 +3,12 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -17,7 +20,20 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
-const defaultHost = "localhost"
+// Validation errors for configuration.
+var (
+	ErrSecretsAddrEmpty         = errors.New("SECRETS_ADDR is empty")
+	ErrSecretsAddrInsecure      = errors.New("SECRETS_ADDR must use HTTPS for non-localhost addresses")
+	ErrSecretsAddrInvalid       = errors.New("invalid SECRETS_ADDR")
+	ErrSecretsAddrMissingScheme = errors.New("SECRETS_ADDR missing scheme (use http:// or https://)")
+	ErrSecretsAddrNoHost        = errors.New("SECRETS_ADDR contains no host")
+)
+
+const (
+	defaultHost     = "localhost"
+	ipv6Loopback    = "::1"
+	ipv4LoopbackNet = "127."
+)
 
 type (
 	// Config -.
@@ -329,5 +345,89 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	if err := ConsoleConfig.Validate(); err != nil {
+		return nil, err
+	}
+
 	return ConsoleConfig, nil
+}
+
+// Validate checks configuration for security and correctness issues.
+func (c *Config) Validate() error {
+	// Ensure non-localhost Vault addresses use HTTPS
+	if c.Secrets.Address != "" { //nolint:staticcheck // QF1008: explicit field reference is clearer
+		if err := c.validateSecretsAddr(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateSecretsAddr ensures Vault address uses HTTPS (except for localhost).
+func (c *Config) validateSecretsAddr() error {
+	if c.Secrets.Address == "" { //nolint:staticcheck // QF1008: explicit field reference is clearer
+		return ErrSecretsAddrEmpty
+	}
+
+	parsed, err := url.Parse(c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrSecretsAddrInvalid, err)
+	}
+
+	// Check for valid scheme (must be http or https)
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("%w: %q", ErrSecretsAddrMissingScheme, c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+	}
+
+	// Check host is present before checking HTTPS requirement
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("%w: %q", ErrSecretsAddrNoHost, c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+	}
+
+	// Enforce HTTPS for non-localhost
+	if parsed.Scheme == "http" && !isLocalhost(hostname) {
+		return ErrSecretsAddrInsecure
+	}
+
+	return nil
+}
+
+func isLocalhost(host string) bool {
+	hostOnly := stripPort(host)
+
+	return hostOnly == defaultHost ||
+		strings.HasPrefix(hostOnly, ipv4LoopbackNet) ||
+		hostOnly == ipv6Loopback
+}
+
+// stripPort removes port from host, handling both IPv4/hostname and IPv6 formats.
+func stripPort(host string) string {
+	// Handle IPv6 addresses with brackets [::1]:port or just [::1]
+	if strings.HasPrefix(host, "[") {
+		if idx := strings.Index(host, "]"); idx != -1 {
+			// Check what comes after the closing bracket
+			afterBracket := host[idx+1:]
+			if afterBracket == "" || strings.HasPrefix(afterBracket, ":") {
+				// Valid format: [::1] or [::1]:port
+				return host[1:idx]
+			}
+			// Malformed format (e.g., [::1]incomplete) - return original
+			return host
+		}
+
+		return host
+	}
+
+	// IPv4, hostname, or unbracketed IPv6 - remove port carefully
+	// Unbracketed IPv6 addresses like ::1 have multiple colons
+	// Ports are always indicated by a single colon after the host
+	if strings.Count(host, ":") == 1 {
+		if idx := strings.LastIndex(host, ":"); idx != -1 {
+			return host[:idx]
+		}
+	}
+
+	return host
 }
