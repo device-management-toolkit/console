@@ -16,3 +16,16 @@ Key non-negotiables (full detail in `CLAUDE.md`):
 - Small, focused PRs only. No scope creep. Stack prerequisite refactors as `refactor:` / `test:` / `build:` ahead of the `feat:` that triggers a release.
 - Commits follow Conventional Commits (commitlint-enforced). `feat:` cuts a minor release, `fix:`/`perf:`/`chore:` cuts a patch, `BREAKING CHANGE:` cuts a major — avoid breaking `/api/v1/*`. See `CONTRIBUTING.md` for the full scope list.
 - Before declaring done: `go test -race -count=1 ./...`, `gofumpt -l -w -extra ./` (no diff), `go vet ./...`, and `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run -v --fix` (use `-v ${pwd}:/app` on Windows PowerShell — no remaining diagnostics) all green.
+
+## Code review checklist
+
+When reviewing a pull request, verify each of the following against `CONTRIBUTING.md` → **Pull Request practices**. Leave a comment on the PR for every item that is not satisfied.
+
+- **PR scope:** Is the PR focused on a single concern? Flag any unrelated changes (dead code, lint fixes, formatting drift in untouched files) that should be a separate PR.
+- **Incremental phases:** If this is a `feat:`, is prerequisite plumbing already landed (as `refactor:`/`test:`/`build:`) or bundled unnecessarily into this PR?
+- **PR title:** Does it follow `<type>(<scope>): <subject>` Conventional Commits format (commitlint-enforced)?
+- **OpenAPI spec:** If any route under `internal/controller/httpapi/` changed, is `doc/openapi.json` regenerated and committed?
+- **Postman collections:** If the REST API surface changed, are `console_mps_apis.postman_collection.json` and/or `console_rps_apis.postman_collection.json` updated?
+- **Mocks:** If any `Repository`/`Feature`/`WSMAN` interface changed, is `internal/mocks/` regenerated via `make mock`?
+- **DB parity:** If a new `Repository` method was added, does it have implementations in both `internal/usecase/sqldb` and `internal/usecase/nosqldb/mongo`?
+- **Linear history:** Is the PR set up for `Rebase and merge` or `Squash and merge` (not a merge commit)?
