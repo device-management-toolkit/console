@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"fmt"
 	"net/http"
 	"net/http/httptest"
 	"testing"
@@ -33,6 +34,85 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 	require.Equal(t, "invalid credentials", got["error"])
 	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
+}
+
+func TestLogin_RateLimitExceeded(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: "secret"}}}
+	engine.POST("/api/v1/authorize", route.Login)
+
+	makeRequest := func() *httptest.ResponseRecorder {
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		// All requests from the same IP so they share one limiter bucket.
+		req.RemoteAddr = "192.0.2.1:1234"
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		return w
+	}
+
+	// Exhaust the burst allowance (loginRateBurst == 5).
+	for range loginRateBurst {
+		w := makeRequest()
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+	}
+
+	// The next request must be throttled.
+	w := makeRequest()
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
+	require.Equal(t, "60", w.Header().Get("Retry-After"))
+
+	var got map[string]string
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+	require.Equal(t, "too many requests", got["error"])
+}
+
+// TestLogin_SpoofedXForwardedForCannotBypassRateLimit verifies that when no
+// proxies are trusted (the default), rotating the X-Forwarded-For header does
+// not create a fresh limiter bucket per request. Gin's default engine trusts
+// all proxies, so we explicitly clear the trusted proxy list to mirror the
+// production wiring in app.go (SetTrustedProxies(nil)).
+func TestLogin_SpoofedXForwardedForCannotBypassRateLimit(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	// Mirror production: trust no proxies, so c.ClientIP() uses RemoteAddr and
+	// ignores any client-supplied X-Forwarded-For header.
+	require.NoError(t, engine.SetTrustedProxies(nil))
+
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: "secret"}}}
+	engine.POST("/api/v1/authorize", route.Login)
+
+	makeRequest := func(spoofedIP string) *httptest.ResponseRecorder {
+		req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+		// Same real connection IP, but a different forged X-Forwarded-For each time.
+		req.RemoteAddr = "192.0.2.50:1234"
+		req.Header.Set("X-Forwarded-For", spoofedIP)
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		return w
+	}
+
+	// Exhaust the burst using a different spoofed IP on every request. If the
+	// header were trusted, each would get its own bucket and never throttle.
+	for i := range loginRateBurst {
+		w := makeRequest(fmt.Sprintf("10.10.10.%d", i))
+		require.Equal(t, http.StatusUnauthorized, w.Code)
+	}
+
+	// Despite a fresh spoofed X-Forwarded-For, the shared RemoteAddr bucket is
+	// now empty, so this request must be throttled.
+	w := makeRequest("10.10.10.99")
+	require.Equal(t, http.StatusTooManyRequests, w.Code)
 }
 
 // oidcDiscoveryServer spins up a TLS test server that serves the minimum
