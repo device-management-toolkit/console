@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-fuego/fuego"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
@@ -21,8 +22,21 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 	fuego.Post(f.server, "/api/v1/authorize", f.login,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize"),
-		fuego.OptionDescription("Authenticate and return an access token"),
+		fuego.OptionDescription("Authenticate and return an access token.\n\n"+
+			"The token is returned in the body for `Authorization: Bearer` clients, and also "+
+			"set as an HttpOnly session cookie so browsers need not store it. The cookie is "+
+			"named `"+config.DefaultSessionCookieName+"` unless the deployment overrides "+
+			"`auth.cookieName`, and is not issued at all when cookie auth is disabled or "+
+			"OIDC is configured."),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
+	)
+
+	fuego.Post(f.server, "/api/v1/authorize/logout", f.logout,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Logout"),
+		fuego.OptionDescription("Expire the session cookie.\n\n"+
+			"Public, so an already-expired session can still clear it. Not revocation: "+
+			"the JWT is stateless and stays valid until it expires."),
 	)
 
 	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
@@ -147,6 +161,15 @@ func (f *FuegoAdapter) login(c fuego.ContextWithBody[dto.Credentials]) (Authoriz
 
 func (f *FuegoAdapter) loginRedirection(_ fuego.ContextNoBody) (AuthorizeRedirectionResponse, error) {
 	return AuthorizeRedirectionResponse{Token: "example-token"}, nil
+}
+
+// LogoutResponse acknowledges that the session cookie was expired.
+type LogoutResponse struct {
+	Message string `json:"message" example:"logged out"`
+}
+
+func (f *FuegoAdapter) logout(_ fuego.ContextNoBody) (LogoutResponse, error) {
+	return LogoutResponse{Message: "logged out"}, nil
 }
 
 func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountResponse, error) {
@@ -281,21 +304,21 @@ func (f *FuegoAdapter) getTags(_ fuego.ContextNoBody) ([]string, error) {
 }
 
 func (f *FuegoAdapter) createDevice(c fuego.ContextWithBody[dto.Device]) (dto.Device, error) {
-	config, err := c.Body()
+	device, err := c.Body()
 	if err != nil {
 		return dto.Device{}, err
 	}
 
-	return config, nil
+	return device, nil
 }
 
 func (f *FuegoAdapter) updateDevice(c fuego.ContextWithBody[dto.Device]) (dto.Device, error) {
-	config, err := c.Body()
+	device, err := c.Body()
 	if err != nil {
 		return dto.Device{}, err
 	}
 
-	return config, nil
+	return device, nil
 }
 
 func (f *FuegoAdapter) deleteDevice(_ fuego.ContextNoBody) (NoContentResponse, error) {
