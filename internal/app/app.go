@@ -73,6 +73,9 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	}
 
 	handler := gin.New()
+	// Ahead of CORS on purpose: the CORS middleware answers preflights and
+	// rejects disallowed origins itself, so anything after it never runs.
+	handler.Use(securityHeaders())
 
 	defaultConfig := cors.DefaultConfig()
 	defaultConfig.AllowOrigins = cfg.AllowedOrigins
@@ -98,6 +101,15 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
 
 	return handler
+}
+
+// securityHeaders sets X-Content-Type-Options: nosniff to stop MIME sniffing.
+func securityHeaders() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Content-Type-Options", "nosniff")
+
+		c.Next()
+	}
 }
 
 func setupCIRAServer(cfg *config.Config, log logger.Interface, closer io.Closer, usecases *usecase.Usecases) *cira.Server {
