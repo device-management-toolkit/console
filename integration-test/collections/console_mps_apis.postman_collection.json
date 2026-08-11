@@ -2624,7 +2624,9 @@
 				"packages": {},
 				"requests": {},
 				"exec": [
-					""
+					"pm.test(\"Response includes X-Content-Type-Options: nosniff\", function () {",
+					"    pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+					"});"
 				]
 			}
 		}
