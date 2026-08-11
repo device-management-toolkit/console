@@ -40,31 +40,33 @@ jobs:
         run: |
           # unset GITHUB_ACTIONS
           npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF"
-          version=$(cat .VERSION)
+          # No .VERSION means no release-triggering commits, not a failure.
+          if [ -f .VERSION ]; then
+            version=$(cat .VERSION)
+          else
+            version=""
+          fi
           echo "version=$version" >> "$GITHUB_OUTPUT"
 
       - name: Version
         env:
           VERSION: ${{ steps.semantic-release.outputs.version }}
-        run: echo "The next version is $VERSION"
-
-      - name: Fail if version is empty
-        env:
-          VERSION: ${{ steps.semantic-release.outputs.version }}
         run: |
           if [ -z "$VERSION" ]; then
-            echo "Version output is empty. Failing the job."
-            exit 1
+            echo "No release-triggering commits; skipping build and release."
+          else
+            echo "The next version is $VERSION"
           fi
 
   build:
     needs: prepare
+    if: needs.prepare.outputs.version != ''
     runs-on: ubuntu-latest
     env:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: audit
 
@@ -149,7 +151,7 @@ jobs:
     needs: build
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@bf7454d06d71f1098171f2acdf0cd4708d7b5920 # v2.20.0
+        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
         with:
           egress-policy: audit
 
