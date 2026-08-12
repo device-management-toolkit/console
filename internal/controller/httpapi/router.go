@@ -19,11 +19,25 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+const (
+	xFrameOptionsHeaderValue         = "SAMEORIGIN"
+	contentSecurityPolicyHeaderValue = "frame-ancestors 'self'"
+)
+
+func clickjackingProtectionMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		c.Header("X-Frame-Options", xFrameOptionsHeaderValue)
+		c.Header("Content-Security-Policy", contentSecurityPolicyHeaderValue)
+		c.Next()
+	}
+}
+
 // NewRouter -.
 func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
+	handler.Use(clickjackingProtectionMiddleware())
 
 	// Add Prometheus middleware for automatic HTTP metrics
 	// Don't automatically register /metrics endpoint - we have our own
