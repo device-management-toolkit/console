@@ -42,7 +42,10 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 		l.Fatal(err)
 	}
 
-	handler.StaticFileFS("/", "./", http.FS(staticFiles)) // Serve static files from "/" route
+	handler.GET("/", func(c *gin.Context) {
+		setNoCacheHeaders(c)
+		c.FileFromFS("index.html", http.FS(staticFiles))
+	})
 
 	modifiedMainJS := injectConfigToMainJS(l, cfg)
 	handler.StaticFile("/main.js", modifiedMainJS)
@@ -80,7 +83,8 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 			return
 		}
 
-		c.FileFromFS("./", http.FS(staticFiles))
+		setNoCacheHeaders(c)
+		c.FileFromFS("index.html", http.FS(staticFiles))
 	})
 }
 
@@ -126,16 +130,30 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 		"##CONSOLE_SERVER_API##": consoleServerAPIBase(protocol, cfg.Host, cfg.Port),
 	})
 
-	// Write to /tmp
 	permissions := 0o600
 
-	tempFile := filepath.Join(os.TempDir(), "main.js")
+	tempMainJS, err := os.CreateTemp(os.TempDir(), "main-*.js")
+	if err != nil {
+		log.Fatalf("Could not create temp main.js: %v", err)
+	}
 
-	if err := os.WriteFile(tempFile, data, os.FileMode(permissions)); err != nil {
+	if err := tempMainJS.Chmod(os.FileMode(permissions)); err != nil {
+		_ = tempMainJS.Close()
+
+		log.Fatalf("Could not set modified main.js permissions: %v", err)
+	}
+
+	if _, err := tempMainJS.Write(data); err != nil {
+		_ = tempMainJS.Close()
+
 		log.Fatalf("Could not write modified main.js: %v", err)
 	}
 
-	return tempFile
+	if err := tempMainJS.Close(); err != nil {
+		log.Fatalf("Could not finalize modified main.js: %v", err)
+	}
+
+	return filepath.Clean(tempMainJS.Name())
 }
 
 // Returns "" on wildcard hosts so the UI uses same-origin requests matching the user's URL/SNI.
