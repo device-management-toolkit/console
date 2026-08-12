@@ -77,6 +77,19 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	// rejects disallowed origins itself, so anything after it never runs.
 	handler.Use(securityHeaders())
 
+	// Restrict which proxies may set X-Forwarded-For so the per-IP login
+	// rate limiter cannot be bypassed by rotating a spoofed header value.
+	// nil disables proxy trust entirely and forces use of RemoteAddr.
+	if len(cfg.TrustedProxies) == 0 {
+		log.Info("HTTP_TRUSTED_PROXIES not set: using RemoteAddr for client IP (correct for direct-access deployments; set this when running behind a load balancer)")
+	}
+
+	if err := handler.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Warn("invalid HTTP_TRUSTED_PROXIES value, falling back to no trusted proxies: " + err.Error())
+
+		_ = handler.SetTrustedProxies(nil)
+	}
+
 	defaultConfig := cors.DefaultConfig()
 	defaultConfig.AllowOrigins = cfg.AllowedOrigins
 	defaultConfig.AllowHeaders = cfg.AllowedHeaders

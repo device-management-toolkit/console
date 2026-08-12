@@ -23,6 +23,7 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 		fuego.OptionSummary("Authorize"),
 		fuego.OptionDescription("Authenticate and return an access token"),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
+		fuego.OptionAddResponse(http.StatusTooManyRequests, "Too many login attempts: rate limit exceeded", fuego.Response{Type: ErrorResponse{}}),
 	)
 
 	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,

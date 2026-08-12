@@ -50,6 +50,12 @@ type (
 		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
 		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
+		// TrustedProxies is the list of CIDR ranges or IP addresses of reverse proxies
+		// that are allowed to set X-Forwarded-For. Leave empty (the default) when the
+		// server is accessed directly — this forces c.ClientIP() to use RemoteAddr,
+		// which cannot be spoofed at the HTTP layer. Cloud / load-balanced deployments
+		// must set this to the proxy CIDR(s) so per-IP rate limiting works correctly.
+		TrustedProxies []string `yaml:"trusted_proxies" env:"HTTP_TRUSTED_PROXIES"`
 		TLS            TLS      `yaml:"tls"`
 	}
 
@@ -160,6 +166,10 @@ func defaultConfig() *Config {
 			AllowedOrigins: []string{"*"},
 			AllowedHeaders: []string{"*"},
 			WSCompression:  true,
+			// TrustedProxies is nil by default: no proxy is trusted, so c.ClientIP()
+			// uses RemoteAddr (unspoofable) for the per-IP login rate limiter.
+			// Set HTTP_TRUSTED_PROXIES to the proxy CIDR(s) when running behind an LB.
+			TrustedProxies: nil,
 			TLS: TLS{
 				Enabled:  true,
 				CertFile: "",
