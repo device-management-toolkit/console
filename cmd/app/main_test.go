@@ -12,6 +12,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -134,6 +135,27 @@ func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
 	handleAdminPassword(cfg)
 
 	assert.Equal(t, "already-set", cfg.AdminPassword)
+}
+
+func TestNormalizeAdminPasswordHash_PlainTextInput(t *testing.T) {
+	t.Parallel()
+
+	hash, converted, err := normalizeAdminPasswordHash("plain-password")
+	require.NoError(t, err)
+	assert.True(t, converted)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte("plain-password")))
+}
+
+func TestNormalizeAdminPasswordHash_AlreadyHashed(t *testing.T) {
+	t.Parallel()
+
+	existingHash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	hash, converted, err := normalizeAdminPasswordHash(string(existingHash))
+	require.NoError(t, err)
+	assert.False(t, converted)
+	assert.Equal(t, string(existingHash), hash)
 }
 
 func TestResolveAdminCredentialsFromSources_PriorityOrder(t *testing.T) {
