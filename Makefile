@@ -141,8 +141,20 @@ migrate-create:  ### create new migration
 	migrate create -ext sql -dir /internal/app/migrations 'migrate_name'
 .PHONY: migrate-create
 
+# Mirror pkg/db.NormalizeDSN: default sslmode=disable only when DB_URL doesn't
+# set one, using the right separator for a DSN that already carries query params.
+ifeq (,$(DB_URL))
+MIGRATE_DB_URL :=
+else ifneq (,$(findstring sslmode=,$(DB_URL)))
+MIGRATE_DB_URL := $(DB_URL)
+else ifeq (,$(findstring ?,$(DB_URL)))
+MIGRATE_DB_URL := $(DB_URL)?sslmode=disable
+else
+MIGRATE_DB_URL := $(DB_URL)&sslmode=disable
+endif
+
 migrate-up: ### migration up
-	migrate -path /internal/app/migrations -database '$(DB_URL)?sslmode=disable' up
+	migrate -path /internal/app/migrations -database '$(MIGRATE_DB_URL)' up
 .PHONY: migrate-up
 
 bin-deps:

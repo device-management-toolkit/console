@@ -30,7 +30,8 @@ func TestNew_Postgres(t *testing.T) {
 	t.Parallel()
 
 	mockDB := new(MockDB)
-	mockDB.On("Open", "pgx", "postgres://localhost:5432/testdb").Return(&sql.DB{}, nil)
+	// The pool receives the same normalized DSN the migrations run against.
+	mockDB.On("Open", "pgx", "postgres://localhost:5432/testdb?sslmode=disable").Return(&sql.DB{}, nil)
 
 	db, err := New("postgres://localhost:5432/testdb", mockDB.Open)
 	assert.NoError(t, err)
@@ -39,6 +40,22 @@ func TestNew_Postgres(t *testing.T) {
 	assert.Equal(t, _defaultMaxPoolSize, db.maxPoolSize)
 	assert.Equal(t, _defaultConnAttempts, db.connAttempts)
 	assert.Equal(t, _defaultConnTimeout, db.connTimeout)
+
+	mockDB.AssertExpectations(t)
+}
+
+func TestNew_PostgresPreservesExplicitSSLMode(t *testing.T) {
+	t.Parallel()
+
+	dsn := "postgres://localhost:5432/testdb?sslmode=verify-full&sslrootcert=%2Fetc%2Fssl%2Fca.pem"
+
+	mockDB := new(MockDB)
+	mockDB.On("Open", "pgx", dsn).Return(&sql.DB{}, nil)
+
+	db, err := New(dsn, mockDB.Open)
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+	assert.False(t, db.IsEmbedded)
 
 	mockDB.AssertExpectations(t)
 }
