@@ -9,6 +9,7 @@ import (
 	"os"
 	"strings"
 
+	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
@@ -23,6 +24,9 @@ const (
 	dotEnvFile           = ".env"
 	authAdminUsernameEnv = "AUTH_ADMIN_USERNAME"
 	authAdminSecretEnv   = "AUTH_ADMIN_PASSWORD" // #nosec G101 -- environment variable name, not a credential value
+	bcryptPrefix2A       = "$2a$"
+	bcryptPrefix2B       = "$2b$"
+	bcryptPrefix2Y       = "$2y$"
 	dotEnvSplitParts     = 2
 )
 
@@ -157,8 +161,13 @@ func handleAdminCredentials(cfg *config.Config) {
 		password = promptForSecret(reader, "Enter Console admin password: ")
 	}
 
+	hashedPassword, _, err := normalizeAdminPasswordHash(password)
+	if err != nil {
+		log.Fatalf("failed to hash admin password: %v", err)
+	}
+
 	cfg.AdminUsername = username
-	cfg.AdminPassword = password
+	cfg.AdminPassword = hashedPassword
 
 	persistedToKeyring, usernameSaveErr, passwordSaveErr := saveAdminCredentialsToKeyring(keyringStore, cfg.AdminUsername, cfg.AdminPassword)
 	if persistedToKeyring {
@@ -410,4 +419,21 @@ func firstNonEmpty(values ...string) string {
 	}
 
 	return ""
+}
+
+func normalizeAdminPasswordHash(password string) (hash string, converted bool, err error) {
+	if isBcryptHash(password) {
+		return password, false, nil
+	}
+
+	bcryptHash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", false, err
+	}
+
+	return string(bcryptHash), true, nil
+}
+
+func isBcryptHash(value string) bool {
+	return strings.HasPrefix(value, bcryptPrefix2A) || strings.HasPrefix(value, bcryptPrefix2B) || strings.HasPrefix(value, bcryptPrefix2Y)
 }
