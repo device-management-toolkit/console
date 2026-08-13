@@ -2603,6 +2603,68 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Session",
+			"item": [
+				{
+					"name": "Logout clears session cookies",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"// Public route: an expired session must still be able to clear its cookie.\r",
+									"pm.test(\"Session cookie is expired\", function () {\r",
+									"    var setCookie = pm.response.headers.all()\r",
+									"        .filter(function (h) { return h.key.toLowerCase() === \"set-cookie\"; })\r",
+									"        .map(function (h) { return h.value; });\r",
+									"\r",
+									"    var session = setCookie.filter(function (v) { return v.indexOf(\"console_session=\") === 0; });\r",
+									"\r",
+									"    pm.expect(session.length, \"session cookie cleared\").to.eql(1);\r",
+									"    pm.expect(session[0]).to.include(\"Max-Age=0\");\r",
+									"    pm.expect(session[0]).to.include(\"HttpOnly\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/authorize/logout",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"authorize",
+								"logout"
+							]
+						},
+						"description": "Expires the HttpOnly session cookie.\n\nPOST /api/v1/authorize returns the token in the body (for Authorization: Bearer clients) and also sets it as an HttpOnly cookie, so browsers need not store it. The Authorization header takes precedence when both are present."
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"event": [
@@ -2624,9 +2686,21 @@
 				"packages": {},
 				"requests": {},
 				"exec": [
-					""
+					"pm.test(\"Response includes X-Content-Type-Options: nosniff\", function () {",
+					"    pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+					"});"
 				]
 			}
 		}
-	]
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	}
 }

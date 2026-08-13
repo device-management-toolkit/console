@@ -1,0 +1,2 @@
+build.sh text eol=lf
+sign.sh text eol=lf
