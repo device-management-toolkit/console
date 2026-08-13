@@ -1,8 +1,10 @@
 package main
 
 import (
+	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"log"
 	"os"
 	"testing"
 
@@ -84,6 +86,37 @@ func TestGenerateRandomPassword_Uniqueness(t *testing.T) {
 		assert.False(t, passwords[password], "generated duplicate password")
 
 		passwords[password] = true
+	}
+}
+
+// TestCheckStoredEncryptionKey covers the non-fatal paths: a usable key is
+// silent, a weak but correctly sized key warns and lets Console start.
+func TestCheckStoredEncryptionKey(t *testing.T) { //nolint:paralleltest // rebinds the shared log output
+	tests := []struct {
+		name        string
+		key         string
+		wantWarning bool
+	}{
+		{"usable key", "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL", false},
+		{"weak key", "aaaaaaaaaaaaaaaa", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) { //nolint:paralleltest // rebinds the shared log output
+			var out bytes.Buffer
+
+			log.SetOutput(&out)
+
+			defer log.SetOutput(os.Stderr)
+
+			checkStoredEncryptionKey(tc.key, "local keyring")
+
+			if tc.wantWarning {
+				assert.Contains(t, out.String(), "weak")
+			} else {
+				assert.Empty(t, out.String())
+			}
+		})
 	}
 }
 
