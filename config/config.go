@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -475,6 +476,21 @@ func NewConfig() (*Config, error) {
 
 	if err := validatePort(ConsoleConfig.Port); err != nil {
 		return nil, err
+	}
+
+	// A hand-supplied key is rejected here rather than at first use: an unusable
+	// key otherwise surfaces as an opaque HTTP 500 the first time a device
+	// credential is encrypted. An empty key is fine — cmd/app then falls back to
+	// the secret store, the keyring, or generates one.
+	if ConsoleConfig.EncryptionKey != "" {
+		if err := ValidateEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
+			return nil, fmt.Errorf(
+				"invalid APP_ENCRYPTION_KEY (app.encryption_key in config.yml): %w.\n"+
+					"Generate one with `openssl rand -base64 24` (32 characters), "+
+					"or leave it unset and let Console generate and store a key for you",
+				err,
+			)
+		}
 	}
 
 	return ConsoleConfig, nil
