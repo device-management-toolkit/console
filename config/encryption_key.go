@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/aes"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"math"
@@ -21,6 +23,9 @@ const (
 	aes128KeySize = 16
 	aes192KeySize = 24
 	aes256KeySize = 32
+
+	// base64EncodeAes256KeySize is the length of a base64-encoded 32-byte AES-256 key.
+	base64EncodeAes256KeySize = 44
 
 	// minDistinctChars is the smallest number of distinct characters a key may
 	// be built from. The generated key (24 random bytes, base64-encoded to 32
@@ -47,10 +52,8 @@ const (
 // Callers are responsible for skipping the empty key, which means "no key
 // supplied" rather than "invalid key" — see handleEncryptionKey in cmd/app.
 func ValidateEncryptionKey(key string) error {
-	switch len(key) {
-	case aes128KeySize, aes192KeySize, aes256KeySize:
-	default:
-		return fmt.Errorf("%w: got %d", ErrEncryptionKeyLength, len(key))
+	if _, err := aes.NewCipher(encryptionKeyBytes(key)); err != nil {
+		return fmt.Errorf("%w: %w", ErrEncryptionKeyLength, err)
 	}
 
 	if distinct := distinctChars(key); distinct < minDistinctChars {
@@ -72,11 +75,21 @@ func ValidateEncryptionKey(key string) error {
 	return nil
 }
 
+func encryptionKeyBytes(key string) []byte {
+	if len(key) == base64EncodeAes256KeySize {
+		if decoded, err := base64.StdEncoding.DecodeString(key); err == nil && len(decoded) == aes256KeySize {
+			return decoded
+		}
+	}
+
+	return []byte(key)
+}
+
 // distinctChars counts how many different bytes the key is built from.
 func distinctChars(key string) int {
 	seen := make(map[byte]struct{}, len(key))
-	for i := range len(key) {
-		seen[key[i]] = struct{}{}
+	for _, c := range []byte(key) {
+		seen[c] = struct{}{}
 	}
 
 	return len(seen)
@@ -87,8 +100,8 @@ func distinctChars(key string) int {
 // alphabet it was drawn from.
 func entropyBitsPerChar(key string) float64 {
 	counts := make(map[byte]int, len(key))
-	for i := range len(key) {
-		counts[key[i]]++
+	for _, c := range []byte(key) {
+		counts[c]++
 	}
 
 	length := float64(len(key))

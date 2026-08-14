@@ -138,8 +138,10 @@ func TestCheckStoredEncryptionKey(t *testing.T) { //nolint:paralleltest // rebin
 		{"weak key", "aaaaaaaaaaaaaaaa", true},
 	}
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) { //nolint:paralleltest // rebinds the shared log output
+	for _, tc := range tests { //nolint:paralleltest // subtests rebind the shared log output
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
 			var out bytes.Buffer
 
 			log.SetOutput(&out)
