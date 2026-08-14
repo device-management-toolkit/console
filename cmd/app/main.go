@@ -4,6 +4,7 @@ import (
 	"crypto/rand"
 	"encoding/base64"
 	"errors"
+	"flag"
 	"fmt"
 	"log"
 	"os"
@@ -40,6 +41,8 @@ var (
 )
 
 func main() {
+	configureUsage(flag.CommandLine)
+
 	if len(os.Args) > 1 && (os.Args[1] == "--health" || os.Args[1] == "-health") {
 		runHealthCheck()
 	}
@@ -75,7 +78,10 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-	handleAdminCredentials(cfg)
+
+	if err := handleAdminCredentials(cfg); err != nil {
+		log.Fatalf("Admin credential setup error: %v", err)
+	}
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
@@ -87,6 +93,21 @@ func main() {
 	} else {
 		handleDebugMode(cfg, l)
 		runAppFunc(cfg, l)
+	}
+}
+
+func configureUsage(flags *flag.FlagSet) {
+	flags.Usage = func() {
+		fmt.Fprintf(flags.Output(), "Usage: %s [options]\n\n", flags.Name())
+		flags.PrintDefaults()
+		fmt.Fprintln(flags.Output(), "\nAdmin credential options:")
+		fmt.Fprintln(flags.Output(), "  --show-admin")
+		fmt.Fprintln(flags.Output(), "        display the configured admin username")
+		fmt.Fprintln(flags.Output(), "  --remove-admin")
+		fmt.Fprintln(flags.Output(), "        remove the stored admin credentials")
+		fmt.Fprintln(flags.Output(), "\nHealth option:")
+		fmt.Fprintln(flags.Output(), "  --health")
+		fmt.Fprintln(flags.Output(), "        probe the local health endpoint and exit")
 	}
 }
 

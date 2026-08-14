@@ -1,14 +1,14 @@
 package main
 
 import (
-	"bufio"
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
+	"flag"
 	"os"
-	"strings"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -25,6 +25,28 @@ type mockCredentialStore struct {
 	values      map[string]string
 	errMap      map[string]error
 	deletedKeys []string
+}
+
+type blockingCredentialStore struct {
+	release <-chan struct{}
+}
+
+func (s *blockingCredentialStore) GetKeyValue(_ string) (string, error) {
+	<-s.release
+
+	return "", security.ErrKeyNotFound
+}
+
+func (s *blockingCredentialStore) SetKeyValue(_, _ string) error {
+	<-s.release
+
+	return nil
+}
+
+func (s *blockingCredentialStore) DeleteKeyValue(_ string) error {
+	<-s.release
+
+	return nil
 }
 
 func (m *mockCredentialStore) GetKeyValue(key string) (string, error) {
@@ -210,18 +232,17 @@ func TestResolveAdminCredentialsFromSources_KeyringReadErrorFallsBack(t *testing
 	assert.Equal(t, "cfg-pass", password)
 }
 
-func TestConfirmPersistCredentialsToConfig_Yes(t *testing.T) {
+func TestKeyringAccessibleWithin_Timeout(t *testing.T) {
 	t.Parallel()
 
-	reader := bufio.NewReader(strings.NewReader("Y\n"))
-	assert.True(t, confirmPersistCredentialsToConfig(reader))
-}
+	release := make(chan struct{})
+	store := &blockingCredentialStore{
+		release: release,
+	}
 
-func TestConfirmPersistCredentialsToConfig_No(t *testing.T) {
-	t.Parallel()
+	defer close(release)
 
-	reader := bufio.NewReader(strings.NewReader("n\n"))
-	assert.False(t, confirmPersistCredentialsToConfig(reader))
+	assert.False(t, keyringAccessibleWithin(store, 10*time.Millisecond))
 }
 
 func TestHandleAdminCLI_ShowAdmin_HidesPassword(t *testing.T) {
@@ -255,4 +276,22 @@ func TestHandleAdminCLI_RemoveAdmin(t *testing.T) {
 	assert.Contains(t, store.deletedKeys, keyringAdminUsername)
 	assert.Contains(t, store.deletedKeys, keyringAdminPassword)
 	assert.Contains(t, buf.String(), "Admin credentials removed from keystore.")
+}
+
+func TestConfigureUsage_ShouldIncludeAdminAndHealthOptions(t *testing.T) {
+	t.Parallel()
+
+	flags := flag.NewFlagSet("console", flag.ContinueOnError)
+	flags.String("config", "", "path to config file")
+	flags.Bool("tray", false, "run with system tray icon")
+	output := &bytes.Buffer{}
+	flags.SetOutput(output)
+	configureUsage(flags)
+
+	flags.Usage()
+
+	assert.Contains(t, output.String(), "--show-admin")
+	assert.Contains(t, output.String(), "--remove-admin")
+	assert.Contains(t, output.String(), "--health")
+	assert.Contains(t, output.String(), "path to config file")
 }

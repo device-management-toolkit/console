@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"time"
 
 	"golang.org/x/crypto/bcrypt"
 	"golang.org/x/term"
@@ -28,6 +29,7 @@ const (
 	bcryptPrefix2B       = "$2b$"
 	bcryptPrefix2Y       = "$2y$"
 	dotEnvSplitParts     = 2
+	keyringAccessTimeout = 2 * time.Second
 )
 
 var (
@@ -135,35 +137,35 @@ func hasArg(args []string, target string) bool {
 	return false
 }
 
-func handleAdminCredentials(cfg *config.Config) {
+func handleAdminCredentials(cfg *config.Config) error {
 	if cfg.Disabled {
 		log.Print("Auth is disabled; skipping admin credential resolution.")
 
-		return
+		return nil
 	}
 
 	dotEnvValues := readDotEnvFile(dotEnvFile)
 	keyringStore := newKeyringStorageFunc()
 
+	if !keyringAccessible(keyringStore) {
+		return errKeystoreUnavailable
+	}
+
 	username, password := resolveAdminCredentialsFromSources(cfg, keyringStore, dotEnvValues)
 
 	reader := bufio.NewReader(os.Stdin)
-	promptedForUsername := false
-	promptedForPassword := false
 
 	if username == "" {
-		promptedForUsername = true
 		username = promptForCredential(reader, "Enter Console admin username: ")
 	}
 
 	if password == "" {
-		promptedForPassword = true
 		password = promptForSecret(reader, "Enter Console admin password: ")
 	}
 
 	hashedPassword, _, err := normalizeAdminPasswordHash(password)
 	if err != nil {
-		log.Fatalf("failed to hash admin password: %v", err)
+		return fmt.Errorf("failed to hash admin password: %w", err)
 	}
 
 	cfg.AdminUsername = username
@@ -173,31 +175,23 @@ func handleAdminCredentials(cfg *config.Config) {
 	if persistedToKeyring {
 		clearAdminCredentialsInConfigAfterKeyringStore()
 
-		return
+		return nil
 	}
 
 	logKeyringSaveAndRollbackWarnings(keyringStore, usernameSaveErr, passwordSaveErr)
 
-	if !promptedForUsername && !promptedForPassword {
-		return
+	if usernameSaveErr != nil {
+		return fmt.Errorf("failed to persist admin username to keyring: %w", usernameSaveErr)
 	}
 
-	log.Print("Warning: keyring storage is unavailable; entered admin credentials may be lost after restart.")
-
-	if !confirmPersistCredentialsToConfig(reader) {
-		log.Print("Admin credentials were not written to config.yml. Provide them again on next startup or configure keyring/.env.")
-
-		return
-	}
-
-	if err := config.SaveAdminCredentials(cfg.AdminUsername, cfg.AdminPassword); err != nil {
-		log.Printf("Warning: failed to persist admin credentials to config.yml: %v", err)
-	} else {
-		log.Print("Admin credentials persisted to config.yml.")
-	}
+	return fmt.Errorf("failed to persist admin password to keyring: %w", passwordSaveErr)
 }
 
 func saveAdminCredentialsToKeyring(keyringStore credentialStore, username, passwordHash string) (persisted bool, usernameErr, passwordErr error) {
+	if keyringStore == nil {
+		return false, errKeystoreUnavailable, errKeystoreUnavailable
+	}
+
 	usernameErr = keyringStore.SetKeyValue(keyringAdminUsername, username)
 	passwordErr = keyringStore.SetKeyValue(keyringAdminPassword, passwordHash)
 
@@ -303,6 +297,32 @@ func readAdminCredentialsFromKeyring(keyringStore credentialStore) (username, pa
 	return "", "", false
 }
 
+func keyringAccessible(keyringStore credentialStore) bool {
+	return keyringAccessibleWithin(keyringStore, keyringAccessTimeout)
+}
+
+func keyringAccessibleWithin(keyringStore credentialStore, timeout time.Duration) bool {
+	if keyringStore == nil {
+		return false
+	}
+
+	result := make(chan error, 1)
+
+	go func() {
+		_, err := keyringStore.GetKeyValue(keyringAdminUsername)
+		result <- err
+	}()
+
+	select {
+	case err := <-result:
+		return err == nil || errors.Is(err, security.ErrKeyNotFound)
+	case <-time.After(timeout):
+		log.Printf("Warning: keyring access timed out after %s; startup will fail.", timeout)
+
+		return false
+	}
+}
+
 func promptForCredential(reader *bufio.Reader, prompt string) string {
 	for {
 		fmt.Fprint(os.Stdout, prompt)
@@ -364,19 +384,6 @@ func promptForSecret(reader *bufio.Reader, prompt string) string {
 
 		log.Println("Value cannot be empty.")
 	}
-}
-
-func confirmPersistCredentialsToConfig(reader *bufio.Reader) bool {
-	log.Print("Store admin username/password in config.yml as fallback? Y/N: ")
-
-	input, err := reader.ReadString('\n')
-	if err != nil {
-		log.Fatalf("failed to read confirmation from console: %v", err)
-	}
-
-	response := strings.TrimSpace(input)
-
-	return response == "Y" || response == "y"
 }
 
 func readDotEnvFile(path string) map[string]string {
