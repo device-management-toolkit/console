@@ -7,7 +7,7 @@
 # Get version from the first argument
 version=$1
 
-# Required for Dockerfile RUN --mount=type=cache directives
+# Enable Docker BuildKit so RUN --mount=type=cache works in the Dockerfile
 export DOCKER_BUILDKIT=1
 
 # Build Docker images for each variant
