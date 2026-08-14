@@ -390,45 +390,15 @@ func (c *Config) validateSecretsAddr() error {
 }
 
 func isLocalhost(host string) bool {
-	hostOnly := stripPort(host)
+	host = strings.TrimSuffix(host, ".")
 
-	if strings.EqualFold(strings.TrimSuffix(hostOnly, "."), defaultHost) {
+	if strings.EqualFold(host, defaultHost) {
 		return true
 	}
 
-	if ip := net.ParseIP(hostOnly); ip != nil {
+	if ip := net.ParseIP(host); ip != nil {
 		return ip.IsLoopback()
 	}
 
 	return false
-}
-
-// stripPort removes port from host, handling both IPv4/hostname and IPv6 formats.
-func stripPort(host string) string {
-	// Handle IPv6 addresses with brackets [::1]:port or just [::1]
-	if strings.HasPrefix(host, "[") {
-		if idx := strings.Index(host, "]"); idx != -1 {
-			// Check what comes after the closing bracket
-			afterBracket := host[idx+1:]
-			if afterBracket == "" || strings.HasPrefix(afterBracket, ":") {
-				// Valid format: [::1] or [::1]:port
-				return host[1:idx]
-			}
-			// Malformed format (e.g., [::1]incomplete) - return original
-			return host
-		}
-
-		return host
-	}
-
-	// IPv4, hostname, or unbracketed IPv6 - remove port carefully
-	// Unbracketed IPv6 addresses like ::1 have multiple colons
-	// Ports are always indicated by a single colon after the host
-	if strings.Count(host, ":") == 1 {
-		if idx := strings.LastIndex(host, ":"); idx != -1 {
-			return host[:idx]
-		}
-	}
-
-	return host
 }

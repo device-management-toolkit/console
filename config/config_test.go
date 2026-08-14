@@ -268,23 +268,16 @@ func TestIsLocalhost(t *testing.T) {
 		{"LOCALHOST", true},
 		{"localhost.", true},
 		{"LOCALHOST.", true},
-		{"localhost:8200", true},
-		{"LOCALHOST.:8200", true},
 		{"127.0.0.1", true},
-		{"127.0.0.1:8200", true},
 		{"127.255.255.255", true},
-		{"127.1.1.1:9000", true},
-		{"[::1]", true},
 		{"::1", true},
-		{"[::1]:8200", true},
+		{"127.1.1.1", true},
 
 		// Non-localhost
 		{"192.168.1.1", false},
 		{"vault.example.com", false},
-		{"vault.example.com:8200", false},
 		{"172.16.0.1", false},
 		{"example.com", false},
-		{"[2001:db8::1]", false},
 		{"2001:db8::1", false},
 	}
 	for _, tc := range testCases {
@@ -345,51 +338,6 @@ func TestValidateSecretsAddr_NoHost(t *testing.T) {
 			err := cfg.validateSecretsAddr()
 			assert.Error(t, err, "expected %s to fail", addr)
 			assert.True(t, errors.Is(err, ErrSecretsAddrNoHost), "expected ErrSecretsAddrNoHost, got %v", err)
-		})
-	}
-}
-
-func TestStripPort(t *testing.T) {
-	t.Parallel()
-
-	testCases := map[string]struct {
-		input    string
-		expected string
-	}{
-		// IPv6 with brackets
-		"[::1]:8200":        {input: "[::1]:8200", expected: "::1"},
-		"[::1]":             {input: "[::1]", expected: "::1"},
-		"[fe80::1]:9090":    {input: "[fe80::1]:9090", expected: "fe80::1"},
-		"[2001:db8::1]:443": {input: "[2001:db8::1]:443", expected: "2001:db8::1"},
-
-		// IPv4 with port
-		"192.168.1.1:8200": {input: "192.168.1.1:8200", expected: "192.168.1.1"},
-		"127.0.0.1:9090":   {input: "127.0.0.1:9090", expected: "127.0.0.1"},
-
-		// Hostname with port
-		"localhost:8200":         {input: "localhost:8200", expected: "localhost"},
-		"vault.example.com:8200": {input: "vault.example.com:8200", expected: "vault.example.com"},
-
-		// No port (returned as-is by final return statement on line 407)
-		"localhost":         {input: "localhost", expected: "localhost"},
-		"192.168.1.1":       {input: "192.168.1.1", expected: "192.168.1.1"},
-		"127.0.0.1":         {input: "127.0.0.1", expected: "127.0.0.1"},
-		"vault.example.com": {input: "vault.example.com", expected: "vault.example.com"},
-		"::1":               {input: "::1", expected: "::1"},                 // Unbracketed IPv6, no port
-		"fe80::1":           {input: "fe80::1", expected: "fe80::1"},         // Unbracketed IPv6 with multiple colons
-		"2001:db8::1":       {input: "2001:db8::1", expected: "2001:db8::1"}, // Full IPv6, no port
-
-		// Edge cases
-		"[::1]incomplete": {input: "[::1]incomplete", expected: "[::1]incomplete"}, // Malformed: extra suffix after closing bracket returned as-is
-		"localhost:":      {input: "localhost:", expected: "localhost"},            // Trailing colon
-	}
-
-	for name, tc := range testCases {
-		t.Run(name, func(t *testing.T) {
-			t.Parallel()
-
-			result := stripPort(tc.input)
-			assert.Equal(t, tc.expected, result, "stripPort(%q) = %q, want %q", tc.input, result, tc.expected)
 		})
 	}
 }
