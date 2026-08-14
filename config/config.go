@@ -30,6 +30,9 @@ var (
 
 const defaultHost = "localhost"
 
+// DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
+const DefaultSessionCookieName = "console_session"
+
 type (
 	// Config -.
 	Config struct {
@@ -56,12 +59,13 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Host           string   `yaml:"host" env:"HTTP_HOST"`
-		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
-		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
-		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
-		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
-		TLS            TLS      `yaml:"tls"`
+		Host             string   `yaml:"host" env:"HTTP_HOST"`
+		Port             string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
+		AllowedOrigins   []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
+		AllowedHeaders   []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		AllowCredentials bool     `yaml:"allow_credentials" env:"HTTP_ALLOW_CREDENTIALS"`
+		WSCompression    bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
+		TLS              TLS      `yaml:"tls"`
 	}
 
 	// TLS -.
@@ -101,6 +105,11 @@ type (
 	}
 
 	// Auth -.
+	//
+	// The Cookie* fields govern the HttpOnly session cookie the browser uses in
+	// place of Web Storage. Additive only: /authorize still returns the token in
+	// the body and the Authorization header still wins, so REST clients are
+	// unaffected.
 	Auth struct {
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
@@ -111,6 +120,10 @@ type (
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
 		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
 		TLSSkipVerify            bool          `yaml:"tlsSkipVerify" env:"AUTH_TLS_SKIP_VERIFY"`
+		CookieEnabled            bool          `yaml:"cookieEnabled" env:"AUTH_COOKIE_ENABLED"`
+		CookieName               string        `yaml:"cookieName" env:"AUTH_COOKIE_NAME"`
+		CookieSecure             bool          `yaml:"cookieSecure" env:"AUTH_COOKIE_SECURE"`
+		CookieSameSite           string        `yaml:"cookieSameSite" env:"AUTH_COOKIE_SAME_SITE"`
 		UI                       UIAuthConfig  `yaml:"ui"`
 	}
 
@@ -130,6 +143,12 @@ type (
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
 	}
 )
+
+// CookieAuthEnabled reports whether the HttpOnly session cookie is in use. Off
+// under OIDC, where the IdP owns the token. Read by the middleware and the spec.
+func (a Auth) CookieAuthEnabled() bool {
+	return a.CookieEnabled && a.ClientID == ""
+}
 
 // getPreferredIPAddress detects the most likely candidate IP address for this machine.
 // It prefers non-loopback IPv4 addresses and excludes link-local addresses.
@@ -166,11 +185,12 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:           "",
-			Port:           "8181",
-			AllowedOrigins: []string{"*"},
-			AllowedHeaders: []string{"*"},
-			WSCompression:  true,
+			Host:             "",
+			Port:             "8181",
+			AllowedOrigins:   []string{"*"},
+			AllowedHeaders:   []string{"*"},
+			AllowCredentials: false,
+			WSCompression:    true,
 			TLS: TLS{
 				Enabled:  true,
 				CertFile: "",
@@ -201,6 +221,10 @@ func defaultConfig() *Config {
 			JWTKey:                   "your_secret_jwt_key",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
+			CookieEnabled:            true,
+			CookieName:               DefaultSessionCookieName,
+			CookieSecure:             true,
+			CookieSameSite:           "strict",
 			// OAUTH CONFIG, if provided will not use basic auth
 			ClientID: "",
 			Issuer:   "",

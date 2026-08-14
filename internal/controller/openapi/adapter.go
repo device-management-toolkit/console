@@ -20,6 +20,9 @@ const (
 	defaultTenantID   = "default"
 	exampleDeviceGUID = "example-guid-1"
 	exampleDeviceHost = "device1.example.com"
+
+	bearerAuthScheme = "bearerAuth"
+	cookieAuthScheme = "cookieAuth"
 )
 
 type FuegoAdapter struct {
@@ -31,14 +34,7 @@ type FuegoAdapter struct {
 func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdapter {
 	server := fuego.NewServer(
 		fuego.WithoutStartupMessages(),
-		fuego.WithSecurity(openapi3.SecuritySchemes{
-			"bearerAuth": &openapi3.SecuritySchemeRef{
-				Value: openapi3.NewSecurityScheme().
-					WithType("http").
-					WithScheme("bearer").
-					WithBearerFormat("JWT"),
-			},
-		}),
+		fuego.WithSecurity(securitySchemes()),
 	)
 
 	return &FuegoAdapter{
@@ -46,6 +42,36 @@ func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdap
 		usecases: usecases,
 		logger:   log,
 	}
+}
+
+// securitySchemes declares only the mechanisms the server actually accepts, so
+// cookieAuth is omitted where the middleware would ignore a cookie.
+func securitySchemes() openapi3.SecuritySchemes {
+	schemes := openapi3.SecuritySchemes{
+		bearerAuthScheme: &openapi3.SecuritySchemeRef{
+			Value: openapi3.NewSecurityScheme().
+				WithType("http").
+				WithScheme("bearer").
+				WithBearerFormat("JWT"),
+		},
+	}
+
+	if !specCookieAuthEnabled() {
+		return schemes
+	}
+
+	// The name is the default; a build-time spec cannot know a runtime override.
+	schemes[cookieAuthScheme] = &openapi3.SecuritySchemeRef{
+		Value: openapi3.NewSecurityScheme().
+			WithType("apiKey").
+			WithIn("cookie").
+			WithName(config.DefaultSessionCookieName).
+			WithDescription("Session cookie issued by POST /api/v1/authorize. Named `" +
+				config.DefaultSessionCookieName + "` by default; a deployment may override it with " +
+				"`auth.cookieName`."),
+	}
+
+	return schemes
 }
 
 // Registers API routes with Fuego for automatic OpenAPI generation.
