@@ -38,6 +38,8 @@ func TestValidateEncryptionKey(t *testing.T) {
 	}
 
 	for _, tc := range tests {
+		tc := tc
+
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
@@ -67,7 +69,9 @@ func TestValidateEncryptionKey_AcceptsGeneratedKey(t *testing.T) {
 	}
 }
 
-func TestNewConfig_RejectsInvalidEncryptionKey(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+// t.Setenv is incompatible with t.Parallel, so this test and its subtests run
+// serially.
+func TestNewConfig_RejectsInvalidEncryptionKey(t *testing.T) {
 	clearEnv()
 
 	tests := []struct {
@@ -79,7 +83,9 @@ func TestNewConfig_RejectsInvalidEncryptionKey(t *testing.T) { //nolint:parallel
 	}
 
 	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("APP_ENCRYPTION_KEY", tc.key)
 
 			cfg, err := NewConfig()
@@ -91,7 +97,8 @@ func TestNewConfig_RejectsInvalidEncryptionKey(t *testing.T) { //nolint:parallel
 	}
 }
 
-func TestNewConfig_AcceptsValidEncryptionKey(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+// t.Setenv is incompatible with t.Parallel, so this test runs serially.
+func TestNewConfig_AcceptsValidEncryptionKey(t *testing.T) {
 	clearEnv()
 	t.Setenv("APP_ENCRYPTION_KEY", "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL")
 
