@@ -8421,6 +8421,12 @@
 				"exec": [
 					"pm.test(\"Response includes X-Content-Type-Options: nosniff\", function () {",
 					"    pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+					"});",
+					"",
+					"pm.test(\"Response disables caching\", function () {",
+					"    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-cache, no-store, must-revalidate\");",
+					"    pm.expect(pm.response.headers.get(\"Pragma\")).to.eql(\"no-cache\");",
+					"    pm.expect(pm.response.headers.get(\"Expires\")).to.eql(\"0\");",
 					"});"
 				]
 			}

@@ -44,7 +44,7 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 
 	handler.GET("/", func(c *gin.Context) {
 		setNoCacheHeaders(c)
-		c.FileFromFS("index.html", http.FS(staticFiles))
+		c.FileFromFS("./", http.FS(staticFiles))
 	})
 
 	modifiedMainJS := injectConfigToMainJS(l, cfg)
@@ -84,7 +84,7 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 		}
 
 		setNoCacheHeaders(c)
-		c.FileFromFS("index.html", http.FS(staticFiles))
+		c.FileFromFS("./", http.FS(staticFiles))
 	})
 }
 
