@@ -21,6 +21,7 @@ import (
 	_ "modernc.org/sqlite" // sqlite3 driver
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/pkg/db"
 )
 
 const (
@@ -55,7 +56,7 @@ func Init(cfg *config.Config) error {
 		log.Fatal(err)
 	}
 
-	if strings.HasPrefix(databaseURL, "postgres://") {
+	if strings.HasPrefix(databaseURL, db.PostgresPrefix) {
 		err := setupHostedDB(migrationsSource, databaseURL)
 		if err != nil {
 			return err
@@ -87,18 +88,18 @@ func setupLocalDB(migrationsSource source.Driver) error {
 
 	log.Printf("DB path : %s\n", filepath.Join(consoleDir, "console.db"))
 
-	db, err := sql.Open("sqlite", filepath.Join(consoleDir, "console.db"))
+	sqlDB, err := sql.Open("sqlite", filepath.Join(consoleDir, "console.db"))
 	if err != nil {
 		return err
 	}
 
 	defer func() {
-		if err1 := db.Close(); err1 != nil {
+		if err1 := sqlDB.Close(); err1 != nil {
 			return
 		}
 	}()
 
-	driver, err := dbdbdb.WithInstance(db, &dbdbdb.Config{})
+	driver, err := dbdbdb.WithInstance(sqlDB, &dbdbdb.Config{})
 	if err != nil {
 		return err
 	}
@@ -115,7 +116,7 @@ func setupLocalDB(migrationsSource source.Driver) error {
 		}
 	}
 
-	_, err = db.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
+	_, err = sqlDB.ExecContext(context.Background(), "PRAGMA foreign_keys = ON")
 	if err != nil {
 		return err
 	}
@@ -126,7 +127,13 @@ func setupLocalDB(migrationsSource source.Driver) error {
 }
 
 func setupHostedDB(migrationsSource source.Driver, databaseURL string) error {
-	databaseURL += "?sslmode=disable"
+	migrationURL := db.MigrationDSN(databaseURL)
+	if migrationURL != databaseURL {
+		log.Printf("Migrate: DB_URL sets no sslmode; migrating with sslmode=disable. " +
+			"Set sslmode explicitly (e.g. verify-full) to migrate over TLS")
+	}
+
+	databaseURL = migrationURL
 
 	var (
 		attempts = _defaultAttempts
