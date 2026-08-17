@@ -32,6 +32,7 @@ jobs:
           format: "sarif"
           output: "console-trivy-results.sarif"
           exit-code: "1"
+          trivy-flags: "--skip-version-check"
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
