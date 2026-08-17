@@ -27,12 +27,13 @@ jobs:
         run: docker build . --file Dockerfile --tag app:${{ github.sha }}
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@ed142fd0673e97e23eac54620cfb913e5ce36c25 # 0.36.0
+        env:
+          TRIVY_SKIP_VERSION_CHECK: "true"
         with:
           image-ref: "app:${{ github.sha }}"
           format: "sarif"
           output: "console-trivy-results.sarif"
           exit-code: "1"
-          trivy-flags: "--skip-version-check"
           ignore-unfixed: true
           vuln-type: "os,library"
           severity: "UNKNOWN,LOW,MEDIUM,HIGH,CRITICAL"
