@@ -6,6 +6,7 @@ package mongo
 const (
 	fieldTenantID             = "tenantid"
 	fieldGUID                 = "guid"
+	fieldID                   = "id"
 	fieldProfileName          = "profilename"
 	fieldConfigName           = "configname"
 	fieldDomainSuffix         = "domainsuffix"

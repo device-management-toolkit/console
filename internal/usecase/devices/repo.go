@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"time"
 
 	"github.com/google/uuid"
 
@@ -216,6 +217,9 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 		return nil, err
 	}
 
+	// Refreshed on every record edit; dtoToEntity doesn't copy it from the DTO.
+	d1.LastUpdate = time.Now().UTC().Format(time.RFC3339Nano)
+
 	updated, err := uc.repo.Update(ctx, d1)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("Update", "uc.repo.Update", err)
@@ -250,6 +254,13 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 	if d1.GUID == "" {
 		d1.GUID = uuid.New().String()
 	}
+
+	// Server-managed: client values ignored. Nanosecond UTC keeps createddate
+	// sortable and collision-free within a second.
+	d1.ID = uuid.New().String()
+	d1.CreatedDate = time.Now().UTC().Format(time.RFC3339Nano)
+	// Starts at createddate; only the main Update path refreshes it, never heartbeats.
+	d1.LastUpdate = d1.CreatedDate
 
 	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {

@@ -2,10 +2,12 @@ package mongo_test
 
 import (
 	"context"
+	"sync"
 	"testing"
 
 	"github.com/stretchr/testify/require"
 	"go.mongodb.org/mongo-driver/v2/bson"
+	"go.mongodb.org/mongo-driver/v2/event"
 	"go.mongodb.org/mongo-driver/v2/mongo"
 	"go.mongodb.org/mongo-driver/v2/mongo/options"
 	"go.mongodb.org/mongo-driver/v2/x/mongo/driver/drivertest"
@@ -50,6 +52,70 @@ func newMockedDB(t *testing.T) (*mongo.Database, *drivertest.MockDeployment) {
 	})
 
 	return client.Database("testdb"), md
+}
+
+// capturedCommands records every command the driver sends, keyed by command
+// name. The MockDeployment cannot replay state, so write-path invariants (e.g.
+// that Update's $set omits immutable columns) are verified by inspecting the
+// exact wire payload the production repo code emitted.
+type capturedCommands struct {
+	mu   sync.Mutex
+	cmds []capturedCommand
+}
+
+type capturedCommand struct {
+	name string
+	raw  bson.Raw
+}
+
+func (c *capturedCommands) add(name string, raw bson.Raw) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	c.cmds = append(c.cmds, capturedCommand{name: name, raw: raw})
+}
+
+// byName returns the first captured command with the given name.
+func (c *capturedCommands) byName(name string) (bson.Raw, bool) {
+	c.mu.Lock()
+	defer c.mu.Unlock()
+
+	for _, cmd := range c.cmds {
+		if cmd.name == name {
+			return cmd.raw, true
+		}
+	}
+
+	return nil, false
+}
+
+// newMonitoredDB is like newMockedDB but also attaches a CommandMonitor that
+// captures the wire payload of every command sent, so a test can assert on the
+// exact document the repo emitted.
+func newMonitoredDB(t *testing.T) (*mongo.Database, *drivertest.MockDeployment, *capturedCommands) {
+	t.Helper()
+
+	cc := &capturedCommands{}
+	monitor := &event.CommandMonitor{
+		Started: func(_ context.Context, e *event.CommandStartedEvent) {
+			// Copy: the driver may reuse the backing buffer after the callback.
+			cc.add(e.CommandName, bson.Raw(append([]byte(nil), e.Command...)))
+		},
+	}
+
+	md := drivertest.NewMockDeployment()
+
+	opts := options.Client().SetMonitor(monitor)
+	require.NoError(t, xoptions.SetInternalClientOptions(opts, "deployment", md))
+
+	client, err := mongo.Connect(opts)
+	require.NoError(t, err)
+
+	t.Cleanup(func() {
+		_ = client.Disconnect(context.Background())
+	})
+
+	return client.Database("testdb"), md, cc
 }
 
 // findResponse builds the bson reply shape expected for a `find` command:
