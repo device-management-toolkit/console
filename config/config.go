@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"net"
@@ -21,6 +23,8 @@ const defaultHost = "localhost"
 
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
+
+const runtimeJWTKeyByteSize = 32
 
 type (
 	// Config -.
@@ -103,7 +107,7 @@ type (
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -205,9 +209,9 @@ func defaultConfig() *Config {
 			Password: "",
 		},
 		Auth: Auth{
-			AdminUsername:            "standalone",
-			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			AdminUsername:            "", // Resolved at startup: keystore > .env > env var > config.yml > prompt
+			AdminPassword:            "", // Resolved at startup: keystore > .env > env var > config.yml > prompt
+			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			CookieEnabled:            true,
@@ -231,6 +235,31 @@ func defaultConfig() *Config {
 			ExternalURL: "",
 		},
 	}
+}
+
+func generateRuntimeJWTKey() (string, error) {
+	bytes := make([]byte, runtimeJWTKeyByteSize)
+
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+func ensureRuntimeJWTKey(cfg *Config) error {
+	if cfg.JWTKey != "" {
+		return nil
+	}
+
+	jwtKey, err := generateRuntimeJWTKey()
+	if err != nil {
+		return err
+	}
+
+	cfg.JWTKey = jwtKey
+
+	return nil
 }
 
 // resolveConfigPath determines the effective config file path based on a flag value or default location.
@@ -332,6 +361,42 @@ func SaveAdminPassword(adminPassword string) error {
 	return writeConfig(configPath, fileCfg)
 }
 
+// ClearAdminCredentials removes adminUsername and adminPassword from config.yml
+// so plaintext credentials do not remain on disk after being saved to the keystore.
+func ClearAdminCredentials() error {
+	return SaveAdminCredentials("", "")
+}
+
+// SaveAdminCredentials persists adminUsername/adminPassword to auth.* fields in
+// config.yml without touching any other field. It re-reads the file directly
+// (bypassing env overlays) so env-only secrets do not leak into disk config.
+func SaveAdminCredentials(adminUsername, adminPassword string) error {
+	var configPathFlag string
+	if f := flag.Lookup("config"); f != nil {
+		configPathFlag = f.Value.String()
+	}
+
+	configPath, err := resolveConfigPath(configPathFlag)
+	if err != nil {
+		return err
+	}
+
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	fileCfg := defaultConfig()
+	if err := yaml.Unmarshal(data, fileCfg); err != nil {
+		return err
+	}
+
+	fileCfg.AdminUsername = adminUsername
+	fileCfg.AdminPassword = adminPassword
+
+	return writeConfig(configPath, fileCfg)
+}
+
 // NewConfig returns app config.
 func NewConfig() (*Config, error) {
 	// set defaults
@@ -362,6 +427,10 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRuntimeJWTKey(ConsoleConfig); err != nil {
 		return nil, err
 	}
 

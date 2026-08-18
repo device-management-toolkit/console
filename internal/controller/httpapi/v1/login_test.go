@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/console/config"
 )
@@ -25,10 +26,15 @@ const (
 )
 
 // cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
-func cookieAuthTestConfig() *config.Config {
+func cookieAuthTestConfig(t *testing.T) *config.Config {
+	t.Helper()
+
+	hash, err := bcrypt.GenerateFromPassword([]byte(testAdminPass), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
 	cfg := &config.Config{}
 	cfg.AdminUsername = testAdminUser
-	cfg.AdminPassword = testAdminPass
+	cfg.AdminPassword = string(hash)
 	cfg.JWTKey = testJWTKey
 	cfg.JWTExpiration = time.Hour
 	cfg.CookieEnabled = true
@@ -114,7 +120,7 @@ func withCookie(cookie *http.Cookie) func(*http.Request) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestAuthorizeIssuesSessionCookies(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	token, cookies := login(t, engine)
 	require.NotEmpty(t, token, "token must remain in the response body for bearer clients")
@@ -136,7 +142,7 @@ func TestAuthorizeIssuesSessionCookies(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestBearerAuthUnchanged(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	token, cookies := login(t, engine)
 
@@ -160,7 +166,7 @@ func TestBearerAuthUnchanged(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestCookieAuthAcceptsSessionCookie(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	_, cookies := login(t, engine)
 	session := cookies[config.DefaultSessionCookieName]
@@ -180,11 +186,11 @@ func TestCookieAuthAcceptsSessionCookie(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestCookieAuthDisabled(t *testing.T) {
-	enabled := newAuthTestEngine(t, cookieAuthTestConfig())
+	enabled := newAuthTestEngine(t, cookieAuthTestConfig(t))
 	_, cookies := login(t, enabled)
 	session := cookies[config.DefaultSessionCookieName]
 
-	cfg := cookieAuthTestConfig()
+	cfg := cookieAuthTestConfig(t)
 	cfg.CookieEnabled = false
 	disabled := newAuthTestEngine(t, cfg)
 
@@ -228,7 +234,7 @@ func TestLogoutWithoutConfig(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestLogoutExpiresSessionCookie(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	req, err := http.NewRequest(http.MethodPost, testLogoutURL, http.NoBody)
 	require.NoError(t, err)
@@ -252,8 +258,11 @@ func TestLogoutExpiresSessionCookie(t *testing.T) {
 func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	t.Parallel()
 
+	hash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
 	engine := gin.New()
-	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: "secret"}}}
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: string(hash)}}}
 	engine.POST("/api/v1/authorize", route.Login)
 
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))

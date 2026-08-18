@@ -12,6 +12,7 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -83,7 +84,8 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
-	if creds.Username != lr.Config.AdminUsername || creds.Password != lr.Config.AdminPassword {
+	passwordErr := bcrypt.CompareHashAndPassword([]byte(lr.Config.AdminPassword), []byte(creds.Password))
+	if passwordErr != nil || creds.Username != lr.Config.AdminUsername {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
 
 		return
