@@ -15,20 +15,26 @@ func TestTenantIDFromHeader(t *testing.T) {
 	t.Parallel()
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
-	req := httptest.NewRequest("GET", "/", http.NoBody)
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
 	req.Header.Set(tenantHeaderName, "tenant-a")
 	c.Request = req
 
 	require.Equal(t, "tenant-a", tenantIDFromHeader(c))
 }
 
-func TestSetTenantID(t *testing.T) {
+func TestApplyTenantID(t *testing.T) {
 	t.Parallel()
 
+	c, _ := gin.CreateTestContext(httptest.NewRecorder())
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	req.Header.Set(tenantHeaderName, "tenant-a")
+	c.Request = req
+
 	profile := dto.Profile{}
-	setTenantID(&profile, "tenant-a")
+	applyTenantID(c, &profile.TenantID)
 	require.Equal(t, "tenant-a", profile.TenantID)
 
-	setTenantID(&profile, "")
+	req.Header.Del(tenantHeaderName)
+	applyTenantID(c, &profile.TenantID)
 	require.Equal(t, "tenant-a", profile.TenantID)
 }

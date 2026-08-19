@@ -1,8 +1,6 @@
 package v1
 
 import (
-	"reflect"
-
 	"github.com/gin-gonic/gin"
 )
 
@@ -12,20 +10,10 @@ func tenantIDFromHeader(c *gin.Context) string {
 	return c.GetHeader(tenantHeaderName)
 }
 
-func setTenantID(target any, tenantID string) {
-	if tenantID == "" || target == nil {
-		return
+// applyTenantID overwrites target with the request's tenant header. An absent
+// header leaves the body-supplied value untouched.
+func applyTenantID(c *gin.Context, target *string) {
+	if tenantID := tenantIDFromHeader(c); tenantID != "" {
+		*target = tenantID
 	}
-
-	value := reflect.ValueOf(target)
-	if value.Kind() != reflect.Ptr || value.IsNil() {
-		return
-	}
-
-	field := value.Elem().FieldByName("TenantID")
-	if !field.IsValid() || !field.CanSet() || field.Kind() != reflect.String {
-		return
-	}
-
-	field.SetString(tenantID)
 }
