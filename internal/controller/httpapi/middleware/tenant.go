@@ -11,12 +11,16 @@ import (
 // TenantHeaderName is the request header carrying the tenant identifier.
 const TenantHeaderName = "x-tenant-id"
 
-// Tenant validates the tenant header and scopes the request context to it. An
-// absent header yields the empty tenant, which is what existing single-tenant
-// rows are stored under.
-func Tenant() gin.HandlerFunc {
+// Tenant validates the tenant header and scopes the request context to it.
+// defaultTenant is applied when the header is absent; empty keeps single-tenant
+// requests on the rows they already have.
+func Tenant(defaultTenant string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.GetHeader(TenantHeaderName)
+		if tenantID == "" {
+			tenantID = defaultTenant
+		}
+
 		if !tenant.Valid(tenantID) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": tenant.Hint, "message": tenant.Hint})
 

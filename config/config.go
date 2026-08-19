@@ -44,6 +44,10 @@ type (
 		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
 		DisableCIRA          bool   `yaml:"disable_cira" env:"APP_DISABLE_CIRA"`
+		// DefaultTenant is applied when a request omits x-tenant-id. Empty keeps
+		// single-tenant behaviour; set it to exercise a tenant without having to
+		// add the header to every caller.
+		DefaultTenant string `yaml:"default_tenant" env:"APP_DEFAULT_TENANT"`
 	}
 
 	// HTTP -.
@@ -171,6 +175,7 @@ func defaultConfig() *Config {
 			CommonName:           getPreferredIPAddress(),
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,
+			DefaultTenant:        "",
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
