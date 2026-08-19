@@ -83,7 +83,7 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 	tokenString, err := token.SignedString([]byte(config.ConsoleConfig.JWTKey))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not create token"})
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: errTokenCreation})
 
 		return
 	}

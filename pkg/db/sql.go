@@ -56,7 +56,7 @@ func New(url string, dbOpen OpenFunc, opts ...Option) (*SQL, error) {
 
 	var err error
 
-	if strings.HasPrefix(url, "postgres://") {
+	if strings.HasPrefix(url, PostgresPrefix) {
 		err = setupHostedDB(db, url, dbOpen)
 		if err != nil {
 			return nil, err
@@ -114,6 +114,7 @@ func enableForeignKeys(db *sql.DB) error {
 func setupHostedDB(db *SQL, url string, dbOpen OpenFunc) error {
 	var err error
 
+	// Verbatim DSN: pgx resolves an absent sslmode to "prefer" itself.
 	db.Pool, err = dbOpen("pgx", url)
 	if err != nil {
 		return err

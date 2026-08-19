@@ -61,6 +61,10 @@
           {
             "path": "licenses.zip",
             "label": "Third-Party Licenses"
+          },
+          {
+              "path": "*.sigstore.json",
+              "label": "Cosign Signature Bundles"
           }
         ]
       }
@@ -68,7 +72,7 @@
     [
       "@semantic-release/exec",
       {
-        "prepareCmd": "./build.sh ${nextRelease.version} ",
+        "prepareCmd": "./build.sh ${nextRelease.version} && bash ./sign.sh",
         "publishCmd": "docker push vprodemo.azurecr.io/console:v${nextRelease.version} && docker push vprodemo.azurecr.io/console:latest && docker push vprodemo.azurecr.io/console:v${nextRelease.version}-headless && docker push vprodemo.azurecr.io/console:latest-headless",
         "verifyReleaseCmd": "echo v${nextRelease.version} > .VERSION"
       }

@@ -5,7 +5,19 @@ import (
 
 	"github.com/getkin/kin-openapi/openapi3"
 	"github.com/go-fuego/fuego"
+
+	"github.com/device-management-toolkit/console/config"
 )
+
+// specCookieAuthEnabled mirrors the auth middleware. cmd/openapi-gen runs
+// without config, so nil documents the shipped defaults.
+func specCookieAuthEnabled() bool {
+	if config.ConsoleConfig == nil {
+		return true
+	}
+
+	return config.ConsoleConfig.CookieAuthEnabled()
+}
 
 func apiRouteOptions() fuego.RouteOption {
 	return routeOptionGroup(
@@ -14,9 +26,18 @@ func apiRouteOptions() fuego.RouteOption {
 }
 
 func protectedRouteOptions() fuego.RouteOption {
+	// Alternatives, not both: a bearer header or the session cookie.
+	security := []openapi3.SecurityRequirement{
+		{bearerAuthScheme: []string{}},
+	}
+
+	if specCookieAuthEnabled() {
+		security = append(security, openapi3.SecurityRequirement{cookieAuthScheme: []string{}})
+	}
+
 	return routeOptionGroup(
 		apiRouteOptions(),
-		fuego.OptionSecurity(openapi3.SecurityRequirement{"bearerAuth": []string{}}),
+		fuego.OptionSecurity(security...),
 		errorResponseOption(http.StatusNotFound, "Not Found"),
 		errorResponseOption(http.StatusRequestTimeout, "Request Timeout"),
 		errorResponseOption(http.StatusConflict, "Conflict"),
