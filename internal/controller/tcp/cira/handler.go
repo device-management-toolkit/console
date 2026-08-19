@@ -18,6 +18,7 @@ const globalRequestThreshold = 4
 type APFHandler struct {
 	devices            devices.Feature
 	deviceID           string
+	tenantID           string
 	globalRequestCount int
 	log                logger.Interface
 }
@@ -33,6 +34,12 @@ func NewAPFHandler(d devices.Feature, l logger.Interface) *APFHandler {
 // DeviceID returns the device ID extracted from the protocol version message.
 func (h *APFHandler) DeviceID() string {
 	return h.deviceID
+}
+
+// TenantID returns the tenant the authenticated device belongs to, learned from
+// its database row rather than from the device itself.
+func (h *APFHandler) TenantID() string {
+	return h.tenantID
 }
 
 // OnProtocolVersion is called when an APF_PROTOCOLVERSION message is received.
@@ -85,7 +92,9 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 	ctx := context.Background()
 
 	// Fetch device from database using the UUID
-	device, err := h.devices.GetByID(ctx, h.deviceID, "", true)
+	// CIRA devices authenticate by GUID and cannot present a tenant, so the
+	// lookup must span tenants rather than defaulting to the empty one.
+	device, err := h.devices.GetByGUID(ctx, h.deviceID, true)
 	if err != nil {
 		h.log.Warn("Failed to fetch device %s from database: %v", h.deviceID, err)
 
@@ -112,6 +121,8 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 
 		return false
 	}
+
+	h.tenantID = device.TenantID
 
 	return true
 }

@@ -366,6 +366,83 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 	}
 }
 
+func TestDeviceRepo_GetByGUID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		setup    func(dbConn *sql.DB)
+		guid     string
+		expected *entity.Device
+		err      error
+	}{
+		{
+			name: "Found regardless of tenant",
+			setup: func(dbConn *sql.DB) {
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "acme-corp", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
+				require.NoError(t, err)
+			},
+			guid:     "guid1",
+			expected: &entity.Device{GUID: "guid1", TenantID: "acme-corp"},
+			err:      nil,
+		},
+		{
+			name:     "No device found",
+			setup:    func(_ *sql.DB) {},
+			guid:     "guid2",
+			expected: nil,
+			err:      nil,
+		},
+		{
+			name:     QueryExecutionErrorTestName,
+			setup:    func(_ *sql.DB) {},
+			guid:     "guid1",
+			expected: nil,
+			err:      repoerrors.DatabaseError{},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDeviceTable(t)
+			defer dbConn.Close()
+
+			tc.setup(dbConn)
+
+			sqlConfig := &db.SQL{
+				Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+				Pool:       dbConn,
+				IsEmbedded: true,
+			}
+
+			if tc.name == QueryExecutionErrorTestName {
+				sqlConfig.Builder = squirrel.StatementBuilder.PlaceholderFormat(squirrel.AtP)
+			}
+
+			mockLog := mocks.NewMockLogger(nil)
+			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
+
+			device, err := repo.GetByGUID(context.Background(), tc.guid)
+
+			checkDeviceError(t, err, tc.err)
+
+			if tc.expected == nil {
+				assert.Nil(t, device)
+
+				return
+			}
+
+			require.NotNil(t, device)
+			assert.Equal(t, tc.expected.GUID, device.GUID)
+			assert.Equal(t, tc.expected.TenantID, device.TenantID)
+		})
+	}
+}
+
 func TestDeviceRepo_GetDistinctTags(t *testing.T) {
 	t.Parallel()
 

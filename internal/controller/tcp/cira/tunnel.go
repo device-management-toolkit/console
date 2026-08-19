@@ -295,6 +295,7 @@ func (ctx *connectionContext) registerDevice() {
 
 	ctx.device = &wsman.ConnectionEntry{
 		IsCIRA:        true,
+		TenantID:      ctx.handler.TenantID(),
 		Conny:         ctx.conn,
 		Timer:         time.NewTimer(maxIdleTime),
 		WsmanMessages: wsman2.NewMessages(client.Parameters{}),

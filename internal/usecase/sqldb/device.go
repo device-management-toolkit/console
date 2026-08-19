@@ -185,6 +185,58 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	return devices[0], nil
 }
 
+func (r *DeviceRepo) GetByGUID(_ context.Context, guid string) (*entity.Device, error) {
+	sqlQuery, _, err := r.Builder.
+		Select(
+			"guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"mpspassword",
+			"mebxpassword",
+			"usetls",
+			"allowselfsigned",
+			"certhash").
+		From("devices").
+		Where("guid = ?").
+		ToSql()
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Builder: ", err)
+	}
+
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, guid)
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Pool.Query", err)
+	}
+
+	defer rows.Close()
+
+	if rows.Err() != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Err", rows.Err())
+	}
+
+	for rows.Next() {
+		d := &entity.Device{}
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		if err != nil {
+			return d, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Scan: ", err)
+		}
+
+		return d, nil
+	}
+
+	return nil, nil
+}
+
 func (r *DeviceRepo) GetDistinctTags(_ context.Context, tenantID string) ([]string, error) {
 	sqlQuery, _, err := r.Builder.
 		Select("DISTINCT tags as tag").
