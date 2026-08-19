@@ -7,6 +7,7 @@ import (
 
 	"github.com/go-fuego/fuego"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
@@ -21,8 +22,21 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 	fuego.Post(f.server, "/api/v1/authorize", f.login,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize"),
-		fuego.OptionDescription("Authenticate and return an access token"),
-		apiRouteOptions(),
+		fuego.OptionDescription("Authenticate and return an access token.\n\n"+
+			"The token is returned in the body for `Authorization: Bearer` clients, and also "+
+			"set as an HttpOnly session cookie so browsers need not store it. The cookie is "+
+			"named `"+config.DefaultSessionCookieName+"` unless the deployment overrides "+
+			"`auth.cookieName`, and is not issued at all when cookie auth is disabled or "+
+			"OIDC is configured."),
+		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
+	)
+
+	fuego.Post(f.server, "/api/v1/authorize/logout", f.logout,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Logout"),
+		fuego.OptionDescription("Expire the session cookie.\n\n"+
+			"Public, so an already-expired session can still clear it. Not revocation: "+
+			"the JWT is stateless and stays valid until it expires."),
 	)
 
 	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
@@ -149,6 +163,15 @@ func (f *FuegoAdapter) loginRedirection(_ fuego.ContextNoBody) (AuthorizeRedirec
 	return AuthorizeRedirectionResponse{Token: "example-token"}, nil
 }
 
+// LogoutResponse acknowledges that the session cookie was expired.
+type LogoutResponse struct {
+	Message string `json:"message" example:"logged out"`
+}
+
+func (f *FuegoAdapter) logout(_ fuego.ContextNoBody) (LogoutResponse, error) {
+	return LogoutResponse{Message: "logged out"}, nil
+}
+
 func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountResponse, error) {
 	devices := []dto.Device{
 		{
@@ -239,7 +262,8 @@ func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) 
 }
 
 func exampleDeviceInfo() *dto.DeviceInfo {
-	lastUpdated := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
+	firstDiscovered := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
 	lmsInstalled := true
 	amtEnabledInBIOS := true
 	dhcpEnabled := true
@@ -251,10 +275,11 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 		FWVersion:            "16.1.30",
 		FWBuild:              "3400",
 		FWSku:                "11",
+		FirstDiscovered:      &firstDiscovered,
 		CurrentMode:          "Admin",
 		Features:             "SOL,IDER,KVM",
 		IPAddress:            "10.0.0.12",
-		LastUpdated:          &lastUpdated,
+		LastSynced:           &lastSynced,
 		LMSInstalled:         &lmsInstalled,
 		LMSVersion:           "2410.5.0.0",
 		TLSMode:              "TLS 1.2",
@@ -279,21 +304,21 @@ func (f *FuegoAdapter) getTags(_ fuego.ContextNoBody) ([]string, error) {
 }
 
 func (f *FuegoAdapter) createDevice(c fuego.ContextWithBody[dto.Device]) (dto.Device, error) {
-	config, err := c.Body()
+	device, err := c.Body()
 	if err != nil {
 		return dto.Device{}, err
 	}
 
-	return config, nil
+	return device, nil
 }
 
 func (f *FuegoAdapter) updateDevice(c fuego.ContextWithBody[dto.Device]) (dto.Device, error) {
-	config, err := c.Body()
+	device, err := c.Body()
 	if err != nil {
 		return dto.Device{}, err
 	}
 
-	return config, nil
+	return device, nil
 }
 
 func (f *FuegoAdapter) deleteDevice(_ fuego.ContextNoBody) (NoContentResponse, error) {

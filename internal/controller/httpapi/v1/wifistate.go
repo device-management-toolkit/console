@@ -41,6 +41,15 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, requestedState)
 	if err != nil {
 		r.l.Error(err, "http - v1 - requestWirelessStateChange")
+
+		if errors.Is(err, wsman.ErrNoWiFiPort) {
+			c.JSON(http.StatusNotFound, gin.H{
+				errorKey: "Request Wireless State Change failed for guid: " + guid + ". - " + err.Error(),
+			})
+
+			return
+		}
+
 		ErrorResponse(c, err)
 
 		return

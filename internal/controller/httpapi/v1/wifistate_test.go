@@ -111,6 +111,30 @@ func TestWiFiStateHandlers(t *testing.T) {
 		require.Equal(t, http.StatusInternalServerError, w.Code)
 	})
 
+	t.Run("request wireless state change - no wifi port", func(t *testing.T) {
+		t.Parallel()
+
+		mockCtl := gomock.NewController(t)
+		defer mockCtl.Finish()
+
+		devMock := mocks.NewMockDeviceManagementFeature(mockCtl)
+		engine := gin.New()
+		handler := engine.Group("/api/v1")
+		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
+
+		devMock.EXPECT().
+			RequestWirelessStateChange(gomock.Any(), "my-guid", wifi.RequestedStateWifiEnabledS0SxAC).
+			Return(wifi.RequestedState(0), wsman.ErrNoWiFiPort)
+
+		req := httptest.NewRequest(http.MethodPost, "/api/v1/amt/networkSettings/wireless/state/my-guid", bytes.NewBufferString(`{"state":"WifiEnabledS0SxAC"}`))
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusNotFound, w.Code)
+	})
+
 	t.Run("request wireless state change - unsupported requested state conversion", func(t *testing.T) {
 		t.Parallel()
 

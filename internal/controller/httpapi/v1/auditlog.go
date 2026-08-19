@@ -12,6 +12,10 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
+const (
+	eventLogBatchSize = 100
+)
+
 func (r *deviceManagementRoutes) getAuditLog(c *gin.Context) {
 	guid := c.Param("guid")
 
@@ -110,9 +114,9 @@ func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
 
 	startIndex := 0
 
-	// Keep fetching logs until NoMoreRecords is true
+	// Keep fetching logs until there are no more records.
 	for {
-		eventLogs, err := r.d.GetEventLog(c.Request.Context(), 0, 0, guid)
+		eventLogs, err := r.d.GetEventLog(c.Request.Context(), startIndex, eventLogBatchSize, guid)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getEventLog")
 			ErrorResponse(c, err)
@@ -123,8 +127,8 @@ func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
 		// Append the current batch of logs
 		allEventLogs = append(allEventLogs, eventLogs.Records...)
 
-		// Break if no more records
-		if eventLogs.HasMoreRecords {
+		// Break when no more records are available from AMT.
+		if !eventLogs.HasMoreRecords {
 			break
 		}
 
