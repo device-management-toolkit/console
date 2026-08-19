@@ -17,7 +17,7 @@ const (
 )
 
 func (uc *UseCase) GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return dto.NetworkSettings{}, err
 	}
@@ -188,7 +188,7 @@ func (uc *UseCase) PatchWiredNetworkSettings(c context.Context, guid string, req
 		return err
 	}
 
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return err
 	}
