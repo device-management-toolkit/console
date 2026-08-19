@@ -103,7 +103,11 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &config.TenantID)
+	if err := applyTenantID(c, &config.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	insertedConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
@@ -126,7 +130,11 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &config.TenantID)
+	if err := applyTenantID(c, &config.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	updatedWirelessConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {

@@ -93,7 +93,11 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &ciraConfig.TenantID)
+	if err := applyTenantID(c, &ciraConfig.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &ciraConfig)
 	if err != nil {
@@ -115,7 +119,11 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &ciraConfig.TenantID)
+	if err := applyTenantID(c, &ciraConfig.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	updatedConfig, err := r.cira.Update(c.Request.Context(), &ciraConfig)
 	if err != nil {

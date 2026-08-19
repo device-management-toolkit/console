@@ -204,7 +204,11 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &device.TenantID)
+	if err := applyTenantID(c, &device.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	newDevice, err := dr.t.Insert(c.Request.Context(), &device)
 	if err != nil {
@@ -264,7 +268,11 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &device.TenantID)
+	if err := applyTenantID(c, &device.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	fields, err := providedJSONFields(c)
 	if err != nil {

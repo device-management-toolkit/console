@@ -103,7 +103,11 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &config.TenantID)
+	if err := applyTenantID(c, &config.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	newConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
@@ -125,7 +129,11 @@ func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &config.TenantID)
+	if err := applyTenantID(c, &config.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	updatedConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {

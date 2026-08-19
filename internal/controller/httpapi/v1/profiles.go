@@ -128,7 +128,11 @@ func (r *profileRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &profile.TenantID)
+	if err := applyTenantID(c, &profile.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	newProfile, err := r.t.Insert(c.Request.Context(), &profile)
 	if err != nil {
@@ -150,7 +154,11 @@ func (r *profileRoutes) update(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &profile.TenantID)
+	if err := applyTenantID(c, &profile.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	fields, err := providedJSONFields(c)
 	if err != nil {

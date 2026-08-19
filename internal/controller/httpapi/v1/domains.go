@@ -97,7 +97,11 @@ func (r *domainRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &domain.TenantID)
+	if err := applyTenantID(c, &domain.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	newDomain, err := r.t.Insert(c.Request.Context(), &domain)
 	if err != nil {
@@ -119,7 +123,11 @@ func (r *domainRoutes) update(c *gin.Context) {
 		return
 	}
 
-	applyTenantID(c, &domain.TenantID)
+	if err := applyTenantID(c, &domain.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
 
 	updatedDomain, err := r.t.Update(c.Request.Context(), &domain)
 	if err != nil {
