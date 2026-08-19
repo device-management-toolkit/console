@@ -1603,6 +1603,71 @@
 					"response": []
 				},
 				{
+					"name": "Export Devices",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"pm.test(\"Has metadata, summary and data\",function(){\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('metadata');\r",
+									"    pm.expect(jsonData.metadata).to.have.property('exportedAt');\r",
+									"    pm.expect(jsonData.metadata).to.have.property('swVersion');\r",
+									"    pm.expect(jsonData).to.have.property('summary');\r",
+									"    pm.expect(jsonData.summary).to.have.property('totalCount');\r",
+									"    pm.expect(jsonData).to.have.property('data');\r",
+									"    pm.expect(jsonData.data).to.be.an('array');\r",
+									"});\r",
+									"pm.test(\"Returns X-Total-Count header\",function(){\r",
+									"    pm.response.to.have.header('X-Total-Count');\r",
+									"});\r",
+									"pm.test(\"Export never leaks credential fields\",function(){\r",
+									"    var raw = pm.response.text();\r",
+									"    pm.expect(raw).to.not.include('mpspassword');\r",
+									"    pm.expect(raw).to.not.include('mebxpassword');\r",
+									"    pm.expect(raw).to.not.include('\\\"password\\\"');\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/export",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"export"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "DISTINCT tags when no devices",
 					"event": [
 						{

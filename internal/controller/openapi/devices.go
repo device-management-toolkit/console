@@ -70,6 +70,17 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		protectedRouteOptions(),
 	)
 
+	fuego.Get(f.server, "/api/v1/devices/export", f.exportDevices,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Export Devices"),
+		fuego.OptionDescription("Export a tenant-scoped snapshot of all devices as JSON. "+
+			"The response follows the nested schema (metadata, summary, data) and "+
+			"excludes credential fields. Results are capped and the total record count is "+
+			"returned in the X-Total-Count header."),
+		fuego.OptionAddResponse(http.StatusServiceUnavailable, "Export generation failed or timed out", fuego.Response{Type: ErrorResponse{}}),
+		protectedRouteOptions(),
+	)
+
 	fuego.Get(f.server, "/api/v1/devices/redirectstatus/{guid}", f.getRedirectStatus,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Redirect Status"),
@@ -205,6 +216,80 @@ func (f *FuegoAdapter) getDeviceStats(_ fuego.ContextNoBody) (dto.DeviceStatResp
 		TotalCount:        5,
 		ConnectedCount:    3,
 		DisconnectedCount: 2,
+	}, nil
+}
+
+func exampleDeviceExportRecord() dto.DeviceExportRecord {
+	firstDiscovered := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 7, 20, 14, 22, 15, 0, time.UTC)
+	mebxEnabled := true
+	dhcpEnabled := true
+	lmsInstalled := true
+	monitorConnected := true
+	ieee8021xEnabled := false
+	ethernetAdapterCount := 2
+
+	return dto.DeviceExportRecord{
+		GUID:            exampleDeviceGUID,
+		Hostname:        exampleDeviceHost,
+		FriendlyName:    "Lab PC Alpha",
+		Tags:            []string{"campus-lab", "shared-device"},
+		TenantID:        defaultTenantID,
+		FirstDiscovered: &firstDiscovered,
+		LastSynced:      &lastSynced,
+		DeviceInfo: dto.DeviceExportInfo{
+			ME: &dto.ExportME{
+				DNSSuffix:         "corp.example.com",
+				CurrentMode:       "Admin",
+				MEBXEnabledInBIOS: &mebxEnabled,
+				FWVersion:         "16.1.32",
+				FWBuild:           "3400",
+				FWSku:             "16392",
+				Features:          "AMT Pro Corporate",
+				TLSMode:           "TLS 1.2",
+				DHCPEnabled:       &dhcpEnabled,
+				CertHashes:        []string{"a1b2c3xxx", "d4e5f6xxx"},
+				UPID: map[string]json.RawMessage{
+					"csmeId":            json.RawMessage(`"4A45A39C5ED9462082510000"`),
+					"oemId":             json.RawMessage(`""`),
+					"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
+				},
+				Network: &dto.ExportMENetwork{
+					Wired: &dto.ExportMEInterface{IPAddress: "10.0.0.12", DHCPEnabled: &dhcpEnabled},
+				},
+			},
+			OS: &dto.ExportOS{
+				Name:               "linux",
+				Version:            "6.8.0-51-generic",
+				Distro:             "Ubuntu 24.04 LTS",
+				LMSInstalled:       &lmsInstalled,
+				LMSVersion:         "2410.5.0.0",
+				MEInterfaceVersion: "16.1.25.2124",
+				MonitorConnected:   &monitorConnected,
+				IEEE8021XEnabled:   &ieee8021xEnabled,
+				Network: &dto.ExportOSNetwork{
+					Wired: []dto.ExportOSInterface{{IPAddress: "10.49.76.163"}},
+				},
+			},
+			Platform: &dto.ExportPlatform{
+				CPU:                  "Intel(R) Core(TM) Ultra 7 165H",
+				EthernetAdapterCount: &ethernetAdapterCount,
+			},
+			BMC: nil,
+		},
+	}
+}
+
+func (f *FuegoAdapter) exportDevices(_ fuego.ContextNoBody) (dto.DeviceExport, error) {
+	records := []dto.DeviceExportRecord{exampleDeviceExportRecord()}
+
+	return dto.DeviceExport{
+		Metadata: dto.ExportMetadata{
+			ExportedAt: time.Now().UTC(),
+			SwVersion:  "console v1.38.1",
+		},
+		Summary: dto.ExportSummary{TotalCount: len(records)},
+		Data:    records,
 	}, nil
 }
 
