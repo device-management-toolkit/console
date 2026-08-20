@@ -6,8 +6,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
-	"strconv"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
