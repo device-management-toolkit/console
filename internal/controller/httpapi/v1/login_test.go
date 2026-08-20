@@ -237,6 +237,9 @@ func TestLogoutExpiresSessionCookie(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code, "logout must work without a valid session")
+	require.Equal(t, "no-cache, no-store, must-revalidate", w.Header().Get("Cache-Control"))
+	require.Equal(t, "no-cache", w.Header().Get("Pragma"))
+	require.Equal(t, "0", w.Header().Get("Expires"))
 
 	cleared := make(map[string]*http.Cookie)
 	for _, cookie := range w.Result().Cookies() {
