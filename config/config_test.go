@@ -399,6 +399,8 @@ func TestNewConfig_PortOutOfRange(t *testing.T) { //nolint:paralleltest // canno
 
 	_, err := NewConfig()
 	require.ErrorIs(t, err, ErrPortOutOfRange)
+}
+
 func TestNewConfig_InvalidEnvResetsConsoleConfig(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
 	clearEnv()
 
