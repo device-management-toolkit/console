@@ -8397,7 +8397,7 @@
 		"bearer": [
 			{
 				"key": "token",
-				"value": "eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJleHAiOjE3NjUzOTU1OTl9.2cEjByEMSu7g_PQG8uj5kOTwzQ8D4lnuflx4Tb9ElCY",
+				"value": "{{token}}",
 				"type": "string"
 			}
 		]

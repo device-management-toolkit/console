@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"os"
 	"os/signal"
+	"slices"
 	"syscall"
 
 	"github.com/gin-contrib/cors"
@@ -80,6 +81,7 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	defaultConfig := cors.DefaultConfig()
 	defaultConfig.AllowOrigins = cfg.AllowedOrigins
 	defaultConfig.AllowHeaders = cfg.AllowedHeaders
+	defaultConfig.AllowCredentials = cfg.AllowCredentials && !slices.Contains(cfg.AllowedOrigins, "*")
 
 	handler.Use(cors.New(defaultConfig))
 	httpapi.NewRouter(handler, log, *usecases, cfg)

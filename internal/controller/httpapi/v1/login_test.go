@@ -6,12 +6,248 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
 )
+
+const (
+	testJWTKey       = "test-jwt-key"
+	testAdminUser    = "admin"
+	testAdminPass    = "secret"
+	testCredsBody    = `{"username":"admin","password":"secret"}`
+	testProtectedURL = "/api/v1/devices"
+	testAuthorizeURL = "/api/v1/authorize"
+	testLogoutURL    = "/api/v1/authorize/logout"
+)
+
+// cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
+func cookieAuthTestConfig() *config.Config {
+	cfg := &config.Config{}
+	cfg.AdminUsername = testAdminUser
+	cfg.AdminPassword = testAdminPass
+	cfg.JWTKey = testJWTKey
+	cfg.JWTExpiration = time.Hour
+	cfg.CookieEnabled = true
+	cfg.CookieName = config.DefaultSessionCookieName
+	cfg.CookieSecure = true
+	cfg.CookieSameSite = "strict"
+
+	return cfg
+}
+
+// newAuthTestEngine wires authorize, logout and one protected route against cfg,
+// installing it as the singleton the handlers read.
+func newAuthTestEngine(t *testing.T, cfg *config.Config) *gin.Engine {
+	t.Helper()
+
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = cfg
+
+	route := LoginRoute{Config: cfg}
+
+	engine := gin.New()
+	engine.POST(testAuthorizeURL, route.Login)
+	engine.POST(testLogoutURL, route.Logout)
+	engine.GET(testProtectedURL, route.JWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	return engine
+}
+
+// login authorizes and returns the body token plus the cookies set, by name.
+func login(t *testing.T, engine *gin.Engine) (token string, cookies map[string]*http.Cookie) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(testCredsBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var body map[string]string
+
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+
+	cookies = make(map[string]*http.Cookie)
+	for _, cookie := range w.Result().Cookies() {
+		cookies[cookie.Name] = cookie
+	}
+
+	return body["token"], cookies
+}
+
+// get calls the protected route after applying mutators.
+func get(t *testing.T, engine *gin.Engine, mutators ...func(*http.Request)) *httptest.ResponseRecorder {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, testProtectedURL, http.NoBody)
+	require.NoError(t, err)
+
+	for _, mutate := range mutators {
+		mutate(req)
+	}
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	return w
+}
+
+func withBearer(token string) func(*http.Request) {
+	return func(r *http.Request) { r.Header.Set("Authorization", "Bearer "+token) }
+}
+
+func withCookie(cookie *http.Cookie) func(*http.Request) {
+	return func(r *http.Request) { r.AddCookie(cookie) }
+}
+
+// TestAuthorizeIssuesSessionCookies pins the shape REST clients rely on: the
+// token stays in the body and the cookies are purely additive.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestAuthorizeIssuesSessionCookies(t *testing.T) {
+	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+
+	token, cookies := login(t, engine)
+	require.NotEmpty(t, token, "token must remain in the response body for bearer clients")
+
+	session, ok := cookies[config.DefaultSessionCookieName]
+	require.True(t, ok, "expected the session cookie to be set")
+	require.Equal(t, token, session.Value, "session cookie must carry the same token as the body")
+	require.True(t, session.HttpOnly, "session cookie must not be readable by script")
+	require.True(t, session.Secure)
+	require.Equal(t, http.SameSiteStrictMode, session.SameSite)
+	require.Equal(t, "/", session.Path)
+	require.Positive(t, session.MaxAge)
+
+	require.Len(t, cookies, 1, "only the session cookie is issued")
+}
+
+// TestBearerAuthUnchanged is the backward-compatibility guarantee for curl,
+// Postman and partner tooling: a bearer header authenticates on its own.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestBearerAuthUnchanged(t *testing.T) {
+	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+
+	token, cookies := login(t, engine)
+
+	t.Run("bearer header alone is accepted", func(t *testing.T) {
+		require.Equal(t, http.StatusOK, get(t, engine, withBearer(token)).Code)
+	})
+
+	t.Run("bearer header is accepted alongside a cookie", func(t *testing.T) {
+		session := cookies[config.DefaultSessionCookieName]
+
+		w := get(t, engine, withBearer(token), withCookie(session))
+		require.Equal(t, http.StatusOK, w.Code, "header takes precedence over the cookie")
+	})
+
+	t.Run("no credentials at all is still 401", func(t *testing.T) {
+		require.Equal(t, http.StatusUnauthorized, get(t, engine).Code)
+	})
+}
+
+// TestCookieAuthAcceptsSessionCookie covers the cookie path on its own.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestCookieAuthAcceptsSessionCookie(t *testing.T) {
+	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+
+	_, cookies := login(t, engine)
+	session := cookies[config.DefaultSessionCookieName]
+
+	t.Run("session cookie alone is accepted", func(t *testing.T) {
+		require.Equal(t, http.StatusOK, get(t, engine, withCookie(session)).Code)
+	})
+
+	t.Run("a tampered session cookie is rejected", func(t *testing.T) {
+		forged := &http.Cookie{Name: session.Name, Value: session.Value + "x"}
+		require.Equal(t, http.StatusUnauthorized, get(t, engine, withCookie(forged)).Code)
+	})
+}
+
+// TestCookieAuthDisabled checks the escape hatch: with cookies off, none are
+// issued and an earlier one no longer authenticates.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestCookieAuthDisabled(t *testing.T) {
+	enabled := newAuthTestEngine(t, cookieAuthTestConfig())
+	_, cookies := login(t, enabled)
+	session := cookies[config.DefaultSessionCookieName]
+
+	cfg := cookieAuthTestConfig()
+	cfg.CookieEnabled = false
+	disabled := newAuthTestEngine(t, cfg)
+
+	token, issued := login(t, disabled)
+	require.NotEmpty(t, token, "the body token is the only credential when cookies are off")
+	require.Empty(t, issued, "no cookies should be issued when cookie auth is disabled")
+
+	w := get(t, disabled, withCookie(session))
+	require.Equal(t, http.StatusUnauthorized, w.Code, "a previously issued cookie must not authenticate")
+
+	require.Equal(t, http.StatusOK, get(t, disabled, withBearer(token)).Code)
+}
+
+// TestLogoutWithoutConfig: the public logout route must not panic when the
+// config singleton has not been populated yet.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLogoutWithoutConfig(t *testing.T) {
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = nil
+
+	engine := gin.New()
+	route := LoginRoute{Config: &config.Config{}}
+	engine.POST(testLogoutURL, route.Logout)
+
+	req, err := http.NewRequest(http.MethodPost, testLogoutURL, http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+
+	require.NotPanics(t, func() { engine.ServeHTTP(w, req) })
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, w.Result().Cookies(), "no cookie can be written without config")
+}
+
+// TestLogoutExpiresSessionCookie checks the cookie is cleared and that logout
+// works without credentials.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLogoutExpiresSessionCookie(t *testing.T) {
+	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+
+	req, err := http.NewRequest(http.MethodPost, testLogoutURL, http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code, "logout must work without a valid session")
+
+	cleared := make(map[string]*http.Cookie)
+	for _, cookie := range w.Result().Cookies() {
+		cleared[cookie.Name] = cookie
+	}
+
+	cookie, ok := cleared[config.DefaultSessionCookieName]
+	require.True(t, ok, "expected the session cookie to be expired")
+	require.Empty(t, cookie.Value)
+	require.Negative(t, cookie.MaxAge)
+}
 
 func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	t.Parallel()
