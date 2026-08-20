@@ -119,6 +119,9 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 // still clear its own. Not revocation: the JWT stays valid until it expires.
 func (lr LoginRoute) Logout(c *gin.Context) {
 	clearSessionCookies(c)
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
 
 	c.JSON(http.StatusOK, gin.H{messageKey: "logged out"})
 }
