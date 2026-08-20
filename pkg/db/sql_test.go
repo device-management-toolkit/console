@@ -43,6 +43,22 @@ func TestNew_Postgres(t *testing.T) {
 	mockDB.AssertExpectations(t)
 }
 
+func TestNew_PostgresPassesDSNThroughUnchanged(t *testing.T) {
+	t.Parallel()
+
+	dsn := "postgres://localhost:5432/testdb?sslmode=verify-full&sslrootcert=%2Fetc%2Fssl%2Fca.pem"
+
+	mockDB := new(MockDB)
+	mockDB.On("Open", "pgx", dsn).Return(&sql.DB{}, nil)
+
+	db, err := New(dsn, mockDB.Open)
+	assert.NoError(t, err)
+	assert.NotNil(t, db)
+	assert.False(t, db.IsEmbedded)
+
+	mockDB.AssertExpectations(t)
+}
+
 func TestNew_Embedded(t *testing.T) {
 	t.Parallel()
 

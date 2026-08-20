@@ -272,18 +272,30 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 	return err
 }
 
+// File modes for the config directory and file (owner-only for the file since
+// it can carry sensitive settings).
+const (
+	configDirPerm  os.FileMode = 0o755
+	configFilePerm os.FileMode = 0o600
+)
+
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
 func writeConfig(configPath string, cfg *Config) error {
 	configDir := filepath.Dir(configPath)
-	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+	if mkErr := os.MkdirAll(configDir, configDirPerm); mkErr != nil {
 		return mkErr
 	}
 
-	file, err := os.Create(configPath)
+	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, configFilePerm)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	// Tighten pre-existing files too; OpenFile's mode only applies at creation.
+	if err := os.Chmod(configPath, configFilePerm); err != nil {
+		return err
+	}
 
 	encoder := yaml.NewEncoder(file)
 	defer encoder.Close()
