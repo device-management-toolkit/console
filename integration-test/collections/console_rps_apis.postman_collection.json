@@ -8427,6 +8427,21 @@
 					"    pm.expect(pm.response.headers.get(\"Cache-Control\")).to.eql(\"no-cache, no-store, must-revalidate\");",
 					"    pm.expect(pm.response.headers.get(\"Pragma\")).to.eql(\"no-cache\");",
 					"    pm.expect(pm.response.headers.get(\"Expires\")).to.eql(\"0\");",
+					"});",
+					"",
+					"pm.test(\"Explicit false TLS settings remain false when present\", function () {",
+					"    var jsonData = {};",
+					"    try {",
+					"        jsonData = pm.response.json();",
+					"    } catch (e) {",
+					"        return;",
+					"    }",
+					"    if (jsonData && Object.prototype.hasOwnProperty.call(jsonData, 'useTLS') && jsonData.useTLS === false) {",
+					"        pm.expect(jsonData.useTLS).to.be.equal(false);",
+					"    }",
+					"    if (jsonData && Object.prototype.hasOwnProperty.call(jsonData, 'allowSelfSigned') && jsonData.allowSelfSigned === false) {",
+					"        pm.expect(jsonData.allowSelfSigned).to.be.equal(false);",
+					"    }",
 					"});"
 				]
 			}
