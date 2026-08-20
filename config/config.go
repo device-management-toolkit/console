@@ -6,6 +6,7 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -21,6 +22,15 @@ const defaultHost = "localhost"
 
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
+
+// File modes for the config directory and file (owner-only for the file since
+// it can carry sensitive settings).
+const (
+	configFilePerm os.FileMode = 0o600
+	configDirPerm  os.FileMode = 0o700
+
+	goosWindows = "windows"
+)
 
 type (
 	// Config -.
@@ -239,6 +249,34 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return configPathFlag, nil
 	}
 
+	if TrayMode {
+		if perUser, err := perUserConfigPath(); err == nil {
+			return perUser, nil
+		}
+	}
+
+	machine, err := machineConfigPath()
+	if err != nil {
+		return "", err
+	}
+
+	if _, statErr := os.Stat(machine); statErr == nil {
+		return machine, nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+func perUserConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "device-management-toolkit", "config", "config.yml"), nil
+}
+
+func besideBinaryConfigPath() (string, error) {
 	ex, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -251,9 +289,45 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		ex = resolved
 	}
 
-	exPath := filepath.Dir(ex)
+	return filepath.Join(filepath.Dir(ex), "config", "config.yml"), nil
+}
 
-	return filepath.Join(exPath, "config", "config.yml"), nil
+func machineConfigPath() (string, error) {
+	switch runtime.GOOS {
+	case goosWindows:
+		if dir := os.Getenv("ProgramData"); dir != "" {
+			return filepath.Join(dir, "device-management-toolkit", "config.yml"), nil
+		}
+	case "darwin":
+		return "/Library/Application Support/device-management-toolkit/config.yml", nil
+	case "linux":
+		return "/etc/dmt-console/config/config.yml", nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+func seedConfig(src, dst string) error {
+	_, err := os.Stat(dst)
+	if err == nil {
+		return nil
+	}
+
+	if !os.IsNotExist(err) {
+		return err
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return nil //nolint:nilerr // no installer config to migrate (e.g. dev run); init proceeds normally
+	}
+
+	if mkErr := os.MkdirAll(filepath.Dir(dst), configDirPerm); mkErr != nil {
+		return mkErr
+	}
+
+	// #nosec G703 -- dst derives from resolveConfigPath, not external input.
+	return os.WriteFile(dst, data, configFilePerm)
 }
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
@@ -270,13 +344,6 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 
 	return err
 }
-
-// File modes for the config directory and file (owner-only for the file since
-// it can carry sensitive settings).
-const (
-	configDirPerm  os.FileMode = 0o755
-	configFilePerm os.FileMode = 0o600
-)
 
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
 func writeConfig(configPath string, cfg *Config) error {
@@ -355,6 +422,14 @@ func NewConfig() (*Config, error) {
 	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
 		return nil, err
+	}
+
+	if TrayMode && configPathFlag == "" {
+		if src, srcErr := machineConfigPath(); srcErr == nil {
+			if seedErr := seedConfig(src, configPath); seedErr != nil {
+				return nil, seedErr
+			}
+		}
 	}
 
 	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
