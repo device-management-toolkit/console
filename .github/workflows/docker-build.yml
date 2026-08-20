@@ -22,7 +22,7 @@ jobs:
       with:
         persist-credentials: false
     - name: Build the Docker image
-      run: docker build --file Dockerfile --tag  vprodemo.azurecr.io/console:latest --tag vprodemo.azurecr.io/console:${{ github.sha }} .
+      run: DOCKER_BUILDKIT=1 docker build --file Dockerfile --tag  vprodemo.azurecr.io/console:latest --tag vprodemo.azurecr.io/console:${{ github.sha }} .
     - name: Docker Login
       if: ${{ github.ref == 'refs/heads/main' }}      
       uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0

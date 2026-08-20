@@ -3,6 +3,8 @@
 # * SPDX-License-Identifier: Apache-2.0
 # **********************************************************************
 
+# syntax=docker/dockerfile:1.7
+
 # Global build argument for all stages
 ARG BUILD_TAGS=""
 
@@ -20,18 +22,28 @@ FROM golang:1.26-alpine@sha256:3889b425f035be855a72fb4755265311293b6d414521f0a51
 # - noui: Excludes web UI assets
 # Redeclare ARG to make it available in this stage
 ARG BUILD_TAGS
+ARG TARGETARCH=amd64
+ARG TARGETVARIANT
+RUN apk add --no-cache ca-certificates
 COPY --from=modules /go/pkg /go/pkg
 COPY . /app
 WORKDIR /app
-RUN go mod tidy
 RUN mkdir -p /app/tmp/
 # Convert hyphens to commas for Go build tags, keep hyphens for Docker stage names
-RUN BUILD_TAGS_GO=$(echo "$BUILD_TAGS" | tr '-' ','); \
+# Use BuildKit cache mounts for faster iterative builds
+RUN --mount=type=cache,target=/root/.cache/go-build \
+    --mount=type=cache,target=/go/pkg/mod/cache \
+    sh -c 'BUILD_TAGS_GO=$(echo "$BUILD_TAGS" | tr "-" ","); \
+    GOARM_VALUE=""; \
+    if [ "$TARGETARCH" = "arm" ] && [ -n "$TARGETVARIANT" ]; then \
+      GOARM_VALUE=${TARGETVARIANT#v}; \
+      export GOARM=$GOARM_VALUE; \
+    fi; \
     if [ -n "$BUILD_TAGS" ]; then \
-      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags="$BUILD_TAGS_GO" -o /bin/app ./cmd/app; \
+      CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -tags="$BUILD_TAGS_GO" -o /bin/app ./cmd/app; \
     else \
-      CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -o /bin/app ./cmd/app; \
-    fi
+      CGO_ENABLED=0 GOOS=linux GOARCH=$TARGETARCH go build -o /bin/app ./cmd/app; \
+    fi'
 RUN mkdir -p /.config/device-management-toolkit
 
 # Step 3: Final - Use scratch for all builds (all are fully static with pure Go)
