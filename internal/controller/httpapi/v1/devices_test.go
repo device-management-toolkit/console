@@ -411,6 +411,112 @@ func TestDevicesUpdatePartialPatch(t *testing.T) {
 	require.Equal(t, string(expected), w.Body.String())
 }
 
+func TestDevicesInsertDefaultsUseTLSToTrueWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-no-tls-field",
+		GUID:             "123e4567-e89b-12d3-a456-426614174000",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           true,
+		AllowSelfSigned:  true,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-no-tls-field","guid":"123e4567-e89b-12d3-a456-426614174000","username":"admin1","password":"password1"}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertDefaultsAllowSelfSignedToTrueWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-no-self-signed-field",
+		GUID:             "123e4567-e89b-12d3-a456-426614174001",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           true,
+		AllowSelfSigned:  true,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-no-self-signed-field","guid":"123e4567-e89b-12d3-a456-426614174001","username":"admin1","password":"password1"}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertHonorsExplicitUseTLSFalse(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-explicit-false",
+		GUID:             "123e4567-e89b-12d3-a456-426614174001",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           false,
+		AllowSelfSigned:  false,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-explicit-false","guid":"123e4567-e89b-12d3-a456-426614174001","username":"admin1","password":"password1","useTLS":false,"allowSelfSigned":false}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	_, engine := devicesTest(t)
+
+	// Invalid JSON should fail during request binding.
+	body := []byte(`{invalid json}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 // encoding/json unmarshals case-insensitively; the merge must see the field as
 // provided regardless of the casing the client used.
 func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
@@ -513,6 +619,38 @@ func TestCollectNestedJSONFields(t *testing.T) {
 	})
 }
 
+func TestDevicesInsertDefaultsTLSAndSelfSignedWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	incoming := &dto.Device{
+		AllowSelfSigned: true,
+		GUID:            testDeviceGUID,
+		Hostname:        "test-device",
+		UseTLS:          true,
+	}
+
+	devicesFeature, engine := devicesTest(t)
+	devicesFeature.EXPECT().
+		Insert(context.Background(), incoming).
+		Return(incoming, nil)
+
+	body := []byte(`{
+		"guid":"` + testDeviceGUID + `",
+		"hostname":"test-device"
+	}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	expected, _ := json.Marshal(incoming)
+	require.Equal(t, string(expected), w.Body.String())
+}
+
 func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	t.Parallel()
 
@@ -525,8 +663,10 @@ func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
 	ieee8021xEnabled := false
 
 	incoming := &dto.Device{
-		GUID:     testDeviceGUID,
-		Hostname: "test-device",
+		GUID:            testDeviceGUID,
+		Hostname:        "test-device",
+		UseTLS:          true,
+		AllowSelfSigned: true,
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:       "16.1.30",
 			FWBuild:         "3400",
