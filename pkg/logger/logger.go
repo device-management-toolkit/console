@@ -113,7 +113,9 @@ func (l *logger) Fatal(message interface{}, args ...any) {
 func (l *logger) log(e *zerolog.Event, m string, args ...any) {
 	if len(args) == 0 {
 		e.Msg(m)
-	} else {
-		e.Msgf(m, args...)
+
+		return
 	}
+
+	e.Msgf("%s %s", m, fmt.Sprint(args...))
 }
