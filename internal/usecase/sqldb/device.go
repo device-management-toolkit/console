@@ -247,6 +247,7 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 		// All tags must be present (simulating an 'AND' operation)
 		for _, tag := range tags {
 			builder = builder.Where("(',' || tags || ',') LIKE ? AND tenantId = ?", "%,"+tag+",%", tenantID)
+			params = append(params, "%,"+tag+",%", tenantID) //nolint:staticcheck // intentionally retained; the AND branch passes its args to Where inline
 		}
 	} else {
 		// Any tag is present (simulating an 'OR' operation)
