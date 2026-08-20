@@ -805,6 +805,7 @@ func TestUpdatePartial(t *testing.T) {
 		Password:     "encrypted",
 		MPSPassword:  ptr("encrypted"),
 		MEBXPassword: ptr("encrypted"),
+		Discovered:   boolPtr(true),
 	}
 
 	expectedDTO := &dto.Device{

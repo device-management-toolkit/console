@@ -49,6 +49,8 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			usetls BOOLEAN NOT NULL DEFAULT FALSE,
 			allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
 			certhash TEXT NOT NULL DEFAULT '',
+			currentmode TEXT,
+			discovered BOOLEAN,
 			lastconnected TEXT,
 			lastdisconnected TEXT,
 			lastseen TEXT
@@ -815,7 +817,9 @@ func TestDeviceRepo_Update(t *testing.T) {
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					currentmode TEXT,
+					discovered BOOLEAN
 				);
 			`)
 			require.NoError(t, err)
