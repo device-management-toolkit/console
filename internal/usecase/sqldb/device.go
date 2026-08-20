@@ -146,7 +146,8 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 			"mebxpassword",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+		).
 		From("devices").
 		Where("guid = ? and tenantid = ?").
 		ToSql()
@@ -246,7 +247,6 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 		// All tags must be present (simulating an 'AND' operation)
 		for _, tag := range tags {
 			builder = builder.Where("(',' || tags || ',') LIKE ? AND tenantId = ?", "%,"+tag+",%", tenantID)
-			params = append(params, "%,"+tag+",%", tenantID)
 		}
 	} else {
 		// Any tag is present (simulating an 'OR' operation)
@@ -467,7 +467,8 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 			"password",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+		).
 		From("devices").
 		Where(columnName+" = ? AND tenantid = ?", queryValue, tenantID).
 		ToSql()
