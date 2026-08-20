@@ -150,6 +150,8 @@ func handleEncryptionKey(cfg *config.Config) {
 
 	// Try remote storage first
 	if done := tryRemoteStorage(cfg, remoteStorage); done {
+		checkStoredEncryptionKey(cfg.EncryptionKey, "secret store")
+
 		return
 	}
 
@@ -157,6 +159,8 @@ func handleEncryptionKey(cfg *config.Config) {
 	localStorage := security.NewKeyRingStorage("device-management-toolkit")
 
 	if done := tryLocalStorage(cfg, localStorage, remoteStorage); done {
+		checkStoredEncryptionKey(cfg.EncryptionKey, "local keyring")
+
 		return
 	}
 
@@ -166,6 +170,39 @@ func handleEncryptionKey(cfg *config.Config) {
 	if err := saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage); err != nil {
 		log.Printf("Warning: Failed to save encryption key: %v", err)
 	}
+}
+
+// checkStoredEncryptionKey validates a key that came out of the secret store or
+// the local keyring. Keys supplied through config/env are already rejected by
+// config.NewConfig, so a failure here means the store holds a key written by an
+// older build that did not validate.
+//
+// A wrong-sized key can never encrypt anything (crypto/aes rejects it), so
+// Console refuses to start. A weak but usable key only warns: existing device
+// credentials are encrypted with it, and exiting would leave the operator unable
+// to start Console and read their own data.
+func checkStoredEncryptionKey(key, source string) {
+	err := config.ValidateEncryptionKey(key)
+	if err == nil {
+		return
+	}
+
+	if errors.Is(err, config.ErrEncryptionKeyLength) {
+		log.Fatalf(
+			"Encryption key from the %s is unusable: %v.\n"+
+				"Device credentials cannot be encrypted with it. Replace the stored "+
+				"`default-security-key`, or set APP_ENCRYPTION_KEY to a 16, 24 or 32 "+
+				"character key (note that credentials encrypted with a different key "+
+				"become unreadable).",
+			source, err,
+		)
+	}
+
+	log.Printf(
+		"Warning: encryption key from the %s is weak: %v. "+
+			"Rotating it requires re-entering device credentials, so plan the change.",
+		source, err,
+	)
 }
 
 // tryRemoteStorage attempts to store/retrieve the encryption key from remote storage.
