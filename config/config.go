@@ -7,6 +7,7 @@ import (
 	"os"
 	"path/filepath"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -472,5 +473,29 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	if err := validatePort(ConsoleConfig.Port); err != nil {
+		return nil, err
+	}
+
 	return ConsoleConfig, nil
+}
+
+// Sentinel errors for port validation.
+var (
+	ErrPortNotNumeric = errors.New("HTTP port (HTTP_PORT) must be a decimal integer")
+	ErrPortOutOfRange = errors.New("HTTP port (HTTP_PORT) must be in range 1-65535")
+)
+
+// validatePort returns an error if port is not a decimal integer in the range 1–65535.
+func validatePort(port string) error {
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		return ErrPortNotNumeric
+	}
+
+	if n < 1 || n > 65535 {
+		return ErrPortOutOfRange
+	}
+
+	return nil
 }

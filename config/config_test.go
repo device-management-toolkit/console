@@ -346,6 +346,61 @@ postgres:
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
 }
 
+func TestValidatePort(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		port    string
+		wantErr error
+	}{
+		{name: "valid port", port: "8181", wantErr: nil},
+		{name: "port 1", port: "1", wantErr: nil},
+		{name: "port 65535", port: "65535", wantErr: nil},
+		{name: "port 0", port: "0", wantErr: ErrPortOutOfRange},
+		{name: "port 65536", port: "65536", wantErr: ErrPortOutOfRange},
+		{name: "negative", port: "-1", wantErr: ErrPortOutOfRange},
+		{name: "non-numeric", port: "abc", wantErr: ErrPortNotNumeric},
+		{name: "with metacharacter", port: "8181&calc", wantErr: ErrPortNotNumeric},
+		{name: "empty string", port: "", wantErr: ErrPortNotNumeric},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validatePort(tt.port)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+	clearEnv()
+	os.Setenv("HTTP_PORT", "not-a-port")
+
+	defer clearEnv()
+
+	_, err := NewConfig()
+	require.ErrorIs(t, err, ErrPortNotNumeric)
+}
+
+func TestNewConfig_PortOutOfRange(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+	clearEnv()
+	os.Setenv("HTTP_PORT", "70000")
+
+	defer clearEnv()
+
+	_, err := NewConfig()
+	require.ErrorIs(t, err, ErrPortOutOfRange)
+}
+
 func TestNewConfig_InvalidEnvResetsConsoleConfig(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
 	clearEnv()
 
