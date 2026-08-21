@@ -3,11 +3,14 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -19,7 +22,12 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
+// Validation errors for configuration.
 var (
+	ErrSecretsAddrInsecure             = errors.New("SECRETS_ADDR must use HTTPS for non-localhost addresses")
+	ErrSecretsAddrInvalid              = errors.New("invalid SECRETS_ADDR")
+	ErrSecretsAddrMissingScheme        = errors.New("SECRETS_ADDR missing scheme (use http:// or https://)")
+	ErrSecretsAddrNoHost               = errors.New("SECRETS_ADDR contains no host")
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 )
@@ -477,7 +485,53 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	if err := ConsoleConfig.Validate(); err != nil {
+		return nil, err
+	}
+
 	return ConsoleConfig, nil
+}
+
+// Validate checks configuration for security and correctness issues.
+func (c *Config) Validate() error {
+	// Ensure non-localhost Vault addresses use HTTPS
+	if c.Secrets.Address != "" { //nolint:staticcheck // QF1008: explicit field reference is clearer
+		if err := c.validateSecretsAddr(); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
+// validateSecretsAddr ensures Vault address uses HTTPS (except for localhost).
+func (c *Config) validateSecretsAddr() error {
+	parsed, err := url.Parse(c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrSecretsAddrInvalid, err)
+	}
+
+	// Check for valid scheme (must be http or https)
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		if !strings.Contains(c.Secrets.Address, "://") { //nolint:staticcheck // QF1008: explicit field reference is clearer
+			return fmt.Errorf("%w: %q", ErrSecretsAddrMissingScheme, c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+		}
+
+		return fmt.Errorf("%w: unsupported scheme %q in %q", ErrSecretsAddrInvalid, parsed.Scheme, c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+	}
+
+	// Check host is present before checking HTTPS requirement
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("%w: %q", ErrSecretsAddrNoHost, c.Secrets.Address) //nolint:staticcheck // QF1008: explicit field reference is clearer
+	}
+
+	// Enforce HTTPS for non-localhost
+	if parsed.Scheme == "http" && !isLocalhost(hostname) {
+		return ErrSecretsAddrInsecure
+	}
+
+	return nil
 }
 
 // Sentinel errors for port validation.
@@ -498,4 +552,18 @@ func validatePort(port string) error {
 	}
 
 	return nil
+}
+
+func isLocalhost(host string) bool {
+	host = strings.TrimSuffix(host, ".")
+
+	if strings.EqualFold(host, defaultHost) {
+		return true
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+
+	return false
 }

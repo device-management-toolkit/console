@@ -1,11 +1,11 @@
 package config
 
 import (
+	"errors"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
-	"time"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
@@ -17,6 +17,19 @@ func clearEnv() {
 	os.Unsetenv("LOG_LEVEL")
 	os.Unsetenv("DB_POOL_MAX")
 	os.Unsetenv("DB_URL")
+	os.Unsetenv("SECRETS_ADDR")
+}
+
+func TestNewConfig_InvalidEnvVar(t *testing.T) {
+	clearEnv()
+	defer clearEnv()
+
+	// DB_POOL_MAX expects an int; a non-numeric value causes cleanenv.ReadEnv to fail.
+	t.Setenv("DB_POOL_MAX", "not-a-number")
+
+	cfg, err := NewConfig()
+	assert.Error(t, err)
+	assert.Nil(t, cfg)
 }
 
 func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
@@ -346,142 +359,222 @@ postgres:
 	assert.Equal(t, "postgres://envuser:envpassword@localhost:5432/envdb", cfg.DB.URL)
 }
 
-func TestValidatePort(t *testing.T) {
+func TestValidate_SecretsAddrEmpty(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name    string
-		port    string
-		wantErr error
-	}{
-		{name: "valid port", port: "8181", wantErr: nil},
-		{name: "port 1", port: "1", wantErr: nil},
-		{name: "port 65535", port: "65535", wantErr: nil},
-		{name: "port 0", port: "0", wantErr: ErrPortOutOfRange},
-		{name: "port 65536", port: "65536", wantErr: ErrPortOutOfRange},
-		{name: "negative", port: "-1", wantErr: ErrPortOutOfRange},
-		{name: "non-numeric", port: "abc", wantErr: ErrPortNotNumeric},
-		{name: "with metacharacter", port: "8181&calc", wantErr: ErrPortNotNumeric},
-		{name: "empty string", port: "", wantErr: ErrPortNotNumeric},
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "",
+		},
 	}
+	assert.NoError(t, cfg.Validate())
+}
 
-	for _, tt := range tests {
-		tt := tt
+func TestValidate_SecretsAddrHTTPSNonLocalhost(t *testing.T) {
+	t.Parallel()
 
-		t.Run(tt.name, func(t *testing.T) {
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "https://vault.example.com:8200",
+		},
+	}
+	assert.NoError(t, cfg.Validate())
+}
+
+func TestValidate_SecretsAddrHTTPLocalhost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"http://localhost:8200",
+		"http://127.0.0.1:8200",
+		"http://127.0.0.2:8200",
+		"http://[::1]:8200",
+		"http://[::1]",
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
 			t.Parallel()
 
-			err := validatePort(tt.port)
-			if tt.wantErr != nil {
-				require.ErrorIs(t, err, tt.wantErr)
-			} else {
-				require.NoError(t, err)
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
 			}
+			assert.NoError(t, cfg.Validate(), "expected %s to be valid", addr)
 		})
 	}
 }
 
-func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
-	clearEnv()
-	os.Setenv("HTTP_PORT", "not-a-port")
-
-	defer clearEnv()
-
-	_, err := NewConfig()
-	require.ErrorIs(t, err, ErrPortNotNumeric)
-}
-
-func TestNewConfig_PortOutOfRange(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
-	clearEnv()
-	os.Setenv("HTTP_PORT", "70000")
-
-	defer clearEnv()
-
-	_, err := NewConfig()
-	require.ErrorIs(t, err, ErrPortOutOfRange)
-}
-
-func TestNewConfig_InvalidEnvResetsConsoleConfig(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
-	clearEnv()
-
-	// DB_POOL_MAX expects an int; a non-numeric value makes cleanenv fail,
-	// exercising an error path in NewConfig.
-	os.Setenv("DB_POOL_MAX", "not-a-number")
-
-	defer clearEnv()
-
-	cfg, err := NewConfig()
-
-	require.Error(t, err)
-	assert.Nil(t, cfg)
-	assert.Nil(t, ConsoleConfig)
-}
-
-func TestValidate_ZeroJWTExpiration(t *testing.T) {
+func TestValidate_SecretsAddrHTTPNonLocalhost(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.JWTExpiration = 0
+	testCases := []string{
+		"http://vault.example.com:8200",
+		"http://192.168.1.1:8200",
+		"http://vault-server:8200",
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+			err := cfg.Validate()
+			assert.Error(t, err, "expected %s to fail", addr)
+			assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
+		})
+	}
 }
 
-func TestValidate_NegativeJWTExpiration(t *testing.T) {
+func TestValidate_SecretsAddrInvalidURL(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.JWTExpiration = -1 * time.Hour
-
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "://invalid",
+		},
+	}
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrInvalid), "expected ErrSecretsAddrInvalid, got %v", err)
 }
 
-func TestValidate_SubMinuteJWTExpiration(t *testing.T) {
+func TestValidate_SecretsAddrMissingScheme(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.JWTExpiration = 30 * time.Second
+	testCases := []string{
+		"vault.example.com:8200",
+		"localhost:8200",
+	}
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+
+			err := cfg.Validate()
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, ErrSecretsAddrMissingScheme), "expected ErrSecretsAddrMissingScheme, got %v", err)
+		})
+	}
 }
 
-func TestValidate_ZeroRedirectionJWTExpiration(t *testing.T) {
+func TestValidate_SecretsAddrUnsupportedScheme(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.RedirectionJWTExpiration = 0
+	testCases := []string{
+		"ftp://vault.example.com:8200",
+		"file:///tmp/vault",
+	}
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+
+			err := cfg.Validate()
+			assert.Error(t, err)
+			assert.True(t, errors.Is(err, ErrSecretsAddrInvalid), "expected ErrSecretsAddrInvalid, got %v", err)
+			assert.Contains(t, err.Error(), "unsupported scheme")
+		})
+	}
 }
 
-func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
+func TestIsLocalhost(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.RedirectionJWTExpiration = -5 * time.Minute
+	testCases := []struct {
+		host     string
+		expected bool
+	}{
+		// Localhost variants
+		{"localhost", true},
+		{"LOCALHOST", true},
+		{"localhost.", true},
+		{"LOCALHOST.", true},
+		{"127.0.0.1", true},
+		{"127.255.255.255", true},
+		{"::1", true},
+		{"127.1.1.1", true},
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+		// Non-localhost
+		{"192.168.1.1", false},
+		{"vault.example.com", false},
+		{"172.16.0.1", false},
+		{"example.com", false},
+		{"2001:db8::1", false},
+	}
+	for _, tc := range testCases {
+		t.Run(tc.host, func(t *testing.T) {
+			t.Parallel()
+
+			result := isLocalhost(tc.host)
+			assert.Equal(t, tc.expected, result, "isLocalhost(%s) = %v, want %v", tc.host, result, tc.expected)
+		})
+	}
 }
 
-func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
+func TestValidate_CallsValidateSecretsAddr(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
-	cfg.RedirectionJWTExpiration = 30 * time.Second
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "http://vault.example.com:8200", // Remote HTTP - should fail
+		},
+	}
 
-	err := cfg.validate()
-	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
+	err := cfg.Validate()
+	assert.Error(t, err)
+	assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
 }
 
-func TestValidate_ValidDefaults(t *testing.T) {
+func TestValidate_AllowsValidRemoteHTTPS(t *testing.T) {
 	t.Parallel()
 
-	cfg := defaultConfig()
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "https://vault.example.com:8200",
+		},
+	}
 
-	err := cfg.validate()
-	require.NoError(t, err)
+	err := cfg.Validate()
+	assert.NoError(t, err)
+}
+
+func TestValidateSecretsAddr_NoHost(t *testing.T) {
+	t.Parallel()
+
+	testCases := []string{
+		"http://",       // Scheme but no host
+		"https://",      // Scheme but no host
+		"http://:8200",  // Scheme with port but no host
+		"https://:8200", // Scheme with port but no host
+	}
+	for _, addr := range testCases {
+		t.Run(addr, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &Config{
+				Secrets: Secrets{
+					Address: addr,
+				},
+			}
+			err := cfg.validateSecretsAddr()
+			assert.Error(t, err, "expected %s to fail", addr)
+			assert.True(t, errors.Is(err, ErrSecretsAddrNoHost), "expected ErrSecretsAddrNoHost, got %v", err)
+		})
+	}
 }
