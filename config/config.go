@@ -8,9 +8,9 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
-	"strings"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -24,10 +24,10 @@ var TrayMode bool
 
 // Validation errors for configuration.
 var (
-	ErrSecretsAddrInsecure      = errors.New("SECRETS_ADDR must use HTTPS for non-localhost addresses")
-	ErrSecretsAddrInvalid       = errors.New("invalid SECRETS_ADDR")
-	ErrSecretsAddrMissingScheme = errors.New("SECRETS_ADDR missing scheme (use http:// or https://)")
-	ErrSecretsAddrNoHost        = errors.New("SECRETS_ADDR contains no host")
+	ErrSecretsAddrInsecure             = errors.New("SECRETS_ADDR must use HTTPS for non-localhost addresses")
+	ErrSecretsAddrInvalid              = errors.New("invalid SECRETS_ADDR")
+	ErrSecretsAddrMissingScheme        = errors.New("SECRETS_ADDR missing scheme (use http:// or https://)")
+	ErrSecretsAddrNoHost               = errors.New("SECRETS_ADDR contains no host")
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 )
