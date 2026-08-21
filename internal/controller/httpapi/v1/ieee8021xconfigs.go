@@ -44,8 +44,8 @@ func NewIEEE8021xConfigRoutes(handler *gin.RouterGroup, t ieee8021xconfigs.Featu
 
 func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		validationErr := ErrValidation8021xConfig.Wrap("get", "ShouldBindQuery", err)
+	if err := odata.BindAndValidate(c); err != nil {
+		validationErr := ErrValidation8021xConfig.Wrap("get", "BindAndValidate", err)
 		ErrorResponse(c, validationErr)
 
 		return

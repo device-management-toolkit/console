@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"strings"
 	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -27,6 +28,8 @@ var (
 	ErrSecretsAddrInvalid       = errors.New("invalid SECRETS_ADDR")
 	ErrSecretsAddrMissingScheme = errors.New("SECRETS_ADDR missing scheme (use http:// or https://)")
 	ErrSecretsAddrNoHost        = errors.New("SECRETS_ADDR contains no host")
+	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
+	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 )
 
 const defaultHost = "localhost"
@@ -410,6 +413,21 @@ func SaveAdminPassword(adminPassword string) error {
 	return writeConfig(configPath, fileCfg)
 }
 
+// validate checks that all Config values are sane.
+// It returns an error for any setting that would cause a runtime failure or
+// deny all service to legitimate users (e.g. zero/negative JWT expiration).
+func (c *Config) validate() error {
+	if c.JWTExpiration < time.Minute {
+		return ErrJWTExpirationInvalid
+	}
+
+	if c.RedirectionJWTExpiration < time.Minute {
+		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	return nil
+}
+
 // NewConfig returns app config.
 func NewConfig() (*Config, error) {
 	// set defaults
@@ -432,6 +450,8 @@ func NewConfig() (*Config, error) {
 	// Determine the config path
 	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
@@ -444,10 +464,24 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
+		ConsoleConfig = nil
+
+		return nil, err
+	}
+
+	if err := ConsoleConfig.validate(); err != nil {
+		ConsoleConfig = nil
+
+		return nil, err
+	}
+
+	if err := validatePort(ConsoleConfig.Port); err != nil {
 		return nil, err
 	}
 
@@ -495,6 +529,21 @@ func (c *Config) validateSecretsAddr() error {
 	// Enforce HTTPS for non-localhost
 	if parsed.Scheme == "http" && !isLocalhost(hostname) {
 		return ErrSecretsAddrInsecure
+// Sentinel errors for port validation.
+var (
+	ErrPortNotNumeric = errors.New("HTTP port (HTTP_PORT) must be a decimal integer")
+	ErrPortOutOfRange = errors.New("HTTP port (HTTP_PORT) must be in range 1-65535")
+)
+
+// validatePort returns an error if port is not a decimal integer in the range 1–65535.
+func validatePort(port string) error {
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		return ErrPortNotNumeric
+	}
+
+	if n < 1 || n > 65535 {
+		return ErrPortOutOfRange
 	}
 
 	return nil
