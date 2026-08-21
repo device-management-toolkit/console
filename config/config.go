@@ -529,6 +529,11 @@ func (c *Config) validateSecretsAddr() error {
 	// Enforce HTTPS for non-localhost
 	if parsed.Scheme == "http" && !isLocalhost(hostname) {
 		return ErrSecretsAddrInsecure
+	}
+
+	return nil
+}
+
 // Sentinel errors for port validation.
 var (
 	ErrPortNotNumeric = errors.New("HTTP port (HTTP_PORT) must be a decimal integer")
