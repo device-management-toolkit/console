@@ -32,8 +32,8 @@ func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logg
 
 func (r *ciraConfigRoutes) get(c *gin.Context) {
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		r.l.Error(err, "http - CIRA configs - v1 - getCount")
+	if err := odata.BindAndValidate(c); err != nil {
+		r.l.Error(err, "http - CIRA configs - v1 - get")
 		ErrorResponse(c, err)
 
 		return
@@ -41,7 +41,7 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 
 	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, "")
 	if err != nil {
-		r.l.Error(err, "http - CIRA configs - v1 - getCount")
+		r.l.Error(err, "http - CIRA configs - v1 - get")
 		ErrorResponse(c, err)
 
 		return

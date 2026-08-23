@@ -29,7 +29,8 @@ func expectedOpenBrowserArgs(url string) (cmd string, args []string) {
 	case "darwin":
 		return "open", []string{url}
 	case "windows":
-		return "cmd", []string{windowsCmdFlag, windowsCmdStart, url}
+		return "rundll32", []string{windowsURLHandler, url}
+
 	default:
 		return "xdg-open", []string{url}
 	}
@@ -43,7 +44,7 @@ func TestOpenBrowserWindows(t *testing.T) { //nolint:paralleltest // cannot have
 
 	cmdExecutor = mockCmdExecutor
 
-	mockCmdExecutor.On("Execute", "cmd", []string{windowsCmdFlag, windowsCmdStart, "http://localhost:8080"}).Return(nil)
+	mockCmdExecutor.On("Execute", "rundll32", []string{windowsURLHandler, "http://localhost:8080"}).Return(nil)
 
 	err := openBrowser("http://localhost:8080", "windows")
 	assert.NoError(t, err)

@@ -6,6 +6,8 @@ import (
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -17,10 +19,24 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
+var (
+	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
+	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
+)
+
 const defaultHost = "localhost"
 
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
+
+// File modes for the config directory and file (owner-only for the file since
+// it can carry sensitive settings).
+const (
+	configFilePerm os.FileMode = 0o600
+	configDirPerm  os.FileMode = 0o700
+
+	goosWindows = "windows"
+)
 
 type (
 	// Config -.
@@ -239,6 +255,34 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return configPathFlag, nil
 	}
 
+	if TrayMode {
+		if perUser, err := perUserConfigPath(); err == nil {
+			return perUser, nil
+		}
+	}
+
+	machine, err := machineConfigPath()
+	if err != nil {
+		return "", err
+	}
+
+	if _, statErr := os.Stat(machine); statErr == nil {
+		return machine, nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+func perUserConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "device-management-toolkit", "config", "config.yml"), nil
+}
+
+func besideBinaryConfigPath() (string, error) {
 	ex, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -251,9 +295,45 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		ex = resolved
 	}
 
-	exPath := filepath.Dir(ex)
+	return filepath.Join(filepath.Dir(ex), "config", "config.yml"), nil
+}
 
-	return filepath.Join(exPath, "config", "config.yml"), nil
+func machineConfigPath() (string, error) {
+	switch runtime.GOOS {
+	case goosWindows:
+		if dir := os.Getenv("ProgramData"); dir != "" {
+			return filepath.Join(dir, "device-management-toolkit", "config.yml"), nil
+		}
+	case "darwin":
+		return "/Library/Application Support/device-management-toolkit/config.yml", nil
+	case "linux":
+		return "/etc/dmt-console/config/config.yml", nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+func seedConfig(src, dst string) error {
+	_, err := os.Stat(dst)
+	if err == nil {
+		return nil
+	}
+
+	if !os.IsNotExist(err) {
+		return err
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return nil //nolint:nilerr // no installer config to migrate (e.g. dev run); init proceeds normally
+	}
+
+	if mkErr := os.MkdirAll(filepath.Dir(dst), configDirPerm); mkErr != nil {
+		return mkErr
+	}
+
+	// #nosec G703 -- dst derives from resolveConfigPath, not external input.
+	return os.WriteFile(dst, data, configFilePerm)
 }
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
@@ -274,15 +354,20 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
 func writeConfig(configPath string, cfg *Config) error {
 	configDir := filepath.Dir(configPath)
-	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+	if mkErr := os.MkdirAll(configDir, configDirPerm); mkErr != nil {
 		return mkErr
 	}
 
-	file, err := os.Create(configPath)
+	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, configFilePerm)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	// Tighten pre-existing files too; OpenFile's mode only applies at creation.
+	if err := os.Chmod(configPath, configFilePerm); err != nil {
+		return err
+	}
 
 	encoder := yaml.NewEncoder(file)
 	defer encoder.Close()
@@ -320,6 +405,21 @@ func SaveAdminPassword(adminPassword string) error {
 	return writeConfig(configPath, fileCfg)
 }
 
+// validate checks that all Config values are sane.
+// It returns an error for any setting that would cause a runtime failure or
+// deny all service to legitimate users (e.g. zero/negative JWT expiration).
+func (c *Config) validate() error {
+	if c.JWTExpiration < time.Minute {
+		return ErrJWTExpirationInvalid
+	}
+
+	if c.RedirectionJWTExpiration < time.Minute {
+		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	return nil
+}
+
 // NewConfig returns app config.
 func NewConfig() (*Config, error) {
 	// set defaults
@@ -342,16 +442,60 @@ func NewConfig() (*Config, error) {
 	// Determine the config path
 	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
+	if TrayMode && configPathFlag == "" {
+		if src, srcErr := machineConfigPath(); srcErr == nil {
+			if seedErr := seedConfig(src, configPath); seedErr != nil {
+				return nil, seedErr
+			}
+		}
+	}
+
 	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
 	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
+		ConsoleConfig = nil
+
+		return nil, err
+	}
+
+	if err := ConsoleConfig.validate(); err != nil {
+		ConsoleConfig = nil
+
+		return nil, err
+	}
+
+	if err := validatePort(ConsoleConfig.Port); err != nil {
 		return nil, err
 	}
 
 	return ConsoleConfig, nil
+}
+
+// Sentinel errors for port validation.
+var (
+	ErrPortNotNumeric = errors.New("HTTP port (HTTP_PORT) must be a decimal integer")
+	ErrPortOutOfRange = errors.New("HTTP port (HTTP_PORT) must be in range 1-65535")
+)
+
+// validatePort returns an error if port is not a decimal integer in the range 1–65535.
+func validatePort(port string) error {
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		return ErrPortNotNumeric
+	}
+
+	if n < 1 || n > 65535 {
+		return ErrPortOutOfRange
+	}
+
+	return nil
 }
