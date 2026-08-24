@@ -345,3 +345,88 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 
 	return devs, nil
 }
+
+// activatedFilter matches devices provisioned into a real AMT control mode.
+// The "" / null / missing currentmode and the "not activated" sentinel (any case) are excluded.
+func activatedFilter(tenantID string) bson.M {
+	return bson.M{
+		fieldTenantID: tenantID,
+		fieldCurrentMode: bson.M{
+			opExists: true,
+			opNin:    bson.A{"", nil},
+			opNot:    bson.Regex{Pattern: "^not activated$", Options: "i"},
+		},
+	}
+}
+
+// discoveredFilter matches devices flagged as discovered on the network.
+func discoveredFilter(tenantID string) bson.M {
+	return bson.M{
+		fieldTenantID:   tenantID,
+		fieldDiscovered: true,
+	}
+}
+
+// GetActivated returns devices that have been provisioned into an AMT control mode.
+func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return []entity.Device{}, nil
+	}
+
+	return r.findFiltered(ctx, "GetActivated", activatedFilter(tenantID), top, skip)
+}
+
+// GetDiscovered returns devices that have been discovered on the network.
+func (r *DeviceRepo) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return []entity.Device{}, nil
+	}
+
+	return r.findFiltered(ctx, "GetDiscovered", discoveredFilter(tenantID), top, skip)
+}
+
+// GetDeviceStateCounts returns the number of activated and discovered devices for a tenant.
+func (r *DeviceRepo) GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error) {
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return 0, 0, nil
+	}
+
+	activatedCount, err := r.col.CountDocuments(ctx, activatedFilter(tenantID))
+	if err != nil {
+		return 0, 0, errDeviceDatabase.Wrap("GetDeviceStateCounts", "CountDocuments", err)
+	}
+
+	discoveredCount, err := r.col.CountDocuments(ctx, discoveredFilter(tenantID))
+	if err != nil {
+		return 0, 0, errDeviceDatabase.Wrap("GetDeviceStateCounts", "CountDocuments", err)
+	}
+
+	return int(activatedCount), int(discoveredCount), nil
+}
+
+// findFiltered runs a paginated device query for an arbitrary filter (sorted by guid).
+func (r *DeviceRepo) findFiltered(ctx context.Context, op string, filter bson.M, top, skip int) ([]entity.Device, error) {
+	limit := int64(DefaultTop)
+	if top > 0 {
+		limit = int64(top)
+	}
+
+	offset := int64(0)
+	if skip > 0 {
+		offset = int64(skip)
+	}
+
+	cur, err := r.col.Find(ctx, filter,
+		options.Find().SetSort(bson.D{{Key: fieldGUID, Value: 1}}).SetLimit(limit).SetSkip(offset))
+	if err != nil {
+		return nil, errDeviceDatabase.Wrap(op, "Find", err)
+	}
+	defer cur.Close(ctx)
+
+	devs := make([]entity.Device, 0)
+	if err := cur.All(ctx, &devs); err != nil {
+		return nil, errDeviceDatabase.Wrap(op, "Cursor.All", err)
+	}
+
+	return devs, nil
+}

@@ -85,6 +85,73 @@ func TestDeviceRepo_Get(t *testing.T) {
 	require.Len(t, rows, 2)
 }
 
+func TestDeviceRepo_GetActivated(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "currentmode", Value: "Admin Control Mode"}, {Key: "tenantid", Value: "t1"}},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	rows, err := repo.GetActivated(context.Background(), 10, 0, "t1")
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "g1", rows[0].GUID)
+}
+
+func TestDeviceRepo_GetDiscovered(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "discovered", Value: true}, {Key: "tenantid", Value: "t1"}},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	rows, err := repo.GetDiscovered(context.Background(), 10, 0, "t1")
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "g1", rows[0].GUID)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	// Two CountDocuments calls: activated first, then discovered.
+	md.AddResponses(
+		findResponse("testdb."+mongo.CollectionDevices, bson.D{{Key: "n", Value: int64(3)}}),
+		findResponse("testdb."+mongo.CollectionDevices, bson.D{{Key: "n", Value: int64(1)}}),
+	)
+
+	repo := mongo.NewDeviceRepo(db)
+
+	activated, discovered, err := repo.GetDeviceStateCounts(context.Background(), "t1")
+	require.NoError(t, err)
+	require.Equal(t, 3, activated)
+	require.Equal(t, 1, discovered)
+}
+
+func TestDeviceRepo_GetActivated_InvalidTenant(t *testing.T) {
+	t.Parallel()
+
+	db, _ := newMockedDB(t)
+
+	repo := mongo.NewDeviceRepo(db)
+
+	rows, err := repo.GetActivated(context.Background(), 10, 0, "bad tenant!")
+	require.NoError(t, err)
+	require.Empty(t, rows)
+}
+
 // GetDistinctTags issues the `distinct` command, then de-duplicates and
 // trims tags in Go. The test asserts the post-driver in-process logic.
 func TestDeviceRepo_GetDistinctTags_DeduplicatesAcrossRows(t *testing.T) {

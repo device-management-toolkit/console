@@ -1564,6 +1564,8 @@
 									"    pm.expect(jsonData.totalCount).to.be.equal(0)\r",
 									"    pm.expect(jsonData.connectedCount).to.be.equal(0)\r",
 									"    pm.expect(jsonData.disconnectedCount).to.be.equal(0)\r",
+									"    pm.expect(jsonData.activatedCount).to.be.equal(0)\r",
+									"    pm.expect(jsonData.discoveredCount).to.be.equal(0)\r",
 									"    \r",
 									"})"
 								],
@@ -2262,6 +2264,110 @@
 								{
 									"key": "hostname",
 									"value": "hostname"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "All Devices activated",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices?activated=true",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							],
+							"query": [
+								{
+									"key": "activated",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "All Devices discovered",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices?discovered=true",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							],
+							"query": [
+								{
+									"key": "discovered",
+									"value": "true"
 								}
 							]
 						}
