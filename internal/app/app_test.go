@@ -85,6 +85,37 @@ func TestSetupHTTPHandlerSetsNoSniffAheadOfCORS(t *testing.T) {
 	}
 }
 
+func TestNewOriginChecker(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name   string
+		allow  []string
+		origin string
+		want   bool
+	}{
+		{name: "wildcard allows any origin", allow: []string{"*"}, origin: "https://evil.example", want: true},
+		{name: "explicit origin is allowed", allow: []string{"https://allowed.example"}, origin: "https://allowed.example", want: true},
+		{name: "different origin is rejected", allow: []string{"https://allowed.example"}, origin: "https://evil.example", want: false},
+		{name: "missing origin is allowed for non-browser clients", allow: []string{"https://allowed.example"}, origin: "", want: true},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			checker := newOriginChecker(tc.allow)
+			req := httptest.NewRequest(http.MethodGet, "/relay/webrelay.ashx", http.NoBody)
+
+			if tc.origin != "" {
+				req.Header.Set("Origin", tc.origin)
+			}
+			require.Equal(t, tc.want, checker(req))
+		})
+	}
+}
+
 func TestRun(t *testing.T) {
 	t.Parallel()
 

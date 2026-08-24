@@ -5,6 +5,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"os"
 	"os/signal"
 	"slices"
@@ -96,13 +97,66 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 		ReadBufferSize:    64 * 1024,
 		WriteBufferSize:   64 * 1024,
 		Subprotocols:      []string{"direct"},
-		CheckOrigin:       func(_ *http.Request) bool { return true },
+		CheckOrigin:       newOriginChecker(cfg.AllowedOrigins),
 		EnableCompression: cfg.WSCompression,
 	}
 
 	wsv1.RegisterRoutes(handler, log, usecases.Devices, upgrader)
 
 	return handler
+}
+
+func newOriginChecker(allowedOrigins []string) func(*http.Request) bool {
+	if len(allowedOrigins) == 0 {
+		return func(*http.Request) bool { return false }
+	}
+
+	if slices.Contains(allowedOrigins, "*") {
+		return func(*http.Request) bool { return true }
+	}
+
+	normalizedAllowed := normalizeAllowedOrigins(allowedOrigins)
+
+	return func(r *http.Request) bool {
+		return isAllowedOrigin(r.Header.Get("Origin"), normalizedAllowed)
+	}
+}
+
+func normalizeAllowedOrigins(allowedOrigins []string) []string {
+	normalizedAllowed := make([]string, 0, len(allowedOrigins))
+	for _, allowedOrigin := range allowedOrigins {
+		if normalizedOrigin := normalizeOrigin(allowedOrigin); normalizedOrigin != "" {
+			normalizedAllowed = append(normalizedAllowed, normalizedOrigin)
+		}
+	}
+
+	return normalizedAllowed
+}
+
+func normalizeOrigin(origin string) string {
+	if origin == "" {
+		return ""
+	}
+
+	originURL, err := url.Parse(origin)
+	if err != nil || originURL.Scheme == "" || originURL.Host == "" {
+		return ""
+	}
+
+	return originURL.Scheme + "://" + originURL.Host
+}
+
+func isAllowedOrigin(origin string, allowedOrigins []string) bool {
+	if origin == "" {
+		return true
+	}
+
+	requestOrigin := normalizeOrigin(origin)
+	if requestOrigin == "" {
+		return false
+	}
+
+	return slices.Contains(allowedOrigins, requestOrigin)
 }
 
 // securityHeaders sets X-Content-Type-Options: nosniff to stop MIME sniffing.
