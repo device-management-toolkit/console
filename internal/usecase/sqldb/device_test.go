@@ -1294,3 +1294,97 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 		})
 	}
 }
+
+// seedModeDiscovered inserts a device row including the currentmode/discovered columns.
+func seedModeDiscovered(t *testing.T, dbConn *sql.DB, guid, tenantID, currentMode string, discovered *bool) {
+	t.Helper()
+
+	_, err := dbConn.ExecContext(context.Background(),
+		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode, discovered) VALUES (?, ?, ?, ?, ?)`,
+		guid, tenantID, "{}", currentMode, discovered)
+	require.NoError(t, err)
+}
+
+func TestDeviceRepo_GetActivated(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	trueVal := true
+	seedModeDiscovered(t, dbConn, "guid-activated", "tenant1", "Admin Control Mode", &trueVal)
+	seedModeDiscovered(t, dbConn, "guid-notactivated", "tenant1", "NOT ACTIVATED", &trueVal) // case-insensitive exclude
+	seedModeDiscovered(t, dbConn, "guid-empty", "tenant1", "", nil)
+	_, err := dbConn.ExecContext(context.Background(),
+		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode, discovered) VALUES (?, ?, ?, ?, ?)`,
+		"guid-nullmode", "tenant1", "{}", nil, trueVal) // legacy NULL currentmode must be excluded
+	require.NoError(t, err)
+	seedModeDiscovered(t, dbConn, "guid-othertenant", "tenant2", "Admin Control Mode", &trueVal)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	result, err := repo.GetActivated(context.Background(), 0, 0, "tenant1")
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "guid-activated", result[0].GUID)
+}
+
+func TestDeviceRepo_GetDiscovered(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	trueVal := true
+	falseVal := false
+
+	seedModeDiscovered(t, dbConn, "guid-discovered", "tenant1", "not activated", &trueVal)
+	seedModeDiscovered(t, dbConn, "guid-notdiscovered", "tenant1", "", &falseVal)
+	seedModeDiscovered(t, dbConn, "guid-nulldiscovered", "tenant1", "", nil)
+	seedModeDiscovered(t, dbConn, "guid-othertenant", "tenant2", "", &trueVal)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	result, err := repo.GetDiscovered(context.Background(), 0, 0, "tenant1")
+	require.NoError(t, err)
+	require.Len(t, result, 1)
+	assert.Equal(t, "guid-discovered", result[0].GUID)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	trueVal := true
+	falseVal := false
+
+	seedModeDiscovered(t, dbConn, "guid-activated", "tenant1", "Admin Control Mode", &falseVal)
+	seedModeDiscovered(t, dbConn, "guid-discovered", "tenant1", "not activated", &trueVal)
+	seedModeDiscovered(t, dbConn, "guid-legacy", "tenant1", "", nil)
+	seedModeDiscovered(t, dbConn, "guid-othertenant", "tenant2", "Admin Control Mode", &trueVal)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	activated, discovered, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
+	require.NoError(t, err)
+	assert.Equal(t, 1, activated)
+	assert.Equal(t, 1, discovered)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts_Error(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, true), mocks.NewMockLogger(nil))
+
+	_, _, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
+	require.Error(t, err)
+
+	var dbErr repoerrors.DatabaseError
+
+	assert.True(t, errors.As(err, &dbErr))
+}

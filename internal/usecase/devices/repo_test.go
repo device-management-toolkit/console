@@ -184,6 +184,145 @@ func TestGet(t *testing.T) {
 	}
 }
 
+func TestGetActivated(t *testing.T) {
+	t.Parallel()
+
+	testDevices := []entity.Device{{GUID: "guid-123", TenantID: "tenant-id-456"}}
+	testDeviceDTOs := []dto.Device{{GUID: "guid-123", TenantID: "tenant-id-456", Tags: nil}}
+
+	tests := []testUsecase{
+		{
+			name:     "successful retrieval",
+			top:      10,
+			skip:     0,
+			tenantID: "tenant-id-456",
+			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
+				repo.EXPECT().GetActivated(context.Background(), 10, 0, "tenant-id-456").Return(testDevices, nil)
+			},
+			res: testDeviceDTOs,
+			err: nil,
+		},
+		{
+			name:     "database error",
+			top:      5,
+			skip:     0,
+			tenantID: "tenant-id-456",
+			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
+				repo.EXPECT().GetActivated(context.Background(), 5, 0, "tenant-id-456").Return(nil, devices.ErrDatabase)
+			},
+			res: []dto.Device(nil),
+			err: devices.ErrDatabase,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, management := devicesTest(t)
+
+			tc.mock(repo, management)
+
+			results, err := useCase.GetActivated(context.Background(), tc.top, tc.skip, tc.tenantID)
+
+			require.Equal(t, tc.res, results)
+
+			if tc.err != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetDiscovered(t *testing.T) {
+	t.Parallel()
+
+	testDevices := []entity.Device{{GUID: "guid-123", TenantID: "tenant-id-456"}}
+	testDeviceDTOs := []dto.Device{{GUID: "guid-123", TenantID: "tenant-id-456", Tags: nil}}
+
+	tests := []testUsecase{
+		{
+			name:     "successful retrieval",
+			top:      10,
+			skip:     0,
+			tenantID: "tenant-id-456",
+			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
+				repo.EXPECT().GetDiscovered(context.Background(), 10, 0, "tenant-id-456").Return(testDevices, nil)
+			},
+			res: testDeviceDTOs,
+			err: nil,
+		},
+		{
+			name:     "database error",
+			top:      5,
+			skip:     0,
+			tenantID: "tenant-id-456",
+			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
+				repo.EXPECT().GetDiscovered(context.Background(), 5, 0, "tenant-id-456").Return(nil, devices.ErrDatabase)
+			},
+			res: []dto.Device(nil),
+			err: devices.ErrDatabase,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, management := devicesTest(t)
+
+			tc.mock(repo, management)
+
+			results, err := useCase.GetDiscovered(context.Background(), tc.top, tc.skip, tc.tenantID)
+
+			require.Equal(t, tc.res, results)
+
+			if tc.err != nil {
+				require.Error(t, err)
+				require.Contains(t, err.Error(), tc.err.Error())
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestGetDeviceStateCounts(t *testing.T) {
+	t.Parallel()
+
+	t.Run("successful retrieval", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+		_ = management
+
+		repo.EXPECT().GetDeviceStateCounts(context.Background(), "tenant-id-456").Return(3, 1, nil)
+
+		activated, discovered, err := useCase.GetDeviceStateCounts(context.Background(), "tenant-id-456")
+		require.NoError(t, err)
+		require.Equal(t, 3, activated)
+		require.Equal(t, 1, discovered)
+	})
+
+	t.Run("database error", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+		_ = management
+
+		repo.EXPECT().GetDeviceStateCounts(context.Background(), "tenant-id-456").Return(0, 0, devices.ErrDatabase)
+
+		_, _, err := useCase.GetDeviceStateCounts(context.Background(), "tenant-id-456")
+		require.Error(t, err)
+		require.Contains(t, err.Error(), devices.ErrDatabase.Error())
+	})
+}
+
 func TestGetByID(t *testing.T) {
 	t.Parallel()
 
