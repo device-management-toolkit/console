@@ -38,7 +38,16 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 
 	assert.Equal(t, "", cfg.Host)
 	assert.Equal(t, "8181", cfg.Port)
-	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
+	assert.Equal(t, []string{
+		"http://localhost:8181",
+		"http://localhost:4200",
+		"http://127.0.0.1:8181",
+		"http://127.0.0.1:4200",
+		"https://localhost:8181",
+		"https://localhost:4200",
+		"https://127.0.0.1:8181",
+		"https://127.0.0.1:4200",
+	}, cfg.AllowedOrigins)
 	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)
 	assert.Equal(t, true, cfg.TLS.Enabled)
 
