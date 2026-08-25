@@ -18,7 +18,7 @@ const TenantHeaderName = "x-tenant-id"
 func Tenant(l logger.Interface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.GetHeader(TenantHeaderName)
-		l.Debug("REST request tenant ID", "tenant_id", tenantID)
+		l.Debug("REST request tenant ID", "tenant_id => ", tenantID)
 
 		if !tenant.Valid(tenantID) {
 			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": tenant.Hint, "message": tenant.Hint})

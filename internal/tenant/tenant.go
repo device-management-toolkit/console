@@ -15,8 +15,9 @@ const MaxLength = 64
 
 // Hint describes the accepted format in API error responses.
 const (
-	Pattern = `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`
-	Hint    = "x-tenant-id must match " + Pattern
+	Pattern       = `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`
+	Hint          = "x-tenant-id must match " + Pattern
+	TenantIDClaim = "tenantId"
 )
 
 // pattern excludes whitespace, control characters and non-ASCII so two visually
