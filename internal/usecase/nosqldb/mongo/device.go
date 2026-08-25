@@ -19,6 +19,35 @@ type DeviceRepo struct {
 	col *mongo.Collection
 }
 
+type deviceFilter struct {
+	GUID     string `bson:"guid"`
+	TenantID string `bson:"tenantid"`
+}
+
+type deviceUpdateFields struct {
+	GUID             string  `bson:"guid"`
+	Hostname         string  `bson:"hostname"`
+	Tags             string  `bson:"tags"`
+	MPSInstance      string  `bson:"mpsinstance"`
+	ConnectionStatus bool    `bson:"connectionstatus"`
+	MPSUsername      string  `bson:"mpsusername"`
+	TenantID         string  `bson:"tenantid"`
+	FriendlyName     string  `bson:"friendlyname"`
+	DNSSuffix        string  `bson:"dnssuffix"`
+	DeviceInfo       string  `bson:"deviceinfo"`
+	Username         string  `bson:"username"`
+	Password         string  `bson:"password"`
+	MPSPassword      *string `bson:"mpspassword"`
+	MEBXPassword     *string `bson:"mebxpassword"`
+	UseTLS           bool    `bson:"usetls"`
+	AllowSelfSigned  bool    `bson:"allowselfsigned"`
+	CertHash         *string `bson:"certhash"`
+}
+
+type deviceUpdateDocument struct {
+	Set deviceUpdateFields `bson:"$set"`
+}
+
 var _ devices.Repository = (*DeviceRepo)(nil)
 
 func NewDeviceRepo(db *mongo.Database) *DeviceRepo {
@@ -218,25 +247,25 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 
 	// Explicit field list mirrors sqldb/device.go:Update so a new field must be wired in intentionally.
 	res, err := r.col.UpdateOne(ctx,
-		bson.M{fieldGUID: d.GUID, fieldTenantID: d.TenantID},
-		bson.M{opSet: bson.M{
-			fieldGUID:          d.GUID,
-			"hostname":         d.Hostname,
-			fieldTags:          d.Tags,
-			"mpsinstance":      d.MPSInstance,
-			"connectionstatus": d.ConnectionStatus,
-			"mpsusername":      d.MPSUsername,
-			fieldTenantID:      d.TenantID,
-			"friendlyname":     d.FriendlyName,
-			"dnssuffix":        d.DNSSuffix,
-			"deviceinfo":       d.DeviceInfo,
-			"username":         d.Username,
-			"password":         d.Password,
-			"mpspassword":      d.MPSPassword,
-			"mebxpassword":     d.MEBXPassword,
-			"usetls":           d.UseTLS,
-			"allowselfsigned":  d.AllowSelfSigned,
-			"certhash":         d.CertHash,
+		deviceFilter{GUID: d.GUID, TenantID: d.TenantID},
+		deviceUpdateDocument{Set: deviceUpdateFields{
+			GUID:             d.GUID,
+			Hostname:         d.Hostname,
+			Tags:             d.Tags,
+			MPSInstance:      d.MPSInstance,
+			ConnectionStatus: d.ConnectionStatus,
+			MPSUsername:      d.MPSUsername,
+			TenantID:         d.TenantID,
+			FriendlyName:     d.FriendlyName,
+			DNSSuffix:        d.DNSSuffix,
+			DeviceInfo:       d.DeviceInfo,
+			Username:         d.Username,
+			Password:         d.Password,
+			MPSPassword:      d.MPSPassword,
+			MEBXPassword:     d.MEBXPassword,
+			UseTLS:           d.UseTLS,
+			AllowSelfSigned:  d.AllowSelfSigned,
+			CertHash:         d.CertHash,
 		}},
 	)
 	if err != nil {

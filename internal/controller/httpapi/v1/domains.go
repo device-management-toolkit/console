@@ -40,8 +40,8 @@ func (r *domainRoutes) get(c *gin.Context) {
 	tenantID := tenantIDFromHeader(c)
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		validationErr := ErrValidationDomains.Wrap("get", "ShouldBindQuery", err)
+	if err := odata.BindAndValidate(c); err != nil {
+		validationErr := ErrValidationDomains.Wrap("get", "BindAndValidate", err)
 		ErrorResponse(c, validationErr)
 
 		return

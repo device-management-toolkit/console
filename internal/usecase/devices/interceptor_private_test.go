@@ -853,7 +853,9 @@ func (s *spyRedirection) SetupWsmanClient(_ context.Context, _ entity.Device, _,
 }
 
 func (s *spyRedirection) RedirectConnect(_ context.Context, _ *DeviceConnection) error { return nil }
-func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error   { return nil }
+
+func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error { return nil }
+
 func (s *spyRedirection) RedirectSend(_ context.Context, _ *DeviceConnection, _ []byte) error {
 	return nil
 }

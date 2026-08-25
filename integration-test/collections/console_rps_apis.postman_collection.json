@@ -8932,6 +8932,21 @@
 				"exec": [
 					"pm.test(\"Response includes X-Content-Type-Options: nosniff\", function () {",
 					"    pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+					"});",
+					"",
+					"pm.test(\"Explicit false TLS settings remain false when present\", function () {",
+					"    var jsonData = {};",
+					"    try {",
+					"        jsonData = pm.response.json();",
+					"    } catch (e) {",
+					"        return;",
+					"    }",
+					"    if (jsonData && Object.prototype.hasOwnProperty.call(jsonData, 'useTLS') && jsonData.useTLS === false) {",
+					"        pm.expect(jsonData.useTLS).to.be.equal(false);",
+					"    }",
+					"    if (jsonData && Object.prototype.hasOwnProperty.call(jsonData, 'allowSelfSigned') && jsonData.allowSelfSigned === false) {",
+					"        pm.expect(jsonData.allowSelfSigned).to.be.equal(false);",
+					"    }",
 					"});"
 				]
 			}

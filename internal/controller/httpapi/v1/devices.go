@@ -1,7 +1,9 @@
 package v1
 
 import (
+	"bytes"
 	"encoding/json"
+	"io"
 	"net/http"
 	"strings"
 	"time"
@@ -98,7 +100,7 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	tenantID := tenantIDFromHeader(c)
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
+	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
 
 		return
@@ -176,7 +178,7 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 	tenantID := tenantIDFromHeader(c)
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
+	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
 
 		return
@@ -196,9 +198,9 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) insert(c *gin.Context) {
-	var device dto.Device
-	if err := c.ShouldBindJSON(&device); err != nil {
-		validationErr := ErrValidationDevices.Wrap("insert", "ShouldBindJSON", err)
+	body, err := readJSONBody(c)
+	if err != nil {
+		validationErr := ErrValidationDevices.Wrap("insert", "readJSONBody", err)
 		ErrorResponse(c, validationErr)
 
 		return
@@ -208,6 +210,34 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 		ErrorResponse(c, err)
 
 		return
+	}
+
+	var device dto.Device
+	if err := json.Unmarshal(body, &device); err != nil {
+		validationErr := ErrValidationDevices.Wrap("insert", "json.Unmarshal", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	var raw map[string]json.RawMessage
+	if err := json.Unmarshal(body, &raw); err != nil {
+		validationErr := ErrValidationDevices.Wrap("insert", "json.Unmarshal", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	hasUseTLS := hasJSONKey(raw, "usetls")
+	hasAllowSelfSigned := hasJSONKey(raw, "allowselfsigned")
+
+	// Security defaults: if these flags are omitted on create, default to secure values.
+	if !hasUseTLS {
+		device.UseTLS = true
+	}
+
+	if !hasAllowSelfSigned {
+		device.AllowSelfSigned = true
 	}
 
 	newDevice, err := dr.t.Insert(c.Request.Context(), &device)
@@ -221,13 +251,35 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 	c.JSON(http.StatusCreated, newDevice)
 }
 
+func readJSONBody(c *gin.Context) ([]byte, error) {
+	body, err := io.ReadAll(c.Request.Body)
+	if err != nil {
+		return nil, err
+	}
+
+	c.Request.Body = io.NopCloser(bytes.NewReader(body))
+
+	return body, nil
+}
+
+func hasJSONKey(raw map[string]json.RawMessage, field string) bool {
+	needle := strings.ToLower(field)
+	for k := range raw {
+		if strings.EqualFold(k, needle) {
+			return true
+		}
+	}
+
+	return false
+}
+
 // Keys are lowercased so callers can match against setter maps regardless of
 // client casing (encoding/json unmarshals case-insensitively).
 // Nested objects are flattened with dot notation (for example,
 // "deviceinfo.fwversion") so PATCH handlers can deep-merge object fields.
-func providedJSONFields(c *gin.Context) (map[string]bool, error) {
+func providedJSONFieldsFromBody(body []byte) (map[string]bool, error) {
 	var raw map[string]json.RawMessage
-	if err := c.ShouldBindBodyWithJSON(&raw); err != nil {
+	if err := json.Unmarshal(body, &raw); err != nil {
 		return nil, err
 	}
 
@@ -261,8 +313,8 @@ func collectNestedJSONFields(prefix string, raw json.RawMessage, fields map[stri
 }
 
 func (dr *deviceRoutes) update(c *gin.Context) {
-	var device dto.Device
-	if err := c.ShouldBindBodyWithJSON(&device); err != nil {
+	body, err := readJSONBody(c)
+	if err != nil {
 		ErrorResponse(c, err)
 
 		return
@@ -274,7 +326,14 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 		return
 	}
 
-	fields, err := providedJSONFields(c)
+	var device dto.Device
+	if err := json.Unmarshal(body, &device); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	fields, err := providedJSONFieldsFromBody(body)
 	if err != nil {
 		ErrorResponse(c, err)
 
@@ -334,7 +393,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 	tenantID := tenantIDFromHeader(c)
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
+	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
 
 		return
@@ -400,7 +459,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 	tenantID := tenantIDFromHeader(c)
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
+	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
 
 		return
