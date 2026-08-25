@@ -8893,6 +8893,24 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": ".tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading underscore",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "_tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading hyphen",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "-tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
 				}
 			]
 		}

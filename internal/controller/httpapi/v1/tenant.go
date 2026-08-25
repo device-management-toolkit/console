@@ -24,6 +24,7 @@ func tenantIDFromHeader(c *gin.Context) string {
 // caller cannot write outside the tenant it asked for.
 func applyTenantID(c *gin.Context, target *string) error {
 	tenantID := tenantIDFromHeader(c)
+
 	if tenantID == "" {
 		return nil
 	}

@@ -307,7 +307,7 @@ func (ctx *connectionContext) registerDevice() {
 		ctx.log.Error("Failed to update connection status for device %s: %v", deviceID, err)
 	}
 
-	ctx.log.Info("Device authenticated and registered: %s", deviceID)
+	ctx.log.Info("Device authenticated and registered", "device_id", deviceID, "tenant_id", ctx.handler.TenantID())
 }
 
 func (ctx *connectionContext) writeResponse(response bytes.Buffer) error {

@@ -65,7 +65,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
 	}
 
-	protected.Use(middleware.Tenant())
+	protected.Use(middleware.Tenant(l))
 
 	registerCustomValidators(l)
 

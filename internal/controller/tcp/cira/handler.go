@@ -123,6 +123,7 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 	}
 
 	h.tenantID = device.TenantID
+	h.log.Debug("CIRA tenant resolved", "device_id", h.deviceID, "tenant_id", h.tenantID)
 
 	return true
 }

@@ -206,16 +206,16 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &device.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
-
 	var device dto.Device
 	if err := json.Unmarshal(body, &device); err != nil {
 		validationErr := ErrValidationDevices.Wrap("insert", "json.Unmarshal", err)
 		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	if err := applyTenantID(c, &device.TenantID); err != nil {
+		ErrorResponse(c, err)
 
 		return
 	}
@@ -320,14 +320,14 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &device.TenantID); err != nil {
+	var device dto.Device
+	if err := json.Unmarshal(body, &device); err != nil {
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	var device dto.Device
-	if err := json.Unmarshal(body, &device); err != nil {
+	if err := applyTenantID(c, &device.TenantID); err != nil {
 		ErrorResponse(c, err)
 
 		return

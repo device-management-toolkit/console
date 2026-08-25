@@ -155,16 +155,16 @@ func (r *profileRoutes) update(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &profile.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
-
 	var profile dto.Profile
 	if err := json.Unmarshal(body, &profile); err != nil {
 		validationErr := ErrValidationProfile.Wrap("update", "json.Unmarshal", err)
 		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	if err := applyTenantID(c, &profile.TenantID); err != nil {
+		ErrorResponse(c, err)
 
 		return
 	}

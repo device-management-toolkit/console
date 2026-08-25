@@ -14,11 +14,14 @@ import (
 const MaxLength = 64
 
 // Hint describes the accepted format in API error responses.
-const Hint = "x-tenant-id must be 1-64 characters of A-Z, a-z, 0-9, dot, underscore or hyphen"
+const (
+	Pattern = `^[A-Za-z0-9][A-Za-z0-9._-]{0,63}$`
+	Hint    = "x-tenant-id must match " + Pattern
+)
 
 // pattern excludes whitespace, control characters and non-ASCII so two visually
 // identical identifiers cannot map to two different primary key values.
-var pattern = regexp.MustCompile(`^[A-Za-z0-9._-]{1,64}$`)
+var pattern = regexp.MustCompile(Pattern)
 
 type contextKey struct{}
 

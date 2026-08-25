@@ -25,7 +25,7 @@ func explorerTest(t *testing.T) (*mocks.MockAMTExplorerFeature, *gin.Engine) {
 	amtExplorer := mocks.NewMockAMTExplorerFeature(mockCtl)
 
 	engine := gin.New()
-	engine.Use(middleware.Tenant())
+	engine.Use(middleware.Tenant(logger.New("error")))
 	handler := engine.Group("/api/v1")
 
 	NewAmtRoutes(handler, mocks.NewMockDeviceManagementFeature(mockCtl), amtExplorer, mocks.NewMockExporter(mockCtl), log)

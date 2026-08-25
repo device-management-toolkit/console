@@ -10,15 +10,14 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/tenant"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-func serve(t *testing.T, headerValue string) (*httptest.ResponseRecorder, string) {
+func serve(t *testing.T, headerValue string) (recorder *httptest.ResponseRecorder, seen string) {
 	t.Helper()
 
-	var seen string
-
 	engine := gin.New()
-	engine.Use(middleware.Tenant())
+	engine.Use(middleware.Tenant(logger.New("error")))
 	engine.GET("/", func(c *gin.Context) {
 		seen = tenant.FromContext(c.Request.Context())
 		c.Status(http.StatusOK)
@@ -29,7 +28,7 @@ func serve(t *testing.T, headerValue string) (*httptest.ResponseRecorder, string
 		req.Header.Set(middleware.TenantHeaderName, headerValue)
 	}
 
-	recorder := httptest.NewRecorder()
+	recorder = httptest.NewRecorder()
 	engine.ServeHTTP(recorder, req)
 
 	return recorder, seen
@@ -59,6 +58,6 @@ func TestTenantRejectsMalformedHeader(t *testing.T) {
 	recorder, seen := serve(t, "tenant a")
 
 	require.Equal(t, http.StatusBadRequest, recorder.Code)
-	require.Contains(t, recorder.Body.String(), "x-tenant-id must be")
+	require.Contains(t, recorder.Body.String(), "x-tenant-id must match")
 	require.Empty(t, seen)
 }
