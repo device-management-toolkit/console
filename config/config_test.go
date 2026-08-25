@@ -39,6 +39,7 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, "", cfg.Host)
 	assert.Equal(t, "8181", cfg.Port)
 	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
+	assert.Equal(t, DefaultPermissionsPolicy, cfg.PermissionsPolicy)
 	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)
 	assert.Equal(t, true, cfg.TLS.Enabled)
 

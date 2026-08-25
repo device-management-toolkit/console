@@ -76,7 +76,7 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	handler := gin.New()
 	// Ahead of CORS on purpose: the CORS middleware answers preflights and
 	// rejects disallowed origins itself, so anything after it never runs.
-	handler.Use(securityHeaders())
+	handler.Use(securityHeaders(cfg.PermissionsPolicy))
 
 	defaultConfig := cors.DefaultConfig()
 	defaultConfig.AllowOrigins = cfg.AllowedOrigins
@@ -105,10 +105,20 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	return handler
 }
 
-// securityHeaders sets X-Content-Type-Options: nosniff to stop MIME sniffing.
-func securityHeaders() gin.HandlerFunc {
+// securityHeaders sets X-Content-Type-Options: nosniff to stop MIME sniffing,
+// and Permissions-Policy to deny browser APIs the bundled UI never uses.
+//
+// The Permissions-Policy value is configurable and an empty one skips the
+// header: Console only serves the HTML document when the UI is embedded, so
+// deployments that host the UI elsewhere, or front Console with a gateway that
+// sets its own policy, need to be able to hand the header back.
+func securityHeaders(permissionsPolicy string) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		c.Header("X-Content-Type-Options", "nosniff")
+
+		if permissionsPolicy != "" {
+			c.Header("Permissions-Policy", permissionsPolicy)
+		}
 
 		c.Next()
 	}
