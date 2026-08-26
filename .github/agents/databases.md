@@ -30,20 +30,48 @@ Then set `DB_PROVIDER` (and `DB_URL` for Postgres) in your `.env`.
 
 ## Migrations
 
-Migrations apply to **Postgres only**:
+**Postgres and SQLite run the same migrations.** `internal/app/migrations/` is
+embedded into the binary (`//go:embed all:migrations` in
+`internal/app/migrate.go`) and applied automatically at startup:
 
-- **SQLite** runs migrations automatically at startup.
-- **MongoDB** does not use migrations at all — it has no fixed schema.
+| Provider | What happens at startup |
+|---|---|
+| Postgres | `setupHostedDB` applies the embedded migrations |
+| SQLite | `setupLocalDB` applies the same embedded migrations |
+| MongoDB | Skipped entirely — `Init` returns early. Mongo is schemaless; `ensureIndexes` in `internal/usecase/nosqldb/mongo` creates the unique constraints instead. |
+
+So a new migration file affects **both** SQL backends. Write SQL that works on
+Postgres and SQLite, and test on both.
+
+### Writing a migration
+
+Add a matching pair of files to `internal/app/migrations/`, following the
+naming of the files already there: one `.up.sql` (applies the change) and one
+`.down.sql` (undoes it). **Fill in both.** A migration without a working
+`.down.sql` cannot be rolled back.
+
+You do not need any tooling to do this — the files are plain SQL, and the app
+applies them on next start.
+
+### The make migrate-* targets
+
+These drive the `golang-migrate` CLI against a **running Postgres** instance.
+They are for operating on a live database, not for normal development.
 
 ```sh
 make bin-deps          # one time: installs golang-migrate and mockgen into ./bin/
-make migrate-create    # create a new empty migration pair (up + down)
-make migrate-up        # apply all pending migrations
+make migrate-up        # apply pending migrations to $DB_URL
+make migrate-create    # scaffold an empty migration pair
 ```
 
-`make migrate-create` writes two files under `internal/app/migrations/`: one
-`.up.sql` (applies the change) and one `.down.sql` (undoes it). **Fill in
-both.** A migration without a working `.down.sql` cannot be rolled back.
+`make bin-deps` installs `golang-migrate` with `-tags 'postgres'`, so the CLI
+only speaks Postgres. `make migrate-up` needs `DB_URL` set.
+
+> **Known bug:** both targets pass `-dir /internal/app/migrations` and
+> `-path /internal/app/migrations` — an **absolute** path, which resolves to
+> the filesystem root, not to this repository. As written, `make migrate-create`
+> will not put files in `internal/app/migrations/`. Until that is fixed, add
+> migration files by hand as described above.
 
 ## Adding a repository method
 
