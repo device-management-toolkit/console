@@ -76,11 +76,9 @@ func (s *Server) Notify() <-chan error {
 func (s *Server) ListenAndServe() error {
 	config := &tls.Config{
 		Certificates: []tls.Certificate{s.certificates},
-		// InsecureSkipVerify is set to true because this is a TLS server accepting
-		// client connections from AMT devices. The server does not need to verify
-		// its own certificate. Client authentication is handled at the APF protocol level.
-		InsecureSkipVerify: true, //nolint:gosec // Server-side TLS config, not a client connection
-		MinVersion:         tls.VersionTLS12,
+		// No ClientAuth/ClientCAs: client certificates are never requested from AMT
+		// devices — device authentication happens at the APF USERAUTH layer instead.
+		MinVersion: tls.VersionTLS12,
 	}
 
 	defaultCipherSuites := tls.CipherSuites()
