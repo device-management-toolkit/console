@@ -83,6 +83,7 @@ func NewUseCases(repos *Repos, log logger.Interface, certStore security.Storager
 	}
 
 	wsman1 := wsman.NewGoWSMANMessages(log, safeRequirements)
+	wsman1.SetCertStore(certStore)
 	wsman2 := amtexplorer.NewGoWSMANMessages(log, safeRequirements)
 
 	pwc := profilewificonfigs.New(repos.ProfileWiFiConfigs, log)
@@ -90,9 +91,12 @@ func NewUseCases(repos *Repos, log logger.Interface, certStore security.Storager
 	domains1 := domains.New(repos.Domains, log, safeRequirements, certStore)
 	wificonfig := wificonfigs.New(repos.WirelessConfigs, ieee, log, safeRequirements)
 
+	devices1 := devices.New(repos.Devices, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements)
+	devices1.SetCertStore(certStore)
+
 	return &Usecases{
 		Domains:            domains1,
-		Devices:            devices.New(repos.Devices, wsman1, devices.NewRedirector(safeRequirements), log, safeRequirements),
+		Devices:            devices1,
 		AMTExplorer:        amtexplorer.New(repos.Devices, wsman2, log, safeRequirements),
 		Profiles:           profiles.New(repos.Profiles, repos.WirelessConfigs, pwc, ieee, log, domains1, repos.CIRAConfigs, safeRequirements, config.ConsoleConfig.DisableCIRA),
 		IEEE8021xProfiles:  ieee,

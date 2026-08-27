@@ -103,6 +103,7 @@ type ConnectionEntry struct {
 type GoWSMANMessages struct {
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	certStore        security.Storager
 }
 
 func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor) *GoWSMANMessages {
@@ -110,6 +111,45 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 		log:              log,
 		safeRequirements: safeRequirements,
 	}
+}
+
+// SetCertStore wires the shared Vault store so AMT credentials can be read from
+// devices/{guid} (AMT_PASSWORD) when RPS never sent them over the device HTTP API.
+func (g *GoWSMANMessages) SetCertStore(store security.Storager) {
+	g.certStore = store
+}
+
+// vaultObjectStorager extends security.Storager with the object read RPS's device secret uses.
+type vaultObjectStorager interface {
+	security.Storager
+	GetObject(key string) (map[string]string, error)
+}
+
+// amtCredentialsFromVault mirrors MPS's getAMTCredentials: username is always "admin",
+// password is read from devices/{guid} -> AMT_PASSWORD.
+func (g GoWSMANMessages) amtCredentialsFromVault(guid string) (username, password string, ok bool) {
+	if g.certStore == nil {
+		return "", "", false
+	}
+
+	objStore, isObjStore := g.certStore.(vaultObjectStorager)
+	if !isObjStore {
+		return "", "", false
+	}
+
+	secretData, err := objStore.GetObject("devices/" + guid)
+	if err != nil {
+		g.log.Warn("Failed to retrieve AMT password from Vault for device %s: %v", guid, err)
+
+		return "", "", false
+	}
+
+	pwd, found := secretData["AMT_PASSWORD"]
+	if !found || pwd == "" {
+		return "", "", false
+	}
+
+	return "admin", pwd, true
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
@@ -154,6 +194,15 @@ func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Dev
 		}
 
 		device.Password = decryptedPassword
+
+		// RPS never sends AMT username/password over the device API; fall back to the
+		// shared Vault secret it writes at activation time.
+		if device.Password == "" {
+			if username, password, ok := g.amtCredentialsFromVault(device.GUID); ok {
+				device.Username = username
+				device.Password = password
+			}
+		}
 
 		if device.MPSUsername != "" {
 			if !HasConnections() {

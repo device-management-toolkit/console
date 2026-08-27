@@ -2,15 +2,16 @@ app:
   name: console
   repo: device-management-toolkit/console
   version: DEVELOPMENT
-  encryption_key: ""
+  encryption_key: "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL"
   allow_insecure_ciphers: false
+  disable_cira: false
 http:
   host: localhost
   port: "8181"
   # set to true for WAN settings where bandwidth is a concern, false for LAN/low latency/high bandwidth
   ws_compression: false
   tls:
-    enabled: true
+    enabled: false
     # If certFile/keyFile are both empty and enabled is true, a self-signed certificate will be generated at runtime.
     certFile: ""
     keyFile: ""
@@ -20,9 +21,12 @@ http:
     - "*"
 logger:
   log_level: info
-secrets: 
+secrets:
   address: http://localhost:8200
-  token: ""
+  token: "myroot"
+  # Must match RPS's Vault secrets_path prefix ("secret/data/" by default) so Console
+  # reads devices/{guid} -> MPS_PASSWORD from the same place RPS writes it.
+  path: "secret/data"
 postgres:
   # provider selects the backend. Empty defaults to "sqlite".
   #   postgres -> hosted PostgreSQL; DB_URL must be set (postgres://...)
@@ -36,9 +40,9 @@ ea:
   username: ""
   password: ""
 auth:
-  disabled: false
+  disabled: true
   adminUsername: standalone
-  adminPassword: 
+  adminPassword: Amar@2026
   jwtKey: your_secret_jwt_key
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s

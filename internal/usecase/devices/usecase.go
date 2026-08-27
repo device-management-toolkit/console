@@ -38,7 +38,17 @@ const (
 
 	deviceInfoFieldKey    = "deviceinfo"
 	deviceInfoFieldPrefix = deviceInfoFieldKey + "."
+
+	// vaultMPSPasswordKey is the Vault object field RPS writes and MPS reads for CIRA auth.
+	vaultMPSPasswordKey = "MPS_PASSWORD"
 )
+
+// ObjectStorager extends security.Storager with the object storage capability RPS uses to
+// write device secrets to Vault at "devices/{guid}" (AMT_PASSWORD, MPS_PASSWORD, MEBX_PASSWORD).
+type ObjectStorager interface {
+	security.Storager
+	GetObject(key string) (map[string]string, error)
+}
 
 // UseCase -.
 type UseCase struct {
@@ -49,6 +59,7 @@ type UseCase struct {
 	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	certStore        security.Storager
 }
 
 var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
@@ -67,6 +78,12 @@ func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, s
 	go d.Worker()
 
 	return uc
+}
+
+// SetCertStore wires the shared Vault store used to read device secrets RPS writes
+// (e.g. MPS_PASSWORD at "devices/{guid}") but never sends over the device HTTP API.
+func (uc *UseCase) SetCertStore(store security.Storager) {
+	uc.certStore = store
 }
 
 // convert dto.Device to entity.Device.

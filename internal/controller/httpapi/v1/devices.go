@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -13,6 +14,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -229,6 +231,15 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 
 	newDevice, err := dr.t.Insert(c.Request.Context(), &device)
 	if err != nil {
+		// POST is an upsert on GUID, matching the MPS contract. RPS posts the same
+		// device again to record provisioning status, and once more from the CIRA
+		// flow, treating any non-2xx as a hard failure.
+		if isDuplicateDevice(err) {
+			dr.upsert(c, &device, body)
+
+			return
+		}
+
 		dr.l.Error(err, "http - devices - v1 - insert")
 		ErrorResponse(c, err)
 
@@ -258,6 +269,48 @@ func hasJSONKey(raw map[string]json.RawMessage, field string) bool {
 	}
 
 	return false
+}
+
+// isDuplicateDevice reports whether err is the repo's unique-constraint violation,
+// detected the same way dbErrorHandle does before it returns 409. All three storage
+// backends surface it as repoerrors.NotUniqueError.
+func isDuplicateDevice(err error) bool {
+	var notUniqueErr repoerrors.NotUniqueError
+
+	if errors.As(err, &notUniqueErr) {
+		return true
+	}
+
+	var dbErr repoerrors.DatabaseError
+
+	if errors.As(err, &dbErr) {
+		return errors.As(dbErr.Console.OriginalError, &notUniqueErr)
+	}
+
+	return false
+}
+
+// upsert is the update half of the MPS POST semantics: merge only the fields the
+// caller supplied into the stored device, reusing the same merge PATCH performs so
+// an omitted field is preserved rather than zeroed. Returns 200, leaving 201 to
+// mean "created", as MPS does.
+func (dr *deviceRoutes) upsert(c *gin.Context, device *dto.Device, body []byte) {
+	fields, err := providedJSONFieldsFromBody(body)
+	if err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	updatedDevice, err := dr.t.Update(c.Request.Context(), device, fields)
+	if err != nil {
+		dr.l.Error(err, "http - devices - v1 - insert - upsert")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedDevice)
 }
 
 // Keys are lowercased so callers can match against setter maps regardless of

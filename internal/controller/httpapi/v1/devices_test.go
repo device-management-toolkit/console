@@ -19,6 +19,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -183,6 +184,39 @@ func TestDevicesRoutes(t *testing.T) {
 			response:     responseDevice,
 			requestBody:  requestDevice,
 			expectedCode: http.StatusCreated,
+		},
+		{
+			// A repeat POST for a known GUID is how RPS records provisioning status and
+			// how its CIRA flow registers the device, so it merges instead of conflicting.
+			name:   "insert device - existing guid is upserted",
+			method: http.MethodPost,
+			url:    "/api/v1/devices",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				deviceTest := &dto.Device{
+					ConnectionStatus: true,
+					MPSInstance:      "mpsInstance",
+					Hostname:         "hostname",
+					GUID:             "guid",
+					MPSUsername:      "mpsusername",
+					Tags:             []string{"tag1", "tag2"},
+					TenantID:         "tenantId",
+					FriendlyName:     "friendlyName",
+					DNSSuffix:        "dnsSuffix",
+					Username:         "admin",
+					Password:         "password",
+					UseTLS:           true,
+					AllowSelfSigned:  true,
+					LastConnected:    &timeNow,
+					LastSeen:         &timeNow,
+					LastDisconnected: &timeNow,
+				}
+				conflict := devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", sqldb.ErrDeviceNotUnique)
+				device.EXPECT().Insert(context.Background(), deviceTest).Return(nil, conflict)
+				device.EXPECT().Update(context.Background(), deviceTest, gomock.Any()).Return(deviceTest, nil)
+			},
+			response:     responseDevice,
+			requestBody:  requestDevice,
+			expectedCode: http.StatusOK,
 		},
 		{
 			name:   "insert device - failed",

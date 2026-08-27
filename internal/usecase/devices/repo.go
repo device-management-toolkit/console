@@ -113,6 +113,17 @@ func (uc *UseCase) decryptSecrets(d2 *dto.Device, data *entity.Device) error {
 		if err != nil {
 			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MPSPassword", err)
 		}
+	} else if uc.certStore != nil {
+		// RPS never sends mpspassword over the device API; it only writes MPS_PASSWORD to
+		// Vault at devices/{guid}, the same path MPS reads for CIRA tunnel authentication.
+		if objStore, ok := uc.certStore.(ObjectStorager); ok {
+			secretData, err := objStore.GetObject("devices/" + data.GUID)
+			if err != nil {
+				uc.log.Warn("Failed to retrieve MPS password from Vault for device %s: %v", data.GUID, err)
+			} else {
+				d2.MPSPassword = secretData[vaultMPSPasswordKey]
+			}
+		}
 	}
 
 	if data.MEBXPassword != nil {
