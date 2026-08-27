@@ -120,6 +120,25 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entit
 	return &d, nil
 }
 
+func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
+	if !identifierRegex.MatchString(guid) {
+		return nil, nil
+	}
+
+	d := entity.Device{}
+
+	err := r.col.FindOne(ctx, bson.M{fieldGUID: guid}).Decode(&d)
+	if err != nil {
+		if errors.Is(err, mongo.ErrNoDocuments) {
+			return nil, nil
+		}
+
+		return nil, errDeviceDatabase.Wrap("GetByGUID", "FindOne", err)
+	}
+
+	return &d, nil
+}
+
 func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
 	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
 		return []string{}, nil

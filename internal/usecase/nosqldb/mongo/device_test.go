@@ -67,6 +67,55 @@ func TestDeviceRepo_GetByID_NotFound(t *testing.T) {
 	require.Nil(t, got)
 }
 
+func TestDeviceRepo_GetByGUID_FoundInNonDefaultTenant(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{
+			{Key: "guid", Value: "g1"},
+			{Key: "friendlyname", Value: "lab-host-1"},
+			{Key: "tenantid", Value: "acme-corp"},
+		},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "g1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "g1", got.GUID)
+	require.Equal(t, "acme-corp", got.TenantID)
+}
+
+func TestDeviceRepo_GetByGUID_NotFound(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse("testdb." + mongo.CollectionDevices))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "ghost")
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+func TestDeviceRepo_GetByGUID_RejectsMalformedGUID(t *testing.T) {
+	t.Parallel()
+
+	db, _ := newMockedDB(t)
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "bad guid")
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
 func TestDeviceRepo_Get(t *testing.T) {
 	t.Parallel()
 

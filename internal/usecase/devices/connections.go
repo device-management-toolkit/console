@@ -9,7 +9,7 @@ import (
 )
 
 func (uc *UseCase) GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return nil, err
 	}
