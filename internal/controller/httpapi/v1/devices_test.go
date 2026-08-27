@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"errors"
 	"net/http"
 	"net/http/httptest"
 	"sync"
@@ -20,6 +21,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -187,6 +189,39 @@ func TestDevicesRoutes(t *testing.T) {
 			requestBody:  requestDevice,
 			tenantID:     "tenantId",
 			expectedCode: http.StatusCreated,
+		},
+		{
+			// RPS re-posts known devices, so a duplicate GUID merges.
+			name:   "insert device - existing guid is upserted",
+			method: http.MethodPost,
+			url:    "/api/v1/devices",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				deviceTest := &dto.Device{
+					ConnectionStatus: true,
+					MPSInstance:      "mpsInstance",
+					Hostname:         "hostname",
+					GUID:             "guid",
+					MPSUsername:      "mpsusername",
+					Tags:             []string{"tag1", "tag2"},
+					TenantID:         "tenantId",
+					FriendlyName:     "friendlyName",
+					DNSSuffix:        "dnsSuffix",
+					Username:         "admin",
+					Password:         "password",
+					UseTLS:           true,
+					AllowSelfSigned:  true,
+					LastConnected:    &timeNow,
+					LastSeen:         &timeNow,
+					LastDisconnected: &timeNow,
+				}
+				conflict := devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", sqldb.ErrDeviceNotUnique)
+				device.EXPECT().Insert(context.Background(), deviceTest).Return(nil, conflict)
+				device.EXPECT().Update(context.Background(), deviceTest, gomock.Any()).Return(deviceTest, nil)
+			},
+			response:     responseDevice,
+			requestBody:  requestDevice,
+			tenantID:     "tenantId",
+			expectedCode: http.StatusOK,
 		},
 		{
 			name:   "insert device - failed",
@@ -941,4 +976,97 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) 
 	maxWrongExpiration := 24 * time.Hour
 	require.True(t, timeDiff < maxWrongExpiration-time.Hour,
 		"token expiration time %v is suspiciously close to 24 hours (the bug)", timeDiff)
+}
+
+// errUpsertTest is neither a unique-constraint nor a database error.
+var errUpsertTest = errors.New("insert failed")
+
+func TestIsDuplicateDevice(t *testing.T) {
+	t.Parallel()
+
+	notUnique := sqldb.ErrDeviceNotUnique.Wrap("device already exists")
+
+	tests := []struct {
+		name string
+		err  error
+		want bool
+	}{
+		{
+			name: "bare not-unique error",
+			err:  notUnique,
+			want: true,
+		},
+		{
+			name: "not-unique wrapped in a database error",
+			err:  devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", notUnique),
+			want: true,
+		},
+		{
+			name: "database error from another cause",
+			err:  devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", errUpsertTest),
+			want: false,
+		},
+		{
+			name: "unrelated error",
+			err:  errUpsertTest,
+			want: false,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			require.Equal(t, tc.want, isDuplicateDevice(tc.err))
+		})
+	}
+}
+
+// upsertRoutes drives the upsert failure paths directly, bypassing the router.
+func upsertRoutes(t *testing.T) (*deviceRoutes, *mocks.MockDeviceManagementFeature, *gin.Context, *httptest.ResponseRecorder) {
+	t.Helper()
+	setupTestConfig()
+
+	mockCtl := gomock.NewController(t)
+	defer mockCtl.Finish()
+
+	feature := mocks.NewMockDeviceManagementFeature(mockCtl)
+	dr := &deviceRoutes{t: feature, l: logger.New("error")}
+
+	recorder := httptest.NewRecorder()
+	c, _ := gin.CreateTestContext(recorder)
+	c.Request = httptest.NewRequest(http.MethodPost, "/api/v1/devices", http.NoBody)
+
+	return dr, feature, c, recorder
+}
+
+func TestDeviceRoutesUpsertErrors(t *testing.T) {
+	t.Parallel()
+
+	t.Run("body is not a JSON object", func(t *testing.T) {
+		t.Parallel()
+
+		dr, _, c, recorder := upsertRoutes(t)
+
+		dr.upsert(c, &dto.Device{GUID: "guid"}, []byte("[]"))
+
+		require.Equal(t, http.StatusInternalServerError, recorder.Code)
+	})
+
+	t.Run("update fails", func(t *testing.T) {
+		t.Parallel()
+
+		dr, feature, c, recorder := upsertRoutes(t)
+
+		device := &dto.Device{GUID: "guid"}
+		feature.EXPECT().
+			Update(c.Request.Context(), device, gomock.Any()).
+			Return(nil, devices.ErrDatabase)
+
+		dr.upsert(c, device, []byte(`{"guid":"guid"}`))
+
+		require.Equal(t, http.StatusBadRequest, recorder.Code)
+	})
 }
