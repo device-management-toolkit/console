@@ -1,0 +1,105 @@
+# SPDX-FileCopyrightText: (C) 2026 Intel Corporation
+# SPDX-License-Identifier: Apache-2.0
+---
+
+# Throwaway workflow used to validate an unreleased build of
+# rsdmike/github-security-report-action before it is tagged and pinned by SHA
+# in codeql-analysis.yml. Delete this file once the action is released.
+#
+# `workflow_dispatch` only shows up in the Actions UI once this file is on the
+# default branch, so the push trigger below is what actually starts the run on
+# this branch.
+
+name: Manual Security Report Test
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [test-security-report-updates]
+
+permissions:
+  contents: read
+
+jobs:
+  security-report:
+    name: Generate security report from action@updates
+    runs-on: ubuntu-latest
+    permissions:
+      actions: read
+      contents: read
+      security-events: write
+
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        with:
+          egress-policy: audit
+
+      - name: Checkout repository
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Initialize CodeQL
+        uses: github/codeql-action/init@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+        with:
+          languages: go
+
+      - name: Autobuild
+        uses: github/codeql-action/autobuild@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+
+      # Writes SARIF to ../results, which is the report action's default
+      # sarifReportDir.
+      - name: Perform CodeQL Analysis
+        uses: github/codeql-action/analyze@db488ddef3bf6cb639b32c2e9a7c0a7ea8271d28 # v4.37.8
+
+      # Intentionally tracking a branch rather than a pinned SHA: exercising
+      # that branch is the whole point of this workflow.
+      - name: Generate Security Report
+        uses: rsdmike/github-security-report-action@updates # zizmor: ignore[unpinned-uses]
+        with:
+          template: report
+          token: ${{ secrets.SECURITY_TOKEN }}
+
+      # The action swallows PDF generation errors and still reports success, so
+      # assert on the artifact itself rather than trusting the step outcome.
+      - name: Verify report was generated
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          if [ ! -f report.pdf ]; then
+            echo "::error::report.pdf was not generated"
+            echo "Workspace contents:"
+            ls -la
+            exit 1
+          fi
+
+          size=$(stat -c%s report.pdf)
+          echo "report.pdf is ${size} bytes"
+
+          if ! head -c 5 report.pdf | grep -q '%PDF-'; then
+            echo "::error::report.pdf is missing the %PDF- header, so it is not a valid PDF"
+            exit 1
+          fi
+
+          if [ "$size" -lt 10000 ]; then
+            echo "::error::report.pdf is only ${size} bytes, which means it rendered empty"
+            exit 1
+          fi
+
+          echo "report.pdf looks like a valid, non-empty PDF"
+
+      - name: Rename Report
+        shell: bash
+        run: |
+          set -euo pipefail
+          DATE=$(date +"%Y-%m-%d")
+          mv "report.pdf" "console-security-report-$DATE.pdf"
+
+      - name: Upload Report Artifact
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: report
+          path: ./*.pdf
+          retention-days: 7
