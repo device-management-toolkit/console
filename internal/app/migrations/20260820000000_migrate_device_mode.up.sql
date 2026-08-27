@@ -4,4 +4,3 @@
 **********************************************************************/
 
 ALTER TABLE devices ADD COLUMN currentmode TEXT;
-ALTER TABLE devices ADD COLUMN discovered BOOLEAN;
