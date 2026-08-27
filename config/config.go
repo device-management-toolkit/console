@@ -3,6 +3,7 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
 	"net"
 	"os"
 	"path/filepath"
@@ -477,6 +478,10 @@ func NewConfig() (*Config, error) {
 		return nil, err
 	}
 
+	if err := validateAndSetEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
+		return nil, err
+	}
+
 	return ConsoleConfig, nil
 }
 
@@ -495,6 +500,21 @@ func validatePort(port string) error {
 
 	if n < 1 || n > 65535 {
 		return ErrPortOutOfRange
+	}
+
+	return nil
+}
+
+func validateAndSetEncryptionKey(encryptionKey string) error {
+	if encryptionKey != "" {
+		if err := ValidateEncryptionKey(encryptionKey); err != nil {
+			return fmt.Errorf(
+				"invalid APP_ENCRYPTION_KEY (app.encryption_key in config.yml): %w.\n"+
+					"Generate one with `openssl rand -base64 24` (32 characters), "+
+					"or leave it unset and let Console generate and store a key for you",
+				err,
+			)
+		}
 	}
 
 	return nil
