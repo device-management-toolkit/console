@@ -100,6 +100,32 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 	return d2, nil
 }
 
+// GetByGUID resolves a device without a tenant filter, for callers that
+// identify themselves by GUID alone and cannot supply one.
+func (uc *UseCase) GetByGUID(ctx context.Context, guid string, includeSecrets bool) (*dto.Device, error) {
+	data, err := uc.repo.GetByGUID(ctx, strings.ToLower(guid))
+	if err != nil {
+		return nil, ErrDatabase.Wrap("GetByGUID", "uc.repo.GetByGUID", err)
+	}
+
+	if data == nil || data.GUID == "" {
+		return nil, ErrNotFound
+	}
+
+	d2, err := uc.entityToDTO(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if includeSecrets {
+		if err := uc.decryptSecrets(d2, data); err != nil {
+			return nil, err
+		}
+	}
+
+	return d2, nil
+}
+
 func (uc *UseCase) decryptSecrets(d2 *dto.Device, data *entity.Device) error {
 	var err error
 

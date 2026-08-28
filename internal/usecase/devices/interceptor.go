@@ -52,7 +52,7 @@ type DeviceConnection struct {
 func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode string) error {
 	// KVM_TIMING: Measure device lookup latency
 	lookupStart := time.Now()
-	device, err := uc.repo.GetByID(c, guid, "")
+	device, err := uc.deviceInTenant(c, guid)
 
 	RecordDeviceLookup(time.Since(lookupStart))
 	uc.log.Debug("KVM_TIMING: Device lookup", "duration_ms", time.Since(lookupStart).Milliseconds(), "guid", guid)
@@ -137,7 +137,10 @@ func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, 
 
 	device.Password = decryptedPassword
 
-	ctx, cancel := context.WithCancel(c)
+	// Preserve request values such as tenant ID, but do not inherit request
+	// cancellation: the HTTP handler returns immediately after upgrading the
+	// connection while the KVM session must remain active in its goroutines.
+	ctx, cancel := context.WithCancel(context.WithoutCancel(c))
 	now := time.Now()
 	deviceConnection := &DeviceConnection{
 		Conn:          conn,
@@ -212,7 +215,11 @@ func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection
 }
 
 func (uc *UseCase) closeDeviceWebSocket(conn WebSocketConn, deviceConnection *DeviceConnection) {
-	uc.log.Debug("KVM session closed by AMT", "guid", deviceConnection.Device.GUID)
+	if deviceConnection.ctx.Err() != nil {
+		uc.log.Debug("KVM session closed after browser disconnect", "guid", deviceConnection.Device.GUID)
+	} else {
+		uc.log.Debug("KVM session closed by AMT", "guid", deviceConnection.Device.GUID)
+	}
 
 	if conn != nil {
 		_ = conn.WriteMessage(
@@ -264,6 +271,8 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 		uc.observeDeviceReceive(deviceConnection, time.Since(recvStart))
 
 		if err != nil {
+			uc.log.Debug("KVM device listener stopped", "guid", deviceConnection.Device.GUID, "error", err)
+
 			break
 		}
 
@@ -337,6 +346,8 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 		uc.observeBrowserRead(deviceConnection, time.Since(readStart))
 
 		if err != nil {
+			uc.log.Debug("KVM browser listener stopped", "guid", deviceConnection.Device.GUID, "error", err)
+
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				_ = fmt.Errorf("interceptor - listenToBrowser - websocket closed unexpectedly (reading from browser): %w", err)
 			}

@@ -40,6 +40,7 @@ type (
 		GetCount(context.Context, string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
 		GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error)
+		GetByGUID(ctx context.Context, guid string) (*entity.Device, error)
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 		GetByTags(ctx context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) (bool, error)
@@ -54,6 +55,9 @@ type (
 		GetCount(context.Context, string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 		GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error)
+		// GetByGUID resolves a device without a tenant filter. CIRA devices
+		// authenticate by GUID and cannot present a tenant.
+		GetByGUID(ctx context.Context, guid string, includeSecrets bool) (*dto.Device, error)
 		UpdateConnectionStatus(ctx context.Context, guid string, status bool) error
 		UpdateLastSeen(ctx context.Context, guid string) error
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)

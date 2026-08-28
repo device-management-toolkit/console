@@ -182,7 +182,7 @@ func (uc *UseCase) UpdateWirelessProfile(c context.Context, guid string, profile
 }
 
 func (uc *UseCase) setupWirelessProfileManagement(c context.Context, guid string) (wsman.Management, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return nil, err
 	}
