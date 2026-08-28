@@ -12,8 +12,10 @@ import (
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -28,6 +30,7 @@ func profilesTest(t *testing.T) (*mocks.MockProfilesFeature, *gin.Engine) {
 	mockProfiles := mocks.NewMockProfilesFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.Tenant(log))
 	handler := engine.Group("/api/v1/admin")
 
 	NewProfileRoutes(handler, mockProfiles, log)
@@ -412,6 +415,52 @@ func TestProfilesUpdatePatchWithoutPasswords(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestProfilesGetUsesTenantHeader(t *testing.T) {
+	t.Parallel()
+
+	profileFeature, engine := profilesTest(t)
+
+	profileFeature.EXPECT().
+		Get(tenant.WithContext(context.Background(), "tenant-a"), 25, 0, "tenant-a").
+		Return([]dto.Profile{{ProfileName: "profile", TenantID: "tenant-a"}}, nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/admin/profiles", http.NoBody)
+	require.NoError(t, err)
+	req.Header.Set(middleware.TenantHeaderName, "tenant-a")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Body.String(), "tenant-a")
+}
+
+func TestProfilesInsertUsesTenantHeader(t *testing.T) {
+	t.Parallel()
+
+	profileFeature, engine := profilesTest(t)
+
+	expected := profileTest
+	expected.TenantID = "tenant-a"
+
+	profileFeature.EXPECT().
+		Insert(tenant.WithContext(context.Background(), "tenant-a"), &expected).
+		Return(&expected, nil)
+
+	body, err := json.Marshal(profileTest)
+	require.NoError(t, err)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBuffer(body))
+	require.NoError(t, err)
+	req.Header.Set(middleware.TenantHeaderName, "tenant-a")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+	require.Contains(t, w.Body.String(), "tenant-a")
 }
 
 func TestProfilesInsertWithoutPasswordFails(t *testing.T) {

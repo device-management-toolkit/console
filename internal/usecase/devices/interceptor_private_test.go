@@ -17,6 +17,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
 	"github.com/device-management-toolkit/console/internal/entity"
+	crypto "github.com/device-management-toolkit/console/internal/mocks/crypto"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -921,6 +922,32 @@ func TestListenToDeviceClosesWebSocketOnAMTDisconnect(t *testing.T) {
 	require.True(t, spy.writeMessageCalled, "expected WriteMessage(CloseMessage) to be called on browser WebSocket")
 	require.Equal(t, websocket.CloseMessage, spy.writeMessageType)
 	require.True(t, spy.closeCalled, "expected Close() to be called on browser WebSocket")
+}
+
+func TestCreateNewConnectionSurvivesRequestCancellation(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{
+		GUID:     "test-guid",
+		Username: "admin",
+		Password: "password",
+	}
+
+	uc := &UseCase{
+		redirection:      &spyRedirection{},
+		safeRequirements: crypto.MockCrypto{},
+		redirConnections: make(map[string]*DeviceConnection),
+	}
+	requestCtx, requestCancel := context.WithCancel(context.Background())
+	requestCancel()
+
+	connection, err := uc.createNewConnection(requestCtx, &websocket.Conn{}, "test-guid-kvm", device)
+	require.NoError(t, err)
+	t.Cleanup(func() {
+		connection.cancel()
+		connection.healthTicker.Stop()
+	})
+	require.NoError(t, connection.ctx.Err())
 }
 
 func entityDevice() entity.Device {
