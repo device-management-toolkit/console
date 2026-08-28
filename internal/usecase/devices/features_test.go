@@ -18,6 +18,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/tenant"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
@@ -2943,6 +2944,18 @@ func TestSetFeatures(t *testing.T) {
 			}
 		})
 	}
+}
+
+func TestSetFeaturesRejectsDeviceOutsideRequestTenant(t *testing.T) {
+	t.Parallel()
+
+	useCase, _, _, repo := initInfoTest(t)
+	ctx := tenant.WithContext(context.Background(), "tenant-b")
+
+	repo.EXPECT().GetByID(ctx, "tenant-a-device", "tenant-b").Return(nil, nil)
+
+	_, _, err := useCase.SetFeatures(ctx, "tenant-a-device", dto.Features{})
+	require.IsType(t, devices.ErrNotFound, err)
 }
 
 func TestFindBootSettingInstances(t *testing.T) {

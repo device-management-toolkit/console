@@ -16,7 +16,7 @@ func (r *deviceManagementRoutes) executeCall(c *gin.Context) {
 	guid := c.Param("guid")
 	call := c.Param("call")
 
-	result, err := r.a.ExecuteCall(c.Request.Context(), guid, call, "")
+	result, err := r.a.ExecuteCall(c.Request.Context(), guid, call, tenantIDFromHeader(c))
 	if err != nil {
 		r.l.Error(err, "http - explorer - v1 - executeCall")
 		ErrorResponse(c, err)

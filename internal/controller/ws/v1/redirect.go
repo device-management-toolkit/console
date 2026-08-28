@@ -13,6 +13,7 @@ import (
 	"github.com/gorilla/websocket"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -75,14 +76,24 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	// KVM_TIMING: Measure total connection time
 	totalStart := time.Now()
-	err = r.d.Redirect(c, conn, c.Query("host"), c.Query("mode"))
+	// The JWT tenant claim is stored on the request context and is required for
+	// the use case to locate the device in the correct tenant.
+	err = r.d.Redirect(c.Request.Context(), conn, c.Query("host"), c.Query("mode"))
 	totalDuration := time.Since(totalStart)
 	devices.RecordTotalConnection(totalDuration, c.Query("mode"))
 	r.l.Debug("KVM_TIMING: Total connection time", "duration_ms", totalDuration.Milliseconds(), "mode", c.Query("mode"))
 
 	if err != nil {
 		r.l.Error(err, "http - devices - v1 - redirect")
-		errorResponse(c, http.StatusInternalServerError, "redirect failed")
+
+		// Upgrade hijacks the HTTP connection, so errors after this point must be
+		// reported over the WebSocket rather than through Gin's response writer.
+		_ = conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "redirect failed"),
+			time.Now().Add(time.Second),
+		)
+		_ = conn.Close()
 	}
 }
 
@@ -122,6 +133,25 @@ func (r *RedirectRoutes) validateRedirectionToken(c *gin.Context, tokenString st
 		http.Error(c.Writer, "token not authorized for this device", http.StatusForbidden)
 
 		return false
+	}
+
+	tenantID, hasTenantID := (*claims)[tenant.TenantIDClaim]
+	if hasTenantID {
+		tenantValue, ok := tenantID.(string)
+		if !ok || !tenant.Valid(tenantValue) {
+			r.l.Warn("redirection token contains invalid tenant", "host", c.Query("host"))
+			http.Error(c.Writer, "token contains invalid tenant", http.StatusForbidden)
+
+			return false
+		}
+
+		r.l.Debug("WebSocket tenant ID from claims", "tenant_id", tenantValue)
+
+		c.Request = c.Request.WithContext(tenant.WithContext(c.Request.Context(), tenantValue))
+	} else {
+		r.l.Debug("WebSocket tenant ID from claims is not present")
+
+		c.Request = c.Request.WithContext(tenant.WithContext(c.Request.Context(), ""))
 	}
 
 	return true

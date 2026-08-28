@@ -8390,6 +8390,547 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Tenancy",
+			"item": [
+				{
+					"name": "Create profile in tenant A",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 201 Created\", function () {",
+									"    pm.response.to.have.status(201);",
+									"});",
+									"",
+									"pm.test(\"Profile is stored under tenant A\", function () {",
+									"    pm.expect(pm.response.json().tenantId).to.eql(pm.variables.get('tenantA'));",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profileName\": \"tenancy-probe\",\n  \"activation\": \"ccmactivate\",\n  \"generateRandomPassword\": true,\n  \"generateRandomMEBxPassword\": false,\n  \"tags\": [],\n  \"dhcpEnabled\": true,\n  \"tlsMode\": 0,\n  \"userConsent\": \"All\",\n  \"iderEnabled\": true,\n  \"kvmEnabled\": true,\n  \"solEnabled\": true\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot read tenant A profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									"",
+									"pm.test(\"Cross-tenant read leaks nothing\", function () {",
+									"    pm.expect(pm.response.text()).to.not.include('ccmactivate');",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantB}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/tenancy-probe",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles",
+								"tenancy-probe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Default tenant cannot read tenant A profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/tenancy-probe",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles",
+								"tenancy-probe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant A can read its own profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/tenancy-probe",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles",
+								"tenancy-probe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Body tenantId conflicting with header is rejected",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"domains"
+							]
+						},
+						"body": {
+							"mode": "raw",
+							"raw": "{\n  \"profileName\": \"tenancy-conflict\",\n  \"domainSuffix\": \"tenancy.example.com\",\n  \"provisioningCert\": \"cert\",\n  \"provisioningCertStorageFormat\": \"string\",\n  \"provisioningCertPassword\": \"password\",\n  \"tenantId\": \"{{tenantB}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Domain rejects path traversal tenantId without header",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"profileName\": \"tenant-path-traversal\",\n  \"domainSuffix\": \"tenancy.example.com\",\n  \"provisioningCert\": \"cert\",\n  \"provisioningCertStorageFormat\": \"string\",\n  \"provisioningCertPassword\": \"password\",\n  \"tenantId\": \"../../other-tenant\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/domains", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "domains"]}},
+					"response": []
+				},
+				{
+					"name": "CIRA config body tenantId conflicting with header is rejected",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantA}}"}], "body": {"mode": "raw", "raw": "{\n  \"configName\": \"tenancy-conflict\",\n  \"mpsServerAddress\": \"192.168.8.50\",\n  \"mpsPort\": 4433,\n  \"username\": \"admin\",\n  \"commonName\": \"192.168.8.50\",\n  \"serverAddressFormat\": 3,\n  \"authMethod\": 2,\n  \"mpsRootCertificate\": \"rootcert\",\n  \"proxyDetails\": \"\",\n  \"tenantId\": \"{{tenantB}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/ciraconfigs", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "ciraconfigs"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot delete tenant A profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantB}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/tenancy-probe",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles",
+								"tenancy-probe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant A deletes its own profile",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 204 No Content\", function () {",
+									"    pm.response.to.have.status(204);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "DELETE",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/tenancy-probe",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles",
+								"tenancy-probe"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - space",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - slash",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant/a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - sql quote",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant'a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - over max length",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"profiles"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "tenant.a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": ".tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading underscore",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "_tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading hyphen",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "-tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "profiles"]}},
+					"response": []
+				}
+			]
 		}
 	],
 	"auth": {
@@ -8409,7 +8950,13 @@
 				"type": "text/javascript",
 				"requests": {},
 				"exec": [
-					""
+					"// Scope every request to {{tenantId}} when it is set. Leave it blank to",
+					"// exercise the default tenant, which is where single-tenant data lives.",
+					"const tenantId = pm.variables.get('tenantId');",
+					"",
+					"if (tenantId) {",
+					"    pm.request.headers.upsert({ key: 'x-tenant-id', value: tenantId });",
+					"}"
 				]
 			}
 		},

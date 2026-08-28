@@ -83,6 +83,8 @@ var (
 
 	// ErrCIRADeviceNotConnected is returned when a CIRA device is not connected or not found.
 	ErrCIRADeviceNotConnected = errors.New("CIRA device not connected/not found")
+	// ErrCIRATenantMismatch is returned when a caller's tenant does not own the CIRA socket.
+	ErrCIRATenantMismatch = errors.New("CIRA device belongs to a different tenant")
 	// ErrNoWiFiPort is returned when no WiFi interface is found on the device.
 	ErrNoWiFiPort = errors.New("no WiFi interface found (InstanceID == Intel(r) AMT Ethernet Port Settings 1)")
 
@@ -92,8 +94,11 @@ var (
 type ConnectionEntry struct {
 	WsmanMessages wsman.Messages
 	IsCIRA        bool
-	Conny         net.Conn
-	Timer         *time.Timer
+	// TenantID is learned from the device row during APF auth, so REST callers
+	// can be checked against the tenant that actually owns the socket.
+	TenantID string
+	Conny    net.Conn
+	Timer    *time.Timer
 
 	// APF channel management for CIRA connections (uses types from go-wsman-messages)
 	APFChannelStore *client.APFChannelStore
@@ -165,6 +170,14 @@ func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Dev
 			connection := GetConnectionEntry(device.GUID)
 			if connection == nil {
 				errChan <- ErrCIRADeviceNotConnected
+
+				return
+			}
+
+			// Defense in depth behind the repository's tenant filter: the socket is
+			// owned by the tenant that authenticated it, whatever the caller asked for.
+			if connection.TenantID != device.TenantID {
+				errChan <- ErrCIRATenantMismatch
 
 				return
 			}

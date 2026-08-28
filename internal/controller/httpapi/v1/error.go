@@ -140,6 +140,12 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, response{Error: msg, Message: msg})
 
 		return true
+	case errors.Is(err, wsmanAPI.ErrCIRATenantMismatch):
+		// Matches MPS ciraMiddleware, which answers 401 on a tenant mismatch.
+		msg := "Unauthorized"
+		c.AbortWithStatusJSON(http.StatusUnauthorized, response{Error: msg, Message: msg})
+
+		return true
 	}
 
 	return false

@@ -10,14 +10,17 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-// globalRequestThreshold is the number of global requests required before sending keep-alive.
-const globalRequestThreshold = 4
+const (
+	globalRequestThreshold = 4
+	authMethodPassword     = "password"
+)
 
 // APFHandler implements apf.Handler for the CIRA server.
 // It provides application-specific logic for authentication and device registration.
 type APFHandler struct {
 	devices            devices.Feature
 	deviceID           string
+	tenantID           string
 	globalRequestCount int
 	log                logger.Interface
 }
@@ -33,6 +36,12 @@ func NewAPFHandler(d devices.Feature, l logger.Interface) *APFHandler {
 // DeviceID returns the device ID extracted from the protocol version message.
 func (h *APFHandler) DeviceID() string {
 	return h.deviceID
+}
+
+// TenantID returns the tenant the authenticated device belongs to, learned from
+// its database row rather than from the device itself.
+func (h *APFHandler) TenantID() string {
+	return h.tenantID
 }
 
 // OnProtocolVersion is called when an APF_PROTOCOLVERSION message is received.
@@ -55,7 +64,7 @@ func (h *APFHandler) OnAuthRequest(request apf.AuthRequest) apf.AuthResponse {
 		h.deviceID, request.Username, request.MethodName)
 
 	// Only support password authentication
-	if request.MethodName != "password" {
+	if request.MethodName != authMethodPassword {
 		h.log.Warn("Unsupported authentication method: %s", request.MethodName)
 
 		return apf.AuthResponse{Authenticated: false}
@@ -85,7 +94,9 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 	ctx := context.Background()
 
 	// Fetch device from database using the UUID
-	device, err := h.devices.GetByID(ctx, h.deviceID, "", true)
+	// CIRA devices authenticate by GUID and cannot present a tenant, so the
+	// lookup must span tenants rather than defaulting to the empty one.
+	device, err := h.devices.GetByGUID(ctx, h.deviceID, true)
 	if err != nil {
 		h.log.Warn("Failed to fetch device %s from database: %v", h.deviceID, err)
 
@@ -112,6 +123,9 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 
 		return false
 	}
+
+	h.tenantID = device.TenantID
+	h.log.Debug("CIRA tenant resolved", "device_id", h.deviceID, "tenant_id", h.tenantID)
 
 	return true
 }
