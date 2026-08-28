@@ -8635,6 +8635,18 @@
 					"response": []
 				},
 				{
+					"name": "Domain rejects path traversal tenantId without header",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}], "body": {"mode": "raw", "raw": "{\n  \"profileName\": \"tenant-path-traversal\",\n  \"domainSuffix\": \"tenancy.example.com\",\n  \"provisioningCert\": \"cert\",\n  \"provisioningCertStorageFormat\": \"string\",\n  \"provisioningCertPassword\": \"password\",\n  \"tenantId\": \"../../other-tenant\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/domains", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "domains"]}},
+					"response": []
+				},
+				{
+					"name": "CIRA config body tenantId conflicting with header is rejected",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantA}}"}], "body": {"mode": "raw", "raw": "{\n  \"configName\": \"tenancy-conflict\",\n  \"mpsServerAddress\": \"192.168.8.50\",\n  \"mpsPort\": 4433,\n  \"username\": \"admin\",\n  \"commonName\": \"192.168.8.50\",\n  \"serverAddressFormat\": 3,\n  \"authMethod\": 2,\n  \"mpsRootCertificate\": \"rootcert\",\n  \"proxyDetails\": \"\",\n  \"tenantId\": \"{{tenantB}}\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/admin/ciraconfigs", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "admin", "ciraconfigs"]}},
+					"response": []
+				},
+				{
 					"name": "Tenant B cannot delete tenant A profile",
 					"event": [
 						{

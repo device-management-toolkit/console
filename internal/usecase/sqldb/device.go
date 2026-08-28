@@ -185,7 +185,7 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	return d, nil
 }
 
-func (r *DeviceRepo) GetByGUID(_ context.Context, guid string) (*entity.Device, error) {
+func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
 	sqlQuery, _, err := r.Builder.
 		Select(
 			"guid",
@@ -213,7 +213,7 @@ func (r *DeviceRepo) GetByGUID(_ context.Context, guid string) (*entity.Device, 
 		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, guid)
+	rows, err := r.Pool.QueryContext(ctx, sqlQuery, guid)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Pool.Query", err)
 	}

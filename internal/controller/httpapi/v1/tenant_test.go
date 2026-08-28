@@ -73,7 +73,7 @@ func TestApplyTenantIDWithoutTenantRejectsInvalidBodyValue(t *testing.T) {
 
 	c := tenantContext(t, "")
 
-	profile := dto.Profile{TenantID: "tenant/a"}
+	profile := dto.Profile{TenantID: "../../other-tenant"}
 	require.ErrorIs(t, applyTenantID(c, &profile.TenantID), errInvalidTenantID)
-	require.Equal(t, "tenant/a", profile.TenantID)
+	require.Equal(t, "../../other-tenant", profile.TenantID)
 }

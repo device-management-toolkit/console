@@ -489,6 +489,26 @@ func TestDeviceRepo_GetByGUID(t *testing.T) {
 	}
 }
 
+func TestDeviceRepo_GetByGUIDUsesCallerContext(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	t.Cleanup(func() { _ = dbConn.Close() })
+
+	repo := sqldb.NewDeviceRepo(&db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}, mocks.NewMockLogger(nil))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	device, err := repo.GetByGUID(ctx, "guid1")
+	require.Nil(t, device)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), context.Canceled.Error())
+}
+
 func TestDeviceRepo_GetDistinctTags(t *testing.T) {
 	t.Parallel()
 

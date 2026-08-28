@@ -104,6 +104,25 @@ func TestDeviceRepo_GetByGUID_NotFound(t *testing.T) {
 	require.Nil(t, got)
 }
 
+func TestDeviceRepo_GetByGUID_AmbiguousAcrossTenantsReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "tenantid", Value: "tenant-a"}},
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "tenantid", Value: "tenant-b"}},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "g1")
+	require.Nil(t, got)
+
+	var notUnique repoerrors.NotUniqueError
+	require.ErrorAs(t, err, &notUnique)
+}
+
 func TestDeviceRepo_GetByGUID_RejectsMalformedGUID(t *testing.T) {
 	t.Parallel()
 

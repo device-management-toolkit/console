@@ -2808,6 +2808,36 @@
 					"response": []
 				},
 				{
+					"name": "Tenant B cannot delete a tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "DELETE", "header": [{"key": "x-tenant-id", "value": "{{tenantB}}"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot modify tenant A AMT features",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"userConsent\": \"none\",\n  \"enableSOL\": false,\n  \"enableIDER\": false,\n  \"enableKVM\": false,\n  \"ocr\": false,\n  \"rpe\": true\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/features/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "features", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot add a certificate to tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"cert\": \"-----BEGIN CERTIFICATE-----\\nMIIDtTM=\\n-----END CERTIFICATE-----\",\n  \"isTrusted\": true\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/certificates/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "certificates", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot update tenant A wired network",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "PATCH", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"dhcpEnabled\": false,\n  \"ipAddress\": \"192.168.1.50\",\n  \"subnetMask\": \"255.255.255.0\",\n  \"defaultGateway\": \"192.168.1.1\",\n  \"primaryDNS\": \"192.168.1.1\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "networkSettings", "wired", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot use AMT Explorer on tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "{{tenantB}}"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/version/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "version", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
 					"name": "Malformed tenant rejected - space",
 					"event": [
 						{

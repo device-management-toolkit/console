@@ -89,7 +89,8 @@ func (s *Server) ListenAndServe() error {
 		config.CipherSuites = append(config.CipherSuites, suite.ID)
 	}
 	// add the weak cipher suites for AMT device compatibility
-	config.CipherSuites = append(config.CipherSuites,
+	config.CipherSuites = append(
+		config.CipherSuites,
 		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
