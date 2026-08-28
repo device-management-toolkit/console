@@ -346,8 +346,9 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 	return devs, nil
 }
 
-// activatedFilter matches devices provisioned into a real AMT control mode.
-// The "" / null / missing currentmode and the "not activated" sentinel (any case) are excluded.
+// activatedFilter matches devices provisioned into a real AMT control mode
+// (CCM/ACM): currentmode is present, non-empty, and not the "not activated"
+// pre-provisioning string that rpc-go reports for un-provisioned devices.
 func activatedFilter(tenantID string) bson.M {
 	return bson.M{
 		fieldTenantID: tenantID,
@@ -359,11 +360,17 @@ func activatedFilter(tenantID string) bson.M {
 	}
 }
 
-// discoveredFilter matches devices flagged as discovered on the network.
+// discoveredFilter is the exact complement of activatedFilter: a device is
+// discovered (not yet activated) when currentmode is missing, null, empty, or
+// the "not activated" pre-provisioning string.
 func discoveredFilter(tenantID string) bson.M {
 	return bson.M{
-		fieldTenantID:   tenantID,
-		fieldDiscovered: true,
+		fieldTenantID: tenantID,
+		opOr: bson.A{
+			bson.M{fieldCurrentMode: bson.M{opExists: false}},
+			bson.M{fieldCurrentMode: bson.M{opIn: bson.A{"", nil}}},
+			bson.M{fieldCurrentMode: bson.Regex{Pattern: "^not activated$", Options: "i"}},
+		},
 	}
 }
 
@@ -376,7 +383,7 @@ func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID s
 	return r.findFiltered(ctx, "GetActivated", activatedFilter(tenantID), top, skip)
 }
 
-// GetDiscovered returns devices that have been discovered on the network.
+// GetDiscovered returns devices that have not yet been activated (currentmode empty/null/missing).
 func (r *DeviceRepo) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
 		return []entity.Device{}, nil
