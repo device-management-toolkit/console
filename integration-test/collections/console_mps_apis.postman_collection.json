@@ -2667,6 +2667,369 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Tenancy",
+			"item": [
+				{
+					"name": "Tenant A device list is scoped",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Every device belongs to tenant A\", function () {",
+									"    const body = pm.response.json();",
+									"    const items = Array.isArray(body) ? body : (body.data || []);",
+									"    items.forEach(function (device) {",
+									"        pm.expect(device.tenantId).to.eql(pm.variables.get('tenantA'));",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot read a tenant A device",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantB}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant A tag list is scoped",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/tags",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot delete a tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "DELETE", "header": [{"key": "x-tenant-id", "value": "{{tenantB}}"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot modify tenant A AMT features",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"userConsent\": \"none\",\n  \"enableSOL\": false,\n  \"enableIDER\": false,\n  \"enableKVM\": false,\n  \"ocr\": false,\n  \"rpe\": true\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/features/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "features", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot add a certificate to tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"cert\": \"-----BEGIN CERTIFICATE-----\\nMIIDtTM=\\n-----END CERTIFICATE-----\",\n  \"isTrusted\": true\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/certificates/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "certificates", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot update tenant A wired network",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "PATCH", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"dhcpEnabled\": false,\n  \"ipAddress\": \"192.168.1.50\",\n  \"subnetMask\": \"255.255.255.0\",\n  \"defaultGateway\": \"192.168.1.1\",\n  \"primaryDNS\": \"192.168.1.1\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "networkSettings", "wired", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot use AMT Explorer on tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "{{tenantB}}"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/version/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "version", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - space",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - slash",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant/a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - sql quote",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant'a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - over max length",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "tenant.a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": ".tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading underscore",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "_tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading hyphen",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "-tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				}
+			]
 		}
 	],
 	"event": [
@@ -2677,7 +3040,13 @@
 				"packages": {},
 				"requests": {},
 				"exec": [
-					""
+					"// Scope every request to {{tenantId}} when it is set. Leave it blank to",
+					"// exercise the default tenant, which is where single-tenant data lives.",
+					"const tenantId = pm.variables.get('tenantId');",
+					"",
+					"if (tenantId) {",
+					"    pm.request.headers.upsert({ key: 'x-tenant-id', value: tenantId });",
+					"}"
 				]
 			}
 		},

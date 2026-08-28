@@ -54,7 +54,7 @@ type BootConfiguration struct {
 }
 
 func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return dto.Features{}, dtov2.Features{}, err
 	}
@@ -223,7 +223,7 @@ func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dt
 }
 
 func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Features) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return settingsResults, settingsResultsV2, err
 	}
