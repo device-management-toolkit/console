@@ -1295,13 +1295,13 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 	}
 }
 
-// seedModeDiscovered inserts a device row including the currentmode/discovered columns.
-func seedModeDiscovered(t *testing.T, dbConn *sql.DB, guid, tenantID, currentMode string, discovered *bool) {
+// seedMode inserts a device row with the currentmode column set (nil -> SQL NULL).
+func seedMode(t *testing.T, dbConn *sql.DB, guid, tenantID string, currentMode *string) {
 	t.Helper()
 
 	_, err := dbConn.ExecContext(context.Background(),
-		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode, discovered) VALUES (?, ?, ?, ?, ?)`,
-		guid, tenantID, "{}", currentMode, discovered)
+		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode) VALUES (?, ?, ?, ?)`,
+		guid, tenantID, "{}", currentMode)
 	require.NoError(t, err)
 }
 
@@ -1311,22 +1311,29 @@ func TestDeviceRepo_GetActivated(t *testing.T) {
 	dbConn := setupDeviceTable(t)
 	defer dbConn.Close()
 
-	trueVal := true
-	seedModeDiscovered(t, dbConn, "guid-activated", "tenant1", "Admin Control Mode", &trueVal)
-	seedModeDiscovered(t, dbConn, "guid-notactivated", "tenant1", "NOT ACTIVATED", &trueVal) // case-insensitive exclude
-	seedModeDiscovered(t, dbConn, "guid-empty", "tenant1", "", nil)
-	_, err := dbConn.ExecContext(context.Background(),
-		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode, discovered) VALUES (?, ?, ?, ?, ?)`,
-		"guid-nullmode", "tenant1", "{}", nil, trueVal) // legacy NULL currentmode must be excluded
-	require.NoError(t, err)
-	seedModeDiscovered(t, dbConn, "guid-othertenant", "tenant2", "Admin Control Mode", &trueVal)
+	// rpc-go reports interpreted control-mode strings (see utils.InterpretControlMode).
+	adminMode := "admin control mode"
+	clientMode := "client control mode"
+	notActivated := "not activated"
+	notActivatedCaps := "NOT ACTIVATED"
+	empty := ""
+
+	seedMode(t, dbConn, "guid-admin", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-client", "tenant1", &clientMode)
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> not activated
+	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive exclude
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> not activated
+	seedMode(t, dbConn, "guid-nullmode", "tenant1", nil)                        // NULL -> not activated
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
 	result, err := repo.GetActivated(context.Background(), 0, 0, "tenant1")
 	require.NoError(t, err)
-	require.Len(t, result, 1)
-	assert.Equal(t, "guid-activated", result[0].GUID)
+	require.Len(t, result, 2)
+
+	guids := []string{result[0].GUID, result[1].GUID}
+	assert.ElementsMatch(t, []string{"guid-admin", "guid-client"}, guids)
 }
 
 func TestDeviceRepo_GetDiscovered(t *testing.T) {
@@ -1335,20 +1342,29 @@ func TestDeviceRepo_GetDiscovered(t *testing.T) {
 	dbConn := setupDeviceTable(t)
 	defer dbConn.Close()
 
-	trueVal := true
-	falseVal := false
-
-	seedModeDiscovered(t, dbConn, "guid-discovered", "tenant1", "not activated", &trueVal)
-	seedModeDiscovered(t, dbConn, "guid-notdiscovered", "tenant1", "", &falseVal)
-	seedModeDiscovered(t, dbConn, "guid-nulldiscovered", "tenant1", "", nil)
-	seedModeDiscovered(t, dbConn, "guid-othertenant", "tenant2", "", &trueVal)
+	adminMode := "admin control mode"
+	notActivated := "not activated"
+	notActivatedCaps := "NOT ACTIVATED"
+	empty := ""
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> discovered
+	seedMode(t, dbConn, "guid-null", "tenant1", nil)                            // NULL -> discovered
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> discovered
+	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive
+	seedMode(t, dbConn, "guid-activated", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &notActivated)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
 	result, err := repo.GetDiscovered(context.Background(), 0, 0, "tenant1")
 	require.NoError(t, err)
-	require.Len(t, result, 1)
-	assert.Equal(t, "guid-discovered", result[0].GUID)
+	require.Len(t, result, 4)
+
+	guids := make([]string, len(result))
+	for i, d := range result {
+		guids[i] = d.GUID
+	}
+
+	assert.ElementsMatch(t, []string{"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps"}, guids)
 }
 
 func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
@@ -1357,20 +1373,24 @@ func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
 	dbConn := setupDeviceTable(t)
 	defer dbConn.Close()
 
-	trueVal := true
-	falseVal := false
+	adminMode := "admin control mode"
+	clientMode := "client control mode"
+	notActivated := "not activated"
+	empty := ""
 
-	seedModeDiscovered(t, dbConn, "guid-activated", "tenant1", "Admin Control Mode", &falseVal)
-	seedModeDiscovered(t, dbConn, "guid-discovered", "tenant1", "not activated", &trueVal)
-	seedModeDiscovered(t, dbConn, "guid-legacy", "tenant1", "", nil)
-	seedModeDiscovered(t, dbConn, "guid-othertenant", "tenant2", "Admin Control Mode", &trueVal)
+	seedMode(t, dbConn, "guid-admin", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-client", "tenant1", &clientMode)
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)
+	seedMode(t, dbConn, "guid-legacy", "tenant1", nil)
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
 	activated, discovered, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
 	require.NoError(t, err)
-	assert.Equal(t, 1, activated)
-	assert.Equal(t, 1, discovered)
+	assert.Equal(t, 2, activated)
+	assert.Equal(t, 3, discovered)
 }
 
 func TestDeviceRepo_GetDeviceStateCounts_Error(t *testing.T) {

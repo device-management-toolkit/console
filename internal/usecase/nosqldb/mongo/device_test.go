@@ -92,7 +92,7 @@ func TestDeviceRepo_GetActivated(t *testing.T) {
 
 	md.AddResponses(findResponse(
 		"testdb."+mongo.CollectionDevices,
-		bson.D{{Key: "guid", Value: "g1"}, {Key: "currentmode", Value: "Admin Control Mode"}, {Key: "tenantid", Value: "t1"}},
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "currentmode", Value: "admin control mode"}, {Key: "tenantid", Value: "t1"}},
 	))
 
 	repo := mongo.NewDeviceRepo(db)
@@ -110,15 +110,17 @@ func TestDeviceRepo_GetDiscovered(t *testing.T) {
 
 	md.AddResponses(findResponse(
 		"testdb."+mongo.CollectionDevices,
-		bson.D{{Key: "guid", Value: "g1"}, {Key: "discovered", Value: true}, {Key: "tenantid", Value: "t1"}},
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "currentmode", Value: ""}, {Key: "tenantid", Value: "t1"}},
+		bson.D{{Key: "guid", Value: "g2"}, {Key: "currentmode", Value: "not activated"}, {Key: "tenantid", Value: "t1"}},
 	))
 
 	repo := mongo.NewDeviceRepo(db)
 
 	rows, err := repo.GetDiscovered(context.Background(), 10, 0, "t1")
 	require.NoError(t, err)
-	require.Len(t, rows, 1)
+	require.Len(t, rows, 2)
 	require.Equal(t, "g1", rows[0].GUID)
+	require.Equal(t, "g2", rows[1].GUID)
 }
 
 func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {

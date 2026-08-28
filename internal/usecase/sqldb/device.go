@@ -26,11 +26,16 @@ var (
 )
 
 const (
-	// activatedWhere matches devices provisioned into a real AMT control mode.
-	// Legacy rows with a NULL currentmode and the "not activated" sentinel are excluded.
+	// activatedWhere matches devices provisioned into a real AMT control mode
+	// (CCM/ACM). rpc-go reports the interpreted control-mode string, so a
+	// pre-provisioning device sends the literal "not activated" — exclude it
+	// alongside NULL/empty legacy rows.
 	activatedWhere = "currentmode IS NOT NULL AND currentmode <> '' AND LOWER(currentmode) <> 'not activated'"
-	// discoveredWhere matches devices flagged as discovered on the network.
-	discoveredWhere = "discovered = ?"
+	// discoveredWhere is the exact complement of activatedWhere: a device is
+	// discovered (not yet activated) when currentmode is NULL, empty, or the
+	// "not activated" pre-provisioning string. Parenthesised so the OR stays
+	// grouped when ANDed with the tenant clause.
+	discoveredWhere = "(currentmode IS NULL OR currentmode = '' OR LOWER(currentmode) = 'not activated')"
 )
 
 // New -.
@@ -139,9 +144,9 @@ func (r *DeviceRepo) GetActivated(_ context.Context, top, skip int, tenantID str
 	return r.getFiltered("GetActivated", activatedWhere, nil, top, skip, tenantID)
 }
 
-// GetDiscovered returns devices that have been discovered on the network.
+// GetDiscovered returns devices that have not yet been activated (currentmode empty/NULL).
 func (r *DeviceRepo) GetDiscovered(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
-	return r.getFiltered("GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
+	return r.getFiltered("GetDiscovered", discoveredWhere, nil, top, skip, tenantID)
 }
 
 // GetDeviceStateCounts returns the number of activated and discovered devices for a tenant.
@@ -151,7 +156,7 @@ func (r *DeviceRepo) GetDeviceStateCounts(_ context.Context, tenantID string) (a
 		return 0, 0, err
 	}
 
-	discovered, err = r.countFiltered("GetDeviceStateCounts", discoveredWhere, []any{true}, tenantID)
+	discovered, err = r.countFiltered("GetDeviceStateCounts", discoveredWhere, nil, tenantID)
 	if err != nil {
 		return 0, 0, err
 	}
