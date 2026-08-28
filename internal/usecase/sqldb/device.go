@@ -168,6 +168,10 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	}
 
 	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
+		}
+
 		return nil, nil
 	}
 
@@ -179,7 +183,11 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 	}
 
 	if rows.Next() {
-		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Next: duplicate device found for guid and tenant", errDuplicateDevice)
+		return nil, ErrDeviceNotUnique.Wrap(errDuplicateDevice.Error())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
 	}
 
 	return d, nil
@@ -233,6 +241,10 @@ func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device
 		}
 
 		return d, nil
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Err", err)
 	}
 
 	return nil, nil

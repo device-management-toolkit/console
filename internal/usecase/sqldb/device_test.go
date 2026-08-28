@@ -345,7 +345,7 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 			guid:     "guid1",
 			tenantID: "tenant1",
 			expected: nil,
-			err:      repoerrors.DatabaseError{},
+			err:      repoerrors.NotUniqueError{},
 		},
 		{
 			name:     "No device found",
