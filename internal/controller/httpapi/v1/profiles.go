@@ -1,6 +1,7 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
@@ -46,8 +47,8 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 
 func (r *profileRoutes) get(c *gin.Context) {
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		validationErr := ErrValidationProfile.Wrap("get", "ShouldBindQuery", err)
+	if err := odata.BindAndValidate(c); err != nil {
+		validationErr := ErrValidationProfile.Wrap("get", "BindAndValidate", err)
 		ErrorResponse(c, validationErr)
 
 		return
@@ -136,17 +137,25 @@ func (r *profileRoutes) insert(c *gin.Context) {
 }
 
 func (r *profileRoutes) update(c *gin.Context) {
-	var profile dto.Profile
-	if err := c.ShouldBindBodyWithJSON(&profile); err != nil {
-		validationErr := ErrValidationProfile.Wrap("update", "ShouldBindBodyWithJSON", err)
+	body, err := readJSONBody(c)
+	if err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "readJSONBody", err)
 		ErrorResponse(c, validationErr)
 
 		return
 	}
 
-	fields, err := providedJSONFields(c)
+	var profile dto.Profile
+	if err := json.Unmarshal(body, &profile); err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "json.Unmarshal", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	fields, err := providedJSONFieldsFromBody(body)
 	if err != nil {
-		validationErr := ErrValidationProfile.Wrap("update", "providedJSONFields", err)
+		validationErr := ErrValidationProfile.Wrap("update", "providedJSONFieldsFromBody", err)
 		ErrorResponse(c, validationErr)
 
 		return

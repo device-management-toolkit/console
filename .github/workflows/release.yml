@@ -66,7 +66,7 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
@@ -109,18 +109,26 @@ jobs:
           echo "sha_short=$(git rev-parse --short HEAD)" >> $GITHUB_ENV
 
       # Cross-compile all platform binaries from a single runner using CGO_ENABLED=0
-      # Static Go binaries are cross-platform compatible, so we can build all targets from Linux
+      # Pure Go builds need no C toolchain, so every target can be built from Linux
+      #
+      # The Linux targets add -buildmode=pie so the ELF is position independent
+      # (ASLR) and carries a GNU_RELRO segment. Windows PE and macOS Mach-O
+      # binaries already get DYNAMICBASE / MH_PIE from the Go linker, so the flag
+      # is a no-op there and is left off. A PIE ELF still links no shared
+      # libraries (no DT_NEEDED), but it does declare a PT_INTERP and so needs
+      # the glibc dynamic loader present at runtime. That is fine for these
+      # tarballs, and is why the scratch-based image in Dockerfile stays non-PIE.
       - name: Build Linux x64
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildmode=pie -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
 
       - name: Build Linux x64 headless
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -buildmode=pie -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
 
       - name: Build Linux arm64
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_arm64 ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -buildmode=pie -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_arm64 ./cmd/app
 
       - name: Build Linux arm64 headless
-        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags=noui -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_arm64_headless ./cmd/app
+        run: CGO_ENABLED=0 GOOS=linux GOARCH=arm64 go build -tags=noui -buildmode=pie -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/linux/console_linux_arm64_headless ./cmd/app
 
       - name: Build Windows x64
         run: CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w -X 'github.com/device-management-toolkit/console/internal/app.Version=$VERSION'" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
@@ -151,7 +159,7 @@ jobs:
     needs: build
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@b09bb98e06d4d774595224525879c09bc6e98c40 # v2.20.1
+        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
         with:
           egress-policy: audit
 
