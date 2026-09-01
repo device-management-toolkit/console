@@ -14,8 +14,8 @@ http:
     # If certFile/keyFile are both empty and enabled is true, a self-signed certificate will be generated at runtime.
     certFile: ""
     keyFile: ""
-  allowed_origins:
-    - "*"
+  # Origins allowed to call the API cross-origin. Empty sends no CORS headers.
+  allowed_origins: []
   allowed_headers:
     - "*"
 logger:

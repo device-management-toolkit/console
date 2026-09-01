@@ -78,12 +78,10 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	// rejects disallowed origins itself, so anything after it never runs.
 	handler.Use(securityHeaders())
 
-	defaultConfig := cors.DefaultConfig()
-	defaultConfig.AllowOrigins = cfg.AllowedOrigins
-	defaultConfig.AllowHeaders = cfg.AllowedHeaders
-	defaultConfig.AllowCredentials = cfg.AllowCredentials && !slices.Contains(cfg.AllowedOrigins, "*")
+	if corsHandler := corsMiddleware(cfg, log); corsHandler != nil {
+		handler.Use(corsHandler)
+	}
 
-	handler.Use(cors.New(defaultConfig))
 	httpapi.NewRouter(handler, log, *usecases, cfg)
 
 	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
@@ -112,6 +110,26 @@ func securityHeaders() gin.HandlerFunc {
 
 		c.Next()
 	}
+}
+
+// corsMiddleware returns nil for an empty origin list: no CORS headers are
+// sent, and gin-contrib/cors would panic on an empty list anyway.
+func corsMiddleware(cfg *config.Config, log logger.Interface) gin.HandlerFunc {
+	if len(cfg.AllowedOrigins) == 0 {
+		return nil
+	}
+
+	allowAll := slices.Contains(cfg.AllowedOrigins, "*")
+	if allowAll {
+		log.Warn("app - corsMiddleware - allowed_origins is \"*\": any website may call the API")
+	}
+
+	corsConfig := cors.DefaultConfig()
+	corsConfig.AllowOrigins = cfg.AllowedOrigins
+	corsConfig.AllowHeaders = cfg.AllowedHeaders
+	corsConfig.AllowCredentials = cfg.AllowCredentials && !allowAll
+
+	return cors.New(corsConfig)
 }
 
 func setupCIRAServer(cfg *config.Config, log logger.Interface, closer io.Closer, usecases *usecase.Usecases) *cira.Server {

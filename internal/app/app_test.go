@@ -85,6 +85,109 @@ func TestSetupHTTPHandlerSetsNoSniffAheadOfCORS(t *testing.T) {
 	}
 }
 
+// The shipped default (empty list) must emit no CORS headers at all.
+func TestCORSMiddleware(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		origins       []string
+		credentials   bool
+		origin        string
+		wantCode      int
+		wantAllow     string
+		wantVary      string
+		wantCredsHdr  string
+		wantNoHeaders bool
+	}{
+		{
+			name:          "empty list emits no CORS headers",
+			origins:       nil,
+			origin:        "https://evil.example",
+			wantCode:      http.StatusOK,
+			wantNoHeaders: true,
+		},
+		{
+			name:      "wildcard allows any origin without credentials",
+			origins:   []string{"*"},
+			origin:    "https://evil.example",
+			wantCode:  http.StatusOK,
+			wantAllow: "*",
+		},
+		{
+			name:         "wildcard ignores allow_credentials",
+			origins:      []string{"*"},
+			credentials:  true,
+			origin:       "https://evil.example",
+			wantCode:     http.StatusOK,
+			wantAllow:    "*",
+			wantCredsHdr: "",
+		},
+		{
+			name:         "explicit list echoes origin with Vary",
+			origins:      []string{"https://ui.example"},
+			credentials:  true,
+			origin:       "https://ui.example",
+			wantCode:     http.StatusOK,
+			wantAllow:    "https://ui.example",
+			wantVary:     "Origin",
+			wantCredsHdr: "true",
+		},
+		{
+			name:     "explicit list rejects other origins",
+			origins:  []string{"https://ui.example"},
+			origin:   "https://evil.example",
+			wantCode: http.StatusForbidden,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &config.Config{}
+			cfg.AllowedOrigins = tc.origins
+			cfg.AllowedHeaders = []string{"Content-Type"}
+			cfg.AllowCredentials = tc.credentials
+
+			r := gin.New()
+
+			mw := corsMiddleware(cfg, logger.New("error"))
+			if len(tc.origins) == 0 {
+				require.Nil(t, mw)
+			} else {
+				require.NotNil(t, mw)
+				r.Use(mw)
+			}
+
+			r.GET("/ok", func(c *gin.Context) { c.Status(http.StatusOK) })
+
+			req := httptest.NewRequest(http.MethodGet, "/ok", http.NoBody)
+			req.Header.Set("Origin", tc.origin)
+
+			w := httptest.NewRecorder()
+			r.ServeHTTP(w, req)
+
+			require.Equal(t, tc.wantCode, w.Code)
+
+			if tc.wantNoHeaders {
+				for name := range w.Header() {
+					require.NotContains(t, name, "Access-Control-", "unexpected CORS header %s", name)
+				}
+
+				require.Empty(t, w.Header().Get("Vary"))
+
+				return
+			}
+
+			require.Equal(t, tc.wantAllow, w.Header().Get("Access-Control-Allow-Origin"))
+			require.Equal(t, tc.wantVary, w.Header().Get("Vary"))
+			require.Equal(t, tc.wantCredsHdr, w.Header().Get("Access-Control-Allow-Credentials"))
+		})
+	}
+}
+
 func TestRun(t *testing.T) {
 	t.Parallel()
 

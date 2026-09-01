@@ -31,7 +31,7 @@ Sibling reference repos in the workspace: [MPS](https://github.com/device-manage
 
 ### Running the app
 
-The recommended local workflow is **VS Code's Go debugger** — `.vscode/launch.json` ships a `Launch Package` config that points at `./cmd/app` with `.env` loaded as the env file. Press F5 to start it. You get breakpoints, variable inspection, and goroutine views with no extra setup. For the frontend, run `sample-web-ui` separately on `:4200` (`npm run enterprise` in that repo).
+The recommended local workflow is **VS Code's Go debugger** — `.vscode/launch.json` ships a `Launch Package` config that points at `./cmd/app` with `.env` loaded as the env file. Press F5 to start it. You get breakpoints, variable inspection, and goroutine views with no extra setup. For the frontend, run `sample-web-ui` separately on `:4200` (`npm run enterprise` in that repo). Set `HTTP_ALLOWED_ORIGINS=http://localhost:4200` in `.env` (as `.env.example` does); the API sends no CORS headers by default.
 
 You don't need `-tags=noui` locally. In a fresh clone `internal/controller/httpapi/ui/` holds only `.gitkeep` — `.gitignore` excludes everything else, and the release workflow fills the directory from `sample-web-ui`'s `build-enterprise` output. So `//go:embed all:ui` embeds an empty directory, and UI routes return 404 or redirect to `ui.externalUrl`. (If you built the UI locally at some point, real files may still sit in that directory. They are ignored by git and do not affect anyone else.) Set `ui.externalUrl: "http://localhost:4200"` in `config/config.yml` if you want UI links to bounce to the dev server.
 

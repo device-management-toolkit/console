@@ -67,7 +67,7 @@ type (
 	HTTP struct {
 		Host             string   `yaml:"host" env:"HTTP_HOST"`
 		Port             string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
-		AllowedOrigins   []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
+		AllowedOrigins   []string `yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
 		AllowedHeaders   []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
 		AllowCredentials bool     `yaml:"allow_credentials" env:"HTTP_ALLOW_CREDENTIALS"`
 		WSCompression    bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
@@ -193,7 +193,7 @@ func defaultConfig() *Config {
 		HTTP: HTTP{
 			Host:             "",
 			Port:             "8181",
-			AllowedOrigins:   []string{"*"},
+			AllowedOrigins:   []string{},
 			AllowedHeaders:   []string{"*"},
 			AllowCredentials: false,
 			WSCompression:    true,

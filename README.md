@@ -109,6 +109,14 @@ ui:
 
 This tells the backend to redirect UI requests to the separately running frontend application.
 
+Also allow the frontend's origin, in `.env` (`HTTP_ALLOWED_ORIGINS=http://localhost:4200`) or in `config/config.yml`:
+
+```yaml
+http:
+  allowed_origins:
+    - "http://localhost:4200"
+```
+
 ### 3. Running the Backend
 
 > **Important**: For development, use the `console-noui` binary or build with the `noui` tag. This allows the backend to work with a separately running frontend without embedding UI files.
