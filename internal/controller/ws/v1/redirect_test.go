@@ -2,8 +2,13 @@ package v1
 
 import (
 	"errors"
+	"fmt"
+	"io"
+	"log"
 	"net/http"
 	"net/http/httptest"
+	"strings"
+	"sync"
 	"testing"
 	"time"
 
@@ -11,6 +16,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/config"
@@ -226,6 +232,127 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
+	})
+}
+
+// TestWebSocketHandlerRealUpgrader exercises the *websocket.Upgrader branch the
+// mock-based tests above never reach, over a real TCP handshake. A single
+// upgrader is shared by every relay request, so the handler must set
+// Subprotocols on a per-request copy: mutating the shared one in place is a
+// data race (caught by -race in the concurrent subtest) and lets one handshake
+// negotiate against another's token, which yields no subprotocol at all and is
+// rejected by browsers.
+func TestWebSocketHandlerRealUpgrader(t *testing.T) { //nolint:paralleltest // shared config and logger
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+
+	_, _ = config.NewConfig()
+
+	config.ConsoleConfig.Disabled = false
+	config.ConsoleConfig.JWTKey = "test-jwt-key"
+
+	tokenFor := func(deviceID string) string {
+		claims := jwt.MapClaims{
+			"exp":      time.Now().Add(5 * time.Minute).Unix(),
+			"deviceId": deviceID,
+		}
+
+		s, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(config.ConsoleConfig.JWTKey))
+
+		return s
+	}
+
+	mockLogger := mocks.NewMockLogger(ctrl)
+	mockLogger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()
+	mockLogger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
+
+	// The handshake response is already flushed by the time Redirect runs, so
+	// closing here just releases the hijacked connection.
+	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
+	mockFeature.EXPECT().
+		Redirect(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ *gin.Context, conn *websocket.Conn, _, _ string) error {
+			return conn.Close()
+		}).
+		AnyTimes()
+
+	// Shared by every handshake, exactly as app.setupHTTPHandler wires it.
+	upgrader := &websocket.Upgrader{ReadBufferSize: 1024, WriteBufferSize: 1024}
+
+	r := gin.New()
+	RegisterRoutes(r, mockLogger, mockFeature, upgrader)
+
+	srv := httptest.NewUnstartedServer(r)
+	// Writing the gin response onto a hijacked connection is expected and noisy.
+	srv.Config.ErrorLog = log.New(io.Discard, "", 0)
+	srv.Start()
+
+	t.Cleanup(srv.Close)
+
+	wsURL := "ws" + strings.TrimPrefix(srv.URL, "http")
+
+	// dial performs a real handshake as deviceID does, returning the subprotocol
+	// the server negotiated and the token the client offered.
+	dial := func(deviceID string) (negotiated, offered string, err error) {
+		offered = tokenFor(deviceID)
+		dialer := &websocket.Dialer{Subprotocols: []string{offered}}
+
+		conn, resp, err := dialer.Dial(wsURL+"/relay/webrelay.ashx?host="+deviceID+"&mode=kvm", nil)
+		if err != nil {
+			return "", offered, err
+		}
+
+		defer conn.Close()
+
+		if resp != nil {
+			defer resp.Body.Close()
+		}
+
+		return conn.Subprotocol(), offered, nil
+	}
+
+	t.Run("negotiates the caller's token as the subprotocol", func(t *testing.T) { //nolint:paralleltest // shared server
+		negotiated, offered, err := dial("deviceA")
+
+		require.NoError(t, err)
+		assert.Equal(t, offered, negotiated)
+	})
+
+	t.Run("leaves the shared upgrader untouched", func(t *testing.T) { //nolint:paralleltest // shared server
+		_, _, err := dial("deviceB")
+
+		require.NoError(t, err)
+		assert.Nil(t, upgrader.Subprotocols, "handshake must not mutate the shared upgrader")
+	})
+
+	// The regression case: run under -race, concurrent in-place mutation of the
+	// shared upgrader is reported, and handshakes negotiate each other's tokens.
+	t.Run("concurrent handshakes negotiate their own subprotocol", func(t *testing.T) { //nolint:paralleltest // shared server
+		const handshakes = 16
+
+		var wg sync.WaitGroup
+
+		results := make([]struct {
+			negotiated, offered string
+			err                 error
+		}, handshakes)
+
+		for i := range results {
+			wg.Add(1)
+
+			go func(i int) {
+				defer wg.Done()
+
+				results[i].negotiated, results[i].offered, results[i].err = dial(fmt.Sprintf("device-%d", i))
+			}(i)
+		}
+
+		wg.Wait()
+
+		for i, res := range results {
+			require.NoErrorf(t, res.err, "handshake %d failed", i)
+			assert.Equalf(t, res.offered, res.negotiated, "handshake %d negotiated another caller's subprotocol", i)
+		}
 	})
 }
 

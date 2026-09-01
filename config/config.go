@@ -23,6 +23,7 @@ var TrayMode bool
 var (
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
+	ErrAllowedOriginsEmpty             = errors.New("config: http.allowed_origins must list at least one origin (e.g. https://localhost:8181) — an empty list disables CORS outright and aborts startup")
 )
 
 const defaultHost = "localhost"
@@ -191,11 +192,33 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:             "",
-			Port:             "8181",
-			AllowedOrigins:   []string{"*"},
-			AllowedHeaders:   []string{"*"},
-			AllowCredentials: false,
+			Host: "",
+			Port: "8181",
+			AllowedOrigins: []string{
+				"http://localhost:8181",
+				"http://localhost:4200",
+				"http://127.0.0.1:8181",
+				"http://127.0.0.1:4200",
+				"https://localhost:8181",
+				"https://localhost:4200",
+				"https://127.0.0.1:8181",
+				"https://127.0.0.1:4200",
+			},
+			// Explicit rather than "*": Access-Control-Allow-Headers: * is taken
+			// literally by browsers once credentials are in play, and never
+			// covers Authorization even without them.
+			AllowedHeaders: []string{
+				"Origin",
+				"Accept",
+				"Content-Type",
+				"Content-Length",
+				"Authorization",
+				"If-Match",
+			},
+			// Safe alongside the explicit AllowedOrigins above: setupHTTPHandler
+			// forces this off whenever the allowlist contains "*", so cookie
+			// auth is only ever granted to enumerated origins.
+			AllowCredentials: true,
 			WSCompression:    true,
 			TLS: TLS{
 				Enabled:  true,
@@ -416,6 +439,12 @@ func (c *Config) validate() error {
 
 	if c.RedirectionJWTExpiration < time.Minute {
 		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	// Caught here rather than left to gin-contrib/cors, which panics with an
+	// opaque "conflict settings: all origins disabled" on an empty list.
+	if len(c.AllowedOrigins) == 0 {
+		return ErrAllowedOriginsEmpty
 	}
 
 	return nil
