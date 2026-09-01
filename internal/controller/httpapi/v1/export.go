@@ -152,8 +152,10 @@ func flatToNested(d *dto.Device) dto.DeviceExportRecord {
 // buildExportME returns the ME subsystem, or nil for devices without a
 // Management Engine
 func buildExportME(d *dto.Device, info *dto.DeviceInfo) *dto.ExportME {
+	network := buildExportMENetwork(info.MENetwork)
+
 	hasME := info.FWVersion != "" || info.FWSku != "" || info.CurrentMode != "" ||
-		(info.AMTEnabledInBIOS != nil && *info.AMTEnabledInBIOS)
+		(info.AMTEnabledInBIOS != nil && *info.AMTEnabledInBIOS) || network != nil
 	if !hasME {
 		return nil
 	}
@@ -172,8 +174,9 @@ func buildExportME(d *dto.Device, info *dto.DeviceInfo) *dto.ExportME {
 		UPID:              info.UPID,
 	}
 
-	if info.IPAddress != "" {
-		// export-gap: only the wired ME IP is stored today; wireless has no source field yet, so it stays null.
+	if network != nil {
+		me.Network = network
+	} else if info.IPAddress != "" {
 		me.Network = &dto.ExportMENetwork{
 			Wired: &dto.ExportMEInterface{
 				IPAddress:   info.IPAddress,
@@ -185,16 +188,51 @@ func buildExportME(d *dto.Device, info *dto.DeviceInfo) *dto.ExportME {
 	return me
 }
 
+func buildExportMENetwork(network *dto.MENetworkInfo) *dto.ExportMENetwork {
+	if network == nil {
+		return nil
+	}
+
+	exportNetwork := &dto.ExportMENetwork{
+		Wired:    buildExportMEInterface(network.Wired),
+		Wireless: buildExportMEInterface(network.Wireless),
+	}
+	if exportNetwork.Wired == nil && exportNetwork.Wireless == nil {
+		return nil
+	}
+
+	return exportNetwork
+}
+
+func buildExportMEInterface(adapter *dto.MEInterfaceInfo) *dto.ExportMEInterface {
+	if adapter == nil {
+		return nil
+	}
+
+	if adapter.IPAddress == "" && adapter.DHCPEnabled == nil && adapter.DHCPMode == "" &&
+		adapter.LinkStatus == "" && adapter.MACAddress == "" {
+		return nil
+	}
+
+	exportAdapter := dto.ExportMEInterface(*adapter)
+
+	return &exportAdapter
+}
+
 // buildExportOS returns the OS subsystem, or nil when no OS data was reported.
 func buildExportOS(info *dto.DeviceInfo) *dto.ExportOS {
+	network := buildExportOSNetwork(info.OSNetwork)
+
 	hasOS := info.OSName != "" || info.OSVersion != "" || info.OSDistro != "" ||
 		info.OSIPAddress != "" || info.LMSInstalled != nil || info.LMSVersion != "" ||
-		info.MEInterfaceVersion != "" || info.MonitorConnected != nil || info.IEEE8021XEnabled != nil
+		info.MEInterfaceVersion != "" || info.MonitorConnected != nil || info.IEEE8021XEnabled != nil ||
+		info.DNSSuffixOS != "" || network != nil
 	if !hasOS {
 		return nil
 	}
 
 	osInfo := &dto.ExportOS{
+		DNSSuffix:          info.DNSSuffixOS,
 		Name:               info.OSName,
 		Version:            info.OSVersion,
 		Distro:             info.OSDistro,
@@ -205,8 +243,9 @@ func buildExportOS(info *dto.DeviceInfo) *dto.ExportOS {
 		IEEE8021XEnabled:   info.IEEE8021XEnabled,
 	}
 
-	if info.OSIPAddress != "" {
-		// export-gap: only the wired OS IP is stored today; wireless has no source field yet, so it stays null.
+	if network != nil {
+		osInfo.Network = network
+	} else if info.OSIPAddress != "" {
 		osInfo.Network = &dto.ExportOSNetwork{
 			Wired: []dto.ExportOSInterface{{IPAddress: info.OSIPAddress}},
 		}
@@ -215,16 +254,63 @@ func buildExportOS(info *dto.DeviceInfo) *dto.ExportOS {
 	return osInfo
 }
 
-// buildExportPlatform returns the platform subsystem, or nil when no platform
-// data was reported.
-func buildExportPlatform(info *dto.DeviceInfo) *dto.ExportPlatform {
-	if info.CPUModel == "" && info.EthernetAdapterCount == nil {
+func buildExportOSNetwork(network *dto.OSNetworkInfo) *dto.ExportOSNetwork {
+	if network == nil {
 		return nil
 	}
 
-	// export-gap: adapters has no source fields yet, so it stays null.
-	return &dto.ExportPlatform{
+	wired := make([]dto.ExportOSInterface, 0, len(network.Wired))
+	for _, adapter := range network.Wired {
+		if exportAdapter := buildExportOSInterface(&adapter); exportAdapter != nil {
+			wired = append(wired, *exportAdapter)
+		}
+	}
+
+	exportNetwork := &dto.ExportOSNetwork{
+		Wired:    wired,
+		Wireless: buildExportOSInterface(network.Wireless),
+	}
+	if len(exportNetwork.Wired) == 0 && exportNetwork.Wireless == nil {
+		return nil
+	}
+
+	return exportNetwork
+}
+
+func buildExportOSInterface(adapter *dto.OSInterfaceInfo) *dto.ExportOSInterface {
+	if adapter == nil {
+		return nil
+	}
+
+	if adapter.Name == "" && adapter.IPAddress == "" && adapter.DHCPEnabled == nil &&
+		adapter.LinkStatus == "" && adapter.MACAddress == "" {
+		return nil
+	}
+
+	exportAdapter := dto.ExportOSInterface(*adapter)
+
+	return &exportAdapter
+}
+
+// buildExportPlatform returns the platform subsystem, or nil when no platform
+// data was reported.
+func buildExportPlatform(info *dto.DeviceInfo) *dto.ExportPlatform {
+	hasAdapters := info.PlatformAdapters != nil &&
+		(info.PlatformAdapters.Wired != "" || info.PlatformAdapters.Wireless != "")
+	if info.CPUModel == "" && info.EthernetAdapterCount == nil && !hasAdapters {
+		return nil
+	}
+
+	platform := &dto.ExportPlatform{
 		CPU:                  info.CPUModel,
 		EthernetAdapterCount: info.EthernetAdapterCount,
 	}
+	if hasAdapters {
+		platform.Adapters = &dto.ExportPlatformAdapters{
+			Wired:    info.PlatformAdapters.Wired,
+			Wireless: info.PlatformAdapters.Wireless,
+		}
+	}
+
+	return platform
 }

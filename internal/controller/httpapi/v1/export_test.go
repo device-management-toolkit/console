@@ -43,6 +43,7 @@ func TestExportDevices_Success(t *testing.T) {
 	lastSynced := time.Date(2026, 7, 20, 14, 22, 15, 0, time.UTC)
 	amtEnabled := true
 	dhcp := true
+	osDhcp := false
 	adapters := 2
 
 	meDevice := dto.Device{
@@ -67,9 +68,32 @@ func TestExportDevices_Success(t *testing.T) {
 			FirstDiscovered:      &firstDiscovered,
 			LastSynced:           &lastSynced,
 			OSName:               "linux",
+			DNSSuffixOS:          "vpro.demo.com",
 			OSIPAddress:          "10.49.76.163",
 			CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
 			EthernetAdapterCount: &adapters,
+			MENetwork: &dto.MENetworkInfo{
+				Wired: &dto.MEInterfaceInfo{
+					IPAddress:   "10.0.0.12",
+					DHCPEnabled: &dhcp,
+					DHCPMode:    "active",
+					LinkStatus:  "up",
+					MACAddress:  "AA:BB:CC:DD:EE:10",
+				},
+			},
+			OSNetwork: &dto.OSNetworkInfo{
+				Wired: []dto.OSInterfaceInfo{{
+					Name:        "eth0",
+					IPAddress:   "10.49.76.163",
+					DHCPEnabled: &osDhcp,
+					LinkStatus:  "up",
+					MACAddress:  "AA:BB:CC:DD:EE:FF",
+				}},
+			},
+			PlatformAdapters: &dto.PlatformAdaptersInfo{
+				Wired:    "eth0",
+				Wireless: "wlan0",
+			},
 		},
 	}
 
@@ -117,11 +141,23 @@ func TestExportDevices_Success(t *testing.T) {
 	require.NotNil(t, me.DeviceInfo.ME.MEBXEnabledInBIOS)
 	require.NotNil(t, me.DeviceInfo.ME.Network)
 	require.Equal(t, "10.0.0.12", me.DeviceInfo.ME.Network.Wired.IPAddress)
+	require.Equal(t, "active", me.DeviceInfo.ME.Network.Wired.DHCPMode)
+	require.Equal(t, "up", me.DeviceInfo.ME.Network.Wired.LinkStatus)
+	require.Equal(t, "AA:BB:CC:DD:EE:10", me.DeviceInfo.ME.Network.Wired.MACAddress)
 	require.NotNil(t, me.DeviceInfo.OS)
+	require.Equal(t, "vpro.demo.com", me.DeviceInfo.OS.DNSSuffix)
 	require.Equal(t, "linux", me.DeviceInfo.OS.Name)
+	require.Equal(t, "eth0", me.DeviceInfo.OS.Network.Wired[0].Name)
 	require.Equal(t, "10.49.76.163", me.DeviceInfo.OS.Network.Wired[0].IPAddress)
+	require.NotNil(t, me.DeviceInfo.OS.Network.Wired[0].DHCPEnabled)
+	require.False(t, *me.DeviceInfo.OS.Network.Wired[0].DHCPEnabled)
+	require.Equal(t, "up", me.DeviceInfo.OS.Network.Wired[0].LinkStatus)
+	require.Equal(t, "AA:BB:CC:DD:EE:FF", me.DeviceInfo.OS.Network.Wired[0].MACAddress)
 	require.NotNil(t, me.DeviceInfo.Platform)
 	require.Equal(t, "Intel(R) Core(TM) Ultra 7 165H", me.DeviceInfo.Platform.CPU)
+	require.NotNil(t, me.DeviceInfo.Platform.Adapters)
+	require.Equal(t, "eth0", me.DeviceInfo.Platform.Adapters.Wired)
+	require.Equal(t, "wlan0", me.DeviceInfo.Platform.Adapters.Wireless)
 	require.Nil(t, me.DeviceInfo.BMC)
 
 	// Non-ME device has a null me subsystem.
@@ -135,6 +171,130 @@ func TestExportDevices_Success(t *testing.T) {
 	require.NotContains(t, body, "should-not-appear")
 	require.NotContains(t, body, "mpspassword")
 	require.NotContains(t, body, "mebxpassword")
+}
+
+func TestBuildExportME_EmptyMENetworkFallsBackToLegacyIPAddress(t *testing.T) {
+	t.Parallel()
+
+	dhcp := true
+	device := &dto.Device{}
+	info := &dto.DeviceInfo{
+		CurrentMode: "Admin",
+		IPAddress:   "10.0.0.12",
+		DHCPEnabled: &dhcp,
+		MENetwork:   &dto.MENetworkInfo{},
+	}
+
+	me := buildExportME(device, info)
+
+	require.NotNil(t, me)
+	require.NotNil(t, me.Network)
+	require.NotNil(t, me.Network.Wired)
+	require.Equal(t, "10.0.0.12", me.Network.Wired.IPAddress)
+}
+
+func TestBuildExportME_MENetworkOnlyStillReturnsME(t *testing.T) {
+	t.Parallel()
+
+	device := &dto.Device{}
+	info := &dto.DeviceInfo{
+		MENetwork: &dto.MENetworkInfo{
+			Wired: &dto.MEInterfaceInfo{MACAddress: "90:49:fa:0a:26:a3"},
+		},
+	}
+
+	me := buildExportME(device, info)
+
+	require.NotNil(t, me)
+	require.NotNil(t, me.Network)
+	require.NotNil(t, me.Network.Wired)
+	require.Equal(t, "90:49:fa:0a:26:a3", me.Network.Wired.MACAddress)
+}
+
+func TestBuildExportME_EmptyMEInterfaceOnlyReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	device := &dto.Device{}
+	info := &dto.DeviceInfo{
+		MENetwork: &dto.MENetworkInfo{Wired: &dto.MEInterfaceInfo{}},
+	}
+
+	me := buildExportME(device, info)
+
+	require.Nil(t, me)
+}
+
+func TestBuildExportOS_EmptyOSNetworkFallsBackToLegacyIPAddress(t *testing.T) {
+	t.Parallel()
+
+	info := &dto.DeviceInfo{
+		OSName:      "linux",
+		OSIPAddress: "10.49.76.163",
+		OSNetwork:   &dto.OSNetworkInfo{},
+	}
+
+	os := buildExportOS(info)
+
+	require.NotNil(t, os)
+	require.NotNil(t, os.Network)
+	require.Len(t, os.Network.Wired, 1)
+	require.Equal(t, "10.49.76.163", os.Network.Wired[0].IPAddress)
+}
+
+func TestBuildExportOS_DNSSuffixOnlyStillReturnsOS(t *testing.T) {
+	t.Parallel()
+
+	info := &dto.DeviceInfo{
+		DNSSuffixOS: "corp.example.com",
+	}
+
+	os := buildExportOS(info)
+
+	require.NotNil(t, os)
+	require.Equal(t, "corp.example.com", os.DNSSuffix)
+}
+
+func TestBuildExportOS_OSNetworkOnlyStillReturnsOS(t *testing.T) {
+	t.Parallel()
+
+	info := &dto.DeviceInfo{
+		OSNetwork: &dto.OSNetworkInfo{
+			Wired: []dto.OSInterfaceInfo{{IPAddress: "192.168.1.50"}},
+		},
+	}
+
+	os := buildExportOS(info)
+
+	require.NotNil(t, os)
+	require.NotNil(t, os.Network)
+	require.Len(t, os.Network.Wired, 1)
+	require.Equal(t, "192.168.1.50", os.Network.Wired[0].IPAddress)
+}
+
+func TestBuildExportOS_EmptyOSNetworkOnlyReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	info := &dto.DeviceInfo{
+		OSNetwork: &dto.OSNetworkInfo{},
+	}
+
+	os := buildExportOS(info)
+
+	require.Nil(t, os)
+}
+
+func TestBuildExportOS_EmptyOSInterfaceOnlyReturnsNil(t *testing.T) {
+	t.Parallel()
+
+	info := &dto.DeviceInfo{
+		OSNetwork: &dto.OSNetworkInfo{
+			Wired: []dto.OSInterfaceInfo{{}},
+		},
+	}
+
+	os := buildExportOS(info)
+
+	require.Nil(t, os)
 }
 
 func TestExportDevices_DatabaseError(t *testing.T) {
