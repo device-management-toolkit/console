@@ -58,11 +58,46 @@ type DeviceInfo struct {
 	OSName               string                     `json:"osName,omitempty"`
 	OSVersion            string                     `json:"osVersion,omitempty"`
 	OSDistro             string                     `json:"osDistro,omitempty"`
+	DNSSuffixOS          string                     `json:"dnsSuffixOS,omitempty"`
 	CPUModel             string                     `json:"cpuModel,omitempty"`
 	OSIPAddress          string                     `json:"osIpAddress,omitempty"`
 	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
 	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
 	IEEE8021XEnabled     *bool                      `json:"ieee8021xEnabled,omitempty"`
+	MENetwork            *MENetworkInfo             `json:"meNetwork,omitempty"`
+	OSNetwork            *OSNetworkInfo             `json:"osNetwork,omitempty"`
+	PlatformAdapters     *PlatformAdaptersInfo      `json:"platformAdapters,omitempty"`
+}
+
+type MENetworkInfo struct {
+	Wired    *MEInterfaceInfo `json:"wired,omitempty"`
+	Wireless *MEInterfaceInfo `json:"wireless,omitempty"`
+}
+
+type MEInterfaceInfo struct {
+	IPAddress   string `json:"ipAddress,omitempty"`
+	DHCPEnabled *bool  `json:"dhcpEnabled,omitempty"`
+	DHCPMode    string `json:"dhcpMode,omitempty"`
+	LinkStatus  string `json:"linkStatus,omitempty"`
+	MACAddress  string `json:"macAddress,omitempty"`
+}
+
+type OSNetworkInfo struct {
+	Wired    []OSInterfaceInfo `json:"wired,omitempty"`
+	Wireless *OSInterfaceInfo  `json:"wireless,omitempty"`
+}
+
+type OSInterfaceInfo struct {
+	Name        string `json:"name,omitempty"`
+	IPAddress   string `json:"ipAddress,omitempty"`
+	DHCPEnabled *bool  `json:"dhcpEnabled,omitempty"`
+	LinkStatus  string `json:"linkStatus,omitempty"`
+	MACAddress  string `json:"macAddress,omitempty"`
+}
+
+type PlatformAdaptersInfo struct {
+	Wired    string `json:"wired,omitempty"`
+	Wireless string `json:"wireless,omitempty"`
 }
 
 // UnmarshalJSON implements custom JSON deserialization to support backwards compatibility
