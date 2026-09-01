@@ -363,19 +363,8 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 	return cert, nil
 }
 
-// CheckCertDomainSuffix verifies that domainSuffix is a DNS suffix the
-// provisioning certificate is issued for, following Intel's remote
-// configuration rules (Remote Configuration Certificate Selection white paper):
-//
-//   - a standard certificate covers exactly one suffix: its Common Name with
-//     the host label removed (CN "intel.vprodemo.com" covers "vprodemo.com").
-//     The CN itself is also accepted so certificates issued directly for the
-//     suffix ("vprodemo.com") work. Sibling and child domains are rejected.
-//   - a wildcard certificate "*.base" covers base, every domain under it and,
-//     per Intel's figure 11, its parent (overlapping labels match).
-//
-// AMT refuses to provision when the suffix and certificate disagree, so the
-// mismatch is caught here at domain creation time.
+// CheckCertDomainSuffix verifies that domainSuffix matches the provisioning
+// certificate CN per Intel's remote configuration rules.
 func CheckCertDomainSuffix(cert *x509.Certificate, domainSuffix string) error {
 	if cert == nil || cert.Subject.CommonName == "" {
 		return ErrCertDomainSuffix.Wrap("CheckCertDomainSuffix", "cert.Subject.CommonName", nil)
