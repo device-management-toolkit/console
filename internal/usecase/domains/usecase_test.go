@@ -2,6 +2,8 @@ package domains_test
 
 import (
 	"context"
+	"crypto/x509"
+	"crypto/x509/pkix"
 	"errors"
 	"testing"
 	"time"
@@ -17,6 +19,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/pkg/principal"
 )
 
 type test struct {
@@ -526,6 +529,7 @@ func TestUpdateCertStore(t *testing.T) {
 	// certDTO is the update request that provides a new certificate.
 	certDTO := &dto.Domain{
 		ProfileName:              "example-domain",
+		DomainSuffix:             "vprodemo.com",
 		TenantID:                 "tenant-id-456",
 		ProvisioningCert:         generateTestPFX(),
 		ProvisioningCertPassword: "P@ssw0rd",
@@ -578,6 +582,7 @@ func TestUpdateCertStore(t *testing.T) {
 	// cert is stripped from the DB record after being written to Vault.
 	certUpdateEntity := &entity.Domain{
 		ProfileName:    "example-domain",
+		DomainSuffix:   "vprodemo.com",
 		TenantID:       "tenant-id-456",
 		ExpirationDate: "2033-08-01T07:12:09Z",
 		Version:        "1.0.0",
@@ -593,6 +598,7 @@ func TestUpdateCertStore(t *testing.T) {
 	// DTO returned after a cert-update (ExpirationDate is populated).
 	certReturnDTO := &dto.Domain{
 		ProfileName:    "example-domain",
+		DomainSuffix:   "vprodemo.com",
 		TenantID:       "tenant-id-456",
 		ExpirationDate: time.Date(2033, time.August, 1, 7, 12, 9, 0, time.UTC),
 		Version:        "1.0.0",
@@ -722,7 +728,7 @@ func TestInsert(t *testing.T) {
 
 	domain := &entity.Domain{
 		ProfileName:                   "new-domain",
-		DomainSuffix:                  "newdomain.com",
+		DomainSuffix:                  "vprodemo.com",
 		ProvisioningCert:              generateTestPFX(),
 		ProvisioningCertStorageFormat: "PEM",
 		ProvisioningCertPassword:      "encrypted",
@@ -732,7 +738,7 @@ func TestInsert(t *testing.T) {
 	}
 	domainDTO := &dto.Domain{
 		ProfileName:                   "new-domain",
-		DomainSuffix:                  "newdomain.com",
+		DomainSuffix:                  "vprodemo.com",
 		ProvisioningCert:              generateTestPFX(),
 		ProvisioningCertStorageFormat: "PEM",
 		ProvisioningCertPassword:      "P@ssw0rd",
@@ -742,7 +748,7 @@ func TestInsert(t *testing.T) {
 	}
 	returnDomainDTO := &dto.Domain{
 		ProfileName:                   "new-domain",
-		DomainSuffix:                  "newdomain.com",
+		DomainSuffix:                  "vprodemo.com",
 		ProvisioningCertStorageFormat: "PEM",
 		ExpirationDate:                time.Date(2033, time.August, 1, 7, 12, 9, 0, time.UTC),
 		TenantID:                      "tenant-id-789",
@@ -852,4 +858,156 @@ func TestDecryptAndCheckCertExpiration_IncorrectPassword(t *testing.T) {
 	assert.Error(t, err)
 	assert.Nil(t, x509Cert)
 	assert.Contains(t, err.Error(), "pkcs12: decryption password incorrect")
+}
+
+// certWithCN builds a minimal certificate whose subject carries the given CN.
+func certWithCN(cn string) *x509.Certificate {
+	return &x509.Certificate{Subject: pkix.Name{CommonName: cn}}
+}
+
+func TestCheckCertDomainSuffix(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		cert    *x509.Certificate
+		suffix  string
+		wantErr bool
+	}{
+		// Standard certificate: exactly the CN or the CN minus its host label.
+		{name: "suffix is the CN without its host label", cert: certWithCN("intel.vprodemo.com"), suffix: "vprodemo.com"},
+		{name: "suffix equals the CN", cert: certWithCN("intel.vprodemo.com"), suffix: "intel.vprodemo.com"},
+		{name: "CN issued directly for the suffix", cert: certWithCN("vprodemo.com"), suffix: "vprodemo.com"},
+		{name: "comparison ignores case, whitespace and root dot", cert: certWithCN("Intel.VProDemo.COM"), suffix: " VPRODEMO.com. "},
+		{name: "sibling sub-domain is rejected", cert: certWithCN("intel.vprodemo.com"), suffix: "xyz.vprodemo.com", wantErr: true},
+		{name: "child sub-domain is rejected", cert: certWithCN("intel.vprodemo.com"), suffix: "lab.intel.vprodemo.com", wantErr: true},
+		{name: "grandparent domain is rejected (Intel fig. 9)", cert: certWithCN("server.east.company.local"), suffix: "company.local", wantErr: true},
+		{name: "different domain is rejected", cert: certWithCN("intel.vprodemo.com"), suffix: "vprodomain.com", wantErr: true},
+		{name: "bare TLD is rejected", cert: certWithCN("vprodemo.com"), suffix: "com", wantErr: true},
+		{name: "TLD-only match is rejected", cert: certWithCN("intel.vprodemo.com"), suffix: "com", wantErr: true},
+
+		// Wildcard certificate: base, everything under it, and its parent (Intel fig. 11).
+		{name: "wildcard covers its base", cert: certWithCN("*.east.company.local"), suffix: "east.company.local"},
+		{name: "wildcard covers domains under its base", cert: certWithCN("*.east.company.local"), suffix: "mkgt.east.company.local"},
+		{name: "wildcard covers its parent", cert: certWithCN("*.east.company.local"), suffix: "company.local"},
+		{name: "wildcard rejects a sibling of its base", cert: certWithCN("*.east.company.local"), suffix: "west.company.local", wantErr: true},
+		{name: "wildcard rejects a bare TLD", cert: certWithCN("*.east.company.local"), suffix: "local", wantErr: true},
+		{name: "wildcard on a TLD covers nothing", cert: certWithCN("*.com"), suffix: "vprodemo.com", wantErr: true},
+
+		// Degenerate input.
+		{name: "empty suffix", cert: certWithCN("intel.vprodemo.com"), suffix: "", wantErr: true},
+		{name: "certificate has no common name", cert: certWithCN(""), suffix: "vprodemo.com", wantErr: true},
+		{name: "nil certificate", cert: nil, suffix: "vprodemo.com", wantErr: true},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := domains.CheckCertDomainSuffix(tc.cert, tc.suffix)
+
+			if !tc.wantErr {
+				require.NoError(t, err)
+
+				return
+			}
+
+			require.Error(t, err)
+
+			var suffixErr domains.CertDomainSuffixError
+
+			require.ErrorAs(t, err, &suffixErr)
+			require.Equal(t, "FQDN not associated with provisioning certificate", suffixErr.Console.FriendlyMessage())
+		})
+	}
+}
+
+// TestInsert_DomainSuffixMismatch rejects a domain whose suffix is not covered by
+// the uploaded provisioning certificate before anything reaches the repository.
+func TestInsert_DomainSuffixMismatch(t *testing.T) {
+	t.Parallel()
+
+	useCase, _ := domainsTest(t)
+
+	result, err := useCase.Insert(context.Background(), &dto.Domain{
+		ProfileName:                   "vpro",
+		DomainSuffix:                  "vprodomain.com",
+		ProvisioningCert:              generateTestPFX(),
+		ProvisioningCertStorageFormat: "string",
+		ProvisioningCertPassword:      "P@ssw0rd",
+		TenantID:                      "tenant-id-789",
+	})
+
+	require.Nil(t, result)
+
+	var suffixErr domains.CertDomainSuffixError
+
+	require.ErrorAs(t, err, &suffixErr)
+}
+
+// TestUpdate_DomainSuffixMismatch applies the same check when a new certificate
+// accompanies an update.
+func TestUpdate_DomainSuffixMismatch(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo := domainsTest(t)
+
+	repo.EXPECT().
+		GetByName(context.Background(), "vpro", "tenant-id-789").
+		Return(&entity.Domain{ProfileName: "vpro", TenantID: "tenant-id-789"}, nil)
+
+	result, err := useCase.Update(context.Background(), &dto.Domain{
+		ProfileName:              "vpro",
+		DomainSuffix:             "vprodomain.com",
+		ProvisioningCert:         generateTestPFX(),
+		ProvisioningCertPassword: "P@ssw0rd",
+		TenantID:                 "tenant-id-789",
+	})
+
+	require.Nil(t, result)
+
+	var suffixErr domains.CertDomainSuffixError
+
+	require.ErrorAs(t, err, &suffixErr)
+}
+
+// TestInsert_RecordsCreatedBy attributes the new row to the authenticated caller
+// carried in the request context.
+func TestInsert_RecordsCreatedBy(t *testing.T) {
+	t.Parallel()
+
+	ctx := principal.WithUser(context.Background(), "admin")
+
+	stored := &entity.Domain{
+		ProfileName:                   "new-domain",
+		DomainSuffix:                  "vprodemo.com",
+		ProvisioningCert:              generateTestPFX(),
+		ProvisioningCertStorageFormat: "string",
+		ProvisioningCertPassword:      "encrypted",
+		ExpirationDate:                "2033-08-01T07:12:09Z",
+		CreatedBy:                     "admin",
+		TenantID:                      "tenant-id-789",
+	}
+
+	useCase, repo := domainsTest(t)
+
+	repo.EXPECT().
+		Insert(ctx, stored).
+		Return("", nil)
+	repo.EXPECT().
+		GetByName(ctx, "new-domain", "tenant-id-789").
+		Return(stored, nil)
+
+	result, err := useCase.Insert(ctx, &dto.Domain{
+		ProfileName:                   "new-domain",
+		DomainSuffix:                  "vprodemo.com",
+		ProvisioningCert:              generateTestPFX(),
+		ProvisioningCertStorageFormat: "string",
+		ProvisioningCertPassword:      "P@ssw0rd",
+		TenantID:                      "tenant-id-789",
+	})
+
+	require.NoError(t, err)
+	require.NotNil(t, result)
 }

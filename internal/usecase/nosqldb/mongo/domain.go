@@ -4,6 +4,7 @@ import (
 	"context"
 	"errors"
 	"regexp"
+	"time"
 
 	"go.mongodb.org/mongo-driver/v2/bson"
 	"go.mongodb.org/mongo-driver/v2/mongo"
@@ -174,7 +175,10 @@ func (r *DomainRepo) Insert(ctx context.Context, d *entity.Domain) (string, erro
 		return "", errDomainDatabase.Wrap("Insert", "validate", nil)
 	}
 
-	if _, err := r.col.InsertOne(ctx, d); err != nil {
+	doc := *d
+	doc.CreationDate = time.Now().UTC().Format(time.RFC3339)
+
+	if _, err := r.col.InsertOne(ctx, &doc); err != nil {
 		if isDuplicateKey(err) {
 			return "", errDomainNotUnique.Wrap(err.Error())
 		}

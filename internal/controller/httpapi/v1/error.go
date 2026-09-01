@@ -69,14 +69,20 @@ func handleValidationErrors(c *gin.Context, err error) bool {
 // handleDomainErrors handles domain-specific errors.
 func handleDomainErrors(c *gin.Context, err error) bool {
 	var (
-		certExpErr      domains.CertExpirationError
-		certPasswordErr domains.CertPasswordError
-		notSupportedErr devices.NotSupportedError
+		certExpErr       domains.CertExpirationError
+		certPasswordErr  domains.CertPasswordError
+		certDomainSuffix domains.CertDomainSuffixError
+		notSupportedErr  devices.NotSupportedError
 	)
 
 	switch {
 	case errors.As(err, &certExpErr):
 		msg := certExpErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &certDomainSuffix):
+		msg := certDomainSuffix.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true

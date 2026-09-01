@@ -16,6 +16,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/principal"
 )
 
 const (
@@ -139,12 +140,15 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		if !lr.verifyToken(c, tokenString) {
+		user, ok := lr.verifyToken(c, tokenString)
+		if !ok {
 			c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid access token"})
 			c.Abort()
 
 			return
 		}
+
+		c.Request = c.Request.WithContext(principal.WithUser(c.Request.Context(), user))
 
 		c.Next()
 	}
@@ -168,13 +172,17 @@ func resolveToken(c *gin.Context) string {
 	return cookie
 }
 
-// verifyToken reports whether the token is valid.
-func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
+// verifyToken reports whether the token is valid and, when it is, the name of
+// the authenticated user for write attribution.
+func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) (string, bool) {
 	// if clientID is set, use the oidc verifier
 	if config.ConsoleConfig.ClientID != "" {
-		_, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
+		idToken, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
+		if err != nil {
+			return "", false
+		}
 
-		return err == nil
+		return oidcUser(idToken), true
 	}
 
 	claims := &jwt.MapClaims{}
@@ -186,8 +194,37 @@ func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
 
 		return []byte(lr.Config.JWTKey), nil
 	})
+	if err != nil || !token.Valid {
+		return "", false
+	}
 
-	return err == nil && token.Valid
+	// Locally issued tokens carry no subject: the only account that can obtain
+	// one is the configured admin. Honor "sub" when a gateway minted the token.
+	if sub, _ := claims.GetSubject(); sub != "" {
+		return sub, true
+	}
+
+	return lr.Config.AdminUsername, true
+}
+
+// oidcUser picks a human-readable identity from an OIDC ID token, falling back
+// to the opaque subject when the provider sends no username or email claim.
+func oidcUser(idToken *oidc.IDToken) string {
+	var claims struct {
+		PreferredUsername string `json:"preferred_username"`
+		Email             string `json:"email"`
+	}
+
+	if err := idToken.Claims(&claims); err == nil {
+		switch {
+		case claims.PreferredUsername != "":
+			return claims.PreferredUsername
+		case claims.Email != "":
+			return claims.Email
+		}
+	}
+
+	return idToken.Subject
 }
 
 // cookieAuthEnabled reports whether session cookies are in use. An unconfigured

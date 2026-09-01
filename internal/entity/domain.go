@@ -7,6 +7,8 @@ type Domain struct {
 	ProvisioningCertStorageFormat string `bson:"provisioningcertstorageformat"`
 	ProvisioningCertPassword      string `bson:"provisioningcertpassword"`
 	ExpirationDate                string `bson:"expirationdate"`
+	CreationDate                  string `bson:"creationdate,omitempty"`
+	CreatedBy                     string `bson:"createdby,omitempty"`
 	TenantID                      string `bson:"tenantid"`
 	Version                       string `bson:"version"`
 }

@@ -10,6 +10,7 @@ import (
 	"github.com/stretchr/testify/assert"
 
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
+	"github.com/device-management-toolkit/console/internal/usecase/domains"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 )
 
@@ -35,6 +36,14 @@ func TestErrorResponse_CIRADisabled(t *testing.T) {
 
 	w := runErrorResponse(t, profiles.ErrCIRADisabled)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestErrorResponse_CertDomainSuffix(t *testing.T) {
+	t.Parallel()
+
+	w := runErrorResponse(t, domains.ErrCertDomainSuffix.Wrap("Insert", "CheckCertDomainSuffix", nil))
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "FQDN not associated with provisioning certificate")
 }
 
 func TestErrorResponse_CIRADeviceNotConnected(t *testing.T) {

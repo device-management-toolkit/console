@@ -5,6 +5,7 @@ import (
 	"crypto/x509"
 	"encoding/base64"
 	"fmt"
+	"strings"
 	"time"
 
 	"software.sslmate.com/src/go-pkcs12"
@@ -16,6 +17,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/pkg/principal"
 )
 
 // Object storage field name constants for domain certificates.
@@ -49,12 +51,13 @@ func New(r Repository, log logger.Interface, safeRequirements security.Cryptor, 
 }
 
 var (
-	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
-	ErrDatabase       = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
-	ErrNotFound       = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
-	ErrCertPassword   = CertPasswordError{Console: ErrDomainsUseCase}
-	ErrCertExpiration = CertExpirationError{Console: ErrDomainsUseCase}
-	ErrCertStore      = CertStoreError{Console: ErrDomainsUseCase}
+	ErrDomainsUseCase   = consoleerrors.CreateConsoleError("DomainsUseCase")
+	ErrDatabase         = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
+	ErrNotFound         = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
+	ErrCertPassword     = CertPasswordError{Console: ErrDomainsUseCase}
+	ErrCertExpiration   = CertExpirationError{Console: ErrDomainsUseCase}
+	ErrCertDomainSuffix = CertDomainSuffixError{Console: ErrDomainsUseCase}
+	ErrCertStore        = CertStoreError{Console: ErrDomainsUseCase}
 )
 
 // domainCertKey generates the key path for storing domain certificates in Vault.
@@ -195,16 +198,7 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 	d1.ProvisioningCertPassword = oldDomain.ProvisioningCertPassword
 
 	if d.ProvisioningCert != "" {
-		cert, err := DecryptAndCheckCertExpiration(*d)
-		if err != nil {
-			return nil, err
-		}
-
-		d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
-		d1.ProvisioningCert = d.ProvisioningCert
-		d1.ProvisioningCertPassword = encryptedNewPassword
-
-		if err := uc.storeCertInVault("Update", d, d1); err != nil {
+		if err := uc.applyCertUpdate(d, d1, encryptedNewPassword); err != nil {
 			return nil, err
 		}
 	} else if uc.certStore != nil {
@@ -242,12 +236,17 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 		return nil, err
 	}
 
+	if err := CheckCertDomainSuffix(cert, d.DomainSuffix); err != nil {
+		return nil, err
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
 	}
 
 	d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
+	d1.CreatedBy = principal.User(ctx)
 
 	// Store certificate in Vault (if available) - cert goes to Vault, not DB
 	if uc.certStore != nil {
@@ -290,6 +289,26 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 	d2 := uc.entityToDTO(newDomain)
 
 	return d2, nil
+}
+
+// applyCertUpdate validates the replacement certificate against the request,
+// copies it (and its freshly encrypted password) onto the entity, and stores it
+// in Vault when object storage is configured.
+func (uc *UseCase) applyCertUpdate(d *dto.Domain, d1 *entity.Domain, encryptedPassword string) error {
+	cert, err := DecryptAndCheckCertExpiration(*d)
+	if err != nil {
+		return err
+	}
+
+	if err := CheckCertDomainSuffix(cert, d.DomainSuffix); err != nil {
+		return err
+	}
+
+	d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
+	d1.ProvisioningCert = d.ProvisioningCert
+	d1.ProvisioningCertPassword = encryptedPassword
+
+	return uc.storeCertInVault("Update", d, d1)
 }
 
 // storeCertInVault writes the domain certificate to Vault object storage and clears
@@ -342,6 +361,64 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 	}
 
 	return cert, nil
+}
+
+// CheckCertDomainSuffix verifies that domainSuffix is a DNS suffix the
+// provisioning certificate is issued for, following Intel's remote
+// configuration rules (Remote Configuration Certificate Selection white paper):
+//
+//   - a standard certificate covers exactly one suffix: its Common Name with
+//     the host label removed (CN "intel.vprodemo.com" covers "vprodemo.com").
+//     The CN itself is also accepted so certificates issued directly for the
+//     suffix ("vprodemo.com") work. Sibling and child domains are rejected.
+//   - a wildcard certificate "*.base" covers base, every domain under it and,
+//     per Intel's figure 11, its parent (overlapping labels match).
+//
+// AMT refuses to provision when the suffix and certificate disagree, so the
+// mismatch is caught here at domain creation time.
+func CheckCertDomainSuffix(cert *x509.Certificate, domainSuffix string) error {
+	if cert == nil || cert.Subject.CommonName == "" {
+		return ErrCertDomainSuffix.Wrap("CheckCertDomainSuffix", "cert.Subject.CommonName", nil)
+	}
+
+	cn := normalizeDNSName(cert.Subject.CommonName)
+	suffix := normalizeDNSName(domainSuffix)
+
+	if suffix == "" || !certCoversSuffix(cn, suffix) {
+		return ErrCertDomainSuffix.Wrap("CheckCertDomainSuffix", "certCoversSuffix", nil)
+	}
+
+	return nil
+}
+
+// certCoversSuffix reports whether a certificate with Common Name cn covers the
+// DNS suffix. Both arguments must already be normalized.
+func certCoversSuffix(cn, suffix string) bool {
+	if base, isWildcard := strings.CutPrefix(cn, "*."); isWildcard {
+		// "*.com" must not cover the whole TLD.
+		if !strings.Contains(base, ".") {
+			return false
+		}
+
+		return suffix == base ||
+			strings.HasSuffix(suffix, "."+base) ||
+			(strings.Contains(suffix, ".") && strings.HasSuffix(base, "."+suffix))
+	}
+
+	if suffix == cn {
+		return true
+	}
+
+	_, domain, hasHost := strings.Cut(cn, ".")
+
+	// The remainder must still be a domain ("vprodemo.com"), never a bare TLD.
+	return hasHost && strings.Contains(domain, ".") && suffix == domain
+}
+
+// normalizeDNSName lower-cases a DNS name and strips surrounding whitespace and
+// a trailing root dot so comparisons are purely structural.
+func normalizeDNSName(name string) string {
+	return strings.TrimSuffix(strings.ToLower(strings.TrimSpace(name)), ".")
 }
 
 // convert dto.Domain to entity.Domain.

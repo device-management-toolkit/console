@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/pkg/principal"
 )
 
 const (
@@ -154,6 +155,34 @@ func TestBearerAuthUnchanged(t *testing.T) {
 	t.Run("no credentials at all is still 401", func(t *testing.T) {
 		require.Equal(t, http.StatusUnauthorized, get(t, engine).Code)
 	})
+}
+
+// TestJWTAuthMiddlewareRecordsPrincipal checks that a verified request carries the
+// authenticated user for downstream write attribution.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestJWTAuthMiddlewareRecordsPrincipal(t *testing.T) {
+	cfg := cookieAuthTestConfig()
+	engine := newAuthTestEngine(t, cfg)
+
+	const whoamiURL = "/api/v1/whoami"
+
+	route := LoginRoute{Config: cfg}
+	engine.GET(whoamiURL, route.JWTAuthMiddleware(), func(c *gin.Context) {
+		c.String(http.StatusOK, principal.User(c.Request.Context()))
+	})
+
+	token, _ := login(t, engine)
+
+	req, err := http.NewRequest(http.MethodGet, whoamiURL, http.NoBody)
+	require.NoError(t, err)
+	withBearer(token)(req)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, testAdminUser, w.Body.String())
 }
 
 // TestCookieAuthAcceptsSessionCookie covers the cookie path on its own.

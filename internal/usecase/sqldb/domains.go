@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"errors"
 	"fmt"
+	"time"
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/repoerrors"
@@ -244,10 +245,12 @@ func (r *DomainRepo) Update(_ context.Context, d *entity.Domain) (bool, error) {
 
 // Insert -.
 func (r *DomainRepo) Insert(_ context.Context, d *entity.Domain) (string, error) {
+	creationDate := time.Now().UTC().Format(time.RFC3339)
+
 	insertBuilder := r.Builder.
 		Insert("domains").
-		Columns("name", "domain_suffix", "provisioning_cert", "provisioning_cert_storage_format", "provisioning_cert_key", "expiration_date", "tenant_id").
-		Values(d.ProfileName, d.DomainSuffix, d.ProvisioningCert, d.ProvisioningCertStorageFormat, d.ProvisioningCertPassword, d.ExpirationDate, d.TenantID)
+		Columns("name", "domain_suffix", "provisioning_cert", "provisioning_cert_storage_format", "provisioning_cert_key", "expiration_date", "creation_date", "created_by", "tenant_id").
+		Values(d.ProfileName, d.DomainSuffix, d.ProvisioningCert, d.ProvisioningCertStorageFormat, d.ProvisioningCertPassword, d.ExpirationDate, creationDate, d.CreatedBy, d.TenantID)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")

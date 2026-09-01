@@ -680,3 +680,39 @@ func TestDomainRepo_Insert(t *testing.T) {
 		})
 	}
 }
+
+// TestDomainRepo_Insert_RecordsCreationMetadata verifies creation_date is stamped
+// server-side and created_by is persisted from the entity.
+func TestDomainRepo_Insert_RecordsCreationMetadata(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDomainTable(t)
+
+	repo := sqldb.NewDomainRepo(&db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}, mocks.NewMockLogger(nil))
+
+	before := time.Now().UTC().Truncate(time.Second)
+
+	_, err := repo.Insert(context.Background(), &entity.Domain{
+		ProfileName:  "profile1",
+		DomainSuffix: "suffix1",
+		CreatedBy:    "admin",
+		TenantID:     "tenant1",
+	})
+	require.NoError(t, err)
+
+	var creationDate, createdBy string
+
+	err = dbConn.QueryRowContext(context.Background(),
+		"SELECT creation_date, created_by FROM domains WHERE name = ? AND tenant_id = ?", "profile1", "tenant1").
+		Scan(&creationDate, &createdBy)
+	require.NoError(t, err)
+
+	created, err := time.Parse(time.RFC3339, creationDate)
+	require.NoError(t, err)
+	require.False(t, created.Before(before), "creation_date %s predates the insert", creationDate)
+	require.Equal(t, "admin", createdBy)
+}
