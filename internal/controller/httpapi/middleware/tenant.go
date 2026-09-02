@@ -21,10 +21,7 @@ func Tenant(l logger.Interface) gin.HandlerFunc {
 		tenantID := c.GetHeader(TenantHeaderName)
 		if tenantID == "" && config.ConsoleConfig != nil && config.ConsoleConfig.DefaultTenant != "" {
 			tenantID = config.ConsoleConfig.DefaultTenant
-		}
 
-		if !tenant.Valid(tenantID) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": tenant.Hint, "message": tenant.Hint})
 
 			return
 		}
