@@ -1,8 +1,6 @@
 package middleware
 
 import (
-	"net/http"
-
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/config"
@@ -21,9 +19,6 @@ func Tenant(l logger.Interface) gin.HandlerFunc {
 		tenantID := c.GetHeader(TenantHeaderName)
 		if tenantID == "" && config.ConsoleConfig != nil && config.ConsoleConfig.DefaultTenant != "" {
 			tenantID = config.ConsoleConfig.DefaultTenant
-
-
-			return
 		}
 
 		l.Debug("REST request tenant ID", "tenant_id", tenantID)
