@@ -11,6 +11,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 	"github.com/gorilla/websocket"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/config"
@@ -28,7 +29,8 @@ func TestWebSocketHandler(t *testing.T) {
 
 	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
 
-	_, _ = config.NewConfig()
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = true
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
@@ -111,7 +113,8 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) {
 
 	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
 
-	_, _ = config.NewConfig()
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = false
 
@@ -239,7 +242,8 @@ func TestWebSocketHandlerTokenValidation(t *testing.T) {
 
 	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
 
-	_, _ = config.NewConfig()
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = false
 

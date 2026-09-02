@@ -483,6 +483,16 @@ func TestValidate_MissingJWTKey(t *testing.T) {
 	require.ErrorIs(t, err, ErrJWTKeyMissing)
 }
 
+func TestValidate_AuthDisabledAllowsMissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.Disabled = true
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
 func TestValidate_JWTKeyPresent(t *testing.T) {
 	t.Parallel()
 
