@@ -419,7 +419,7 @@ func (c *Config) validate() error {
 		return ErrRedirectionJWTExpirationInvalid
 	}
 
-	if c.JWTKey == "" {
+	if !c.Disabled && c.JWTKey == "" {
 		return ErrJWTKeyMissing
 	}
 
