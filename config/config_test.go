@@ -38,8 +38,25 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 
 	assert.Equal(t, "", cfg.Host)
 	assert.Equal(t, "8181", cfg.Port)
-	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
-	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)
+	assert.Equal(t, []string{
+		"http://localhost:8181",
+		"http://localhost:4200",
+		"http://127.0.0.1:8181",
+		"http://127.0.0.1:4200",
+		"https://localhost:8181",
+		"https://localhost:4200",
+		"https://127.0.0.1:8181",
+		"https://127.0.0.1:4200",
+	}, cfg.AllowedOrigins)
+	assert.Equal(t, []string{
+		"Origin",
+		"Accept",
+		"Content-Type",
+		"Content-Length",
+		"Authorization",
+		"If-Match",
+	}, cfg.AllowedHeaders)
+	assert.Equal(t, true, cfg.AllowCredentials)
 	assert.Equal(t, true, cfg.TLS.Enabled)
 
 	assert.Equal(t, "info", cfg.Level)
@@ -484,4 +501,35 @@ func TestValidate_ValidDefaults(t *testing.T) {
 
 	err := cfg.validate()
 	require.NoError(t, err)
+}
+
+// Rejected here rather than left to gin-contrib/cors, which panics on an empty
+// AllowOrigins list.
+func TestValidate_EmptyAllowedOrigins(t *testing.T) {
+	t.Parallel()
+
+	for _, origins := range [][]string{nil, {}} {
+		cfg := defaultConfig()
+		cfg.AllowedOrigins = origins
+
+		err := cfg.validate()
+		require.ErrorIs(t, err, ErrAllowedOriginsEmpty)
+	}
+}
+
+// The shipped defaults must not hand every site a CORS pass, and must not use
+// "*" for headers either: browsers read that literally once credentials are in
+// play, and it never covers Authorization.
+func TestDefaultConfig_NoWildcardCORS(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+
+	require.NotContains(t, cfg.AllowedOrigins, "*")
+	require.NotEmpty(t, cfg.AllowedOrigins)
+	require.NotContains(t, cfg.AllowedHeaders, "*")
+	require.Contains(t, cfg.AllowedHeaders, "Authorization")
+	// Safe only because the origins above are explicit; setupHTTPHandler drops
+	// it if an admin reintroduces "*".
+	require.True(t, cfg.AllowCredentials)
 }
