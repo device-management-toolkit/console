@@ -25,12 +25,15 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
 
-	// Add Prometheus middleware for automatic HTTP metrics
-	// Don't automatically register /metrics endpoint - we have our own
-	p := ginprometheus.NewPrometheus("gin")
-	p.MetricsPath = ""
-	// Use middleware function directly without calling Use() which would register conflicting routes
-	handler.Use(p.HandlerFunc())
+	// Add Prometheus middleware for automatic HTTP metrics.
+	// Skipped entirely when metrics are disabled so nothing is collected either.
+	if !cfg.DisableMetrics {
+		// Don't automatically register /metrics endpoint - we have our own
+		p := ginprometheus.NewPrometheus("gin")
+		p.MetricsPath = ""
+		// Use middleware function directly without calling Use() which would register conflicting routes
+		handler.Use(p.HandlerFunc())
+	}
 
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
@@ -50,7 +53,9 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	handler.GET("/healthz", func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	// Prometheus metrics
-	handler.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	if !cfg.DisableMetrics {
+		handler.GET("/metrics", gin.WrapH(promhttp.Handler()))
+	}
 
 	// version info
 	vr := v1.NewVersionRoute(cfg)

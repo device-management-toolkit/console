@@ -61,6 +61,7 @@ type (
 		EncryptionKey        string `yaml:"encryption_key" env:"APP_ENCRYPTION_KEY"`
 		AllowInsecureCiphers bool   `yaml:"allow_insecure_ciphers" env:"APP_ALLOW_INSECURE_CIPHERS"`
 		DisableCIRA          bool   `yaml:"disable_cira" env:"APP_DISABLE_CIRA"`
+		DisableMetrics       bool   `yaml:"disable_metrics" env:"APP_DISABLE_METRICS"`
 	}
 
 	// HTTP -.
@@ -189,6 +190,7 @@ func defaultConfig() *Config {
 			EncryptionKey:        "",
 			AllowInsecureCiphers: false,
 			DisableCIRA:          true,
+			DisableMetrics:       false,
 		},
 		HTTP: HTTP{
 			Host:             "",

@@ -164,7 +164,7 @@ Long-lived CIRA sockets are tracked in-process and surfaced through `devices.Fea
 - **`/api/v1/*`** (protected): `/devices`, `/amt/*` (every operation that talks to a live device — power, boot, hwinfo, audit/event log, alarms, certs, KVM screen, link preference, consent…), `/ciracert`.
 - **`/api/v1/admin/*`** (protected): `/domains`, `/ciraconfigs`, `/profiles`, `/wirelessconfigs`, `/ieee8021xconfigs`. These are the **former RPS surface** — configuration objects consumed during activation.
 - **`/api/v2/*`** (protected): currently `/amt/version` and `/amt/features`. v2 is where new shapes go; do not retrofit v1.
-- **`GET /healthz`**, **`GET /metrics`** (Prometheus), **`GET /version`**, **`GET /api/openapi.json`** — operational.
+- **`GET /healthz`**, **`GET /metrics`** (Prometheus, unauthenticated by design; omitted entirely when `APP_DISABLE_METRICS=true`), **`GET /version`**, **`GET /api/openapi.json`** — operational.
 - **`GET /relay/webrelay.ashx`** — WebSocket upgrade for KVM/SOL/IDER. The JWT travels in the `Sec-Websocket-Protocol` header (matching the MPS contract).
 
 Custom validators (`alphanumhyphenunderscore`, `wifistate`) are registered once on the Gin binding engine — see `router.go`.

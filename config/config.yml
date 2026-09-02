@@ -4,6 +4,7 @@ app:
   version: DEVELOPMENT
   encryption_key: ""
   allow_insecure_ciphers: false
+  disable_metrics: false
 http:
   host: localhost
   port: "8181"
