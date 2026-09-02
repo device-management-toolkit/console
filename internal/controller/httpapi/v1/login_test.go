@@ -10,6 +10,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/console/config"
 )
@@ -26,9 +27,14 @@ const (
 
 // cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
 func cookieAuthTestConfig() *config.Config {
+	hash, err := bcrypt.GenerateFromPassword([]byte(testAdminPass), bcrypt.DefaultCost)
+	if err != nil {
+		panic(err)
+	}
+
 	cfg := &config.Config{}
 	cfg.AdminUsername = testAdminUser
-	cfg.AdminPassword = testAdminPass
+	cfg.AdminPassword = string(hash)
 	cfg.JWTKey = testJWTKey
 	cfg.JWTExpiration = time.Hour
 	cfg.CookieEnabled = true

@@ -1,6 +1,7 @@
 package config
 
 import (
+	"flag"
 	"os"
 	"path/filepath"
 	"runtime"
@@ -9,6 +10,7 @@ import (
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v3"
 )
 
 func clearEnv() {
@@ -521,4 +523,110 @@ func TestValidate_ValidDefaults(t *testing.T) {
 
 	err := cfg.validate()
 	require.NoError(t, err)
+}
+
+// pointConfigFlagAt redirects SaveAdminPassword to a throwaway path.
+func pointConfigFlagAt(t *testing.T, path string) {
+	t.Helper()
+
+	if flag.Lookup("config") == nil {
+		flag.String("config", "", "path to config file")
+	}
+
+	f := flag.Lookup("config")
+	orig := f.Value.String()
+
+	require.NoError(t, flag.Set("config", path))
+	t.Cleanup(func() { _ = flag.Set("config", orig) })
+}
+
+func TestSaveAdminPassword_CreatesConfigWhenMissing(t *testing.T) { //nolint:paralleltest // mutates the global config flag
+	configPath := filepath.Join(t.TempDir(), "nested", "config.yml")
+	pointConfigFlagAt(t, configPath)
+
+	require.NoError(t, SaveAdminPassword("$2a$10$hashedvalue"))
+
+	data, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	var written Config
+
+	require.NoError(t, yaml.Unmarshal(data, &written))
+	assert.Equal(t, "$2a$10$hashedvalue", written.AdminPassword)
+}
+
+func TestSaveAdminPassword_PreservesOtherFileValues(t *testing.T) { //nolint:paralleltest // mutates the global config flag
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	pointConfigFlagAt(t, configPath)
+
+	existing := defaultConfig()
+	existing.Port = "9999"
+	existing.AdminPassword = "stale"
+
+	data, err := yaml.Marshal(existing)
+	require.NoError(t, err)
+	require.NoError(t, os.WriteFile(configPath, data, configFilePerm))
+
+	require.NoError(t, SaveAdminPassword("$2a$10$replacement"))
+
+	saved, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+
+	var written Config
+
+	require.NoError(t, yaml.Unmarshal(saved, &written))
+	assert.Equal(t, "$2a$10$replacement", written.AdminPassword)
+	assert.Equal(t, "9999", written.Port)
+}
+
+func TestSaveAdminPassword_UnreadableConfigReturnsError(t *testing.T) { //nolint:paralleltest // mutates the global config flag
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	pointConfigFlagAt(t, configPath)
+
+	require.NoError(t, os.WriteFile(configPath, []byte("\tnot: [valid"), configFilePerm))
+
+	require.Error(t, SaveAdminPassword("$2a$10$hashedvalue"))
+}
+
+func TestSaveAdminPassword_ReadFailureReturnsError(t *testing.T) { //nolint:paralleltest // mutates the global config flag
+	if runtime.GOOS == goosWindows {
+		t.Skip("chmod-based read denial does not apply on Windows")
+	}
+
+	if os.Geteuid() == 0 {
+		t.Skip("root bypasses file permission checks")
+	}
+
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	pointConfigFlagAt(t, configPath)
+
+	require.NoError(t, os.WriteFile(configPath, []byte("auth:\n"), configFilePerm))
+	require.NoError(t, os.Chmod(configPath, 0o000))
+
+	require.Error(t, SaveAdminPassword("$2a$10$hashedvalue"))
+}
+
+func TestSaveAdminPassword_StatFailureReturnsError(t *testing.T) { //nolint:paralleltest // mutates the global config flag
+	notADir := filepath.Join(t.TempDir(), "regular-file")
+	require.NoError(t, os.WriteFile(notADir, []byte("x"), configFilePerm))
+
+	// Stat fails with ENOTDIR rather than ErrNotExist, so the error must surface.
+	pointConfigFlagAt(t, filepath.Join(notADir, "config.yml"))
+
+	require.Error(t, SaveAdminPassword("$2a$10$hashedvalue"))
+}
+
+func TestSaveAdminPassword_KeepsFileOwnerOnly(t *testing.T) { //nolint:paralleltest // mutates the global config flag
+	if runtime.GOOS == goosWindows {
+		t.Skip("POSIX file modes are not enforced on Windows")
+	}
+
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	pointConfigFlagAt(t, configPath)
+
+	require.NoError(t, SaveAdminPassword("$2a$10$hashedvalue"))
+
+	info, err := os.Stat(configPath)
+	require.NoError(t, err)
+	assert.Equal(t, configFilePerm, info.Mode().Perm())
 }
