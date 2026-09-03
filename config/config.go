@@ -23,6 +23,7 @@ var TrayMode bool
 var (
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
+	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 )
 
 const defaultHost = "localhost"
@@ -224,7 +225,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			CookieEnabled:            true,
@@ -416,6 +417,10 @@ func (c *Config) validate() error {
 
 	if c.RedirectionJWTExpiration < time.Minute {
 		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	if !c.Disabled && c.JWTKey == "" {
+		return ErrJWTKeyMissing
 	}
 
 	return nil

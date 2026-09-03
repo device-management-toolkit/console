@@ -17,10 +17,12 @@ func clearEnv() {
 	os.Unsetenv("LOG_LEVEL")
 	os.Unsetenv("DB_POOL_MAX")
 	os.Unsetenv("DB_URL")
+	os.Unsetenv("AUTH_JWT_KEY")
 }
 
-func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_Defaults(t *testing.T) {
 	clearEnv() // Clear environment variables to ensure defaults are tested
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-default-testing")
 
 	cfg, err := NewConfig()
 
@@ -47,7 +49,7 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, 2, cfg.PoolMax)
 }
 
-func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_EnvVars(t *testing.T) {
 	// Set environment variables
 	os.Setenv("APP_NAME", "testApp")
 	os.Setenv("HTTP_PORT", "9090")
@@ -55,6 +57,7 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://user:password@localhost:5432/testdb")
 	os.Setenv("HTTP_TLS_ENABLED", "false")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-env-testing")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -304,7 +307,7 @@ func TestWriteConfig_TightensExistingLooseFile(t *testing.T) {
 	assert.Equal(t, configFilePerm, fileInfo.Mode().Perm())
 }
 
-func TestNewConfig_FileAndEnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_FileAndEnvVars(t *testing.T) {
 	clearEnv() // Clear environment variables before setting new ones
 
 	// Create a temporary config file
@@ -331,6 +334,7 @@ postgres:
 	os.Setenv("LOG_LEVEL", "debug")
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://envuser:envpassword@localhost:5432/envdb")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-file-and-env-testing")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -384,6 +388,7 @@ func TestValidatePort(t *testing.T) {
 func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
 	clearEnv()
 	os.Setenv("HTTP_PORT", "not-a-port")
+	os.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-invalid-port-testing")
 
 	defer clearEnv()
 
@@ -394,6 +399,7 @@ func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot h
 func TestNewConfig_PortOutOfRange(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
 	clearEnv()
 	os.Setenv("HTTP_PORT", "70000")
+	os.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-port-out-of-range-testing")
 
 	defer clearEnv()
 
@@ -467,6 +473,36 @@ func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
 	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
 }
 
+func TestValidate_MissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = ""
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrJWTKeyMissing)
+}
+
+func TestValidate_AuthDisabledAllowsMissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.Disabled = true
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
+func TestValidate_JWTKeyPresent(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key"
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
 func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
 	t.Parallel()
 
@@ -481,6 +517,7 @@ func TestValidate_ValidDefaults(t *testing.T) {
 	t.Parallel()
 
 	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key-for-validation"
 
 	err := cfg.validate()
 	require.NoError(t, err)
