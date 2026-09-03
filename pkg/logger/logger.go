@@ -7,6 +7,8 @@ import (
 	"time"
 
 	"github.com/rs/zerolog"
+
+	"github.com/device-management-toolkit/console/pkg/exit"
 )
 
 // Interface -.
@@ -103,10 +105,15 @@ func (l *logger) Error(message interface{}, args ...any) {
 }
 
 // Fatal -.
+//
+// WithLevel(FatalLevel) rather than Fatal(): zerolog's Fatal() exits from inside
+// Msg, which would kill the process before exit.PauseForKey gets to hold the
+// console window open long enough for the operator to read this message.
 func (l *logger) Fatal(message interface{}, args ...any) {
 	mf := l.formatMessage(message)
-	l.log(l.logger.Fatal(), mf, args...)
+	l.log(l.logger.WithLevel(zerolog.FatalLevel), mf, args...)
 
+	exit.PauseForKey()
 	os.Exit(1)
 }
 

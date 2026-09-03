@@ -22,6 +22,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/pkg/exit"
 )
 
 const (
@@ -53,7 +54,7 @@ func Init(cfg *config.Config) error {
 
 	migrationsSource, err := iofs.New(content, "migrations")
 	if err != nil {
-		log.Fatal(err)
+		exit.Fatalf("migrate: %v", err)
 	}
 
 	if strings.HasPrefix(databaseURL, db.PostgresPrefix) {

@@ -13,6 +13,8 @@ import (
 	"strconv"
 	"strings"
 	"syscall"
+
+	"github.com/device-management-toolkit/console/pkg/exit"
 )
 
 // Kept open for process lifetime so the kernel retains the flock.
@@ -148,19 +150,19 @@ func relaunchInBackground() {
 	dir := logDir()
 
 	if err := os.MkdirAll(dir, 0o755); err != nil {
-		log.Fatalf("Failed to create log directory: %v", err)
+		exit.Fatalf("Failed to create log directory: %v", err)
 	}
 
 	logPath := filepath.Join(dir, "console.log")
 
 	f, err := os.OpenFile(logPath, os.O_CREATE|os.O_WRONLY|os.O_APPEND, 0o644)
 	if err != nil {
-		log.Fatalf("Failed to open log file: %v", err)
+		exit.Fatalf("Failed to open log file: %v", err)
 	}
 
 	exePath, err := os.Executable()
 	if err != nil {
-		log.Fatalf("Failed to get executable path: %v", err)
+		exit.Fatalf("Failed to get executable path: %v", err)
 	}
 
 	cmd := exec.CommandContext(context.Background(), exePath, os.Args[1:]...)
@@ -179,7 +181,7 @@ func relaunchInBackground() {
 	}
 
 	if err := cmd.Start(); err != nil {
-		log.Fatalf("Failed to start in background: %v", err)
+		exit.Fatalf("Failed to start in background: %v", err)
 	}
 
 	// Close our copy now that the child has inherited its own FD.

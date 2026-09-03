@@ -17,6 +17,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/app"
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
+	"github.com/device-management-toolkit/console/pkg/exit"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
@@ -77,11 +78,11 @@ func main() {
 
 	cfg, err := initializeConfigFunc()
 	if err != nil {
-		log.Fatalf("Config error: %s", err)
+		exit.Fatalf("Config error: %s", err)
 	}
 
 	if err = initializeAppFunc(cfg); err != nil {
-		log.Fatalf("App init error: %s", err)
+		exit.Fatalf("App init error: %s", err)
 	}
 
 	// Initialize certificate store (Vault) for MPS and domain certificates
@@ -91,7 +92,7 @@ func main() {
 	}
 
 	if err = setupCIRACertificates(cfg, secretsClient); err != nil {
-		log.Fatalf("CIRA certificate setup error: %s", err)
+		exit.Fatalf("CIRA certificate setup error: %s", err)
 	}
 
 	l := logger.New(cfg.Level)
@@ -101,7 +102,7 @@ func main() {
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
-		log.Fatal("--tray was specified but this binary was built without tray support. Rebuild with `make build-tray` (or `go build -tags=tray`).")
+		exit.Fatalf("--tray was specified but this binary was built without tray support. Rebuild with `make build-tray` (or `go build -tags=tray`).")
 	}
 
 	if trayBuildEnabled && config.TrayMode {
@@ -219,7 +220,7 @@ func checkStoredEncryptionKey(key, source string) {
 	}
 
 	if errors.Is(err, config.ErrEncryptionKeyLength) {
-		log.Fatalf(
+		exit.Fatalf(
 			"Encryption key from the %s is unusable: %v.\n"+
 				"Device credentials cannot be encrypted with it. Replace the stored "+
 				"`default-security-key`, or set APP_ENCRYPTION_KEY to a 16, 24 or 32 "+
@@ -287,7 +288,7 @@ func tryLocalStorage(cfg *config.Config, localStorage, remoteStorage security.St
 
 	// Check for unexpected errors
 	if err != nil && !errors.Is(err, security.ErrKeyNotFound) {
-		log.Fatalf(
+		exit.Fatalf(
 			"Local keyring unavailable (%v).\n"+
 				"Set APP_ENCRYPTION_KEY in the environment (or encryption_key in config) "+
 				"to provide the encryption key directly, or configure a remote secret store.",
@@ -340,13 +341,13 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 
 	_, err := fmt.Scanln(&response)
 	if err != nil {
-		log.Fatal(err)
+		exit.Fatalf("Failed to read response: %v", err)
 
 		return ""
 	}
 
 	if response != "Y" && response != "y" {
-		log.Fatal("Exiting without generating a new key.")
+		exit.Fatalf("Exiting without generating a new key.")
 
 		return ""
 	}
@@ -425,13 +426,13 @@ func handleAdminPassword(cfg *config.Config) {
 
 	password, err := generateRandomPassword(adminPasswordLength)
 	if err != nil {
-		log.Fatalf("Failed to generate admin password: %v", err)
+		exit.Fatalf("Failed to generate admin password: %v", err)
 	}
 
 	cfg.AdminPassword = password
 
 	if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
-		log.Fatalf(
+		exit.Fatalf(
 			"Generated admin password but failed to persist it to config (%v).\n"+
 				"Refusing to start with an unsaved credential that would vanish on restart.\n"+
 				"Set AUTH_ADMIN_PASSWORD in the environment (or auth.adminPassword in config) "+
