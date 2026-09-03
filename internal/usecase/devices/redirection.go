@@ -8,7 +8,6 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
 	"github.com/device-management-toolkit/console/internal/entity"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
@@ -22,12 +21,6 @@ func (g *Redirector) SetupWsmanClient(ctx context.Context, device entity.Device,
 		connection := wsmanAPI.GetConnectionEntry(device.GUID)
 		if connection == nil {
 			return wsman.Messages{}, wsmanAPI.ErrCIRADeviceNotConnected
-		}
-
-		// The CIRA socket is registered after device authentication. Verify the
-		// caller owns that socket before forwarding redirection traffic to AMT.
-		if connection.TenantID != tenant.FromContext(ctx) {
-			return wsman.Messages{}, wsmanAPI.ErrCIRATenantMismatch
 		}
 
 		return wsman.NewCIRARedirectionMessages(connection), nil

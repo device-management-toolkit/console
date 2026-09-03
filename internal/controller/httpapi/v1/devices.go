@@ -13,7 +13,6 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -69,7 +68,7 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	deviceID := c.Param("id")
 	tenantID := tenantIDFromHeader(c)
 
-	device, err := dr.t.GetByID(c.Request.Context(), deviceID, tenantID, false)
+	_, err := dr.t.GetByID(c.Request.Context(), deviceID, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - LoginRedirection")
 		ErrorResponse(c, err)
@@ -80,10 +79,9 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	// GUIDs are stored and matched lowercase, so the claim is normalized to match.
 	expirationTime := time.Now().Add(config.ConsoleConfig.RedirectionJWTExpiration)
 	claims := jwt.MapClaims{
-		"exp":                expirationTime.Unix(),
-		"iss":                config.ConsoleConfig.Issuer,
-		"deviceId":           strings.ToLower(deviceID),
-		tenant.TenantIDClaim: device.TenantID,
+		"exp":      expirationTime.Unix(),
+		"iss":      config.ConsoleConfig.Issuer,
+		"deviceId": strings.ToLower(deviceID),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

@@ -293,7 +293,6 @@ func (ctx *connectionContext) registerDevice() {
 
 	ctx.device = &wsman.ConnectionEntry{
 		IsCIRA:        true,
-		TenantID:      ctx.handler.TenantID(),
 		Conny:         ctx.conn,
 		Timer:         time.NewTimer(maxIdleTime),
 		WsmanMessages: wsman2.NewMessages(client.Parameters{}),
@@ -305,7 +304,7 @@ func (ctx *connectionContext) registerDevice() {
 		ctx.log.Error("Failed to update connection status for device %s: %v", deviceID, err)
 	}
 
-	ctx.log.Info("Device authenticated and registered", "device_id", deviceID, "tenant_id", ctx.handler.TenantID())
+	ctx.log.Info("Device authenticated and registered", "device_id", deviceID)
 }
 
 func (ctx *connectionContext) writeResponse(response bytes.Buffer) error {

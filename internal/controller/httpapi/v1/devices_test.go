@@ -763,11 +763,10 @@ func TestLoginRedirection(t *testing.T) {
 		// deviceID is the GUID as it appears in the request path.
 		deviceID string
 		// expectedClaim is the deviceId the token must carry; empty means deviceID.
-		expectedClaim  string
-		expectedTenant string
-		mock           func(devFeature *mocks.MockDeviceManagementFeature)
-		expectedCode   int
-		expectedErr    bool
+		expectedClaim string
+		mock          func(devFeature *mocks.MockDeviceManagementFeature)
+		expectedCode  int
+		expectedErr   bool
 	}{
 		{
 			name:     "login redirection - success",
@@ -776,9 +775,8 @@ func TestLoginRedirection(t *testing.T) {
 				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
 					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host", TenantID: "tenant-a"}, nil)
 			},
-			expectedCode:   http.StatusOK,
-			expectedTenant: "tenant-a",
-			expectedErr:    false,
+			expectedCode: http.StatusOK,
+			expectedErr:  false,
 		},
 		{
 			name:          "login redirection - mixed-case guid is normalized in claim",
@@ -847,14 +845,14 @@ func TestLoginRedirection(t *testing.T) {
 				}
 
 				// Decode and verify token expiration and device binding
-				verifyRedirectionToken(t, tokenString, expectedClaim, tc.expectedTenant)
+				verifyRedirectionToken(t, tokenString, expectedClaim)
 			}
 		})
 	}
 }
 
 // verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
-func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID, expectedTenant string) {
+func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
 	t.Helper()
 
 	// Parse the token, verifying its signature against the test signing key.
@@ -866,7 +864,8 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID, expecte
 
 	// deviceId must be the device GUID
 	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
-	require.Equal(t, expectedTenant, claims["tenantId"], "token tenantId should be the device tenant")
+	_, hasTenantID := claims["tenantId"]
+	require.False(t, hasTenantID, "token should not contain a tenantId claim")
 
 	// Verify expiration is set
 	exp, err := claims.GetExpirationTime()
