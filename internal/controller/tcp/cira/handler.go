@@ -99,8 +99,10 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 		return false
 	}
 
-	// Both comparisons always run so the response time does not reveal which
-	// field failed. MPSUsername is the field used for CIRA authentication.
+	// Both comparisons always run and the results are combined so the failing
+	// field is not revealed. subtle.ConstantTimeCompare is only constant time
+	// for equal-length inputs, so length differences remain observable.
+	// MPSUsername is the field used for CIRA authentication.
 	usernameMatches := subtle.ConstantTimeCompare([]byte(device.MPSUsername), []byte(username))
 	passwordMatches := subtle.ConstantTimeCompare([]byte(device.MPSPassword), []byte(password))
 
