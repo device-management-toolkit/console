@@ -189,10 +189,10 @@ jobs:
           node-version: 22.x
 
       # Pin Go only for license generation
-      - name: Use Go 1.25.1 for license scan
+      - name: Use Go 1.27.x for license scan
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.25.1"
+          go-version: "1.27.x"
           check-latest: true
       - name: Pin toolchain for this step
         run: |
