@@ -12,7 +12,7 @@ Key non-negotiables (full detail in `CLAUDE.md`):
 - Run `make mock` after editing any `Repository`/`Feature`/`WSMAN` interface — `internal/mocks/` is generated. The `mock` target encodes non-obvious `mockgen` flags; don't reproduce them by hand.
 - Device credentials (`Password`, `MPSPassword`, `MEBXPassword`) are always encrypted via `safeRequirements.Encrypt` in `dtoToEntity`. Never write plaintext to `entity.Device`.
 - Touching `internal/controller/tcp/cira/`, `internal/usecase/devices/redirection*.go`, or the WebSocket relay (`internal/controller/ws/v1/redirect.go`)? Trace the byte flow end to end and update the sibling `*_test.go` — APF state-machine races have caused real outages in the predecessor.
-- Module path is `github.com/device-management-toolkit/console`; Go 1.25+ required. Commands run natively on Linux, macOS, and Windows — WSL is not required.
+- Module path is `github.com/device-management-toolkit/console`; Go 1.27+ required. Commands run natively on Linux, macOS, and Windows — WSL is not required.
 - Small, focused PRs only. No scope creep. Stack prerequisite refactors as `refactor:` / `test:` / `build:` ahead of the `feat:` that triggers a release.
 - Commits follow Conventional Commits (commitlint-enforced). `feat:` cuts a minor release, `fix:`/`perf:`/`chore:` cuts a patch, `BREAKING CHANGE:` cuts a major — avoid breaking `/api/v1/*`. See `CONTRIBUTING.md` for the full scope list.
 - Before declaring done: `go test -race -count=1 ./...`, `gofumpt -l -w -extra ./` (no diff), `go vet ./...`, and `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run -v --fix` (use `-v ${pwd}:/app` on Windows PowerShell — no remaining diagnostics) all green.
