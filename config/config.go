@@ -31,6 +31,17 @@ const defaultHost = "localhost"
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
 
+// DefaultPermissionsPolicy denies the powerful browser APIs the bundled UI
+// never uses, and pins the two it does use to the document's own origin:
+// clipboard-write (copy activation URL / key) and fullscreen (KVM viewer).
+// Tokens a browser does not recognize are ignored, so listing features with
+// uneven support is safe.
+const DefaultPermissionsPolicy = "accelerometer=(), autoplay=(), bluetooth=(), camera=(), " +
+	"display-capture=(), encrypted-media=(), geolocation=(), gyroscope=(), " +
+	"idle-detection=(), magnetometer=(), microphone=(), midi=(), payment=(), " +
+	"screen-wake-lock=(), serial=(), usb=(), xr-spatial-tracking=(), " +
+	"clipboard-write=(self), fullscreen=(self)"
+
 // File modes for the config directory and file (owner-only for the file since
 // it can carry sensitive settings).
 const (
@@ -72,7 +83,10 @@ type (
 		AllowedHeaders   []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
 		AllowCredentials bool     `yaml:"allow_credentials" env:"HTTP_ALLOW_CREDENTIALS"`
 		WSCompression    bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
-		TLS              TLS      `yaml:"tls"`
+		// PermissionsPolicy is sent on every response. Empty disables the
+		// header so a gateway or the host serving the UI can own it instead.
+		PermissionsPolicy string `yaml:"permissions_policy" env:"HTTP_PERMISSIONS_POLICY"`
+		TLS               TLS    `yaml:"tls"`
 	}
 
 	// TLS -.
@@ -192,12 +206,13 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:             "",
-			Port:             "8181",
-			AllowedOrigins:   []string{"*"},
-			AllowedHeaders:   []string{"*"},
-			AllowCredentials: false,
-			WSCompression:    true,
+			Host:              "",
+			Port:              "8181",
+			AllowedOrigins:    []string{"*"},
+			AllowedHeaders:    []string{"*"},
+			AllowCredentials:  false,
+			WSCompression:     true,
+			PermissionsPolicy: DefaultPermissionsPolicy,
 			TLS: TLS{
 				Enabled:  true,
 				CertFile: "",

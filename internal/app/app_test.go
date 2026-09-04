@@ -16,11 +16,12 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-func TestSecurityHeadersSetsNoSniff(t *testing.T) {
-	t.Parallel()
-
+// headerTestEngine wires the middleware onto the three response shapes the
+// scanner reached: a JSON route, the SPA fallback that serves index.html, and
+// an aborted request.
+func headerTestEngine(permissionsPolicy string) *gin.Engine {
 	r := gin.New()
-	r.Use(securityHeaders())
+	r.Use(securityHeaders(permissionsPolicy))
 	r.GET("/ok", func(c *gin.Context) { c.JSON(http.StatusOK, gin.H{"a": 1}) })
 	// SPA fallback, the path the finding was reported against.
 	r.NoRoute(func(c *gin.Context) {
@@ -30,7 +31,17 @@ func TestSecurityHeadersSetsNoSniff(t *testing.T) {
 		c.AbortWithStatusJSON(http.StatusUnauthorized, gin.H{"error": "unauthorized"})
 	})
 
-	for _, path := range []string{"/ok", "/no/such/route", "/unauth"} {
+	return r
+}
+
+var headerTestPaths = []string{"/ok", "/no/such/route", "/unauth"}
+
+func TestSecurityHeadersSetsNoSniff(t *testing.T) {
+	t.Parallel()
+
+	r := headerTestEngine(config.DefaultPermissionsPolicy)
+
+	for _, path := range headerTestPaths {
 		w := httptest.NewRecorder()
 		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, http.NoBody))
 
@@ -38,7 +49,50 @@ func TestSecurityHeadersSetsNoSniff(t *testing.T) {
 	}
 }
 
-// The nosniff middleware has to sit ahead of CORS in the engine chain: the CORS
+func TestSecurityHeadersSetsPermissionsPolicy(t *testing.T) {
+	t.Parallel()
+
+	r := headerTestEngine(config.DefaultPermissionsPolicy)
+
+	for _, path := range headerTestPaths {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, http.NoBody))
+
+		require.Equal(t, config.DefaultPermissionsPolicy, w.Header().Get("Permissions-Policy"), path)
+	}
+}
+
+// The bundled UI uses both of these; denying them outright would break the KVM
+// viewer and the copy-to-clipboard buttons.
+func TestDefaultPermissionsPolicyKeepsFeaturesTheUIUses(t *testing.T) {
+	t.Parallel()
+
+	for _, feature := range []string{"clipboard-write=(self)", "fullscreen=(self)"} {
+		require.Contains(t, config.DefaultPermissionsPolicy, feature)
+	}
+
+	for _, denied := range []string{"camera=()", "microphone=()", "geolocation=()", "payment=()", "usb=()"} {
+		require.Contains(t, config.DefaultPermissionsPolicy, denied)
+	}
+}
+
+// An empty policy hands the header back to whoever serves the UI or fronts
+// Console, without dropping nosniff.
+func TestSecurityHeadersOmitsEmptyPermissionsPolicy(t *testing.T) {
+	t.Parallel()
+
+	r := headerTestEngine("")
+
+	for _, path := range headerTestPaths {
+		w := httptest.NewRecorder()
+		r.ServeHTTP(w, httptest.NewRequest(http.MethodGet, path, http.NoBody))
+
+		require.Empty(t, w.Header().Get("Permissions-Policy"), path)
+		require.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"), path)
+	}
+}
+
+// The security-header middleware has to sit ahead of CORS in the engine chain: the CORS
 // middleware answers preflights and rejects disallowed origins itself, so
 // anything registered after it never runs on those responses.
 //
@@ -47,6 +101,7 @@ func TestSetupHTTPHandlerSetsNoSniffAheadOfCORS(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.AllowedOrigins = []string{"https://allowed.example"}
 	cfg.AllowedHeaders = []string{"Content-Type"}
+	cfg.PermissionsPolicy = config.DefaultPermissionsPolicy
 	cfg.Disabled = true
 
 	prev := config.ConsoleConfig
@@ -82,6 +137,7 @@ func TestSetupHTTPHandlerSetsNoSniffAheadOfCORS(t *testing.T) {
 
 		require.Equal(t, tc.wantCode, w.Code, tc.name)
 		require.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"), tc.name)
+		require.Equal(t, config.DefaultPermissionsPolicy, w.Header().Get("Permissions-Policy"), tc.name)
 	}
 }
 
