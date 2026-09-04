@@ -33,6 +33,7 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 	h := handler.Group("/devices")
 	{
 		h.GET("", r.get)
+		h.GET("export", r.export)
 		h.GET("stats", r.getStats)
 		h.GET("redirectstatus/:guid", r.redirectStatus)
 		h.GET("cert/:guid", r.getDeviceCertificate)
