@@ -133,8 +133,7 @@ func (g GoWSMANMessages) Worker() {
 	for {
 		select {
 		case request := <-requestQueue:
-			request()
-			time.Sleep(queueTickTime)
+			go request()
 		case <-shutdownSignal:
 			return
 		}
