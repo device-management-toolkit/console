@@ -73,7 +73,6 @@ func ensureIndexes(ctx context.Context, db *mongo.Database, log logger.Interface
 	}
 
 	tenantScoped := []idx{
-		{CollectionDevices, bson.D{{Key: fieldGUID, Value: 1}, {Key: fieldTenantID, Value: 1}}},
 		{CollectionProfiles, bson.D{{Key: fieldProfileName, Value: 1}, {Key: fieldTenantID, Value: 1}}},
 		{CollectionCIRAConfigs, bson.D{{Key: fieldConfigName, Value: 1}, {Key: fieldTenantID, Value: 1}}},
 		{CollectionDomains, bson.D{{Key: fieldProfileName, Value: 1}, {Key: fieldTenantID, Value: 1}}},
@@ -90,7 +89,12 @@ func ensureIndexes(ctx context.Context, db *mongo.Database, log logger.Interface
 		}},
 	}
 
-	for _, i := range tenantScoped {
+	// CIRA authenticates devices by GUID alone, so GUIDs must be globally unique.
+	globalIndexes := []idx{
+		{CollectionDevices, bson.D{{Key: fieldGUID, Value: 1}}},
+	}
+
+	for _, i := range append(tenantScoped, globalIndexes...) {
 		_, err := db.Collection(i.coll).Indexes().CreateOne(ctx, mongo.IndexModel{
 			Keys:    i.keys,
 			Options: options.Index().SetUnique(true),

@@ -11,7 +11,7 @@ func (uc *UseCase) RequestWirelessStateChange(c context.Context, guid string, re
 		return 0, ErrValidationUseCase.Wrap("RequestWirelessStateChange", "validate requested state", "state must be one of 3, 32768, 32769")
 	}
 
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return 0, err
 	}
@@ -51,7 +51,7 @@ func isWirelessRequestedStateSupported(requestedState wifi.RequestedState) bool 
 }
 
 func (uc *UseCase) GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return 0, err
 	}

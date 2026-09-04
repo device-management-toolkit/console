@@ -13,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/tenant"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
@@ -112,6 +113,27 @@ func TestSetupWsmanClient_CIRARedirection(t *testing.T) {
 		msgs, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
 		require.NoError(t, err)
 		require.NotNil(t, msgs.Client)
+	})
+
+	t.Run("rejects a CIRA socket owned by another tenant", func(t *testing.T) {
+		t.Parallel()
+
+		guid := "cira-device-tenant-mismatch"
+		wsmanAPI.SetConnectionEntry(guid, &wsmanAPI.ConnectionEntry{
+			IsCIRA:   true,
+			TenantID: "tenant-a",
+		})
+		t.Cleanup(func() { wsmanAPI.RemoveConnection(guid) })
+
+		device := entity.Device{
+			GUID:        guid,
+			MPSUsername: "admin",
+		}
+		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
+		ctx := tenant.WithContext(context.Background(), "tenant-b")
+
+		_, err := redirector.SetupWsmanClient(ctx, device, true, false)
+		require.ErrorIs(t, err, wsmanAPI.ErrCIRATenantMismatch)
 	})
 
 	t.Run("non-CIRA device skips CIRA path", func(t *testing.T) {

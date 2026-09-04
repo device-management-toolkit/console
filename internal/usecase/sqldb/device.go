@@ -23,6 +23,7 @@ type DeviceRepo struct {
 var (
 	ErrDeviceDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
 	ErrDeviceNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
+	errDuplicateDevice = errors.New("duplicate device found for guid and tenant")
 )
 
 // New -.
@@ -166,24 +167,87 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", rows.Err())
 	}
 
-	devices := make([]*entity.Device, 0)
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
+		}
 
-	for rows.Next() {
+		return nil, nil
+	}
+
+	d := &entity.Device{}
+
+	err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+	if err != nil {
+		return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
+	}
+
+	if rows.Next() {
+		return nil, ErrDeviceNotUnique.Wrap(errDuplicateDevice.Error())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
+	}
+
+	return d, nil
+}
+
+func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
+	sqlQuery, _, err := r.Builder.
+		Select(
+			"guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"mpspassword",
+			"mebxpassword",
+			"usetls",
+			"allowselfsigned",
+			"certhash",
+		).
+		From("devices").
+		Where("guid = ?").
+		ToSql()
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Builder: ", err)
+	}
+
+	rows, err := r.Pool.QueryContext(ctx, sqlQuery, guid)
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Pool.Query", err)
+	}
+
+	defer rows.Close()
+
+	if rows.Err() != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Err", rows.Err())
+	}
+
+	if rows.Next() {
 		d := &entity.Device{}
 
 		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
 		if err != nil {
-			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
+			return d, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Scan: ", err)
 		}
 
-		devices = append(devices, d)
+		return d, nil
 	}
 
-	if len(devices) == 0 {
-		return nil, nil
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Err", err)
 	}
 
-	return devices[0], nil
+	return nil, nil
 }
 
 func (r *DeviceRepo) GetDistinctTags(_ context.Context, tenantID string) ([]string, error) {
@@ -247,7 +311,6 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 		// All tags must be present (simulating an 'AND' operation)
 		for _, tag := range tags {
 			builder = builder.Where("(',' || tags || ',') LIKE ? AND tenantId = ?", "%,"+tag+",%", tenantID)
-			params = append(params, "%,"+tag+",%", tenantID) //nolint:staticcheck // intentionally retained; the AND branch passes its args to Where inline
 		}
 	} else {
 		// Any tag is present (simulating an 'OR' operation)
