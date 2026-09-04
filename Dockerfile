@@ -9,14 +9,14 @@
 ARG BUILD_TAGS=""
 
 # Step 1: Modules caching
-FROM golang:1.26-alpine@sha256:3889b425f035be855a72fb4755265311293b6d414521f0a519d819df32222d83 AS modules
+FROM golang:1.27-alpine@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177eaaf8596087f3125 AS modules
 COPY go.mod go.sum /modules/
 WORKDIR /modules
 RUN apk add --no-cache git
 RUN go mod download
 
 # Step 2: Builder
-FROM golang:1.26-alpine@sha256:3889b425f035be855a72fb4755265311293b6d414521f0a519d819df32222d83 AS builder
+FROM golang:1.27-alpine@sha256:cf6fca6641884b8433441b2b0652976f975e1d0fdd26d177eaaf8596087f3125 AS builder
 # Build tags control dependencies:
 # - Default (no tags): Full build with UI
 # - noui: Excludes web UI assets

@@ -2,11 +2,14 @@ package main
 
 import (
 	"crypto/rand"
-	"encoding/base64"
 	"errors"
 	"fmt"
 	"log"
+	"math/big"
 	"os"
+	"regexp"
+	"strings"
+	"unicode/utf8"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -22,10 +25,38 @@ import (
 var (
 	ErrSecretStoreAddressNotConfigured = errors.New("secret store address not configured")
 	ErrSecretStoreTokenNotConfigured   = errors.New("secret store token not configured")
+	ErrPasswordLengthTooShort          = errors.New("requested password length is below the minimum")
 )
 
 // adminPasswordLength is the length of generated admin passwords.
 const adminPasswordLength = 16
+
+// adminPasswordMinLength is the floor, in runes, for the warning and the generator.
+// No ceiling: this password is only compared against the login request in httpapi/v1.
+const adminPasswordMinLength = 8
+
+// RE2 has no lookahead, so complexity is one regex per required class. The last is
+// "not a letter or digit", broader than the !@#$%^&* AMT profiles require.
+var adminPasswordComplexity = []*regexp.Regexp{
+	regexp.MustCompile(`[a-z]`),
+	regexp.MustCompile(`[A-Z]`),
+	regexp.MustCompile(`\d`),
+	regexp.MustCompile(`[^a-zA-Z0-9]`),
+}
+
+// Classes used to generate a password. Only @ and * survive being pasted verbatim:
+// $ ! expand in sh, # truncates in make (-include .env), % ^ & break cmd.exe's set.
+const (
+	lowerChars      = "abcdefghijklmnopqrstuvwxyz"
+	upperChars      = "ABCDEFGHIJKLMNOPQRSTUVWXYZ"
+	digitChars      = "0123456789"
+	genSpecialChars = "@*"
+)
+
+var (
+	genPasswordClasses = []string{lowerChars, upperChars, digitChars, genSpecialChars}
+	allGenChars        = strings.Join(genPasswordClasses, "")
+)
 
 // Function pointers for better testability.
 var (
@@ -150,6 +181,8 @@ func handleEncryptionKey(cfg *config.Config) {
 
 	// Try remote storage first
 	if done := tryRemoteStorage(cfg, remoteStorage); done {
+		checkStoredEncryptionKey(cfg.EncryptionKey, "secret store")
+
 		return
 	}
 
@@ -157,6 +190,8 @@ func handleEncryptionKey(cfg *config.Config) {
 	localStorage := security.NewKeyRingStorage("device-management-toolkit")
 
 	if done := tryLocalStorage(cfg, localStorage, remoteStorage); done {
+		checkStoredEncryptionKey(cfg.EncryptionKey, "local keyring")
+
 		return
 	}
 
@@ -166,6 +201,39 @@ func handleEncryptionKey(cfg *config.Config) {
 	if err := saveEncryptionKey(cfg.EncryptionKey, remoteStorage, localStorage); err != nil {
 		log.Printf("Warning: Failed to save encryption key: %v", err)
 	}
+}
+
+// checkStoredEncryptionKey validates a key that came out of the secret store or
+// the local keyring. Keys supplied through config/env are already rejected by
+// config.NewConfig, so a failure here means the store holds a key written by an
+// older build that did not validate.
+//
+// A wrong-sized key can never encrypt anything (crypto/aes rejects it), so
+// Console refuses to start. A weak but usable key only warns: existing device
+// credentials are encrypted with it, and exiting would leave the operator unable
+// to start Console and read their own data.
+func checkStoredEncryptionKey(key, source string) {
+	err := config.ValidateEncryptionKey(key)
+	if err == nil {
+		return
+	}
+
+	if errors.Is(err, config.ErrEncryptionKeyLength) {
+		log.Fatalf(
+			"Encryption key from the %s is unusable: %v.\n"+
+				"Device credentials cannot be encrypted with it. Replace the stored "+
+				"`default-security-key`, or set APP_ENCRYPTION_KEY to a 16, 24 or 32 "+
+				"character key (note that credentials encrypted with a different key "+
+				"become unreadable).",
+			source, err,
+		)
+	}
+
+	log.Printf(
+		"Warning: encryption key from the %s is weak: %v. "+
+			"Rotating it requires re-entering device credentials, so plan the change.",
+		source, err,
+	)
 }
 
 // tryRemoteStorage attempts to store/retrieve the encryption key from remote storage.
@@ -286,16 +354,63 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 	return toolkitCrypto.GenerateKey()
 }
 
-// generateRandomPassword creates a cryptographically secure random password.
+// generateRandomPassword returns a cryptographically secure password of exactly
+// length characters that satisfies isStrongAdminPassword.
 func generateRandomPassword(length int) (string, error) {
-	bytes := make([]byte, length)
+	if length < adminPasswordMinLength {
+		return "", ErrPasswordLengthTooShort
+	}
 
-	_, err := rand.Read(bytes)
-	if err != nil {
+	password := make([]byte, 0, length)
+
+	for _, class := range genPasswordClasses {
+		char, err := randomChar(class)
+		if err != nil {
+			return "", err
+		}
+
+		password = append(password, char)
+	}
+
+	for len(password) < length {
+		char, err := randomChar(allGenChars)
+		if err != nil {
+			return "", err
+		}
+
+		password = append(password, char)
+	}
+
+	if err := shufflePassword(password); err != nil {
 		return "", err
 	}
 
-	return base64.URLEncoding.EncodeToString(bytes)[:length], nil
+	return string(password), nil
+}
+
+// randomChar avoids the modulo bias of reducing a random byte.
+func randomChar(set string) (byte, error) {
+	index, err := rand.Int(rand.Reader, big.NewInt(int64(len(set))))
+	if err != nil {
+		return 0, fmt.Errorf("randomChar: %w", err)
+	}
+
+	return set[index.Int64()], nil
+}
+
+// shufflePassword removes the fixed class ordering of the first characters.
+func shufflePassword(password []byte) error {
+	for i := len(password) - 1; i > 0; i-- {
+		j, err := rand.Int(rand.Reader, big.NewInt(int64(i+1)))
+		if err != nil {
+			return fmt.Errorf("shufflePassword: %w", err)
+		}
+
+		swap := j.Int64()
+		password[i], password[swap] = password[swap], password[i]
+	}
+
+	return nil
 }
 
 // handleAdminPassword ensures cfg.AdminPassword is set, generating one and
@@ -303,6 +418,8 @@ func generateRandomPassword(length int) (string, error) {
 // or environment.
 func handleAdminPassword(cfg *config.Config) {
 	if cfg.AdminPassword != "" {
+		warnOnWeakAdminPassword(cfg.AdminPassword)
+
 		return
 	}
 
@@ -324,4 +441,36 @@ func handleAdminPassword(cfg *config.Config) {
 	}
 
 	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
+}
+
+// warnOnWeakAdminPassword warns but does not stop startup: migrated MPS/RPS
+// credentials predate this policy, and refusing to boot would lock operators out.
+func warnOnWeakAdminPassword(password string) {
+	if isStrongAdminPassword(password) {
+		return
+	}
+
+	log.Printf(
+		"WARNING: the configured admin password is weak. It should be at least %d characters and "+
+			"contain a lowercase letter, an uppercase letter, a digit, and a symbol; longer is better. "+
+			"Console is starting anyway, but set a stronger password in auth.adminPassword in "+
+			"config.yml, or via AUTH_ADMIN_PASSWORD in the environment. In .env, single-quote the "+
+			"value so docker compose does not expand $, and avoid # altogether: make reads .env too, "+
+			"and it cuts the value at # regardless of quoting.",
+		adminPasswordMinLength,
+	)
+}
+
+func isStrongAdminPassword(password string) bool {
+	if utf8.RuneCountInString(password) < adminPasswordMinLength {
+		return false
+	}
+
+	for _, rule := range adminPasswordComplexity {
+		if !rule.MatchString(password) {
+			return false
+		}
+	}
+
+	return true
 }

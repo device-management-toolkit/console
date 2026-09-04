@@ -2,7 +2,16 @@
 
 This file provides guidance to Claude Code (claude.ai/code) when working with code in this repository.
 
-Canonical guide for AI coding assistants working in this repository. The filename is historical; the content is tool-neutral and applies to any agent (Claude Code, Codex, Cursor, Aider, Continue, Gemini CLI, GitHub Copilot, etc.). `AGENTS.md` and `.github/copilot-instructions.md` are pointers to this file — keep edits here.
+Canonical guide for AI coding assistants working in this repository. The filename is only for historical reasons; the content is tool-neutral and applies to any agent (Claude Code, Codex, Cursor, Aider, Continue, Gemini CLI, GitHub Copilot, etc.). `AGENTS.md` and `.github/copilot-instructions.md` are pointers to this file — make all edits here.
+
+**Keeping this file correct is part of normal work.** Update it in the same PR when any of these happen:
+
+- An instruction here turns out to be wrong, impossible, or out of date.
+- A reviewer explains something an agent or a new developer should have already known from this file.
+- You correct the same misunderstanding twice.
+- You add a command, a `make` target, or a rule that applies to every task.
+
+A wrong instruction here is worse than a missing one, because people follow it. If you cannot fix it in your PR, open an issue.
 
 ## Overview
 
@@ -18,13 +27,13 @@ Sibling reference repos in the workspace: [MPS](https://github.com/device-manage
 ## Commands
 
 
-**Go 1.25+ required** (per `go.mod`). **Module path is `github.com/device-management-toolkit/console`** — all intra-repo imports use that prefix. Copy `.env.example` to `.env` (the VS Code launch config and the few `make` targets that still apply read it via `envFile` / `-include`; raw `go run` reads env vars from your shell).
+**Go 1.27+ required** (per `go.mod`). **Module path is `github.com/device-management-toolkit/console`** — all intra-repo imports use that prefix. Copy `.env.example` to `.env` (the VS Code launch config and the few `make` targets that still apply read it via `envFile` / `-include`; raw `go run` reads env vars from your shell).
 
 ### Running the app
 
-The recommended local workflow is **VS Code's Go debugger** — `.vscode/launch.json` ships a `Launch Package` config that points at `./cmd/app` with `.env` loaded as the env file. Hit F5 and you get breakpoints, variable inspection, and goroutine views for free. For the frontend, run `sample-web-ui` separately on `:4200` (`npm run enterprise` in that repo).
+The recommended local workflow is **VS Code's Go debugger** — `.vscode/launch.json` ships a `Launch Package` config that points at `./cmd/app` with `.env` loaded as the env file. Press F5 to start it. You get breakpoints, variable inspection, and goroutine views with no extra setup. For the frontend, run `sample-web-ui` separately on `:4200` (`npm run enterprise` in that repo).
 
-You don't need `-tags=noui` locally: `internal/controller/httpapi/ui/` is empty in this repo (the release workflow populates it from `sample-web-ui`'s `build-enterprise` output), so `//go:embed all:ui` just embeds an empty directory and UI routes return 404 / redirect to `ui.externalUrl`. Set `ui.externalUrl: "http://localhost:4200"` in `config/config.yml` if you want UI links to bounce to the dev server.
+You don't need `-tags=noui` locally. In a fresh clone `internal/controller/httpapi/ui/` holds only `.gitkeep` — `.gitignore` excludes everything else, and the release workflow fills the directory from `sample-web-ui`'s `build-enterprise` output. So `//go:embed all:ui` embeds an empty directory, and UI routes return 404 or redirect to `ui.externalUrl`. (If you built the UI locally at some point, real files may still sit in that directory. They are ignored by git and do not affect anyone else.) Set `ui.externalUrl: "http://localhost:4200"` in `config/config.yml` if you want UI links to bounce to the dev server.
 
 If you can't use the VS Code debugger, run via `go run` directly:
 
@@ -35,24 +44,6 @@ If you can't use the VS Code debugger, run via `go run` directly:
 | cmd.exe (Windows) | `set GIN_MODE=debug && go run ./cmd/app` |
 
 App listens on `HTTP_PORT` (default `8181`); CIRA on `:4433` when `APP_DISABLE_CIRA=false`. Pass a custom config path with `--config /absolute/path/to/config.yml`. The `--tray` flag only works on binaries built with `-tags=tray`.
-
-### Building
-
-`CGO_ENABLED=0` produces statically-linked, cross-OS binaries from any host:
-
-```sh
-# bash/zsh
-CGO_ENABLED=0 go build -o ./bin/console ./cmd/app
-CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
-
-# PowerShell
-$env:CGO_ENABLED=0; go build -o ./bin/console ./cmd/app
-$env:CGO_ENABLED=0; go build -tags=noui -o ./bin/console-noui ./cmd/app
-```
-
-Cross-compile by setting `GOOS=linux|windows|darwin` and `GOARCH=amd64|arm64`. Release binaries use `-ldflags "-s -w" -trimpath` to strip and reproducibly trim paths.
-
-**`make build` / `make build-noui` / `make build-tray` / `make build-all-platforms`** are useful convenience wrappers for the canonical flag combinations (the all-platforms target emits the full release matrix to `dist/`). `build-tray` requires `CGO_ENABLED=1` and only builds for the host OS — system tray pulls in native deps.
 
 ### Testing
 
@@ -65,55 +56,19 @@ go test -race -v -coverprofile=coverage.out ./...               # with coverage
 
 `-count=1` defeats the test cache. `-race` is mandatory locally — CI runs with it.
 
-### Fuzz tests
+### Task-specific guides
 
-Fuzz targets live next to their packages as `*_fuzz_test.go`. Go can only fuzz one target per `go test` invocation, so the `make fuzz-*` helpers exist to enumerate + iterate:
+Most work needs only the commands above. The guides below cover tasks you hit
+occasionally. Read the matching file **before** you start that kind of task —
+each one is self-contained and more detailed than a summary here could be.
 
-```sh
-make fuzz-list                                                  # discover targets
-make fuzz-one PKG=./internal/usecase/devices TARGET=FuzzParseInterval FUZZTIME=30s
-make fuzz-smoke                                                 # every target, 1x execution (CI smoke)
-make fuzz-all FUZZTIME=2m                                       # every target, 2m budget each
-```
-
-The raw equivalent for ad-hoc fuzzing is `go test -run=^$ -fuzz='^FuzzName$' -fuzztime=30s ./path`.
-
-### Mocks
-
-`internal/mocks/*` is generated from the `interfaces.go` files. Regenerate after editing any `Repository` / `Feature` / `WSMAN` interface and commit alongside the change:
-
-```sh
-make mock
-```
-
-The target encodes 13 `mockgen -source ... -mock_names ...` invocations with non-obvious aliases; reproducing them by hand is error-prone.
-
-### OpenAPI spec
-
-```sh
-go run ./cmd/openapi-gen      # writes doc/openapi.json
-```
-
-The live spec is also served at `GET /api/openapi.json` on the running server. CI publishes `doc/openapi.json` to SwaggerHub — commit changes whenever you touch routes.
-
-### Database (optional, for Postgres / Mongo development)
-
-Default `DB_PROVIDER=sqlite` needs nothing — the DB file is created at `~/.config/device-management-toolkit/console.db` (Linux/macOS) or `%APPDATA%\device-management-toolkit\console.db` (Windows). For Postgres or Mongo dev:
-
-```sh
-docker compose up -d postgres                # Postgres-backed local dev
-docker compose --profile mongo up -d mongo   # Mongo-backed local dev (profile-gated)
-docker compose down --remove-orphans         # stop everything
-```
-
-Migrations (Postgres only — the SQLite path runs them automatically, Mongo doesn't use them):
-
-```sh
-make migrate-create        # scaffold a new migration pair
-make migrate-up            # apply pending migrations
-```
-
-Both targets shell out to `golang-migrate/migrate` — install once via `make bin-deps` (also installs `mockgen` into `./bin/`).
+| Read this file | When |
+|---|---|
+| [`.github/agents/mocks.md`](.github/agents/mocks.md) | You changed any `Repository`, `Feature`, or `WSMAN` interface and need to run `make mock`. |
+| [`.github/agents/openapi.md`](.github/agents/openapi.md) | You added or changed a route under `httpapi/v1/` or `v2/`. Explains why `doc/openapi.json` must **not** be committed. |
+| [`.github/agents/databases.md`](.github/agents/databases.md) | You need Postgres or MongoDB running, or you are writing a SQL migration. Not needed for normal work — SQLite is the default. |
+| [`.github/agents/building.md`](.github/agents/building.md) | You need a release binary, a build tag (`noui`, `tray`), or a cross-compile. Not needed for normal work — use `go run ./cmd/app`. |
+| [`.github/agents/fuzzing.md`](.github/agents/fuzzing.md) | You are adding or running a fuzz target. |
 
 ### Linting and formatting
 
@@ -133,7 +88,7 @@ docker run --rm -v ${pwd}:/app -w /app golangci/golangci-lint:latest golangci-li
 
 `--fix` auto-applies safe corrections (including import grouping via `gci`). What CI actually does: the `formatting` job runs `gofmt -s -l . | wc -l` and fails on any output, then `go vet ./...`; the `golangci-lint` job runs `reviewdog/action-golangci-lint` against the same `.golangci.yml`. `gofumpt` is a strict superset of `gofmt -s`, so anything passing `gofumpt` also passes CI's formatter; the same `.golangci.yml` drives both lint invocations, but **binary versions are not pinned identically** between the Docker image and `reviewdog`'s action — occasional skew on bleeding-edge linters is possible.
 
-`.golangci.yml` is strict — `cyclop` 15, `funlen` 100, `mnd`, `paralleltest`, `wsl_v5`, `err113`, and friends. CI runs the same; fix locally first.
+`.golangci.yml` is strict, and CI applies exactly that file. Read it if you want the thresholds — do not rely on values copied into this document, which go stale. Fix all diagnostics locally before you push.
 
 ## Architecture
 
@@ -216,12 +171,14 @@ Custom validators (`alphanumhyphenunderscore`, `wifistate`) are registered once 
 
 ### OpenAPI generation
 
-Two interlocked routes describe the API:
+Two files describe every endpoint, and both must be kept in sync:
 
 - **Routes** (Gin handlers) — `internal/controller/httpapi/v1/*.go` and `v2/*.go`. These serve traffic.
-- **OpenAPI definitions** — `internal/controller/openapi/*.go` use the Fuego adapter to declare the same endpoints with full request/response schemas. `make openapi` (or `go run ./cmd/openapi-gen`) writes `doc/openapi.json` from these.
+- **OpenAPI definitions** — `internal/controller/openapi/*.go` use the Fuego adapter to declare the same endpoints with full request/response schemas.
 
-**When you add or change a route, update both.** The Fuego declaration is what integrators and SwaggerHub see; the Gin handler is what executes. CI publishes `doc/openapi.json`, so a stale spec is treated as a bug.
+**When you add or change a route, update both.** The Fuego declaration is what integrators and SwaggerHub see; the Gin handler is what executes. If they disagree, integrators build against a contract the server does not honour.
+
+`doc/openapi.json` is generated build output and is **ignored by git** — never commit it. CI regenerates and publishes it when files under `internal/controller/openapi/` change. Full detail in [`.github/agents/openapi.md`](.github/agents/openapi.md).
 
 ### WSMAN access (never hand-author XML)
 
@@ -251,20 +208,52 @@ If you need a WSMAN call that isn't in `go-wsman-messages` yet, **fix it upstrea
 ## Implementation guidelines (non-negotiable)
 
 - **Never hand-author WSMAN XML.** All WSMAN goes through `go-wsman-messages` via the `devices.WSMAN` interface in `internal/usecase/devices/wsman`. Add new device operations as methods on `devices.Feature` and call them from controllers; if a needed message is missing, fix it upstream in `go-wsman-messages` rather than crafting raw XML here.
-- **Controllers go through `usecases.Devices` (or the matching feature).** Don't reach into the repo from a controller. Don't hold WSMAN clients in the HTTP layer. The flow is always controller → feature → (repo and/or WSMAN).
+- **Controllers go through `usecases.Devices` (or the matching feature).** A controller must never call a repository directly, and must never create or store a WSMAN client. The flow is always controller → feature → (repo and/or WSMAN).
 - **REST API changes must be backwards compatible.** `/api/v1/*` is the MPS+RPS migration contract — Sample Web UI, partner tooling, and existing scripts depend on field names, status codes, and query params staying stable. Prefer additive changes (new optional field, new endpoint, new query param) over renaming, removing, or tightening existing ones. Behaviour that genuinely doesn't fit the legacy shape goes under `/api/v2/*`. The same rule applies to DB schema and DTO changes: existing rows must keep working.
-- **API changes must update the Gin handler, the Fuego/OpenAPI declaration, AND the Postman collections in the same PR.** `internal/controller/httpapi/v{1,2}/*.go` serves traffic; `internal/controller/openapi/*.go` describes it; `integration-test/collections/console_mps_apis.postman_collection.json` (device/management surface) and `console_rps_apis.postman_collection.json` (activation/config surface — domains, profiles, wireless, CIRA configs) are what integrators and QA test against. Add new request entries, update changed shapes, and bump `console_environment.postman_environment.json` if your change introduces new variables. Run `go run ./cmd/openapi-gen` and commit the regenerated `doc/openapi.json` if your change is reachable from the spec. A drifted Postman collection or Swagger spec is treated as a bug.
-- **Storage backends must stay in lock-step.** Console supports three databases (Postgres, SQLite, MongoDB) across two implementation packages: `internal/usecase/sqldb` (Postgres + SQLite share code) and `internal/usecase/nosqldb/mongo`. Any new method on a `Repository` interface needs implementations in **both** packages, plus matching SQL migrations under `internal/app/migrations/`. A method that only works on one backend is a bug — the use case has no way to know which it got.
-- **Run `make mock` after any interface change.** Stale mocks in `internal/mocks/` are a frequent source of "tests pass locally but fail in CI" reports. The target enumerates every mocked interface with the right `mockgen` flags; keep new interfaces in sync there.
+- **API changes must update the Gin handler, the Fuego/OpenAPI declaration, AND the Postman collections in the same PR.** `internal/controller/httpapi/v{1,2}/*.go` serves traffic; `internal/controller/openapi/*.go` describes it; `integration-test/collections/console_mps_apis.postman_collection.json` (device/management surface) and `console_rps_apis.postman_collection.json` (activation/config surface — domains, profiles, wireless, CIRA configs) are what integrators and QA test against. Add new request entries, update changed shapes, and bump `console_environment.postman_environment.json` if your change introduces new variables. **Do not commit `doc/openapi.json`** — it is generated build output and git ignores it; CI regenerates and publishes it from your `internal/controller/openapi/` changes. See [`.github/agents/openapi.md`](.github/agents/openapi.md). A Postman collection or Fuego declaration that disagrees with the handler is treated as a bug.
+- **All three storage backends must behave identically.** Console supports three databases (Postgres, SQLite, MongoDB) across two implementation packages: `internal/usecase/sqldb` (Postgres + SQLite share code) and `internal/usecase/nosqldb/mongo`. Any new method on a `Repository` interface needs implementations in **both** packages, plus matching SQL migrations under `internal/app/migrations/`. A method that only works on one backend is a bug — the use case has no way to know which it got.
+- **Run `make mock` after any interface change.** Out-of-date mocks in `internal/mocks/` are the most common reason tests pass on your machine but fail in CI. The `mock` target runs every `mockgen` command with the correct flags — do not run `mockgen` by hand. If you add a new interface, add a line for it to the `mock` target. See [`.github/agents/mocks.md`](.github/agents/mocks.md).
 - **Encryption is mandatory for credential fields.** Device passwords (`Password`, `MPSPassword`, `MEBXPassword`) are always written through `safeRequirements.Encrypt` and read through `safeRequirements.Decrypt`. Don't add a new credential field to `entity.Device` without wiring both sides in `dtoToEntity` / `entityToDTO`.
-- **Keep PRs small and scoped to one concern.** Touch only the files relevant to the issue. **Do not scope-creep** — unrelated bug, dead code, lint nit, or formatting drift you notice while working belongs in a separate PR/issue. A focused 50-line diff gets reviewed and merged; a 500-line "while I was in there" diff stalls and risks regressions in unrelated CIRA/redirection paths.
-- **Work in incremental phases — this is an agile team.** Plan features as a sequence of small, independently-reviewable PRs rather than one big bang. If a PR grows past the point where a reviewer can hold it in their head (rough rule of thumb: a few hundred meaningful lines, or more than one logical concern), stop and break it into smaller PRs that stack. Each PR should leave `main` in a working state.
-- **Order PRs around the semver release impact.** Releases are automated by semantic-release from conventional commits: `feat:` cuts a **minor**, `fix:`/`perf:` cuts a **patch**, `BREAKING CHANGE:` cuts a **major**, `chore:` is configured to cut a **patch** in `.releaserc.json`, and `refactor:`/`docs:`/`test:`/`style:`/`build:`/`ci:` do **not** cut a release. When a feature needs prerequisite plumbing (extracted helpers, internal API reshaping, test scaffolding, schema groundwork that's a no-op without the feature), land those prerequisites first as `refactor:` (or `test:`/`build:`) so they ship invisibly. The final user-visible PR is the `feat:` that flips the switch and triggers the release. Never bundle prerequisites into a `feat:` commit just to save PRs — that ties the release to scaffolding that wasn't ready for users.
+- **One PR fixes one problem.** Change only the files needed for the issue you are working on.
+  - While working you may notice an unrelated bug, unused code, a lint warning, or bad formatting. **Do not fix it in this PR.** Open a separate issue or a separate PR for it.
+  - Target roughly 50–300 changed lines. A small PR gets reviewed and merged quickly.
+  - If your PR changes more than about 300 lines, or fixes more than one problem, stop and split it into two or more PRs.
+  - Large PRs are dangerous here because they can break CIRA and redirection code that looks unrelated.
+- **Split a large feature into several small PRs, in order.** Do not build a whole feature in one large PR.
+  - Each PR must leave `main` working. Never merge a PR that breaks the build or the tests.
+  - Each PR should be understandable on its own, without reading the other PRs.
+- **Choose the commit type based on whether you want a release.** semantic-release reads the commit type and decides the version number automatically:
+
+  | Commit type | Release created |
+  |---|---|
+  | `feat:` | minor (1.2.0 → 1.3.0) |
+  | `fix:` / `perf:` | patch (1.2.0 → 1.2.1) |
+  | `chore:` | patch (configured in `.releaserc.json`) |
+  | `BREAKING CHANGE:` in body | major (1.2.0 → 2.0.0) |
+  | `refactor:` `docs:` `test:` `style:` `build:` `ci:` | **no release** |
+
+  Some features need preparation work first: extracted helper functions, reshaped internal APIs, new test scaffolding, or database schema that does nothing until the feature is finished. **Merge that preparation work first, using `refactor:`, `test:`, or `build:`.** Those types create no release, so users see nothing until the feature is ready. Then merge the final PR as `feat:`, which turns the feature on and creates the release.
+
+  **Never put preparation work inside a `feat:` commit just to save time.** That releases scaffolding to users before the feature works.
 - **Touching CIRA / APF / redirection?** Trace the byte flow from `cira.Server.ListenAndServe` → APF channel handler → `usecase/devices.Redirect` / WSMAN consumer, and confirm every state transition you touch is covered by the sibling `*_test.go`. Multi-instance deployments rely on `entity.Device.MPSInstance` to know which Console owns a given CIRA socket — old/new connection races have caused real outages in the predecessor (MPS).
-- **Before declaring work done, all of these must be green:** `go test -race -count=1 ./...`, `gofumpt -l -w -extra ./` (no diff), `go vet ./...`, and `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run -v --fix` (no remaining diagnostics — use `-v ${pwd}:/app` on Windows PowerShell). CI runs the same; fix locally first. Also run `go run ./cmd/openapi-gen` if you changed any handler under `httpapi/` or any declaration under `openapi/`, and `make mock` if you touched any mocked interface.
+- **Before you say the work is finished, run these commands and check every one passes.** Do not report work as done until all of them are clean. CI runs the same checks, so a failure here is a failure in CI.
+
+  | # | Command | Passes when |
+  |---|---|---|
+  | 1 | `gofumpt -l -w -extra ./` | It prints nothing and `git diff` shows no new formatting changes |
+  | 2 | `go vet ./...` | It prints nothing |
+  | 3 | `go test -race -count=1 ./...` | Every package says `ok` — no `FAIL` anywhere |
+  | 4 | `docker run --rm -v .:/app -w /app golangci/golangci-lint:latest golangci-lint run -v --fix` | No diagnostics remain. On Windows PowerShell use `-v ${pwd}:/app` |
+
+  Two more, only when they apply:
+
+  | Command | Run it when |
+  |---|---|
+  | `make mock` | You changed any `Repository`, `Feature`, or `WSMAN` interface |
+  | `go run ./cmd/openapi-gen` | You changed a handler under `httpapi/` or a declaration under `openapi/`. This is a local check only — **do not commit `doc/openapi.json`** |
 - **Errors over panics.** Wrap with `fmt.Errorf("layer.fn: %w", err)`; the `errorlint` linter enforces `%w` on wraps. Sentinel errors get `var Err... = errors.New(...)` at package scope. `consoleerrors` provides typed wrappers for use-case errors that map cleanly to HTTP responses in `httpapi/v1/error.go`.
 - **Config keys are lowercase YAML with matching `env` tags.** New tunables go in `config/config.go` (with a `defaultConfig` value), `.env.example` for env-var docs, and `config.yml` is auto-rewritten on first run. The package-level `config.ConsoleConfig` is the singleton — don't pass `*Config` through every constructor; reach for it in the few places that need it (auth middleware, websocket validator, encryption key flow).
 
 ## Commit conventions (see CONTRIBUTING.md)
 
-Format: `<type>(<scope>): <subject>` with body and optional footer. Types: `feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert`. Common scopes in this repo: `api`, `cira`, `apf`, `config`, `db`, `deps`, `deps-dev`, `docker`, `events`, `gh-actions`, `health`, `redir`, `secrets`, `tray`, `ui`, `utils`, `wsman`. Subject + body lines ≤72 chars (commitlint enforces `body-max-line-length: 200`). Footer references a GitHub issue (`Resolves: #1234` or `Fixes: #1234`). Linear history is preferred; PR authors merge via Rebase or Squash.
+Format: `<type>(<scope>): <subject>` with body and optional footer. Types: `feat | fix | docs | style | refactor | perf | test | build | ci | chore | revert`. Common scopes in this repo: `api`, `cira`, `apf`, `config`, `db`, `deps`, `deps-dev`, `docker`, `events`, `gh-actions`, `health`, `redir`, `secrets`, `tray`, `ui`, `utils`, `wsman`. Keep the subject line to 72 characters or fewer. For body lines, aim for 72 characters, but the **hard limit is 200** — commitlint fails the build only above 200 (`body-max-line-length`). Wrapping at 72 is a readability preference, not a build failure. Footer references a GitHub issue (`Resolves: #1234` or `Fixes: #1234`). Linear history is preferred; PR authors merge via Rebase or Squash.

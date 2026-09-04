@@ -124,7 +124,7 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 	fuego.Post(f.server, "/api/v1/devices", f.createDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
-		fuego.OptionDescription("Create a new device"),
+		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true."),
 		fuego.OptionDefaultStatusCode(http.StatusCreated),
 		protectedRouteOptions(),
 	)
