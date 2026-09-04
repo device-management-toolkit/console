@@ -55,8 +55,18 @@ func (dr *deviceRoutes) getStats(c *gin.Context) {
 		return
 	}
 
+	activated, discovered, err := dr.t.GetDeviceStateCounts(c.Request.Context(), "")
+	if err != nil {
+		dr.l.Error(err, "http - devices - v1 - getStats")
+		ErrorResponse(c, err)
+
+		return
+	}
+
 	countResponse := dto.DeviceStatResponse{
-		TotalCount: count,
+		TotalCount:      count,
+		ActivatedCount:  activated,
+		DiscoveredCount: discovered,
 	}
 
 	c.JSON(http.StatusOK, countResponse)
@@ -104,10 +114,14 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	tags := c.Query("tags")
 	hostname := c.Query("hostname")
 	friendlyName := c.Query("friendlyName")
+	activated := c.Query("activated")
+	discovered := c.Query("discovered")
 
 	var items []dto.Device
 
 	var err error
+
+	ctx := c.Request.Context()
 
 	switch {
 	case hostname != "":
@@ -119,8 +133,14 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	case tags != "":
 		items, err = dr.getByColumnOrTags(c, "Tags", tags, odata.Top, odata.Skip, "")
 
+	case activated == "true":
+		items, err = dr.t.GetActivated(ctx, odata.Top, odata.Skip, "")
+
+	case discovered == "true":
+		items, err = dr.t.GetDiscovered(ctx, odata.Top, odata.Skip, "")
+
 	default:
-		items, err = dr.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+		items, err = dr.t.Get(ctx, odata.Top, odata.Skip, "")
 	}
 
 	if err != nil {

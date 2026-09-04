@@ -14,9 +14,15 @@ const (
 	fieldWirelessProfileName  = "wirelessprofilename"
 	fieldPriority             = "priority"
 	fieldWiredInterface       = "wiredinterface"
+	fieldCurrentMode          = "currentmode"
 )
 
 const (
-	opSet   = "$set"
-	opRegex = "$regex"
+	opSet    = "$set"
+	opRegex  = "$regex"
+	opNin    = "$nin"
+	opExists = "$exists"
+	opIn     = "$in"
+	opOr     = "$or"
+	opNot    = "$not"
 )

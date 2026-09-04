@@ -60,6 +60,8 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		fuego.OptionQuery("method", "Method to filter tags (any/all)"),
 		fuego.OptionQuery("hostname", "Filter devices by host name"),
 		fuego.OptionQuery("friendlyName", "Filter devices by friendly name"),
+		fuego.OptionQueryBool("activated", "Return devices activated into client or admin control mode"),
+		fuego.OptionQueryBool("discovered", "Return devices discovered on the network but not yet activated"),
 		protectedRouteOptions(),
 	)
 
@@ -205,6 +207,8 @@ func (f *FuegoAdapter) getDeviceStats(_ fuego.ContextNoBody) (dto.DeviceStatResp
 		TotalCount:        5,
 		ConnectedCount:    3,
 		DisconnectedCount: 2,
+		ActivatedCount:    4,
+		DiscoveredCount:   1,
 	}, nil
 }
 

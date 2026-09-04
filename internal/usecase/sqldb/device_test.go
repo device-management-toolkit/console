@@ -1294,3 +1294,117 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 		})
 	}
 }
+
+// seedMode inserts a device row with the currentmode column set (nil -> SQL NULL).
+func seedMode(t *testing.T, dbConn *sql.DB, guid, tenantID string, currentMode *string) {
+	t.Helper()
+
+	_, err := dbConn.ExecContext(context.Background(),
+		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode) VALUES (?, ?, ?, ?)`,
+		guid, tenantID, "{}", currentMode)
+	require.NoError(t, err)
+}
+
+func TestDeviceRepo_GetActivated(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	// rpc-go reports interpreted control-mode strings (see utils.InterpretControlMode).
+	adminMode := "admin control mode"
+	clientMode := "client control mode"
+	notActivated := "not activated"
+	notActivatedCaps := "NOT ACTIVATED"
+	empty := ""
+
+	seedMode(t, dbConn, "guid-admin", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-client", "tenant1", &clientMode)
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> not activated
+	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive exclude
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> not activated
+	seedMode(t, dbConn, "guid-nullmode", "tenant1", nil)                        // NULL -> not activated
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	result, err := repo.GetActivated(context.Background(), 0, 0, "tenant1")
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	guids := []string{result[0].GUID, result[1].GUID}
+	assert.ElementsMatch(t, []string{"guid-admin", "guid-client"}, guids)
+}
+
+func TestDeviceRepo_GetDiscovered(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	adminMode := "admin control mode"
+	notActivated := "not activated"
+	notActivatedCaps := "NOT ACTIVATED"
+	empty := ""
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> discovered
+	seedMode(t, dbConn, "guid-null", "tenant1", nil)                            // NULL -> discovered
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> discovered
+	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive
+	seedMode(t, dbConn, "guid-activated", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &notActivated)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	result, err := repo.GetDiscovered(context.Background(), 0, 0, "tenant1")
+	require.NoError(t, err)
+	require.Len(t, result, 4)
+
+	guids := make([]string, len(result))
+	for i, d := range result {
+		guids[i] = d.GUID
+	}
+
+	assert.ElementsMatch(t, []string{"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps"}, guids)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	adminMode := "admin control mode"
+	clientMode := "client control mode"
+	notActivated := "not activated"
+	empty := ""
+
+	seedMode(t, dbConn, "guid-admin", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-client", "tenant1", &clientMode)
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)
+	seedMode(t, dbConn, "guid-legacy", "tenant1", nil)
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	activated, discovered, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
+	require.NoError(t, err)
+	assert.Equal(t, 2, activated)
+	assert.Equal(t, 3, discovered)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts_Error(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, true), mocks.NewMockLogger(nil))
+
+	_, _, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
+	require.Error(t, err)
+
+	var dbErr repoerrors.DatabaseError
+
+	assert.True(t, errors.As(err, &dbErr))
+}
