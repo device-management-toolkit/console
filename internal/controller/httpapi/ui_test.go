@@ -3,9 +3,16 @@
 package httpapi
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func TestConsoleServerAPIBase(t *testing.T) {
@@ -77,4 +84,115 @@ func TestConsoleServerAPIBase(t *testing.T) {
 			require.Equal(t, tt.want, got)
 		})
 	}
+}
+
+func TestUIFallbackAddsNoCacheHeaders(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	setupUIRoutes(engine, logger.New("error"), &config.Config{})
+
+	req := httptest.NewRequest(http.MethodGet, "/random-non-asset-route", http.NoBody)
+	w := httptest.NewRecorder()
+
+	engine.ServeHTTP(w, req)
+
+	require.Contains(t, []int{http.StatusOK, http.StatusMovedPermanently, http.StatusNotFound}, w.Code)
+	require.Equal(t, cacheControlNoStore, w.Header().Get("Cache-Control"))
+	require.Equal(t, pragmaNoCache, w.Header().Get("Pragma"))
+	require.Equal(t, expiresNoCache, w.Header().Get("Expires"))
+}
+
+func TestUIRootAddsNoCacheHeaders(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	setupUIRoutes(engine, logger.New("error"), &config.Config{})
+
+	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
+	w := httptest.NewRecorder()
+
+	engine.ServeHTTP(w, req)
+
+	require.Contains(t, []int{http.StatusOK, http.StatusMovedPermanently, http.StatusNotFound}, w.Code)
+	require.Equal(t, cacheControlNoStore, w.Header().Get("Cache-Control"))
+	require.Equal(t, pragmaNoCache, w.Header().Get("Pragma"))
+	require.Equal(t, expiresNoCache, w.Header().Get("Expires"))
+}
+
+func TestUIAssetsNoRouteReturns404WithoutNoCacheHeaders(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	setupUIRoutes(engine, logger.New("error"), &config.Config{})
+
+	req := httptest.NewRequest(http.MethodGet, "/assets/does-not-exist", http.NoBody)
+	w := httptest.NewRecorder()
+
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusNotFound, w.Code)
+	require.Empty(t, w.Header().Get("Cache-Control"))
+	require.Empty(t, w.Header().Get("Pragma"))
+	require.Empty(t, w.Header().Get("Expires"))
+}
+
+func TestNoCacheHeadersMiddleware(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	engine.Use(noCacheHeadersMiddleware())
+	engine.GET("/api/v1/test", func(c *gin.Context) {
+		c.JSON(http.StatusOK, gin.H{"ok": true})
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/api/v1/test", http.NoBody)
+	w := httptest.NewRecorder()
+
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, cacheControlNoStore, w.Header().Get("Cache-Control"))
+	require.Equal(t, pragmaNoCache, w.Header().Get("Pragma"))
+	require.Equal(t, expiresNoCache, w.Header().Get("Expires"))
+}
+
+func TestNoCacheHeadersMiddlewareSkipsNonAPIPaths(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	engine.Use(noCacheHeadersMiddleware())
+	engine.GET("/healthz", func(c *gin.Context) {
+		c.Status(http.StatusOK)
+	})
+
+	req := httptest.NewRequest(http.MethodGet, "/healthz", http.NoBody)
+	w := httptest.NewRecorder()
+
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Empty(t, w.Header().Get("Cache-Control"))
+	require.Empty(t, w.Header().Get("Pragma"))
+	require.Empty(t, w.Header().Get("Expires"))
+}
+
+//nolint:paralleltest // mutates shared global config.ConsoleConfig
+func TestNewRouterAuthorizeRouteHasNoCacheHeaders(t *testing.T) {
+	prev := config.ConsoleConfig
+	config.ConsoleConfig = &config.Config{}
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	engine := gin.New()
+	NewRouter(engine, logger.New("error"), usecase.Usecases{}, &config.Config{})
+
+	req := httptest.NewRequest(http.MethodPost, "/api/v1/authorize", http.NoBody)
+	w := httptest.NewRecorder()
+
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Equal(t, cacheControlNoStore, w.Header().Get("Cache-Control"))
+	require.Equal(t, pragmaNoCache, w.Header().Get("Pragma"))
+	require.Equal(t, expiresNoCache, w.Header().Get("Expires"))
 }

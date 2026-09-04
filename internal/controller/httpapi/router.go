@@ -3,6 +3,7 @@ package httpapi
 
 import (
 	"net/http"
+	"strings"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -19,11 +20,34 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+const (
+	cacheControlNoStore = "no-cache, no-store, must-revalidate"
+	pragmaNoCache       = "no-cache"
+	expiresNoCache      = "0"
+)
+
+func setNoCacheHeaders(c *gin.Context) {
+	c.Header("Cache-Control", cacheControlNoStore)
+	c.Header("Pragma", pragmaNoCache)
+	c.Header("Expires", expiresNoCache)
+}
+
+func noCacheHeadersMiddleware() gin.HandlerFunc {
+	return func(c *gin.Context) {
+		if c.Request != nil && strings.HasPrefix(c.Request.URL.Path, "/api") {
+			setNoCacheHeaders(c)
+		}
+
+		c.Next()
+	}
+}
+
 // NewRouter -.
 func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
+	handler.Use(noCacheHeadersMiddleware())
 
 	// Add Prometheus middleware for automatic HTTP metrics
 	// Don't automatically register /metrics endpoint - we have our own
