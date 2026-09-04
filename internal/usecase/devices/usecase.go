@@ -184,11 +184,15 @@ var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
 	"osname":               func(dst, src *dto.DeviceInfo) { dst.OSName = src.OSName },
 	"osversion":            func(dst, src *dto.DeviceInfo) { dst.OSVersion = src.OSVersion },
 	"osdistro":             func(dst, src *dto.DeviceInfo) { dst.OSDistro = src.OSDistro },
+	"dnssuffixos":          func(dst, src *dto.DeviceInfo) { dst.DNSSuffixOS = src.DNSSuffixOS },
 	"cpumodel":             func(dst, src *dto.DeviceInfo) { dst.CPUModel = src.CPUModel },
 	"osipaddress":          func(dst, src *dto.DeviceInfo) { dst.OSIPAddress = src.OSIPAddress },
 	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
 	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
 	"ieee8021xenabled":     func(dst, src *dto.DeviceInfo) { dst.IEEE8021XEnabled = src.IEEE8021XEnabled },
+	"menetwork":            func(dst, src *dto.DeviceInfo) { dst.MENetwork = src.MENetwork },
+	"osnetwork":            func(dst, src *dto.DeviceInfo) { dst.OSNetwork = src.OSNetwork },
+	"platformadapters":     func(dst, src *dto.DeviceInfo) { dst.PlatformAdapters = src.PlatformAdapters },
 }
 
 // firstDiscovered and discovered are set once at initial discovery and are immutable
