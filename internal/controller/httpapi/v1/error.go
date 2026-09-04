@@ -38,39 +38,18 @@ type response struct {
 // handleValidationErrors handles all validation-related errors.
 func handleValidationErrors(c *gin.Context, err error) bool {
 	var (
-		odataValidationErr *ValidationError
-		jsonSyntaxErr      *json.SyntaxError
-		jsonTypeErr        *json.UnmarshalTypeError
-		timeParseErr       *time.ParseError
-		validatorErr       validator.ValidationErrors
-		notValidErr        dto.NotValidError
-		validationErr      devices.ValidationError
+		validatorErr  validator.ValidationErrors
+		notValidErr   dto.NotValidError
+		validationErr devices.ValidationError
 	)
 
-	switch {
-	case errors.As(err, &odataValidationErr) || errors.Is(err, ErrInvalidInteger) ||
-		errors.Is(err, ErrExceedsMaxRange) || errors.Is(err, ErrNegativeValue) || errors.Is(err, ErrInvalidBoolean):
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-
+	if handleODataValidationErrors(c, err) {
 		return true
+	}
+
+	switch {
 	case errors.As(err, &notValidErr):
 		notValidErrorHandle(c, notValidErr)
-
-		return true
-	case errors.As(err, &jsonSyntaxErr):
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-
-		return true
-	case errors.As(err, &jsonTypeErr):
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-
-		return true
-	case errors.As(err, &timeParseErr) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF):
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
 	case errors.As(err, &validatorErr):
@@ -84,7 +63,45 @@ func handleValidationErrors(c *gin.Context, err error) bool {
 		return true
 	}
 
-	return false
+	return handleJSONBindingErrors(c, err)
+}
+
+func handleODataValidationErrors(c *gin.Context, err error) bool {
+	var odataValidationErr *ValidationError
+
+	if !errors.As(err, &odataValidationErr) && !errors.Is(err, ErrInvalidInteger) &&
+		!errors.Is(err, ErrExceedsMaxRange) && !errors.Is(err, ErrNegativeValue) && !errors.Is(err, ErrInvalidBoolean) {
+		return false
+	}
+
+	msg := err.Error()
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+	return true
+}
+
+func handleJSONBindingErrors(c *gin.Context, err error) bool {
+	var (
+		jsonSyntaxErr *json.SyntaxError
+		jsonTypeErr   *json.UnmarshalTypeError
+		timeParseErr  *time.ParseError
+	)
+
+	if !errors.As(err, &jsonSyntaxErr) && !errors.As(err, &jsonTypeErr) &&
+		!errors.As(err, &timeParseErr) && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return false
+	}
+
+	msg := err.Error()
+	if errors.Is(err, io.EOF) {
+		msg = "request body is empty"
+	} else if errors.Is(err, io.ErrUnexpectedEOF) {
+		msg = "request body is truncated"
+	}
+
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+	return true
 }
 
 // handleDomainErrors handles domain-specific errors.

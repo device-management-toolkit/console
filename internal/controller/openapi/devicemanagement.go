@@ -242,7 +242,6 @@ func (f *FuegoAdapter) registerWirelessProfileSyncRoutes() {
 		fuego.OptionSummary("Set Wireless Profile Sync"),
 		fuego.OptionDescription("Enable or disable local and/or UEFI WiFi profile synchronization. Requesting UEFI sync on an unsupported device rejects the entire request with 409 Conflict"),
 		fuego.OptionPath("guid", "Device GUID"),
-		errorResponseOption(http.StatusBadRequest, "Bad Request"),
 		errorResponseOption(http.StatusConflict, "Conflict"),
 		protectedRouteOptions(),
 	)
