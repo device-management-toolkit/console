@@ -21,6 +21,7 @@ func specCookieAuthEnabled() bool {
 
 func apiRouteOptions() fuego.RouteOption {
 	return routeOptionGroup(
+		errorResponseOption(http.StatusBadRequest, "Bad Request"),
 		errorResponseOption(http.StatusUnauthorized, "Unauthorized _(authentication error)_"),
 	)
 }
@@ -38,7 +39,6 @@ func protectedRouteOptions() fuego.RouteOption {
 	return routeOptionGroup(
 		apiRouteOptions(),
 		fuego.OptionSecurity(security...),
-		errorResponseOption(http.StatusBadRequest, "Bad Request"),
 		errorResponseOption(http.StatusNotFound, "Not Found"),
 		errorResponseOption(http.StatusRequestTimeout, "Request Timeout"),
 		errorResponseOption(http.StatusConflict, "Conflict"),

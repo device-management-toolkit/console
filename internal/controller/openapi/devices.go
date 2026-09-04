@@ -28,6 +28,7 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 			"named `"+config.DefaultSessionCookieName+"` unless the deployment overrides "+
 			"`auth.cookieName`, and is not issued at all when cookie auth is disabled or "+
 			"OIDC is configured."),
+		apiRouteOptions(),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
 	)
 
