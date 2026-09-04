@@ -175,6 +175,58 @@
 					"response": []
 				},
 				{
+					"name": "Create Domain with Invalid Provisioning Certificate",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response reports invalid certificate\", function () {\r",
+									"    pm.expect(pm.response.json().error).to.eql(\"invalid provisioning certificate\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"profileName\": \"InvalidCertificateDomain\",\r\n    \"domainSuffix\": \"example.com\",\r\n    \"provisioningCert\": \"fuzzstring\",\r\n    \"provisioningCertStorageFormat\": \"string\",\r\n    \"provisioningCertPassword\": \"P@ssw0rd123\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"admin",
+								"domains"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Create Domain without suffix, password, cert, or format",
 					"event": [
 						{

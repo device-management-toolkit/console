@@ -1,10 +1,13 @@
 package v1
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -36,6 +39,9 @@ type response struct {
 func handleValidationErrors(c *gin.Context, err error) bool {
 	var (
 		odataValidationErr *ValidationError
+		jsonSyntaxErr      *json.SyntaxError
+		jsonTypeErr        *json.UnmarshalTypeError
+		timeParseErr       *time.ParseError
 		validatorErr       validator.ValidationErrors
 		notValidErr        dto.NotValidError
 		validationErr      devices.ValidationError
@@ -48,12 +54,27 @@ func handleValidationErrors(c *gin.Context, err error) bool {
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
-	case errors.As(err, &validatorErr):
-		validatorErrorHandle(c, validatorErr)
-
-		return true
 	case errors.As(err, &notValidErr):
 		notValidErrorHandle(c, notValidErr)
+
+		return true
+	case errors.As(err, &jsonSyntaxErr):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &jsonTypeErr):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &timeParseErr) || errors.Is(err, io.EOF) || errors.Is(err, io.ErrUnexpectedEOF):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &validatorErr):
+		validatorErrorHandle(c, validatorErr)
 
 		return true
 	case errors.As(err, &validationErr):
@@ -70,6 +91,7 @@ func handleValidationErrors(c *gin.Context, err error) bool {
 func handleDomainErrors(c *gin.Context, err error) bool {
 	var (
 		certExpErr      domains.CertExpirationError
+		certFormatErr   domains.CertFormatError
 		certPasswordErr domains.CertPasswordError
 		notSupportedErr devices.NotSupportedError
 	)
@@ -77,6 +99,11 @@ func handleDomainErrors(c *gin.Context, err error) bool {
 	switch {
 	case errors.As(err, &certExpErr):
 		msg := certExpErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &certFormatErr):
+		msg := certFormatErr.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
