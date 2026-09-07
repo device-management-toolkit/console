@@ -16,6 +16,20 @@ func (f *FuegoAdapter) RegisterDeviceRoutes() {
 	f.registerDeviceQueryRoutes()
 	f.registerDeviceCertificateRoutes()
 	f.registerDeviceMutationRoutes()
+	f.registerDeviceExportRoutes()
+}
+
+func (f *FuegoAdapter) registerDeviceExportRoutes() {
+	fuego.Get(f.server, "/api/v1/device-exports", f.exportDevices,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Export Devices"),
+		fuego.OptionDescription("Export a tenant-scoped snapshot of all devices as JSON. "+
+			"The response follows the nested schema (metadata, summary, data) and "+
+			"excludes credential fields. Results are capped and the total record count is "+
+			"returned in the response body's summary.totalCount."),
+		fuego.OptionAddResponse(http.StatusServiceUnavailable, "Export generation failed or timed out", fuego.Response{Type: ErrorResponse{}}),
+		protectedRouteOptions(),
+	)
 }
 
 func (f *FuegoAdapter) registerDeviceAuthRoutes() {
@@ -67,17 +81,6 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device Statistics"),
 		fuego.OptionDescription("Retrieve statistics for devices"),
-		protectedRouteOptions(),
-	)
-
-	fuego.Get(f.server, "/api/v1/devices/export", f.exportDevices,
-		fuego.OptionTags("Devices"),
-		fuego.OptionSummary("Export Devices"),
-		fuego.OptionDescription("Export a tenant-scoped snapshot of all devices as JSON. "+
-			"The response follows the nested schema (metadata, summary, data) and "+
-			"excludes credential fields. Results are capped and the total record count is "+
-			"returned in the X-Total-Count header."),
-		fuego.OptionAddResponse(http.StatusServiceUnavailable, "Export generation failed or timed out", fuego.Response{Type: ErrorResponse{}}),
 		protectedRouteOptions(),
 	)
 

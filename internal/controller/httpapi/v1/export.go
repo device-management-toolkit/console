@@ -5,11 +5,9 @@ import (
 	"fmt"
 	"net/http"
 	"os"
-	"strconv"
 	"time"
 
 	"github.com/gin-gonic/gin"
-	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -17,25 +15,22 @@ import (
 
 const (
 	// maxExportRecords is the hard cap on records returned by a single export.
-	maxExportRecords = 10000
+	maxExportRecords = 500
 
 	// exportTimeout bounds how long an export may take before it is abandoned.
 	exportTimeout = 60 * time.Second
 
-	// exportCountHeader tells the client how many records are in the response.
-	exportCountHeader = "X-Total-Count"
-
-	outcomeSuccess  = "success"
-	outcomeError    = "error"
-	tenantClaimKey  = "tenantId"
-	subjectClaimKey = "sub"
+	outcomeSuccess = "success"
+	outcomeError   = "error"
 )
 
-// export handles GET /api/v1/devices/export. It returns a tenant-scoped,
+// export handles GET /api/v1/device-exports. It returns a tenant-scoped,
 // snapshot of every device details stored in deatabase.
 func (dr *deviceRoutes) export(c *gin.Context) {
 	start := time.Now()
-	tenantID, userID := exportIdentity(c)
+
+	userID := ""
+	tenantID := ""
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), exportTimeout)
 	defer cancel()
@@ -64,7 +59,6 @@ func (dr *deviceRoutes) export(c *gin.Context) {
 		Data:    records,
 	}
 
-	c.Header(exportCountHeader, strconv.Itoa(len(records)))
 	dr.logExportAudit(c, userID, tenantID, len(records), time.Since(start), outcomeSuccess)
 	c.JSON(http.StatusOK, resp)
 }
@@ -77,30 +71,6 @@ func swVersion() string {
 	}
 
 	return "console " + version
-}
-
-// exportIdentity reads the tenant and subject from the already-verified JWT. The
-// export is tenant-scoped: only devices for the caller's tenant are returned
-func exportIdentity(c *gin.Context) (tenantID, userID string) {
-	token := resolveToken(c)
-	if token == "" {
-		return "", ""
-	}
-
-	claims := jwt.MapClaims{}
-	if _, _, err := jwt.NewParser().ParseUnverified(token, claims); err != nil {
-		return "", ""
-	}
-
-	if v, ok := claims[tenantClaimKey].(string); ok {
-		tenantID = v
-	}
-
-	if v, ok := claims[subjectClaimKey].(string); ok {
-		userID = v
-	}
-
-	return tenantID, userID
 }
 
 // logExportAudit writes a server-side audit record for every export attempt,

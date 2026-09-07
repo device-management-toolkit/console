@@ -1622,9 +1622,6 @@
 									"    pm.expect(jsonData).to.have.property('data');\r",
 									"    pm.expect(jsonData.data).to.be.an('array');\r",
 									"});\r",
-									"pm.test(\"Returns X-Total-Count header\",function(){\r",
-									"    pm.response.to.have.header('X-Total-Count');\r",
-									"});\r",
 									"pm.test(\"Export never leaks credential fields\",function(){\r",
 									"    var raw = pm.response.text();\r",
 									"    pm.expect(raw).to.not.include('mpspassword');\r",
@@ -1652,7 +1649,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/devices/export",
+							"raw": "{{protocol}}://{{host}}/api/v1/device-exports",
 							"protocol": "{{protocol}}",
 							"host": [
 								"{{host}}"
@@ -1660,8 +1657,7 @@
 							"path": [
 								"api",
 								"v1",
-								"devices",
-								"export"
+								"device-exports"
 							]
 						}
 					},

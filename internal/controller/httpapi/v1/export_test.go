@@ -90,11 +90,10 @@ func TestExportDevices_Success(t *testing.T) {
 		Return([]dto.Device{meDevice, nonMEDevice}, nil)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/devices/export", http.NoBody)
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/device-exports", http.NoBody)
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
-	require.Equal(t, "2", w.Header().Get(exportCountHeader))
 
 	var resp dto.DeviceExport
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &resp))
@@ -147,11 +146,10 @@ func TestExportDevices_DatabaseError(t *testing.T) {
 		Return(nil, assertErr{})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/devices/export", http.NoBody)
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/device-exports", http.NoBody)
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusServiceUnavailable, w.Code)
-	require.Empty(t, w.Header().Get(exportCountHeader))
 }
 
 type assertErr struct{}
