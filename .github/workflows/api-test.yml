@@ -26,8 +26,10 @@ jobs:
     - run: docker compose up -d --build
     - name: Let Docker Spin up
       run: sleep 5
-    - name: Run Console API Tests
-      run: docker run --network=host -v  /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_mps_apis.postman_collection.json run /collections/console_rps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_api_results.json --reporter-junit-export /results/console_api_results_junit.xml
+    - name: Run Console MPS API Tests
+      run: docker run --network=host -v /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_mps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_mps_api_results.json --reporter-junit-export /results/console_mps_api_results_junit.xml
+    - name: Run Console RPS API Tests
+      run: docker run --network=host -v /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_rps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_rps_api_results.json --reporter-junit-export /results/console_rps_api_results_junit.xml
     - name: Dump docker logs on failure
       if: failure()
       uses: jwalton/gh-docker-logs@2741064ab9d7af54b0b1ffb6076cf64c16f0220e # v2.2.2
@@ -58,8 +60,10 @@ jobs:
     - run: cp .env.example .env
     # --wait gates on app's depends_on (mongo: service_healthy) to avoid the auth race.
     - run: docker compose --profile mongo up -d --build --wait
-    - name: Run Console API Tests against MongoDB
-      run: docker run --network=host -v  /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_mps_apis.postman_collection.json run /collections/console_rps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_api_results.json --reporter-junit-export /results/console_api_results_junit.xml
+    - name: Run Console MPS API Tests against MongoDB
+      run: docker run --network=host -v /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_mps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_mps_api_results.json --reporter-junit-export /results/console_mps_api_results_junit.xml
+    - name: Run Console RPS API Tests against MongoDB
+      run: docker run --network=host -v /home/runner/work/console/console/integration-test/collections:/collections -v /home/runner/work/console/console/integration-test/results/:/results postman/newman:5.3-alpine run /collections/console_rps_apis.postman_collection.json -e /collections/console_environment.postman_environment.json --insecure --reporters cli,json,junit --reporter-json-export /results/console_rps_api_results.json --reporter-junit-export /results/console_rps_api_results_junit.xml
     - name: Dump docker logs on failure
       if: failure()
       uses: jwalton/gh-docker-logs@2741064ab9d7af54b0b1ffb6076cf64c16f0220e # v2.2.2
