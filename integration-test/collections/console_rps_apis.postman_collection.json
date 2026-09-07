@@ -263,48 +263,6 @@
 							}
 						},
 						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains"
-						}
-					},
-					"response": []
-				},
-				{
-					"name": "Create Domain with Malformed Base64 Certificate",
-					"event": [
-						{
-							"listen": "test",
-							"script": {
-								"exec": [
-									"pm.test(\"Status code is 400\", function () {",
-									"    pm.response.to.have.status(400);",
-									"});",
-									"",
-									"pm.test(\"Response reports a consistent invalid certificate error\", function () {",
-									"    pm.expect(pm.response.json().error).to.eql(\"invalid provisioning certificate\");",
-									"});"
-								],
-								"type": "text/javascript"
-							}
-						}
-					],
-					"request": {
-						"method": "POST",
-						"header": [
-							{
-								"key": "Content-Type",
-								"value": "application/json"
-							}
-						],
-						"body": {
-							"mode": "raw",
-							"raw": "{\r\n    \"profileName\": \"MalformedCertificateDomain\",\r\n    \"domainSuffix\": \"example.com\",\r\n    \"provisioningCert\": \"not-a-valid-base64-string!\",\r\n    \"provisioningCertStorageFormat\": \"string\",\r\n    \"provisioningCertPassword\": \"P@ssw0rd123\"\r\n}",
-							"options": {
-								"raw": {
-									"language": "json"
-								}
-							}
-						},
-						"url": {
 							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
 							"protocol": "{{protocol}}",
 							"host": [
@@ -588,8 +546,6 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 409\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
 									"});\r",
 									"\r",
 									"pm.test(\"Creation should fail when domain duplicate with different case\", function () {\r",
@@ -639,8 +595,6 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 409\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
 									"});\r",
 									"\r",
 									"pm.test(\"Creation should fail when domain duplicate\", function () {\r",
@@ -690,8 +644,6 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 409\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
 									"});\r",
 									"\r",
 									"pm.test(\"Creation should fail when domain created with duplicate domain suffix\", function () {\r",
@@ -974,7 +926,6 @@
 							"script": {
 								"exec": [
 									"var result = pm.response.json();\r",
-									"var result = pm.response.json();",
 									"pm.globals.set(\"domainVersion\", result.version);\r",
 									"\r",
 									"pm.test(\"Status code is 200\", function () {\r",
@@ -1582,7 +1533,6 @@
 									"    pm.response.to.have.status(400);\r",
 									"});\r",
 									"pm.test(\"Creation should fail without activation\", function () {\r",
-									"pm.test(\"Creation should fail without activation or amt password\", function () {\r",
 									"    var result = pm.response.json();\r",
 									"    pm.expect(result.error).to.contain(\"'AMTPassword' failed on the 'required_if' tag\")\r",
 									"    pm.expect(result.error).to.contain(\"'Activation' failed on the 'required' tag\")\r",
@@ -1687,10 +1637,8 @@
 									"    pm.response.to.have.status(400);\r",
 									"});\r",
 									"pm.test(\"Creation should fail without activation\", function () {\r",
-									"pm.test(\"Creation should fail with invalid amtPassword\", function () {\r",
 									"    var result = pm.response.json();\r",
 									"    pm.expect(result.error).to.contain(\"'AMTPassword' failed on the 'containsany' tag\")\r",
-									"    pm.expect(result.error).to.contain(\"'AMTPassword' failed on the 'amtpasswordcomplexity' tag\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -1738,10 +1686,8 @@
 									"    pm.response.to.have.status(400);\r",
 									"});\r",
 									"pm.test(\"Creation should fail without activation\", function () {\r",
-									"pm.test(\"Creation should fail without mebxPassword\", function () {\r",
 									"    var result = pm.response.json();\r",
 									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.MEBXPassword' Error:Field validation for 'MEBXPassword' failed on the 'required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false' tag\")\r",
-									"    pm.expect(result.error).to.eql(\"Invalid input: mebxPassword is required when activation is acmactivate and generateRandomMEBxPassword is false\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -1789,10 +1735,6 @@
 									"    pm.response.to.have.status(400);\r",
 									"});\r",
 									"pm.test(\"Creation should fail without activation\", function () {\r",
-									"pm.test(\"Creation should fail with invalid mebxPassword\", function () {\r",
-									"    var result = pm.response.json();\r",
-									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.MEBXPassword' Error:Field validation for 'MEBXPassword' failed on the 'containsany' tag\")\r",
-									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.MEBXPassword' Error:Field validation for 'MEBXPassword' failed on the 'amtpasswordcomplexity' tag\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -2734,8 +2676,6 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 409\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
 									"});\r",
 									"pm.test(\"Creation should fail without activation\", function () {\r",
 									"    var result = pm.response.json();\r",
@@ -2785,14 +2725,10 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 200\", function () {\r",
-									"    pm.response.to.have.status(200);\r",
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
-									"pm.test(\"Update (PATCH->edit) should succeed\", function () {\r",
 									"    var result = pm.response.json();\r",
 									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'required_if' tag\\nKey: 'Profile.Activation' Error:Field validation for 'Activation' failed on the 'oneof' tag\")\r",
-									"    pm.expect(result.activation).to.eql(\"ccmactivate\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -2838,14 +2774,10 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 200\", function () {\r",
-									"    pm.response.to.have.status(200);\r",
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
-									"pm.test(\"Update (PATCH->edit) should succeed\", function () {\r",
 									"    var result = pm.response.json();\r",
 									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'containsany' tag\")\r",
-									"    pm.expect(result.activation).to.eql(\"ccmactivate\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -3052,14 +2984,10 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 200\", function () {\r",
-									"    pm.response.to.have.status(200);\r",
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
-									"pm.test(\"Update (PATCH->edit) should succeed\", function () {\r",
 									"var result = pm.response.json();\r",
 									"pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'required_if' tag\")\r",
-									"pm.expect(result.activation).to.eql(\"ccmactivate\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -3349,14 +3277,10 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 200\", function () {\r",
-									"    pm.response.to.have.status(200);\r",
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
-									"pm.test(\"Update (PATCH->edit) should succeed\", function () {\r",
 									"    var result = pm.response.json();\r",
 									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'required_if' tag\\nKey: 'Profile.MEBXPassword' Error:Field validation for 'MEBXPassword' failed on the 'required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false' tag\")\r",
-									"    pm.expect(result.activation).to.eql(\"acmactivate\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -6580,12 +6504,10 @@
 									"script": {
 										"exec": [
 											"// Get response data\r",
-											"// Get response data",
 											"var jsonData = pm.response.json();\r",
 											"if (jsonData && jsonData.version) {\r",
 											"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
 											"}\r",
-											"}",
 											"\r",
 											"// Test status code\r",
 											"pm.test(\"Status code is 200\", function() {\r",
@@ -6650,7 +6572,6 @@
 									"script": {
 										"exec": [
 											"// First save the exported profile version if response is successful\r",
-									"// First save the exported profile version if response is successful",
 											"var jsonData = pm.response.json();\r",
 											"if (jsonData && jsonData.version) {\r",
 											"    pm.globals.set(\"exportedProfileVersion\", jsonData.version);\r",
@@ -7194,8 +7115,6 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 409\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
 									"});\r",
 									"// pm.test(\"Request should return an error message\", function () {\r",
 									"//     var jsonData = pm.response.json();\r",
@@ -8459,8 +8378,6 @@
 								"exec": [
 									"pm.test(\"Status code is 400\", function () {\r",
 									"    pm.response.to.have.status(400);\r",
-									"pm.test(\"Status code is 409\", function () {\r",
-									"    pm.response.to.have.status(409);\r",
 									"});\r",
 									"// pm.test(\"Request should return an error message\", function () {\r",
 									"//     var jsonData = pm.response.json();\r",

@@ -48,14 +48,16 @@ func handleValidationErrors(c *gin.Context, err error) bool {
 	}
 
 	switch {
-	case errors.As(err, &notValidErr):
-		notValidErrorHandle(c, notValidErr)
-
-		return true
 	case errors.As(err, &validatorErr):
 		validatorErrorHandle(c, validatorErr)
 
 		return true
+
+	case errors.As(err, &notValidErr):
+		notValidErrorHandle(c, notValidErr)
+
+		return true
+
 	case errors.As(err, &validationErr):
 		msg := validationErr.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
