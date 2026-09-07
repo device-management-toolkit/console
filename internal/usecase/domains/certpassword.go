@@ -9,6 +9,10 @@ type CertFormatError struct {
 }
 
 func (e CertFormatError) Error() string {
+	if e.Console.OriginalError != nil {
+		return e.Console.Error()
+	}
+
 	return invalidCertificate
 }
 

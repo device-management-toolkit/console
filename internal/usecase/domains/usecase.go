@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
@@ -334,7 +335,11 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 	// Convert the PFX data to x509 cert
 	_, cert, err := pkcs12.Decode(pfxData, domain.ProvisioningCertPassword)
 	if err != nil && cert == nil {
-		return nil, ErrCertPassword.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
+		if errors.Is(err, pkcs12.ErrIncorrectPassword) {
+			return nil, ErrCertPassword.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
+		}
+
+		return nil, ErrCertFormat.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
 	}
 
 	// Check the expiration date of the certificate

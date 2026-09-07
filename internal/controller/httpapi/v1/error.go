@@ -189,6 +189,14 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 	return false
 }
 
+// ErrorResponse is the central error handler for the v1 API. It processes an
+// error through a series of specialized handlers in a specific order of
+// precedence. New error types should be added to the appropriate handler below.
+// The order is:
+// 1. Sentinel errors (exact matches, e.g., profiles.ErrCIRADisabled) in handleSentinelErrors
+// 2. Validation errors (input validation, JSON binding, OData) in handleValidationErrors
+// 3. Domain-specific errors (custom error types for business logic) in handleDomainErrors
+// 4. General typed errors (database, network, not found, etc.) in handleTypedErrors
 func ErrorResponse(c *gin.Context, err error) {
 	if handleSentinelErrors(c, err) {
 		return
@@ -220,6 +228,16 @@ func cancelledErrorHandle(c *gin.Context, cancelError dto.CanceledError) {
 }
 
 func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
+	var validatorErr validator.ValidationErrors
+	// If the original error is a validation error, use its message
+	// to preserve the detailed validation failure information.
+	if errors.As(err.Console.OriginalError, &validatorErr) {
+		msg := "Invalid input: " + validatorErr.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return
+	}
+
 	msg := err.Console.FriendlyMessage()
 	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
