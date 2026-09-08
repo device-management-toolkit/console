@@ -46,6 +46,25 @@ build-noui: ### build app without UI
 	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
 .PHONY: build-noui
 
+run-mcp: ### run app with the embedded MCP server (-tags=mcp)
+	go mod tidy && go mod download && \
+	GIN_MODE=debug CGO_ENABLED=0 go run -tags=mcp ./cmd/app
+.PHONY: run-mcp
+
+build-mcp: ### build single binary: Console + embedded MCP server
+	CGO_ENABLED=0 go build -tags=mcp -o ./bin/console-mcp ./cmd/app
+.PHONY: build-mcp
+
+build-mcp-standalone: ### build the standalone MCP server binary
+	CGO_ENABLED=0 go build -o ./bin/mcp ./cmd/mcp
+.PHONY: build-mcp-standalone
+
+build-mcp-windows: ### cross-compile Windows: combined binary + standalone MCP
+	@mkdir -p dist/windows
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=mcp -ldflags "-s -w" -trimpath -o dist/windows/console-mcp_windows_x64.exe ./cmd/app
+	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/windows/mcp_windows_x64.exe ./cmd/mcp
+.PHONY: build-mcp-windows
+
 # Linux builds use -buildmode=pie for ASLR. Windows PE and macOS Mach-O binaries
 # are already position independent without the flag, so it is only applied to the
 # Linux targets. A PIE ELF requires the glibc dynamic loader at runtime, so the

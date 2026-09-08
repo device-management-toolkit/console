@@ -1,4 +1,4 @@
-package main
+package mcpserver
 
 import (
 	"bytes"
@@ -20,6 +20,8 @@ var ErrMissingCredentials = errors.New("console credentials not configured: set 
 
 // ConsoleClient is a minimal REST client for the Console backend. It performs
 // JWT login lazily and transparently re-authenticates once on a 401 response.
+// When no credentials are configured it skips login entirely, which supports a
+// Console running with authentication disabled.
 type ConsoleClient struct {
 	baseURL  string
 	username string
@@ -47,9 +49,13 @@ func NewConsoleClient(cfg Config) *ConsoleClient {
 	}
 }
 
+func (c *ConsoleClient) hasCredentials() bool {
+	return c.username != "" && c.password != ""
+}
+
 // login exchanges the configured credentials for a JWT and caches it.
 func (c *ConsoleClient) login(ctx context.Context) error {
-	if c.username == "" || c.password == "" {
+	if !c.hasCredentials() {
 		return ErrMissingCredentials
 	}
 
@@ -110,7 +116,7 @@ func (c *ConsoleClient) currentToken() string {
 // JSON response into out. It authenticates on first use and retries once after
 // re-authenticating if the server rejects the cached token with a 401.
 func (c *ConsoleClient) doJSON(ctx context.Context, method, path string, body any, out *json.RawMessage) error {
-	if c.currentToken() == "" {
+	if c.currentToken() == "" && c.hasCredentials() {
 		if err := c.login(ctx); err != nil {
 			return err
 		}
@@ -121,7 +127,7 @@ func (c *ConsoleClient) doJSON(ctx context.Context, method, path string, body an
 		return err
 	}
 
-	if status == http.StatusUnauthorized {
+	if status == http.StatusUnauthorized && c.hasCredentials() {
 		if err := c.login(ctx); err != nil {
 			return err
 		}
@@ -170,7 +176,9 @@ func (c *ConsoleClient) rawRequest(ctx context.Context, method, path string, bod
 		req.Header.Set("Content-Type", "application/json")
 	}
 
-	req.Header.Set("Authorization", "Bearer "+c.currentToken())
+	if token := c.currentToken(); token != "" {
+		req.Header.Set("Authorization", "Bearer "+token)
+	}
 
 	resp, err := c.http.Do(req)
 	if err != nil {

@@ -27,16 +27,18 @@ flowchart LR
         Client["MCP client<br/>SSE transport"]
     end
 
-    subgraph Server["Console MCP Server - Go (this project)"]
-        SSE["SSE + /message endpoints"]
-        Tools["Tool handlers<br/>list_devices, send_power_action,<br/>get_hardware_info, capture_kvm_frame, ..."]
-        Rest["Console REST client<br/>JWT bearer auth"]
-    end
+    subgraph Binary["Console binary - single executable when built with -tags mcp"]
+        subgraph Server["MCP server (embedded, or run standalone via cmd/mcp)"]
+            SSE["SSE + /message endpoints"]
+            Tools["Tool handlers<br/>list_devices, send_power_action,<br/>get_hardware_info, capture_kvm_frame, ..."]
+            Rest["Console REST client<br/>JWT bearer auth"]
+        end
 
-    subgraph Console["Console backend - Go / Gin (existing)"]
-        API["REST API<br/>/api/v1/devices, /amt/power, /amt/kvm/frame"]
-        Auth["/api/v1/authorize<br/>(JWT)"]
-        Redir["Redirection + interceptor<br/>AMT digest auth injection"]
+        subgraph Console["Console backend - Go / Gin (existing)"]
+            API["REST API<br/>/api/v1/devices, /amt/power, /amt/kvm/frame"]
+            Auth["/api/v1/authorize<br/>(JWT)"]
+            Redir["Redirection + interceptor<br/>AMT digest auth injection"]
+        end
     end
 
     Devices[("Intel AMT devices")]
@@ -49,7 +51,7 @@ flowchart LR
 
     %% Concrete API / operation interfaces (solid)
     SSE --> Tools --> Rest
-    Rest -->|"HTTPS REST + Bearer JWT"| API
+    Rest -->|"REST + Bearer JWT (loopback when embedded)"| API
     Rest -->|"login"| Auth
     API --> Redir
     API -->|"WSMAN (power, HW info, settings)"| Devices
@@ -71,3 +73,17 @@ authenticated Console REST request; Console executes the operation against the
 AMT device over WSMAN or the redirection channel and returns the result back up
 the chain. For screen analysis, `capture_kvm_frame` returns raw pixels that the
 agent/VLM decodes and compares.
+
+## Deployment modes
+
+The MCP server (the green `Server` group) can be deployed two ways:
+
+- **Embedded** — built into the Console binary with `-tags mcp`, so a single
+  executable serves both Console and the MCP server. The REST hop becomes a
+  loopback call and the server reuses Console's admin credentials automatically.
+- **Standalone** — built from `cmd/mcp` as its own process that connects to any
+  Console over REST.
+
+The default Console build omits the MCP server (and its dependency) entirely.
+See the [build options](../README.md#build-options) in the README.
+

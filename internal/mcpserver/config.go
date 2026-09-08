@@ -1,7 +1,9 @@
-// Package main implements an MCP (Model Context Protocol) server that exposes
-// the Device Management Toolkit Console REST API as MCP tools over an SSE
-// (Server-Sent Events) transport.
-package main
+// Package mcpserver exposes the Device Management Toolkit Console REST API as
+// MCP (Model Context Protocol) tools over an SSE (Server-Sent Events) transport.
+//
+// It can run as a standalone process (see cmd/mcp) or be embedded into the
+// Console binary when built with the "mcp" build tag.
+package mcpserver
 
 import (
 	"os"
@@ -11,7 +13,7 @@ import (
 )
 
 // Config holds runtime configuration for the MCP server and its connection to
-// the Console backend. All values are sourced from environment variables.
+// the Console backend.
 type Config struct {
 	// Console backend.
 	ConsoleBaseURL     string
@@ -26,7 +28,7 @@ type Config struct {
 }
 
 // LoadConfig builds a Config from environment variables, applying defaults that
-// match a local Console development instance (https://localhost:8181).
+// match a local Console instance (https://localhost:8181).
 func LoadConfig() Config {
 	cfg := Config{
 		ConsoleBaseURL:     getenv("CONSOLE_BASE_URL", "https://localhost:8181"),

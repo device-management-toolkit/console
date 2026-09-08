@@ -9,16 +9,18 @@ flowchart LR
         Client["MCP client<br/>SSE transport"]
     end
 
-    subgraph Server["Console MCP Server - Go (this project)"]
-        SSE["SSE + /message endpoints"]
-        Tools["Tool handlers<br/>list_devices, send_power_action,<br/>get_hardware_info, capture_kvm_frame, ..."]
-        Rest["Console REST client<br/>JWT bearer auth"]
-    end
+    subgraph Binary["Console binary - single executable when built with -tags mcp"]
+        subgraph Server["MCP server (embedded, or run standalone via cmd/mcp)"]
+            SSE["SSE + /message endpoints"]
+            Tools["Tool handlers<br/>list_devices, send_power_action,<br/>get_hardware_info, capture_kvm_frame, ..."]
+            Rest["Console REST client<br/>JWT bearer auth"]
+        end
 
-    subgraph Console["Console backend - Go / Gin (existing)"]
-        API["REST API<br/>/api/v1/devices, /amt/power, /amt/kvm/frame"]
-        Auth["/api/v1/authorize<br/>(JWT)"]
-        Redir["Redirection + interceptor<br/>AMT digest auth injection"]
+        subgraph Console["Console backend - Go / Gin (existing)"]
+            API["REST API<br/>/api/v1/devices, /amt/power, /amt/kvm/frame"]
+            Auth["/api/v1/authorize<br/>(JWT)"]
+            Redir["Redirection + interceptor<br/>AMT digest auth injection"]
+        end
     end
 
     Devices[("Intel AMT devices")]
@@ -31,7 +33,7 @@ flowchart LR
 
     %% Concrete API / operation interfaces (solid)
     SSE --> Tools --> Rest
-    Rest -->|"HTTPS REST + Bearer JWT"| API
+    Rest -->|"REST + Bearer JWT (loopback when embedded)"| API
     Rest -->|"login"| Auth
     API --> Redir
     API -->|"WSMAN (power, HW info, settings)"| Devices

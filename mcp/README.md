@@ -5,15 +5,30 @@ Management Toolkit **Console** REST API as MCP tools over an **SSE**
 (Server-Sent Events) transport. Point any MCP client (e.g. an LLM agent) at it
 to list and manage AMT devices through Console.
 
+It can run **two ways** (see [Build options](#build-options)):
+
+- **Embedded** — compiled into the Console binary (`-tags mcp`) for a single
+  self-contained executable that serves Console *and* the MCP server.
+- **Standalone** — a separate `cmd/mcp` process that talks to any Console over
+  REST.
+
+The default Console build excludes the MCP server entirely, so a Console-only
+binary is unaffected.
+
 ## How it works
 
 ```
-MCP client  ──SSE──▶  Console MCP server  ──REST (JWT)──▶  Console backend
+              (embedded: same process, -tags mcp)
+              ┌───────────────────────────────────┐
+MCP client ──SSE──▶ Console MCP server ──REST(JWT)──▶ Console backend ──▶ AMT devices
+              └───────────────────────────────────┘
+                  (standalone: separate process)
 ```
 
-The server authenticates to Console once with the configured username/password
+The server authenticates to Console with the configured username/password
 (`POST /api/v1/authorize`), caches the JWT, and re-authenticates automatically
-if the token expires.
+if the token expires. When embedded it auto-wires to its own Console instance
+and reuses the admin credentials.
 
 See **[docs/ARCHITECTURE.md](docs/ARCHITECTURE.md)** for the full architecture
 diagram (dotted lines = agentic AI connections, solid lines = API/operation
@@ -34,22 +49,55 @@ All configuration is via environment variables:
 | `CONSOLE_REQUEST_TIMEOUT_SECONDS` | `30` | Per-request timeout to the Console backend. |
 | `MCP_ADDR` | `:8080` | Address the SSE server binds to. |
 | `MCP_BASE_URL` | `http://localhost:8080` | Public base URL advertised to SSE clients. |
+| `MCP_ENABLED` | `true` | Embedded build only: set `false` to keep the MCP server off at runtime. |
 
 Copy [.env.example](.env.example) and fill in your credentials.
 
-## Run
+## Build options
+
+The MCP server can run **as a standalone process** or be **compiled into the
+Console binary** behind the `mcp` build tag. All commands run from
+`space_1/console`.
+
+| Goal | Command | Output |
+| --- | --- | --- |
+| Console only (MCP **excluded**) | `make build` / `go build ./cmd/app` | `bin/console` |
+| Single binary: Console **+ embedded MCP** | `make build-mcp` / `go build -tags mcp ./cmd/app` | `bin/console-mcp` |
+| Standalone MCP server | `make build-mcp-standalone` / `go build ./cmd/mcp` | `bin/mcp` |
+| Windows (combined + standalone) | `make build-mcp-windows` | `dist/windows/console-mcp_windows_x64.exe`, `dist/windows/mcp_windows_x64.exe` |
+
+The default Console build does **not** link the MCP dependency at all — the `mcp`
+tag is what pulls it in, so a Console-only binary is unaffected.
+
+Cross-compile a Windows combined binary directly:
 
 ```sh
-cd space_1/console/mcp
+CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags mcp -ldflags "-s -w" -trimpath -o console-mcp.exe ./cmd/app
+```
 
-# Fetch dependencies
-go mod tidy
+### Embedded mode
 
-# Set credentials (PowerShell)
+When built with `-tags mcp`, Console starts the MCP SSE server in-process and
+**auto-wires** it to itself: `CONSOLE_BASE_URL` defaults to this instance
+(`127.0.0.1:<HTTP_PORT>`, https when TLS is on) and it reuses the Console admin
+credentials (`AUTH_ADMIN_USERNAME` / `AUTH_ADMIN_PASSWORD`) unless you override
+`CONSOLE_USERNAME` / `CONSOLE_PASSWORD`. Set `MCP_ENABLED=false` to keep it off.
+
+```sh
+# Run Console with the embedded MCP server
+make run-mcp
+```
+
+## Run (standalone)
+
+```sh
+cd space_1/console
+
+# Set the Console credentials the MCP server logs in with (PowerShell)
 $env:CONSOLE_USERNAME = "admin"
 $env:CONSOLE_PASSWORD = "<your-password>"
 
-go run .
+go run ./cmd/mcp
 ```
 
 The server prints its endpoints on startup:

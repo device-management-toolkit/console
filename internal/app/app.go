@@ -64,6 +64,9 @@ func Run(cfg *config.Config, log logger.Interface) {
 		httpserver.Logger(log),
 	)
 
+	// Optionally start the embedded MCP SSE server (only when built with -tags mcp).
+	startEmbeddedMCP(cfg, log)
+
 	waitForShutdown(log, httpServer, ciraServer)
 	shutdownServers(log, httpServer, ciraServer)
 }
