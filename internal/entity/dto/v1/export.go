@@ -117,8 +117,8 @@ type ExportPlatform struct {
 
 // ExportPlatformAdapters summarizes adapter names.
 type ExportPlatformAdapters struct {
-	Wired    string `json:"wired"`
-	Wireless string `json:"wireless"`
+	Wired    []string `json:"wired"`
+	Wireless []string `json:"wireless"`
 }
 
 // ExportBMC holds a high-level baseboard management controller summary.

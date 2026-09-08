@@ -266,7 +266,7 @@ func buildExportOSInterface(adapter *dto.OSInterfaceInfo) *dto.ExportOSInterface
 // data was reported.
 func buildExportPlatform(info *dto.DeviceInfo) *dto.ExportPlatform {
 	hasAdapters := info.PlatformAdapters != nil &&
-		(info.PlatformAdapters.Wired != "" || info.PlatformAdapters.Wireless != "")
+		(len(info.PlatformAdapters.Wired) > 0 || len(info.PlatformAdapters.Wireless) > 0)
 	if info.CPUModel == "" && info.EthernetAdapterCount == nil && !hasAdapters {
 		return nil
 	}

@@ -96,8 +96,51 @@ type OSInterfaceInfo struct {
 }
 
 type PlatformAdaptersInfo struct {
-	Wired    string `json:"wired,omitempty"`
-	Wireless string `json:"wireless,omitempty"`
+	Wired    []string `json:"wired,omitempty"`
+	Wireless []string `json:"wireless,omitempty"`
+}
+
+func (p *PlatformAdaptersInfo) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Wired    json.RawMessage `json:"wired"`
+		Wireless json.RawMessage `json:"wireless"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	var err error
+
+	p.Wired, err = unmarshalAdapterNames(raw.Wired)
+	if err != nil {
+		return err
+	}
+
+	p.Wireless, err = unmarshalAdapterNames(raw.Wireless)
+
+	return err
+}
+
+func unmarshalAdapterNames(data json.RawMessage) ([]string, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return nil, nil
+	}
+
+	var names []string
+	if err := json.Unmarshal(data, &names); err == nil {
+		return names, nil
+	}
+
+	var name string
+	if err := json.Unmarshal(data, &name); err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		return nil, nil
+	}
+
+	return []string{name}, nil
 }
 
 // UnmarshalJSON implements custom JSON deserialization to support backwards compatibility

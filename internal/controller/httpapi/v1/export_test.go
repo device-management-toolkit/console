@@ -91,8 +91,8 @@ func TestExportDevices_Success(t *testing.T) {
 				}},
 			},
 			PlatformAdapters: &dto.PlatformAdaptersInfo{
-				Wired:    "eth0",
-				Wireless: "wlan0",
+				Wired:    []string{"eth0", "eth1"},
+				Wireless: []string{"wlan0", "wlan1"},
 			},
 		},
 	}
@@ -155,8 +155,8 @@ func TestExportDevices_Success(t *testing.T) {
 	require.NotNil(t, me.DeviceInfo.Platform)
 	require.Equal(t, "Intel(R) Core(TM) Ultra 7 165H", me.DeviceInfo.Platform.CPU)
 	require.NotNil(t, me.DeviceInfo.Platform.Adapters)
-	require.Equal(t, "eth0", me.DeviceInfo.Platform.Adapters.Wired)
-	require.Equal(t, "wlan0", me.DeviceInfo.Platform.Adapters.Wireless)
+	require.Equal(t, []string{"eth0", "eth1"}, me.DeviceInfo.Platform.Adapters.Wired)
+	require.Equal(t, []string{"wlan0", "wlan1"}, me.DeviceInfo.Platform.Adapters.Wireless)
 	require.Nil(t, me.DeviceInfo.BMC)
 
 	// Non-ME device has a null me subsystem.
