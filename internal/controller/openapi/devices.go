@@ -20,7 +20,7 @@ func (f *FuegoAdapter) RegisterDeviceRoutes() {
 }
 
 func (f *FuegoAdapter) registerDeviceExportRoutes() {
-	fuego.Get(f.server, "/api/v1/device-exports", f.exportDevices,
+	fuego.Get(f.server, "/api/v1/devices/export", f.exportDevices,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Export Devices"),
 		fuego.OptionDescription("Export a tenant-scoped snapshot of all devices as JSON. "+

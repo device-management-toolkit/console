@@ -1649,7 +1649,7 @@
 							}
 						},
 						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/device-exports",
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/export",
 							"protocol": "{{protocol}}",
 							"host": [
 								"{{host}}"
@@ -1657,7 +1657,8 @@
 							"path": [
 								"api",
 								"v1",
-								"device-exports"
+								"devices",
+								"export"
 							]
 						}
 					},

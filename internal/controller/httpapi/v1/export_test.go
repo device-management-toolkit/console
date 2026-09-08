@@ -90,7 +90,7 @@ func TestExportDevices_Success(t *testing.T) {
 		Return([]dto.Device{meDevice, nonMEDevice}, nil)
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/device-exports", http.NoBody)
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/devices/export", http.NoBody)
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
@@ -146,7 +146,7 @@ func TestExportDevices_DatabaseError(t *testing.T) {
 		Return(nil, assertErr{})
 
 	w := httptest.NewRecorder()
-	req, _ := http.NewRequest(http.MethodGet, "/api/v1/device-exports", http.NoBody)
+	req, _ := http.NewRequest(http.MethodGet, "/api/v1/devices/export", http.NoBody)
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusServiceUnavailable, w.Code)

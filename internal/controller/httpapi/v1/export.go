@@ -24,7 +24,7 @@ const (
 	outcomeError   = "error"
 )
 
-// export handles GET /api/v1/device-exports. It returns a tenant-scoped,
+// export handles GET /api/v1/devices/export. It returns a tenant-scoped,
 // snapshot of every device details stored in deatabase.
 func (dr *deviceRoutes) export(c *gin.Context) {
 	start := time.Now()

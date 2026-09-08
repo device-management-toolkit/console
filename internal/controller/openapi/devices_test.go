@@ -22,9 +22,9 @@ func TestRegisterDeviceRoutes_IncludesExportEndpoint(t *testing.T) {
 	paths, ok := spec["paths"].(map[string]interface{})
 	require.True(t, ok)
 
-	require.Contains(t, paths, "/api/v1/device-exports", "device export route should be registered")
+	require.Contains(t, paths, "/api/v1/devices/export", "device export route should be registered")
 
-	exportPath, ok := paths["/api/v1/device-exports"].(map[string]interface{})
+	exportPath, ok := paths["/api/v1/devices/export"].(map[string]interface{})
 	require.True(t, ok)
 	require.Contains(t, exportPath, "get", "device export GET operation should be registered")
 }

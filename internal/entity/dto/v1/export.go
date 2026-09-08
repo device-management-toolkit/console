@@ -5,7 +5,7 @@ import (
 	"time"
 )
 
-// DeviceExport is the top-level response of GET /api/v1/device-exports.
+// DeviceExport is the top-level response of GET /api/v1/devices/export.
 type DeviceExport struct {
 	Metadata ExportMetadata       `json:"metadata"`
 	Summary  ExportSummary        `json:"summary"`
