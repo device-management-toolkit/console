@@ -89,6 +89,7 @@ func (r *deviceManagementRoutes) registerExplorerAndCertificateRoutes(h *gin.Rou
 func (r *deviceManagementRoutes) registerKVMAndLinkRoutes(h *gin.RouterGroup) {
 	h.GET("kvm/displays/:guid", r.getKVMDisplays)
 	h.PUT("kvm/displays/:guid", r.setKVMDisplays)
+	h.GET("kvm/frame/:guid", r.captureKVMFrame)
 
 	h.POST("network/linkPreference/:guid", r.setLinkPreference)
 }
