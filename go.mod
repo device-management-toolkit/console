@@ -11,7 +11,7 @@ require (
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.50.3
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/gin-contrib/cors v1.7.8
-	github.com/gin-contrib/pprof v1.5.4
+	github.com/gin-contrib/pprof v1.5.5
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-fuego/fuego v0.19.0
 	github.com/go-playground/validator/v10 v10.30.3
