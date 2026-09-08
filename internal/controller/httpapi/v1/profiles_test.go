@@ -443,9 +443,42 @@ func TestProfilesInsertWithoutPasswordFails(t *testing.T) {
 
 			profileFeature.EXPECT().
 				Insert(gomock.Any(), gomock.Any()).
-				Return(nil, profiles.ErrNotValid.Wrap("Insert", "validateProfileCreate", tc.wantErr))
+				Return(nil, profiles.ErrNotValid.Wrap("Insert", "validateProfilePasswords", tc.wantErr))
 
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBuffer([]byte(tc.body)))
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
+		})
+	}
+}
+
+// PATCH binds through the validator, so a body that violates the struct tags is
+// rejected before the feature is reached.
+func TestProfilesUpdatePatchRejectsInvalidBody(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		body string
+	}{
+		{"activation outside oneof", `{"profileName":"newprofile","activation":"activate"}`},
+		{"amtPassword fails complexity", `{"profileName":"newprofile","activation":"ccmactivate","amtPassword":"Intel123"}`},
+		{"profileName missing", `{"activation":"ccmactivate"}`},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			// No mock expectations: reaching the feature would fail the test.
+			_, engine := profilesTest(t)
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/admin/profiles", bytes.NewBufferString(tc.body))
 			require.NoError(t, err)
 
 			w := httptest.NewRecorder()

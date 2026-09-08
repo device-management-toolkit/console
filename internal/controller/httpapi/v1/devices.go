@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/device-management-toolkit/console/config"
@@ -308,7 +309,9 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 	}
 
 	var device dto.Device
-	if err := json.Unmarshal(body, &device); err != nil {
+	// BindBody decodes and runs the struct validators. Plain json.Unmarshal
+	// would skip them, letting an invalid device through on PATCH.
+	if err := binding.JSON.BindBody(body, &device); err != nil {
 		ErrorResponse(c, err)
 
 		return

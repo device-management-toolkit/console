@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -20,17 +21,30 @@ type WirelessConfigRoutes struct {
 	l logger.Interface
 }
 
-func NewWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l logger.Interface) {
-	r := &WirelessConfigRoutes{t, l}
+var wirelessValidatorsOnce sync.Once
 
-	if binding.Validator != nil {
+// registerWirelessValidators installs this route group's custom tags on the process-wide
+// validator engine. That engine's tag map is not safe for concurrent use, so
+// registration runs once and must finish before any request is served.
+func registerWirelessValidators(l logger.Interface) {
+	wirelessValidatorsOnce.Do(func() {
+		if binding.Validator == nil {
+			return
+		}
+
 		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 			err := v.RegisterValidation("authforieee8021x", dto.ValidateAuthandIEEE)
 			if err != nil {
 				l.Error(err, "failed to register validation")
 			}
 		}
-	}
+	})
+}
+
+func NewWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l logger.Interface) {
+	r := &WirelessConfigRoutes{t, l}
+
+	registerWirelessValidators(l)
 
 	h := handler.Group("/wirelessconfigs")
 	{

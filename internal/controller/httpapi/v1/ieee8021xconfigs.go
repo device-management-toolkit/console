@@ -2,6 +2,7 @@ package v1
 
 import (
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -20,17 +21,30 @@ type ieee8021xConfigRoutes struct {
 	l logger.Interface
 }
 
-func NewIEEE8021xConfigRoutes(handler *gin.RouterGroup, t ieee8021xconfigs.Feature, l logger.Interface) {
-	r := &ieee8021xConfigRoutes{t, l}
+var ieee8021xValidatorsOnce sync.Once
 
-	if binding.Validator != nil {
+// registerIEEE8021xValidators installs this route group's custom tags on the process-wide
+// validator engine. That engine's tag map is not safe for concurrent use, so
+// registration runs once and must finish before any request is served.
+func registerIEEE8021xValidators(l logger.Interface) {
+	ieee8021xValidatorsOnce.Do(func() {
+		if binding.Validator == nil {
+			return
+		}
+
 		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 			err := v.RegisterValidation("authProtocolValidator", dto.AuthProtocolValidator)
 			if err != nil {
 				l.Error(err, "failed to register validation")
 			}
 		}
-	}
+	})
+}
+
+func NewIEEE8021xConfigRoutes(handler *gin.RouterGroup, t ieee8021xconfigs.Feature, l logger.Interface) {
+	r := &ieee8021xConfigRoutes{t, l}
+
+	registerIEEE8021xValidators(l)
 
 	h := handler.Group("/ieee8021xconfigs")
 	{

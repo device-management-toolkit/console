@@ -460,6 +460,7 @@ func TestDeviceManagement(t *testing.T) {
 			requestBody: map[string]interface{}{
 				"isTrusted": true,
 			},
+			// The binding validator rejects the body, so the feature is never called.
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().AddCertificate(
 					context.Background(),
@@ -467,7 +468,7 @@ func TestDeviceManagement(t *testing.T) {
 					gomock.Any(),
 				).Return("", ErrGeneral).AnyTimes()
 			},
-			expectedCode: http.StatusInternalServerError,
+			expectedCode: http.StatusBadRequest,
 			response:     nil,
 		},
 		{

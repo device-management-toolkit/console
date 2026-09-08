@@ -9,6 +9,8 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
@@ -18,10 +20,27 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// The handler tests bind real request bodies, so the package needs the validator
+// setup NewRouter installs. Registration has to finish before the first parallel
+// test serves a request: the engine's tag map is not safe for concurrent use, so
+// registering from an engine built inside a parallel subtest would race a request
+// being validated in another.
+//
 //nolint:gochecknoinits // required to avoid issues when running tests in parallel
 func init() {
 	gin.SetMode(gin.TestMode)
-	gin.DisableBindValidation()
+
+	log := logger.New("error")
+
+	registerProfileValidators()
+	registerWirelessValidators(log)
+	registerIEEE8021xValidators(log)
+
+	if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
+		_ = v.RegisterValidation("alphanumhyphenunderscore", dto.ValidateAlphaNumHyphenUnderscore)
+		_ = v.RegisterValidation("wifistate", dto.ValidateWirelessState)
+		_ = v.RegisterValidation("wirelessprofile", dto.ValidateWirelessProfile)
+	}
 }
 
 func domainsTest(t *testing.T) (*mocks.MockDomainsFeature, *gin.Engine) {

@@ -1452,3 +1452,87 @@ func TestUpdateAllowsNonCIRAProfileWhenCIRADisabled(t *testing.T) {
 	require.NoError(t, err)
 	require.Equal(t, profileDTO, result)
 }
+
+// A PATCH that clears a password is validated against the merged profile: the
+// stored value is gone, so the profile would be left without one.
+func TestUpdateRejectsMergedProfileWithoutPasswords(t *testing.T) {
+	t.Parallel()
+
+	tenantID := "tenant-id-456"
+
+	tests := []struct {
+		name    string
+		stored  *entity.Profile
+		payload *dto.Profile
+		fields  map[string]bool
+		wantErr error
+	}{
+		{
+			name: "amtPassword cleared while generateRandomPassword is false",
+			stored: &entity.Profile{
+				ProfileName: "example-profile",
+				TenantID:    tenantID,
+				Activation:  "ccmactivate",
+			},
+			payload: &dto.Profile{
+				ProfileName:            "example-profile",
+				TenantID:               tenantID,
+				Activation:             "ccmactivate",
+				AMTPassword:            "",
+				GenerateRandomPassword: false,
+			},
+			fields: map[string]bool{
+				"profilename":            true,
+				"activation":             true,
+				"amtpassword":            true,
+				"generaterandompassword": true,
+			},
+			wantErr: profiles.ErrAMTPasswordRequired,
+		},
+		{
+			name: "mebxPassword cleared while switching to acmactivate",
+			stored: &entity.Profile{
+				ProfileName: "example-profile",
+				TenantID:    tenantID,
+				Activation:  "ccmactivate",
+			},
+			payload: &dto.Profile{
+				ProfileName:                "example-profile",
+				TenantID:                   tenantID,
+				Activation:                 "acmactivate",
+				MEBXPassword:               "",
+				GenerateRandomMEBxPassword: false,
+			},
+			fields: map[string]bool{
+				"profilename":                true,
+				"activation":                 true,
+				"mebxpassword":               true,
+				"generaterandommebxpassword": true,
+			},
+			wantErr: profiles.ErrMEBXPasswordRequired,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _, profilewifi := profilesTest(t)
+
+			repo.EXPECT().
+				GetByName(context.Background(), tc.stored.ProfileName, tenantID).
+				Return(tc.stored, nil)
+			profilewifi.EXPECT().
+				GetByProfileName(context.Background(), tc.stored.ProfileName, tenantID).
+				Return(nil, nil)
+
+			// No repo.Update expectation: the merge must be rejected before the write.
+			_, err := useCase.Update(context.Background(), tc.payload, tc.fields)
+
+			require.Error(t, err)
+			require.IsType(t, dto.NotValidError{}, err)
+			require.ErrorIs(t, err, tc.wantErr)
+		})
+	}
+}

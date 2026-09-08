@@ -49,9 +49,11 @@ var (
 
 const CIRADisabledHint = "Re-enable CIRA on this instance, or change the connection mode on this profile."
 
-// validateProfileCreate enforces password-required invariants that only apply on
-// POST: PATCH may omit either password to leave the stored value untouched.
-func validateProfileCreate(d *dto.Profile) error {
+// validateProfilePasswords enforces the password-required invariants. On POST it
+// runs against the submitted profile; on PATCH it runs against the merged profile
+// (applyPATCHMerge fills in the stored passwords), so omitting a password still
+// leaves the stored value untouched but can no longer leave the profile without one.
+func validateProfilePasswords(d *dto.Profile) error {
 	if !d.GenerateRandomPassword && d.AMTPassword == "" {
 		return ErrAMTPasswordRequired
 	}
@@ -523,6 +525,13 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 		}
 
 		d = merged
+
+		// The merged profile is what gets stored, so the password invariants are
+		// checked against it: omitting a password still keeps the stored one, but
+		// a merge that leaves the profile without one is rejected.
+		if err := validateProfilePasswords(d); err != nil {
+			return nil, ErrNotValid.Wrap("Update", "validateProfilePasswords", err)
+		}
 	}
 
 	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {
@@ -568,8 +577,8 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
-	if err := validateProfileCreate(d); err != nil {
-		return nil, ErrNotValid.Wrap("Insert", "validateProfileCreate", err)
+	if err := validateProfilePasswords(d); err != nil {
+		return nil, ErrNotValid.Wrap("Insert", "validateProfilePasswords", err)
 	}
 
 	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {

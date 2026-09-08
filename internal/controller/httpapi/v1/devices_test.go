@@ -887,3 +887,22 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) 
 	require.True(t, timeDiff < maxWrongExpiration-time.Hour,
 		"token expiration time %v is suspiciously close to 24 hours (the bug)", timeDiff)
 }
+
+// PATCH binds through the validator, so a body that violates the struct tags is
+// rejected before the feature is reached.
+func TestDevicesUpdatePatchRejectsInvalidBody(t *testing.T) {
+	t.Parallel()
+
+	// No mock expectations: reaching the feature would fail the test.
+	_, engine := devicesTest(t)
+
+	body := []byte(`{"guid":"valid-guid","username":"a-username-longer-than-sixteen"}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}

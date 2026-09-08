@@ -1,8 +1,8 @@
 package v1
 
 import (
-	"encoding/json"
 	"net/http"
+	"sync"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
@@ -21,10 +21,18 @@ type profileRoutes struct {
 	l logger.Interface
 }
 
-func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Interface) {
-	r := &profileRoutes{t, l}
+var profileValidatorsOnce sync.Once
 
-	if binding.Validator != nil {
+// registerProfileValidators installs this route group's custom tags on the
+// process-wide validator engine. That engine's tag map is not safe for
+// concurrent use, so registration runs once and must finish before any request
+// is served — NewRouter calls this while wiring the routes.
+func registerProfileValidators() {
+	profileValidatorsOnce.Do(func() {
+		if binding.Validator == nil {
+			return
+		}
+
 		if v, ok := binding.Validator.Engine().(*validator.Validate); ok {
 			_ = v.RegisterValidation("genpasswordwone", dto.ValidateAMTPassOrGenRan)
 			_ = v.RegisterValidation("ciraortls", dto.ValidateCIRAOrTLS)
@@ -32,7 +40,13 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 			_ = v.RegisterValidation("profilename", dto.ValidateProfileName)
 			_ = v.RegisterValidation("amtpasswordcomplexity", dto.ValidateAMTPasswordComplexity)
 		}
-	}
+	})
+}
+
+func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Interface) {
+	r := &profileRoutes{t, l}
+
+	registerProfileValidators()
 
 	h := handler.Group("/profiles")
 	{
@@ -146,8 +160,10 @@ func (r *profileRoutes) update(c *gin.Context) {
 	}
 
 	var profile dto.Profile
-	if err := json.Unmarshal(body, &profile); err != nil {
-		validationErr := ErrValidationProfile.Wrap("update", "json.Unmarshal", err)
+	// BindBody decodes and runs the struct validators. Plain json.Unmarshal
+	// would skip them, letting an invalid profile through on PATCH.
+	if err := binding.JSON.BindBody(body, &profile); err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "BindBody", err)
 		ErrorResponse(c, validationErr)
 
 		return
