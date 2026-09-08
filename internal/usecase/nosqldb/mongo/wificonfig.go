@@ -15,18 +15,20 @@ import (
 )
 
 type WirelessRepo struct {
-	col          *mongo.Collection
-	ieee8021xCol *mongo.Collection
-	log          logger.Interface
+	col            *mongo.Collection
+	ieee8021xCol   *mongo.Collection
+	profileWiFiCol *mongo.Collection
+	log            logger.Interface
 }
 
 var _ wificonfigs.Repository = (*WirelessRepo)(nil)
 
 func NewWirelessRepo(db *mongo.Database, log logger.Interface) *WirelessRepo {
 	return &WirelessRepo{
-		col:          db.Collection(CollectionWirelessConfigs),
-		ieee8021xCol: db.Collection(CollectionIEEE8021xConfigs),
-		log:          log,
+		col:            db.Collection(CollectionWirelessConfigs),
+		ieee8021xCol:   db.Collection(CollectionIEEE8021xConfigs),
+		profileWiFiCol: db.Collection(CollectionProfileWiFiConfigs),
+		log:            log,
 	}
 }
 
@@ -162,6 +164,17 @@ func (r *WirelessRepo) Delete(ctx context.Context, profileName, tenantID string)
 		return false, nil
 	}
 
+	// SQL leaves this to the profiles_wirelessconfigs foreign key. Mongo has no
+	// constraints, so look for a referencing row the way RPS did before deleting.
+	err := r.profileWiFiCol.FindOne(ctx, bson.M{fieldWirelessProfileName: profileName, fieldTenantID: tenantID}).Err()
+
+	switch {
+	case err == nil:
+		return false, errWiFiForeignKeyViolation.Wrap("wireless profile " + profileName + " is associated with an AMT profile")
+	case !errors.Is(err, mongo.ErrNoDocuments):
+		return false, errWiFiDatabase.Wrap("Delete", "FindOne", err)
+	}
+
 	res, err := r.col.DeleteOne(ctx, bson.M{fieldProfileName: profileName, fieldTenantID: tenantID})
 	if err != nil {
 		return false, errWiFiDatabase.Wrap("Delete", "DeleteOne", err)
@@ -192,6 +205,10 @@ func (r *WirelessRepo) Update(ctx context.Context, w *entity.WirelessConfig) (bo
 		}},
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return false, errWiFiNotUnique.Wrap(err.Error())
+		}
+
 		return false, errWiFiDatabase.Wrap("Update", "UpdateOne", err)
 	}
 

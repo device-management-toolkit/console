@@ -23,6 +23,10 @@ var (
 	errWiFiNotUnique               = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("MongoWirelessRepo")}
 	errProfileWiFiConfigsDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("MongoProfileWiFiConfigsRepo")}
 	errProfileWiFiConfigsNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("MongoProfileWiFiConfigsRepo")}
+
+	// Mongo has no foreign keys, so the repositories check the referencing
+	// collection themselves and raise the error SQL gets from its constraint.
+	errWiFiForeignKeyViolation = repoerrors.ForeignKeyViolationError{Console: consoleerrors.CreateConsoleError("MongoWirelessRepo")}
 )
 
 // isDuplicateKey matches Mongo E11000 errors (mapped to NotUniqueError, mirroring SQL).

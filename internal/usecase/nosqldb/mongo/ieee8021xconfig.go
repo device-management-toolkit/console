@@ -141,6 +141,10 @@ func (r *IEEE8021xRepo) Update(ctx context.Context, c *entity.IEEE8021xConfig) (
 		}},
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return false, errIEEENotUnique.Wrap(err.Error())
+		}
+
 		return false, errIEEEDatabase.Wrap("Update", "UpdateOne", err)
 	}
 

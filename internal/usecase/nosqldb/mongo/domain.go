@@ -159,6 +159,10 @@ func (r *DomainRepo) Update(ctx context.Context, d *entity.Domain) (bool, error)
 		}},
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return false, errDomainNotUnique.Wrap(err.Error())
+		}
+
 		return false, errDomainDatabase.Wrap("Update", "UpdateOne", err)
 	}
 

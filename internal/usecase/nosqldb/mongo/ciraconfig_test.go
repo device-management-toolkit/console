@@ -105,6 +105,29 @@ func TestCIRARepo_Insert_DuplicateReturnsNotUniqueError(t *testing.T) {
 	require.True(t, errors.As(err, &nu), "expected NotUniqueError, got %T: %v", err, err)
 }
 
+// A unique-index collision on update has to reach the handler as a
+// NotUniqueError so it answers 409, the way the SQL backends do.
+func TestCIRARepo_Update_DuplicateReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(duplicateKeyResponse())
+
+	repo := mongo.NewCIRARepo(db)
+
+	ok, err := repo.Update(context.Background(), &entity.CIRAConfig{
+		ConfigName: "cira1",
+		TenantID:   "t1",
+	})
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var notUnique repoerrors.NotUniqueError
+
+	require.ErrorAs(t, err, &notUnique)
+}
+
 func TestCIRARepo_Update_Matched(t *testing.T) {
 	t.Parallel()
 

@@ -162,6 +162,30 @@ func TestDomainRepo_Update_Matched(t *testing.T) {
 	require.True(t, ok)
 }
 
+// A suffix collision on update has to reach the handler as a NotUniqueError so
+// it answers 409, the way the SQL backends do from their unique index.
+func TestDomainRepo_Update_DuplicateReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(duplicateKeyResponse())
+
+	repo := mongo.NewDomainRepo(db)
+
+	ok, err := repo.Update(context.Background(), &entity.Domain{
+		ProfileName:  "Acme",
+		DomainSuffix: "taken.com",
+		TenantID:     "t1",
+	})
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var notUnique repoerrors.NotUniqueError
+
+	require.ErrorAs(t, err, &notUnique)
+}
+
 func TestDomainRepo_Update_NoMatch(t *testing.T) {
 	t.Parallel()
 

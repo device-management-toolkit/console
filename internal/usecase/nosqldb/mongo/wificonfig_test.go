@@ -164,6 +164,29 @@ func TestWirelessRepo_Insert_DuplicateReturnsNotUniqueError(t *testing.T) {
 	require.True(t, errors.As(err, &nu))
 }
 
+// A unique-index collision on update has to reach the handler as a
+// NotUniqueError so it answers 409, the way the SQL backends do.
+func TestWirelessRepo_Update_DuplicateReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(duplicateKeyResponse())
+
+	repo := mongo.NewWirelessRepo(db, logger.New("error"))
+
+	ok, err := repo.Update(context.Background(), &entity.WirelessConfig{
+		ProfileName: "wifi1",
+		TenantID:    "t1",
+	})
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var notUnique repoerrors.NotUniqueError
+
+	require.ErrorAs(t, err, &notUnique)
+}
+
 func TestWirelessRepo_Update(t *testing.T) {
 	t.Parallel()
 
@@ -186,11 +209,63 @@ func TestWirelessRepo_Delete(t *testing.T) {
 
 	db, md := newMockedDB(t)
 
-	md.AddResponses(deleteResponse(1))
+	// No referencing profiles_wirelessconfigs row, then the delete itself.
+	md.AddResponses(findResponse("consoledb.profiles_wirelessconfigs"), deleteResponse(1))
 
 	repo := mongo.NewWirelessRepo(db, logger.New("error"))
 
 	ok, err := repo.Delete(context.Background(), "wifi1", "t1")
 	require.NoError(t, err)
 	require.True(t, ok)
+}
+
+// A failed reference lookup must not fall through to the delete: the repo cannot
+// tell whether the wireless profile is still in use, so it reports the error.
+func TestWirelessRepo_Delete_ReferenceLookupFailurePreventsDelete(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	// Only one queued response: a delete would need a second, and reaching it
+	// would hang rather than silently pass.
+	md.AddResponses(bson.D{
+		{Key: "ok", Value: 0},
+		{Key: "code", Value: int32(13)},
+		{Key: "errmsg", Value: "not authorized"},
+	})
+
+	repo := mongo.NewWirelessRepo(db, logger.New("error"))
+
+	ok, err := repo.Delete(context.Background(), "wifi1", "t1")
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var dbErr repoerrors.DatabaseError
+
+	require.ErrorAs(t, err, &dbErr)
+}
+
+// SQL gets this from the profiles_wirelessconfigs foreign key; Mongo has to look
+// for the referencing row itself, and must raise the same error so the handler
+// still answers 400.
+func TestWirelessRepo_Delete_ReferencedByProfileIsRejected(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse("consoledb.profiles_wirelessconfigs",
+		bson.D{{Key: "profilename", Value: "amt-profile"}, {Key: "wirelessprofilename", Value: "wifi1"}},
+	))
+
+	repo := mongo.NewWirelessRepo(db, logger.New("error"))
+
+	ok, err := repo.Delete(context.Background(), "wifi1", "t1")
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var fkErr repoerrors.ForeignKeyViolationError
+
+	require.ErrorAs(t, err, &fkErr)
+	// FriendlyMessage is what the handler puts in the 400 body.
+	require.Contains(t, fkErr.Console.FriendlyMessage(), "foreign key violation")
 }

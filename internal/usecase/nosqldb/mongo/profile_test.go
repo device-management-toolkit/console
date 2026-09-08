@@ -146,6 +146,29 @@ func TestProfileRepo_Insert_DuplicateReturnsNotUniqueError(t *testing.T) {
 	require.True(t, errors.As(err, &nu))
 }
 
+// A unique-index collision on update has to reach the handler as a
+// NotUniqueError so it answers 409, the way the SQL backends do.
+func TestProfileRepo_Update_DuplicateReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(duplicateKeyResponse())
+
+	repo := mongo.NewProfileRepo(db, logger.New("error"))
+
+	ok, err := repo.Update(context.Background(), &entity.Profile{
+		ProfileName: "p1",
+		TenantID:    "t1",
+	})
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var notUnique repoerrors.NotUniqueError
+
+	require.ErrorAs(t, err, &notUnique)
+}
+
 func TestProfileRepo_Update(t *testing.T) {
 	t.Parallel()
 

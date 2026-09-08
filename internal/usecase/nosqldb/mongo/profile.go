@@ -187,6 +187,10 @@ func (r *ProfileRepo) Update(ctx context.Context, p *entity.Profile) (bool, erro
 		bson.M{opSet: set},
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return false, errProfileNotUnique.Wrap(err.Error())
+		}
+
 		return false, errProfileDatabase.Wrap("Update", "UpdateOne", err)
 	}
 

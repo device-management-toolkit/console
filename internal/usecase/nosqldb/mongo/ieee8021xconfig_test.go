@@ -156,6 +156,29 @@ func TestIEEE8021xRepo_Insert_DuplicateReturnsNotUniqueError(t *testing.T) {
 	require.True(t, errors.As(err, &nu))
 }
 
+// A unique-index collision on update has to reach the handler as a
+// NotUniqueError so it answers 409, the way the SQL backends do.
+func TestIEEE8021xRepo_Update_DuplicateReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(duplicateKeyResponse())
+
+	repo := mongo.NewIEEE8021xRepo(db)
+
+	ok, err := repo.Update(context.Background(), &entity.IEEE8021xConfig{
+		ProfileName: "ieee1",
+		TenantID:    "t1",
+	})
+	require.False(t, ok)
+	require.Error(t, err)
+
+	var notUnique repoerrors.NotUniqueError
+
+	require.ErrorAs(t, err, &notUnique)
+}
+
 func TestIEEE8021xRepo_Update(t *testing.T) {
 	t.Parallel()
 

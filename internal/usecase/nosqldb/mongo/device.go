@@ -250,6 +250,10 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 		}},
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return false, errDeviceNotUnique.Wrap(err.Error())
+		}
+
 		return false, errDeviceDatabase.Wrap("Update", "UpdateOne", err)
 	}
 

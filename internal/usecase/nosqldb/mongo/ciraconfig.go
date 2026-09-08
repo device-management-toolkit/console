@@ -130,6 +130,10 @@ func (r *CIRARepo) Update(ctx context.Context, c *entity.CIRAConfig) (bool, erro
 		}},
 	)
 	if err != nil {
+		if isDuplicateKey(err) {
+			return false, errCIRANotUnique.Wrap(err.Error())
+		}
+
 		return false, errCIRADatabase.Wrap("Update", "UpdateOne", err)
 	}
 
