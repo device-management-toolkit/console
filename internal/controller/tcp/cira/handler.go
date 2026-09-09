@@ -20,7 +20,6 @@ const (
 type APFHandler struct {
 	devices            devices.Feature
 	deviceID           string
-	tenantID           string
 	globalRequestCount int
 	log                logger.Interface
 }
@@ -36,12 +35,6 @@ func NewAPFHandler(d devices.Feature, l logger.Interface) *APFHandler {
 // DeviceID returns the device ID extracted from the protocol version message.
 func (h *APFHandler) DeviceID() string {
 	return h.deviceID
-}
-
-// TenantID returns the tenant the authenticated device belongs to, learned from
-// its database row rather than from the device itself.
-func (h *APFHandler) TenantID() string {
-	return h.tenantID
 }
 
 // OnProtocolVersion is called when an APF_PROTOCOLVERSION message is received.
@@ -123,9 +116,6 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 
 		return false
 	}
-
-	h.tenantID = device.TenantID
-	h.log.Debug("CIRA tenant resolved", "device_id", h.deviceID, "tenant_id", h.tenantID)
 
 	return true
 }

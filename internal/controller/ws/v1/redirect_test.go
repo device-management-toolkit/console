@@ -1,7 +1,6 @@
 package v1
 
 import (
-	"context"
 	"errors"
 	"net/http"
 	"net/http/httptest"
@@ -18,7 +17,6 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/mocks"
-	"github.com/device-management-toolkit/console/internal/tenant"
 )
 
 var (
@@ -103,11 +101,15 @@ func TestWebSocketHandler(t *testing.T) {
 	}
 }
 
-func TestWebSocketHandlerRedirectErrorClosesWebSocket(t *testing.T) { //nolint:paralleltest // shared configuration and logger
+func TestWebSocketHandlerRedirectErrorClosesWebSocket(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
+
 	config.ConsoleConfig.Disabled = true
 
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
@@ -160,17 +162,6 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) {
 		}
 		if deviceID != "" {
 			claims["deviceId"] = deviceID
-		}
-
-		s, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(config.ConsoleConfig.JWTKey))
-
-		return s
-	}
-	tokenForTenant := func(deviceID, tenantID string) string {
-		claims := jwt.MapClaims{
-			"exp":      time.Now().Add(5 * time.Minute).Unix(),
-			"deviceId": deviceID,
-			"tenantId": tenantID,
 		}
 
 		s, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(config.ConsoleConfig.JWTKey))
@@ -238,7 +229,6 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) {
 		mockLogger := mocks.NewMockLogger(ctrl)
 
 		mockUpgrader.EXPECT().Upgrade(gomock.Any(), gomock.Any(), nil).Return(&websocket.Conn{}, nil)
-		mockLogger.EXPECT().Debug("WebSocket tenant ID from claims is not present")
 		mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
 		mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 		mockLogger.EXPECT().Info("Websocket connection opened")
@@ -263,7 +253,6 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) {
 		mockLogger := mocks.NewMockLogger(ctrl)
 
 		mockUpgrader.EXPECT().Upgrade(gomock.Any(), gomock.Any(), nil).Return(&websocket.Conn{}, nil)
-		mockLogger.EXPECT().Debug("WebSocket tenant ID from claims is not present")
 		mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
 		mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 		mockLogger.EXPECT().Info("Websocket connection opened")
@@ -280,55 +269,6 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) {
 		r.ServeHTTP(w, req)
 
 		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("propagates token tenant to redirect context", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
-		mockUpgrader := mocks.NewMockUpgrader(ctrl)
-		mockLogger := mocks.NewMockLogger(ctrl)
-
-		mockUpgrader.EXPECT().Upgrade(gomock.Any(), gomock.Any(), nil).Return(&websocket.Conn{}, nil)
-		mockLogger.EXPECT().Debug("WebSocket tenant ID from claims", "tenant_id", "tenant-a")
-		mockLogger.EXPECT().Debug("failed to cast Upgrader to *websocket.Upgrader")
-		mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
-		mockLogger.EXPECT().Info("Websocket connection opened")
-		mockFeature.EXPECT().Redirect(gomock.Any(), gomock.Any(), "deviceA", "kvm").DoAndReturn(
-			func(ctx context.Context, _ *websocket.Conn, _, _ string) error {
-				assert.Equal(t, "tenant-a", tenant.FromContext(ctx))
-
-				return nil
-			},
-		)
-		mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "kvm")
-
-		r := gin.Default()
-		RegisterRoutes(r, mockLogger, mockFeature, mockUpgrader)
-
-		req := httptest.NewRequest(http.MethodGet, "/relay/webrelay.ashx?host=deviceA&mode=kvm", http.NoBody)
-		req.Header.Set("Sec-Websocket-Protocol", tokenForTenant("deviceA", "tenant-a"))
-
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusOK, w.Code)
-	})
-
-	t.Run("rejects token with invalid tenant", func(t *testing.T) { //nolint:paralleltest // shared logger
-		mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
-		mockUpgrader := mocks.NewMockUpgrader(ctrl)
-		mockLogger := mocks.NewMockLogger(ctrl)
-		mockLogger.EXPECT().Warn("redirection token contains invalid tenant", "host", "deviceA")
-
-		r := gin.Default()
-		RegisterRoutes(r, mockLogger, mockFeature, mockUpgrader)
-
-		req := httptest.NewRequest(http.MethodGet, "/relay/webrelay.ashx?host=deviceA&mode=kvm", http.NoBody)
-		req.Header.Set("Sec-Websocket-Protocol", tokenForTenant("deviceA", ".tenant-a"))
-
-		w := httptest.NewRecorder()
-		r.ServeHTTP(w, req)
-
-		assert.Equal(t, http.StatusForbidden, w.Code)
 	})
 }
 

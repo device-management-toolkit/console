@@ -52,7 +52,7 @@ type DeviceConnection struct {
 func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode string) error {
 	// KVM_TIMING: Measure device lookup latency
 	lookupStart := time.Now()
-	device, err := uc.deviceInTenant(c, guid)
+	device, err := uc.repo.GetByGUID(c, guid)
 
 	RecordDeviceLookup(time.Since(lookupStart))
 	uc.log.Debug("KVM_TIMING: Device lookup", "duration_ms", time.Since(lookupStart).Milliseconds(), "guid", guid)

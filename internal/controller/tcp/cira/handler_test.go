@@ -51,7 +51,6 @@ func TestOnAuthRequestAcceptsDeviceInNonDefaultTenant(t *testing.T) {
 	})
 
 	require.True(t, response.Authenticated)
-	require.Equal(t, "acme-corp", handler.TenantID())
 }
 
 func TestOnAuthRequestLearnsDefaultTenant(t *testing.T) {
@@ -70,7 +69,6 @@ func TestOnAuthRequestLearnsDefaultTenant(t *testing.T) {
 	})
 
 	require.True(t, response.Authenticated)
-	require.Empty(t, handler.TenantID())
 }
 
 func TestOnAuthRequestRejectsBadPasswordWithoutLearningTenant(t *testing.T) {
@@ -90,7 +88,6 @@ func TestOnAuthRequestRejectsBadPasswordWithoutLearningTenant(t *testing.T) {
 	})
 
 	require.False(t, response.Authenticated)
-	require.Empty(t, handler.TenantID())
 }
 
 func TestOnAuthRequestRejectsUnsupportedMethod(t *testing.T) {
