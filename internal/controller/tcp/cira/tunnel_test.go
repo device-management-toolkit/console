@@ -12,6 +12,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
 
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -217,6 +218,86 @@ func verifyConnectionRemoved(t *testing.T, authenticated bool, deviceID string) 
 
 		assert.False(t, exists, "Connection should be removed from map")
 	}
+}
+
+func TestAPFHandler_ValidatesCredentialsAndProtocolVersion(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+	mockDevices.EXPECT().GetByID(gomock.Any(), "device-123", "", true).Return(&dto.Device{
+		MPSUsername: "admin",
+		MPSPassword: "s3cret",
+	}, nil).AnyTimes()
+
+	handler := NewAPFHandler(mockDevices, logger.New("debug"))
+	require.NoError(t, handler.OnProtocolVersion(apf.ProtocolVersionInfo{UUID: "DEVICE-123"}))
+	assert.Equal(t, "device-123", handler.DeviceID())
+
+	assert.True(t, handler.validateCredentials("admin", "s3cret"))
+	assert.False(t, handler.validateCredentials("admin", "wrong-pass"))
+	assert.False(t, handler.validateCredentials("wrong-user", "s3cret"))
+	assert.False(t, handler.validateCredentials("wrong-user", "wrong-pass"))
+	assert.False(t, handler.validateCredentials("", ""))
+
+	resp := handler.OnAuthRequest(apf.AuthRequest{Username: "admin", Password: "s3cret", MethodName: "password"})
+	assert.True(t, resp.Authenticated)
+
+	unsupported := handler.OnAuthRequest(apf.AuthRequest{Username: "admin", Password: "s3cret", MethodName: "keyboard-interactive"})
+	assert.False(t, unsupported.Authenticated)
+}
+
+func TestAPFHandler_validateCredentials_FailurePaths(t *testing.T) {
+	t.Parallel()
+
+	t.Run("device id not set", func(t *testing.T) {
+		t.Parallel()
+
+		handler := NewAPFHandler(nil, logger.New("error"))
+
+		assert.False(t, handler.validateCredentials("admin", "s3cret"))
+	})
+
+	t.Run("lookup error", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+		mockDevices.EXPECT().GetByID(gomock.Any(), "dev-err", "", true).Return(nil, errors.New("db error"))
+
+		handler := NewAPFHandler(mockDevices, logger.New("error"))
+		handler.deviceID = "dev-err"
+
+		assert.False(t, handler.validateCredentials("admin", "s3cret"))
+	})
+
+	t.Run("device not found", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+		mockDevices.EXPECT().GetByID(gomock.Any(), "dev-missing", "", true).Return(nil, nil)
+
+		handler := NewAPFHandler(mockDevices, logger.New("error"))
+		handler.deviceID = "dev-missing"
+
+		assert.False(t, handler.validateCredentials("admin", "s3cret"))
+	})
+}
+
+func TestAPFHandler_TracksKeepAliveThreshold(t *testing.T) {
+	t.Parallel()
+
+	handler := NewAPFHandler(nil, logger.New("debug"))
+	assert.False(t, handler.ShouldSendKeepAlive())
+
+	for i := 0; i < globalRequestThreshold-1; i++ {
+		assert.False(t, handler.OnGlobalRequest(apf.GlobalRequest{}))
+		assert.False(t, handler.ShouldSendKeepAlive())
+	}
+
+	assert.True(t, handler.OnGlobalRequest(apf.GlobalRequest{}))
+	assert.True(t, handler.ShouldSendKeepAlive())
 }
 
 // fakeConn is a minimal net.Conn implementation for tests.

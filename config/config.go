@@ -392,14 +392,19 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
 	fileCfg := defaultConfig()
-	if err := yaml.Unmarshal(data, fileCfg); err != nil {
-		return err
+
+	if _, statErr := os.Stat(configPath); statErr == nil {
+		data, readErr := os.ReadFile(configPath)
+		if readErr != nil {
+			return readErr
+		}
+
+		if unmarshalErr := yaml.Unmarshal(data, fileCfg); unmarshalErr != nil {
+			return unmarshalErr
+		}
+	} else if !errors.Is(statErr, os.ErrNotExist) {
+		return statErr
 	}
 
 	fileCfg.AdminPassword = adminPassword

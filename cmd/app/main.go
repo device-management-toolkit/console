@@ -11,6 +11,8 @@ import (
 	"strings"
 	"unicode/utf8"
 
+	"golang.org/x/crypto/bcrypt"
+
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
@@ -414,33 +416,103 @@ func shufflePassword(password []byte) error {
 }
 
 // handleAdminPassword ensures cfg.AdminPassword is set, generating one and
-// persisting it to config.yml on first run if nothing was provided via config
-// or environment.
+// persisting it as a bcrypt hash to config.yml on first run if nothing was
+// provided via config or environment.
 func handleAdminPassword(cfg *config.Config) {
-	if cfg.AdminPassword != "" {
-		warnOnWeakAdminPassword(cfg.AdminPassword)
+	if cfg.AdminPassword == "" {
+		password, err := generateRandomPassword(adminPasswordLength)
+		if err != nil {
+			log.Fatalf("Failed to generate admin password: %v", err)
+		}
+
+		hashedPassword, err := hashAdminPassword(password)
+		if err != nil {
+			log.Fatalf("Failed to hash generated admin password: %v", err)
+		}
+
+		cfg.AdminPassword = hashedPassword
+
+		if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
+			log.Fatalf(
+				"Generated admin password but failed to persist it to config (%v).\n"+
+					"Refusing to start with an unsaved credential that would vanish on restart.\n"+
+					"Set AUTH_ADMIN_PASSWORD in the environment (or auth.adminPassword in config) "+
+					"to provide the admin password directly.",
+				err,
+			)
+		}
+
+		log.Printf(
+			"Generated a new admin password. It is shown here once and cannot be "+
+				"recovered later, because only its bcrypt hash is written to "+
+				"auth.adminPassword in config.yml:\n\n    %s\n\n"+
+				"Store it now, or set AUTH_ADMIN_PASSWORD to supply your own.",
+			password,
+		)
 
 		return
 	}
 
-	password, err := generateRandomPassword(adminPasswordLength)
+	originalPassword := cfg.AdminPassword
+
+	hashedPassword, converted, err := normalizeAdminPasswordHash(cfg.AdminPassword)
 	if err != nil {
-		log.Fatalf("Failed to generate admin password: %v", err)
+		log.Fatalf("Failed to normalize admin password: %v", err)
 	}
 
-	cfg.AdminPassword = password
+	cfg.AdminPassword = hashedPassword
 
-	if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
-		log.Fatalf(
-			"Generated admin password but failed to persist it to config (%v).\n"+
-				"Refusing to start with an unsaved credential that would vanish on restart.\n"+
-				"Set AUTH_ADMIN_PASSWORD in the environment (or auth.adminPassword in config) "+
-				"to provide the admin password directly.",
-			err,
-		)
+	if converted {
+		// The config file may be read-only (password supplied via env or a mounted
+		// secret); the in-memory hash still authenticates this run.
+		if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
+			log.Printf(
+				"WARNING: could not persist the hashed admin password to config (%v). "+
+					"Console is starting with the in-memory hash; the plaintext password "+
+					"will be re-hashed on every restart.",
+				err,
+			)
+		}
 	}
 
-	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
+	if !isBcryptHash(originalPassword) {
+		warnOnWeakAdminPassword(originalPassword)
+	}
+}
+
+func hashAdminPassword(password string) (string, error) {
+	hash, err := bcrypt.GenerateFromPassword([]byte(password), bcrypt.DefaultCost)
+	if err != nil {
+		return "", err
+	}
+
+	return string(hash), nil
+}
+
+func normalizeAdminPasswordHash(password string) (normalized string, converted bool, err error) {
+	if password == "" {
+		return "", false, nil
+	}
+
+	if isBcryptHash(password) {
+		return password, false, nil
+	}
+
+	normalized, err = hashAdminPassword(password)
+	if err != nil {
+		return "", false, err
+	}
+
+	return normalized, true, nil
+}
+
+// isBcryptHash reports whether s is already a bcrypt hash. Parsing the cost is
+// stricter than a prefix check, so a plaintext password that happens to start
+// with "$2a$" is not mistaken for a hash and left unhashed.
+func isBcryptHash(s string) bool {
+	_, err := bcrypt.Cost([]byte(s))
+
+	return err == nil
 }
 
 // warnOnWeakAdminPassword warns but does not stop startup: migrated MPS/RPS

@@ -4,13 +4,17 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"flag"
 	"log"
 	"os"
+	"path/filepath"
+	"regexp"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -171,7 +175,8 @@ func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
 
 	handleAdminPassword(cfg)
 
-	assert.Equal(t, "already-set", cfg.AdminPassword)
+	assert.True(t, isBcryptHash(cfg.AdminPassword))
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(cfg.AdminPassword), []byte("already-set")))
 }
 
 func TestIsStrongAdminPassword(t *testing.T) {
@@ -270,6 +275,137 @@ func TestHandleAdminPassword_WeakConfiguredPasswordStillStarts(t *testing.T) { /
 
 	handleAdminPassword(cfg)
 
-	assert.Equal(t, "weak", cfg.AdminPassword)
+	assert.True(t, isBcryptHash(cfg.AdminPassword))
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(cfg.AdminPassword), []byte("weak")))
 	assert.Contains(t, buf.String(), "Console is starting anyway")
+}
+
+func TestHandleAdminPassword_GeneratesAndPersistsWhenUnset(t *testing.T) { //nolint:paralleltest // rebinds the global log output and config flag
+	var buf bytes.Buffer
+
+	orig := log.Writer()
+
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(orig) })
+
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+
+	if flag.Lookup("config") == nil {
+		flag.String("config", "", "path to config file")
+	}
+
+	prev := flag.Lookup("config").Value.String()
+
+	require.NoError(t, flag.Set("config", configPath))
+	t.Cleanup(func() { _ = flag.Set("config", prev) })
+
+	cfg := &config.Config{}
+
+	handleAdminPassword(cfg)
+
+	assert.True(t, isBcryptHash(cfg.AdminPassword), "generated password must be stored as a hash")
+
+	// The operator can only ever learn the generated password from this output,
+	// so it must be printed and must match the stored hash.
+	shown := regexp.MustCompile(`\n\n {4}(\S+)\n\n`).FindStringSubmatch(buf.String())
+	require.Len(t, shown, 2, "generated password must be shown once: %s", buf.String())
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(cfg.AdminPassword), []byte(shown[1])))
+
+	saved, err := os.ReadFile(configPath)
+	require.NoError(t, err)
+	assert.Contains(t, string(saved), cfg.AdminPassword, "hash must be persisted so it survives restart")
+	assert.NotContains(t, string(saved), shown[1], "plaintext must never be written to config")
+}
+
+func TestHandleAdminPassword_KeepsExistingHashUnchanged(t *testing.T) {
+	t.Parallel()
+
+	hash, err := bcrypt.GenerateFromPassword([]byte("P@ssw0rdd"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	cfg := &config.Config{Auth: config.Auth{AdminPassword: string(hash)}}
+
+	handleAdminPassword(cfg)
+
+	assert.Equal(t, string(hash), cfg.AdminPassword, "an already-hashed password must not be re-hashed")
+}
+
+func TestHandleAdminPassword_StartsWhenConfigIsNotWritable(t *testing.T) { //nolint:paralleltest // rebinds the global log output and config flag
+	var buf bytes.Buffer
+
+	orig := log.Writer()
+
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(orig) })
+
+	// A path under a regular file cannot be written, standing in for a read-only
+	// config or a password supplied entirely via the environment.
+	blocker := filepath.Join(t.TempDir(), "not-a-dir")
+	require.NoError(t, os.WriteFile(blocker, []byte("x"), 0o600))
+
+	if flag.Lookup("config") == nil {
+		flag.String("config", "", "path to config file")
+	}
+
+	prev := flag.Lookup("config").Value.String()
+
+	require.NoError(t, flag.Set("config", filepath.Join(blocker, "config.yml")))
+	t.Cleanup(func() { _ = flag.Set("config", prev) })
+
+	cfg := &config.Config{Auth: config.Auth{AdminPassword: "P@ssw0rdd"}}
+
+	handleAdminPassword(cfg)
+
+	assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(cfg.AdminPassword), []byte("P@ssw0rdd")),
+		"startup must continue with the in-memory hash")
+	assert.Contains(t, buf.String(), "could not persist the hashed admin password")
+}
+
+func TestNormalizeAdminPasswordHash(t *testing.T) {
+	t.Parallel()
+
+	t.Run("empty stays empty", func(t *testing.T) {
+		t.Parallel()
+
+		got, converted, err := normalizeAdminPasswordHash("")
+
+		require.NoError(t, err)
+		assert.False(t, converted)
+		assert.Empty(t, got)
+	})
+
+	t.Run("plaintext beginning with a bcrypt prefix is still hashed", func(t *testing.T) {
+		t.Parallel()
+
+		plaintext := "$2a$notarealhash"
+
+		got, converted, err := normalizeAdminPasswordHash(plaintext)
+
+		require.NoError(t, err)
+		assert.True(t, converted, "a prefix alone must not be treated as a hash")
+		assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(got), []byte(plaintext)))
+	})
+
+	t.Run("plaintext is hashed", func(t *testing.T) {
+		t.Parallel()
+
+		got, converted, err := normalizeAdminPasswordHash("P@ssw0rdd")
+
+		require.NoError(t, err)
+		assert.True(t, converted)
+		assert.NoError(t, bcrypt.CompareHashAndPassword([]byte(got), []byte("P@ssw0rdd")))
+	})
+
+	t.Run("existing hash is returned as is", func(t *testing.T) {
+		t.Parallel()
+
+		hash, err := bcrypt.GenerateFromPassword([]byte("P@ssw0rdd"), bcrypt.DefaultCost)
+		require.NoError(t, err)
+
+		got, converted, err := normalizeAdminPasswordHash(string(hash))
+
+		require.NoError(t, err)
+		assert.False(t, converted)
+		assert.Equal(t, string(hash), got)
+	})
 }
