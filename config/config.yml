@@ -39,7 +39,6 @@ auth:
   disabled: false
   adminUsername: standalone
   adminPassword: 
-  # Required when auth is enabled. Set a strong, unique signing secret.
   jwtKey: ""
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
