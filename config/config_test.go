@@ -1,14 +1,18 @@
 package config
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func clearEnv() {
@@ -521,4 +525,87 @@ func TestValidate_ValidDefaults(t *testing.T) {
 
 	err := cfg.validate()
 	require.NoError(t, err)
+}
+
+// readConfigFile parses what is on disk, bypassing the env overlay.
+func readConfigFile(t *testing.T, path string) *Config {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	fileCfg := defaultConfig()
+	require.NoError(t, yaml.Unmarshal(data, fileCfg))
+
+	return fileCfg
+}
+
+func TestEnsureJWTKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		disabled      bool
+		key           string
+		wantGenerated bool
+	}{
+		{"generates and persists when auth is enabled and no key is set", false, "", true},
+		{"keeps a configured key and never writes it to disk", false, "from-env", false},
+		{"skips generation when auth is disabled", true, "", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "config.yml")
+			require.NoError(t, writeConfig(path, defaultConfig()))
+
+			cfg := defaultConfig()
+			cfg.Disabled = tc.disabled
+			cfg.JWTKey = tc.key
+
+			require.NoError(t, ensureJWTKey(path, cfg))
+
+			if !tc.wantGenerated {
+				assert.Equal(t, tc.key, cfg.JWTKey)
+				assert.Empty(t, readConfigFile(t, path).JWTKey)
+
+				return
+			}
+
+			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
+			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
+
+			// A restart must reuse the persisted key rather than rotate it.
+			again := readConfigFile(t, path)
+			require.NoError(t, ensureJWTKey(path, again))
+			assert.Equal(t, cfg.JWTKey, again.JWTKey)
+		})
+	}
+}
+
+func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:paralleltest // rebinds the global log output
+	var buf bytes.Buffer
+
+	orig := log.Writer()
+
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(orig) })
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, writeConfig(path, defaultConfig()))
+
+	require.NoError(t, ensureJWTKey(path, defaultConfig()))
+	assert.Contains(t, buf.String(), "OAuth2")
+}
+
+// TestReadEnv_EmptyJWTKeyIsNotRejected guards against re-adding env-required to
+// JWTKey: that check runs before ensureJWTKey and ignores auth.disabled.
+func TestReadEnv_EmptyJWTKeyIsNotRejected(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, cleanenv.ReadEnv(defaultConfig()))
 }
