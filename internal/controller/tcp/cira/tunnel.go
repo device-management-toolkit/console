@@ -22,37 +22,47 @@ import (
 )
 
 const (
-	maxIdleTime          = 300 * time.Second
-	port                 = "4433"
-	readBufferSize       = 4096
-	weakCipherSuiteCount = 3
-	keepAliveInterval    = 30
-	keepAliveTimeout     = 90
-	apfSessionTimeout    = 3 * time.Second
+	maxIdleTime       = 300 * time.Second
+	port              = "4433"
+	readBufferSize    = 4096
+	keepAliveInterval = 30
+	keepAliveTimeout  = 90
+	apfSessionTimeout = 3 * time.Second
 )
 
 // ErrChannelOpenFailed is returned when an APF channel open request fails.
 var ErrChannelOpenFailed = errors.New("channel open failed")
 
-type Server struct {
-	certificates tls.Certificate
-	notify       chan error
-	listener     net.Listener
-	devices      devices.Feature
-	log          logger.Interface
+// insecureCipherSuites are RSA key-exchange suites that some older AMT
+// generations require. They lack perfect forward secrecy, so they are only
+// offered when the operator opts in via APP_ALLOW_INSECURE_CIPHERS.
+var insecureCipherSuites = []uint16{
+	tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
+	tls.TLS_RSA_WITH_AES_128_CBC_SHA,
+	tls.TLS_RSA_WITH_AES_256_CBC_SHA,
 }
 
-func NewServer(certFile, keyFile string, d devices.Feature, l logger.Interface) (*Server, error) {
+type Server struct {
+	certificates         tls.Certificate
+	notify               chan error
+	listener             net.Listener
+	devices              devices.Feature
+	log                  logger.Interface
+	allowInsecureCiphers bool
+}
+
+func NewServer(certFile, keyFile string, allowInsecureCiphers bool, d devices.Feature, l logger.Interface) (*Server, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
 	}
 
 	s := &Server{
-		certificates: cert,
-		notify:       make(chan error, 1),
-		devices:      d,
-		log:          l,
+		certificates:         cert,
+		notify:               make(chan error, 1),
+		devices:              d,
+		log:                  l,
+		allowInsecureCiphers: allowInsecureCiphers,
 	}
 
 	s.start()
@@ -73,6 +83,28 @@ func (s *Server) Notify() <-chan error {
 	return s.notify
 }
 
+// cipherSuites returns the TLS 1.2 cipher suites the listener offers to AMT
+// devices. Only Go's secure defaults are advertised unless the operator has
+// explicitly enabled the non-forward-secret RSA suites needed by older AMT
+// firmware. TLS 1.3 suites are not configurable and are always negotiated.
+func (s *Server) cipherSuites() []uint16 {
+	defaultCipherSuites := tls.CipherSuites()
+	suites := make([]uint16, 0, len(defaultCipherSuites)+len(insecureCipherSuites))
+
+	for _, suite := range defaultCipherSuites {
+		suites = append(suites, suite.ID)
+	}
+
+	if !s.allowInsecureCiphers {
+		return suites
+	}
+
+	s.log.Warn("CIRA server - insecure cipher suites enabled for AMT compatibility; " +
+		"these lack perfect forward secrecy. Disable APP_ALLOW_INSECURE_CIPHERS unless required.")
+
+	return append(suites, insecureCipherSuites...)
+}
+
 func (s *Server) ListenAndServe() error {
 	config := &tls.Config{
 		Certificates: []tls.Certificate{s.certificates},
@@ -81,18 +113,7 @@ func (s *Server) ListenAndServe() error {
 		MinVersion: tls.VersionTLS12,
 	}
 
-	defaultCipherSuites := tls.CipherSuites()
-	config.CipherSuites = make([]uint16, 0, len(defaultCipherSuites)+weakCipherSuiteCount)
-
-	for _, suite := range defaultCipherSuites {
-		config.CipherSuites = append(config.CipherSuites, suite.ID)
-	}
-	// add the weak cipher suites for AMT device compatibility
-	config.CipherSuites = append(config.CipherSuites,
-		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
-		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
-		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
-	)
+	config.CipherSuites = s.cipherSuites()
 
 	listener, err := tls.Listen("tcp", ":"+port, config)
 	if err != nil {
