@@ -551,6 +551,7 @@ func TestValidate_EmptyAllowedOrigins(t *testing.T) {
 
 	for _, origins := range [][]string{nil, {}} {
 		cfg := defaultConfig()
+		cfg.JWTKey = "test-jwt-key"
 		cfg.AllowedOrigins = origins
 
 		err := cfg.validate()
@@ -573,6 +574,8 @@ func TestDefaultConfig_NoWildcardCORS(t *testing.T) {
 	// Safe only because the origins above are explicit; setupHTTPHandler drops
 	// it if an admin reintroduces "*".
 	require.True(t, cfg.AllowCredentials)
+}
+
 // readConfigFile parses what is on disk, bypassing the env overlay.
 func readConfigFile(t *testing.T, path string) *Config {
 	t.Helper()

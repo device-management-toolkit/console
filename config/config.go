@@ -494,12 +494,14 @@ func (c *Config) validate() error {
 		return ErrRedirectionJWTExpirationInvalid
 	}
 
+	if !c.Disabled && c.JWTKey == "" {
+		return ErrJWTKeyMissing
+	}
+
 	// Caught here rather than left to gin-contrib/cors, which panics with an
 	// opaque "conflict settings: all origins disabled" on an empty list.
 	if len(c.AllowedOrigins) == 0 {
 		return ErrAllowedOriginsEmpty
-	if !c.Disabled && c.JWTKey == "" {
-		return ErrJWTKeyMissing
 	}
 
 	return nil
