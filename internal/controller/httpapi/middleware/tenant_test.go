@@ -16,7 +16,7 @@ func serve(t *testing.T, headerValue string) (recorder *httptest.ResponseRecorde
 	t.Helper()
 
 	engine := gin.New()
-	engine.Use(middleware.Tenant(logger.New("error")))
+	engine.Use(middleware.ResolveTenant(logger.New("error")))
 	engine.GET("/", func(c *gin.Context) {
 		seen = middleware.TenantID(c)
 		c.Status(http.StatusOK)

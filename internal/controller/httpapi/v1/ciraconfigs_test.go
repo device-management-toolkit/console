@@ -13,6 +13,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
@@ -29,6 +30,7 @@ func ciraconfigsTest(t *testing.T) (*mocks.MockCIRAConfigsFeature, *gin.Engine) 
 	ciraconfig := mocks.NewMockCIRAConfigsFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
 	NewCIRAConfigRoutes(handler, ciraconfig, log, &config.Config{})
@@ -43,6 +45,7 @@ type ciraconfigTest struct {
 	mock         func(repo *mocks.MockCIRAConfigsFeature)
 	response     interface{}
 	requestBody  dto.CIRAConfig
+	tenantID     string
 	expectedCode int
 }
 
@@ -136,6 +139,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     responseCIRAConfig,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -162,6 +166,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     ciraconfigs.ErrDatabase,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -183,6 +188,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     ciraconfigs.ErrDatabase,
 			requestBody:  dto.CIRAConfig{ConfigName: "ciraconfig", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", GenerateRandomPassword: true, Version: "1.0.0"},
+			tenantID:     "abc123",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -229,6 +235,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     responseCIRAConfig,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -255,6 +262,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     ciraconfigs.ErrDatabase,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusBadRequest,
 		},
 	}
@@ -282,6 +290,9 @@ func TestCIRAConfigRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()

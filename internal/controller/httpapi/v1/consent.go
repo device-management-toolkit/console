@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (r *deviceManagementRoutes) cancelUserConsentCode(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	result, err := r.d.CancelUserConsent(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -25,7 +26,7 @@ func (r *deviceManagementRoutes) cancelUserConsentCode(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getUserConsentCode(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	response, err := r.d.GetUserConsentCode(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -48,7 +49,7 @@ func (r *deviceManagementRoutes) sendConsentCode(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	response, err := r.d.SendConsentCode(c.Request.Context(), userConsent, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - sendConsentCode")

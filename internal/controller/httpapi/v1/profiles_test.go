@@ -29,7 +29,7 @@ func profilesTest(t *testing.T) (*mocks.MockProfilesFeature, *gin.Engine) {
 	mockProfiles := mocks.NewMockProfilesFeature(mockCtl)
 
 	engine := gin.New()
-	engine.Use(middleware.Tenant(log))
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
 	NewProfileRoutes(handler, mockProfiles, log)

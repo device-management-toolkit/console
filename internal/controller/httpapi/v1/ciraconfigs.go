@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -39,7 +40,8 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
+
 	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - get")
@@ -70,7 +72,7 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 
 func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, tenantID)
 	if err != nil {
@@ -92,11 +94,7 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &ciraConfig.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	ciraConfig.TenantID = middleware.TenantID(c)
 
 	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &ciraConfig)
 	if err != nil {
@@ -118,11 +116,7 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &ciraConfig.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	ciraConfig.TenantID = middleware.TenantID(c)
 
 	updatedConfig, err := r.cira.Update(c.Request.Context(), &ciraConfig)
 	if err != nil {
@@ -137,7 +131,7 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 
 func (r *ciraConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	err := r.cira.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {

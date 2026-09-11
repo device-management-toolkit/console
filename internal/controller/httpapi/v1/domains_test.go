@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
@@ -34,6 +35,7 @@ func domainsTest(t *testing.T) (*mocks.MockDomainsFeature, *gin.Engine) {
 	domain := mocks.NewMockDomainsFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
 	NewDomainRoutes(handler, domain, log)
@@ -48,6 +50,7 @@ type test struct {
 	mock         func(repo *mocks.MockDomainsFeature)
 	response     interface{}
 	requestBody  dto.Domain
+	tenantID     string
 	expectedCode int
 }
 
@@ -127,6 +130,7 @@ func TestDomainRoutes(t *testing.T) {
 			},
 			response:     responseDomain,
 			requestBody:  requestDomain,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -139,6 +143,7 @@ func TestDomainRoutes(t *testing.T) {
 			},
 			response:     domains.ErrDatabase,
 			requestBody:  requestDomain,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -151,6 +156,7 @@ func TestDomainRoutes(t *testing.T) {
 			},
 			response:     domains.ErrDatabase,
 			requestBody:  dto.Domain{ProfileName: "p1", TenantID: "t1", DomainSuffix: "domain1.com", ProvisioningCert: "cert1", ProvisioningCertStorageFormat: "string1"},
+			tenantID:     "t1",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -183,6 +189,7 @@ func TestDomainRoutes(t *testing.T) {
 			},
 			response:     responseDomain,
 			requestBody:  requestDomain,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -195,6 +202,7 @@ func TestDomainRoutes(t *testing.T) {
 			},
 			response:     domains.ErrDatabase,
 			requestBody:  requestDomain,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 	}
@@ -222,6 +230,9 @@ func TestDomainRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()

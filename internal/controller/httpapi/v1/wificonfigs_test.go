@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/wificonfigs"
@@ -28,6 +29,7 @@ func wifiTest(t *testing.T) (*mocks.MockWiFiConfigsFeature, *gin.Engine) {
 	wificonfig := mocks.NewMockWiFiConfigsFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
 	NewWirelessConfigRoutes(handler, wificonfig, log)
@@ -42,6 +44,7 @@ type wifiConfigTest struct {
 	mock         func(repo *mocks.MockWiFiConfigsFeature)
 	response     interface{}
 	requestBody  dto.WirelessConfig
+	tenantID     string
 	expectedCode int
 }
 
@@ -131,6 +134,7 @@ func TestWiFiConfigRoutes(t *testing.T) {
 			},
 			response:     responseWiFiConfig,
 			requestBody:  requestWiFiConfig,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -153,6 +157,7 @@ func TestWiFiConfigRoutes(t *testing.T) {
 			},
 			response:     wificonfigs.ErrDatabase,
 			requestBody:  requestWiFiConfig,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -175,6 +180,7 @@ func TestWiFiConfigRoutes(t *testing.T) {
 			},
 			response:     wificonfigs.ErrDatabase,
 			requestBody:  dto.WirelessConfig{AuthenticationMethod: 4, EncryptionMethod: 3, SSID: "exampleSSID", PSKValue: 12345, PSKPassphrase: "examplepassphrase", ProfileName: "newprofile", LinkPolicy: []int{1, 2, 3}, TenantID: "tenant1", Version: "1.0"},
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -217,6 +223,7 @@ func TestWiFiConfigRoutes(t *testing.T) {
 			},
 			response:     responseWiFiConfig,
 			requestBody:  requestWiFiConfig,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -239,6 +246,7 @@ func TestWiFiConfigRoutes(t *testing.T) {
 			},
 			response:     wificonfigs.ErrDatabase,
 			requestBody:  requestWiFiConfig,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 	}
@@ -266,6 +274,9 @@ func TestWiFiConfigRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()

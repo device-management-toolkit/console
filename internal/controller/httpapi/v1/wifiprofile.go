@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -15,7 +16,7 @@ var errValidationWirelessProfile = dto.NotValidError{Console: consoleerrors.Crea
 
 func (r *deviceManagementRoutes) getWirelessProfiles(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	response, err := r.d.GetWirelessProfiles(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -39,7 +40,7 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	err := r.d.AddWirelessProfile(c.Request.Context(), guid, tenantID, req.ToWirelessProfile())
 	if err != nil {
 		r.l.Error(err, "http - v1 - addWirelessProfile")
@@ -63,7 +64,7 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 func (r *deviceManagementRoutes) deleteWirelessProfile(c *gin.Context) {
 	guid := c.Param("guid")
 	profileName := c.Param("profileName")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	err := r.d.DeleteWirelessProfile(c.Request.Context(), guid, profileName, tenantID)
 	if err != nil {
@@ -87,7 +88,7 @@ func (r *deviceManagementRoutes) updateWirelessProfile(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	err := r.d.UpdateWirelessProfile(c.Request.Context(), guid, tenantID, req.ToWirelessProfile())
 	if err != nil {
 		r.l.Error(err, "http - v1 - updateWirelessProfile")

@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (r *deviceManagementRoutes) getRemoteEraseCapabilities(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	capabilities, err := r.d.GetRemoteEraseCapabilities(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -33,7 +34,7 @@ func (r *deviceManagementRoutes) setRemoteEraseOptions(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	if err := r.d.SetRemoteEraseOptions(c.Request.Context(), guid, tenantID, req); err != nil {
 		r.l.Error(err, "http - v1 - setRemoteEraseOptions")
 		ErrorResponse(c, err)

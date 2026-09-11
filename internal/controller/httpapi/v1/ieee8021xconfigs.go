@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -51,7 +52,7 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - getCount")
@@ -80,7 +81,7 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 
 func (r *ieee8021xConfigRoutes) getByName(c *gin.Context) {
 	configName := c.Param("profileName")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	config, err := r.t.GetByName(c.Request.Context(), configName, tenantID)
 	if err != nil {
@@ -102,11 +103,7 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &config.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	config.TenantID = middleware.TenantID(c)
 
 	newConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
@@ -128,11 +125,7 @@ func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &config.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	config.TenantID = middleware.TenantID(c)
 
 	updatedConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
@@ -147,7 +140,7 @@ func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 
 func (r *ieee8021xConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	err := r.t.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {

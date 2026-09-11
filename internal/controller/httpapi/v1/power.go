@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (r *deviceManagementRoutes) getPowerState(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	state, err := r.d.GetPowerState(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -25,7 +26,7 @@ func (r *deviceManagementRoutes) getPowerState(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getPowerCapabilities(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	power, err := r.d.GetPowerCapabilities(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -48,7 +49,7 @@ func (r *deviceManagementRoutes) powerAction(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	response, err := r.d.SendPowerAction(c.Request.Context(), guid, tenantID, powerAction.Action)
 	if err != nil {
 		r.l.Error(err, "http - v1 - powerAction")
@@ -70,7 +71,7 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	features, err := r.d.SetBootOptions(c.Request.Context(), guid, tenantID, bootSetting)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setBootOptions")
@@ -84,7 +85,7 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getBootSources(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	sources, err := r.d.GetBootSourceSetting(c.Request.Context(), guid, tenantID)
 	if err != nil {

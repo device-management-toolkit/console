@@ -4,11 +4,13 @@ import (
 	"net/http"
 
 	"github.com/gin-gonic/gin"
+
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 )
 
 func (r *deviceManagementRoutes) getHardwareInfo(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	hwInfo, err := r.d.GetHardwareInfo(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -23,7 +25,7 @@ func (r *deviceManagementRoutes) getHardwareInfo(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getDiskInfo(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	diskInfo, err := r.d.GetDiskInfo(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -38,7 +40,7 @@ func (r *deviceManagementRoutes) getDiskInfo(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getGeneralSettings(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	generalSettings, err := r.d.GetGeneralSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {

@@ -16,6 +16,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -49,6 +50,7 @@ func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine)
 	device := mocks.NewMockDeviceManagementFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1")
 
 	NewDeviceRoutes(handler, device, log)
@@ -63,6 +65,7 @@ type deviceTest struct {
 	mock         func(repo *mocks.MockDeviceManagementFeature)
 	response     interface{}
 	requestBody  dto.Device
+	tenantID     string
 	expectedCode int
 }
 
@@ -182,6 +185,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -211,6 +215,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -260,6 +265,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -289,6 +295,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -346,6 +353,9 @@ func TestDevicesRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()

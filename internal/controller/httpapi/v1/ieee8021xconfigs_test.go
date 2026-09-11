@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/ieee8021xconfigs"
@@ -28,6 +29,7 @@ func ieee8021xconfigsTest(t *testing.T) (*mocks.MockIEEE8021xConfigsFeature, *gi
 	mockIEEE8021xConfigs := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
 	NewIEEE8021xConfigRoutes(handler, mockIEEE8021xConfigs, log)
@@ -42,6 +44,7 @@ type testIEEE8021xConfigs struct {
 	mock         func(repo *mocks.MockIEEE8021xConfigsFeature)
 	response     interface{}
 	requestBody  dto.IEEE8021xConfig
+	tenantID     string
 	expectedCode int
 }
 
@@ -126,6 +129,7 @@ func TestIEEE8021xConfigsRoutes(t *testing.T) {
 			},
 			response:     ieee8021xconfigTest,
 			requestBody:  ieee8021xconfigTest,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -137,6 +141,7 @@ func TestIEEE8021xConfigsRoutes(t *testing.T) {
 			},
 			response:     ieee8021xconfigs.ErrDatabase,
 			requestBody:  ieee8021xconfigTest,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -168,6 +173,7 @@ func TestIEEE8021xConfigsRoutes(t *testing.T) {
 			},
 			response:     ieee8021xconfigTest,
 			requestBody:  ieee8021xconfigTest,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -179,6 +185,7 @@ func TestIEEE8021xConfigsRoutes(t *testing.T) {
 			},
 			response:     ieee8021xconfigs.ErrDatabase,
 			requestBody:  ieee8021xconfigTest,
+			tenantID:     "tenant1",
 			expectedCode: http.StatusBadRequest,
 		},
 	}
@@ -206,6 +213,9 @@ func TestIEEE8021xConfigsRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()

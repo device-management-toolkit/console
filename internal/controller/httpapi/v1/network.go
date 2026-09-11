@@ -5,12 +5,13 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (r *deviceManagementRoutes) getNetworkSettings(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	network, err := r.d.GetNetworkSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -26,7 +27,7 @@ func (r *deviceManagementRoutes) getNetworkSettings(c *gin.Context) {
 // getWiredNetworkSettings returns the wired network settings for a device.
 func (r *deviceManagementRoutes) getWiredNetworkSettings(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 
 	wired, err := r.d.GetWiredNetworkSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -50,7 +51,7 @@ func (r *deviceManagementRoutes) patchWiredNetworkSettings(c *gin.Context) {
 		return
 	}
 
-	tenantID := tenantIDFromRequest(c)
+	tenantID := middleware.TenantID(c)
 	if err := r.d.PatchWiredNetworkSettings(c.Request.Context(), guid, tenantID, req); err != nil {
 		r.l.Error(err, "http - v1 - patchWiredNetworkSettings")
 		ErrorResponse(c, err)

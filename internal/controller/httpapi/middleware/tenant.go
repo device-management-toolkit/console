@@ -33,11 +33,11 @@ func TenantID(c *gin.Context) string {
 	return value
 }
 
-// Tenant resolves, validates, and logs the request tenant. An absent header
+// ResolveTenant resolves, validates, and logs the request tenant. An absent header
 // yields the empty tenant, which is what existing single-tenant rows are stored
 // under. JWT claim resolution can replace the header lookup here without
 // changing handler or use-case interfaces.
-func Tenant(l logger.Interface) gin.HandlerFunc {
+func ResolveTenant(l logger.Interface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.GetHeader(TenantHeaderName)
 
