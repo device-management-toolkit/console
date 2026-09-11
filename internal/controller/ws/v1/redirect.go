@@ -42,16 +42,25 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 		return
 	}
 
-	upgrader, ok := r.u.(*websocket.Upgrader)
-	if !ok {
-		r.l.Debug("failed to cast Upgrader to *websocket.Upgrader")
+	// Negotiate the caller's token as the subprotocol. A single upgrader is
+	// shared by every relay handshake, so copy it per request instead of
+	// mutating it in place: an in-place write races concurrent handshakes and
+	// makes them negotiate no subprotocol at all, which browsers reject.
+	// websocket.Upgrader is pure configuration, so copying by value is safe and
+	// keeps WriteBufferPool shared.
+	upgrader := r.u
+
+	if shared, ok := r.u.(*websocket.Upgrader); ok {
+		perRequest := *shared
+		perRequest.Subprotocols = []string{tokenString}
+		upgrader = &perRequest
 	} else {
-		upgrader.Subprotocols = []string{tokenString}
+		r.l.Debug("failed to cast Upgrader to *websocket.Upgrader")
 	}
 
 	// KVM_TIMING: Measure WebSocket upgrade duration
 	upgradeStart := time.Now()
-	conn, err := r.u.Upgrade(c.Writer, c.Request, nil)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	upgradeDuration := time.Since(upgradeStart)
 	devices.RecordWebsocketUpgrade(upgradeDuration)
 	r.l.Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", upgradeDuration.Milliseconds())

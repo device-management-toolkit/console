@@ -19,8 +19,10 @@ import (
 const detachedProcess = 0x00000008
 
 // CreateMutexW returns ERROR_ALREADY_EXISTS when another instance holds the named mutex.
-const mutexName = "Local\\DMTConsoleTray"
-const errorAlreadyExists uint32 = 183
+const (
+	mutexName                 = "Local\\DMTConsoleTray"
+	errorAlreadyExists uint32 = 183
+)
 
 // ensureSingleInstance prevents concurrent tray processes via a named mutex.
 //
