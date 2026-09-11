@@ -84,3 +84,27 @@ func TestDeviceInfoJSONLegacyLastUpdatedMapsToLastSynced(t *testing.T) {
 	require.NotNil(t, decoded.LastSynced)
 	require.Equal(t, legacy, *decoded.LastSynced)
 }
+
+func TestDeviceInfoJSONLegacyPlatformAdapterNamesDecodeAsArrays(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{"platformAdapters":{"wired":"eth0","wireless":"wlan0"}}`)
+
+	var decoded DeviceInfo
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	require.NotNil(t, decoded.PlatformAdapters)
+	require.Equal(t, []string{"eth0"}, decoded.PlatformAdapters.Wired)
+	require.Equal(t, []string{"wlan0"}, decoded.PlatformAdapters.Wireless)
+}
+
+func TestDeviceInfoJSONPlatformAdapterNameArraysDecode(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{"platformAdapters":{"wired":["eth0","eth1"],"wireless":["wlan0","wlan1"]}}`)
+
+	var decoded DeviceInfo
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	require.NotNil(t, decoded.PlatformAdapters)
+	require.Equal(t, []string{"eth0", "eth1"}, decoded.PlatformAdapters.Wired)
+	require.Equal(t, []string{"wlan0", "wlan1"}, decoded.PlatformAdapters.Wireless)
+}
