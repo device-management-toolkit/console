@@ -17,8 +17,8 @@ const (
 	minutesPerHour = 60
 )
 
-func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid string) ([]dto.AlarmClockOccurrence, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid, tenantID string) ([]dto.AlarmClockOccurrence, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -52,8 +52,8 @@ func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid string) ([]dto.Al
 	return d1, nil
 }
 
-func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid, tenantID string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.AddAlarmOutput{}, err
 	}
@@ -79,8 +79,8 @@ func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid string, alarm 
 	return d1, nil
 }
 
-func (uc *UseCase) DeleteAlarmOccurrences(c context.Context, guid, instanceID string) error {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) DeleteAlarmOccurrences(c context.Context, guid, instanceID, tenantID string) error {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return err
 	}

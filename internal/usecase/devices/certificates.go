@@ -159,8 +159,8 @@ func processCertificates(contextItems []credential.CredentialContext, response w
 	}
 }
 
-func (uc *UseCase) GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetCertificates(c context.Context, guid, tenantID string) (dto.SecuritySettings, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.SecuritySettings{}, err
 	}
@@ -256,8 +256,8 @@ func KeysToDTO(r *publicprivate.RefinedPullResponse) dto.KeyPullResponse {
 	}
 }
 
-func (uc *UseCase) GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetDeviceCertificate(c context.Context, guid, tenantID string) (dto.Certificate, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.Certificate{}, err
 	}
@@ -327,10 +327,10 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 	}
 }
 
-func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (handle string, err error) {
+func (uc *UseCase) AddCertificate(c context.Context, guid, tenantID string, certInfo dto.CertInfo) (handle string, err error) {
 	var certData []byte
 
-	item, err := uc.deviceInTenant(c, guid)
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return "", err
 	}
@@ -396,8 +396,8 @@ func (uc *UseCase) AddCertificate(c context.Context, guid string, certInfo dto.C
 	return handle, nil
 }
 
-func (uc *UseCase) DeleteCertificate(c context.Context, guid, instanceID string) error {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) DeleteCertificate(c context.Context, guid, instanceID, tenantID string) error {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return err
 	}
@@ -407,7 +407,7 @@ func (uc *UseCase) DeleteCertificate(c context.Context, guid, instanceID string)
 	}
 
 	// First, get all certificates to check if the certificate to delete is associated with any profiles
-	securitySettings, err := uc.GetCertificates(c, guid)
+	securitySettings, err := uc.GetCertificates(c, guid, tenantID)
 	if err != nil {
 		return err
 	}

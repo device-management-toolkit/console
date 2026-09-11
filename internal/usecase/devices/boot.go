@@ -9,8 +9,8 @@ import (
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
-func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid string) (dto.BootCapabilities, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid, tenantID string) (dto.BootCapabilities, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.BootCapabilities{}, err
 	}
@@ -39,8 +39,8 @@ func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid string) (d
 	}, nil
 }
 
-func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid string, req dto.RemoteEraseRequest) error {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid, tenantID string, req dto.RemoteEraseRequest) error {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return err
 	}

@@ -94,7 +94,7 @@ func TestGetNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.NetworkSettings{
@@ -141,7 +141,7 @@ func TestGetNetworkSettings(t *testing.T) {
 			action: 0,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.NetworkSettings{},
@@ -160,7 +160,7 @@ func TestGetNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.NetworkSettings{},
@@ -181,7 +181,7 @@ func TestGetNetworkSettings(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetNetworkSettings(context.Background(), device.GUID)
+			res, err := useCase.GetNetworkSettings(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -237,7 +237,7 @@ func TestGetWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.WiredNetworkInfo{
@@ -265,7 +265,7 @@ func TestGetWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.WiredNetworkInfo{},
@@ -275,7 +275,7 @@ func TestGetWiredNetworkSettings(t *testing.T) {
 			name: "GetById fails",
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.WiredNetworkInfo{},
@@ -296,7 +296,7 @@ func TestGetWiredNetworkSettings(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetWiredNetworkSettings(context.Background(), device.GUID)
+			res, err := useCase.GetWiredNetworkSettings(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -362,7 +362,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -464,7 +464,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -476,7 +476,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			err: devices.ErrGeneral,
@@ -494,7 +494,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: devices.ErrNotFound,
@@ -506,7 +506,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, nil)
 			},
 			err: devices.ErrNotFound,
@@ -521,7 +521,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -539,7 +539,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -560,7 +560,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -599,7 +599,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -616,7 +616,7 @@ func TestPatchWiredNetworkSettings(t *testing.T) {
 			tc.manMock(t, wsmanMock, management)
 			tc.repoMock(repo)
 
-			err := useCase.PatchWiredNetworkSettings(context.Background(), device.GUID, tc.req)
+			err := useCase.PatchWiredNetworkSettings(context.Background(), device.GUID, device.TenantID, tc.req)
 
 			require.IsType(t, tc.err, err)
 		})

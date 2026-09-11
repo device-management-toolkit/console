@@ -6,12 +6,12 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 )
 
-func (uc *UseCase) RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error) {
+func (uc *UseCase) RequestWirelessStateChange(c context.Context, guid, tenantID string, requestedState wifi.RequestedState) (wifi.RequestedState, error) {
 	if !isWirelessRequestedStateSupported(requestedState) {
 		return 0, ErrValidationUseCase.Wrap("RequestWirelessStateChange", "validate requested state", "state must be one of 3, 32768, 32769")
 	}
 
-	item, err := uc.deviceInTenant(c, guid)
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return 0, err
 	}
@@ -50,8 +50,8 @@ func isWirelessRequestedStateSupported(requestedState wifi.RequestedState) bool 
 	}
 }
 
-func (uc *UseCase) GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetWirelessState(c context.Context, guid, tenantID string) (wifi.EnabledState, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return 0, err
 	}

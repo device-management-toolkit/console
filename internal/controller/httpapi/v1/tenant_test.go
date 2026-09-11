@@ -8,26 +8,27 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
-	"github.com/device-management-toolkit/console/internal/tenant"
 )
 
-// tenantContext returns a context scoped as the tenant middleware would leave it.
 func tenantContext(t *testing.T, tenantID string) *gin.Context {
 	t.Helper()
 
 	c, _ := gin.CreateTestContext(httptest.NewRecorder())
 	req := httptest.NewRequest(http.MethodGet, "/", http.NoBody)
-	c.Request = req.WithContext(tenant.WithContext(req.Context(), tenantID))
+	req.Header.Set(middleware.TenantHeaderName, tenantID)
+	c.Request = req
+	c.Set("tenant-id", tenantID)
 
 	return c
 }
 
-func TestTenantIDFromHeader(t *testing.T) {
+func TestTenantIDFromRequest(t *testing.T) {
 	t.Parallel()
 
-	require.Equal(t, "tenant-a", tenantIDFromHeader(tenantContext(t, "tenant-a")))
-	require.Empty(t, tenantIDFromHeader(tenantContext(t, "")))
+	require.Equal(t, "tenant-a", tenantIDFromRequest(tenantContext(t, "tenant-a")))
+	require.Empty(t, tenantIDFromRequest(tenantContext(t, "")))
 }
 
 func TestApplyTenantID(t *testing.T) {

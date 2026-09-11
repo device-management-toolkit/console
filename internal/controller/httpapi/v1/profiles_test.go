@@ -15,7 +15,6 @@ import (
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -423,7 +422,7 @@ func TestProfilesGetUsesTenantHeader(t *testing.T) {
 	profileFeature, engine := profilesTest(t)
 
 	profileFeature.EXPECT().
-		Get(tenant.WithContext(context.Background(), "tenant-a"), 25, 0, "tenant-a").
+		Get(context.Background(), 25, 0, "tenant-a").
 		Return([]dto.Profile{{ProfileName: "profile", TenantID: "tenant-a"}}, nil)
 
 	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/admin/profiles", http.NoBody)
@@ -446,7 +445,7 @@ func TestProfilesInsertUsesTenantHeader(t *testing.T) {
 	expected.TenantID = "tenant-a"
 
 	profileFeature.EXPECT().
-		Insert(tenant.WithContext(context.Background(), "tenant-a"), &expected).
+		Insert(context.Background(), &expected).
 		Return(&expected, nil)
 
 	body, err := json.Marshal(profileTest)

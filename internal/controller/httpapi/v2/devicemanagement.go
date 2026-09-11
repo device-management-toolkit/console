@@ -5,6 +5,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -29,8 +30,9 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, l logger.Interfac
 
 func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromHeader(c)
 
-	_, v2, err := r.d.GetVersion(c.Request.Context(), guid)
+	_, v2, err := r.d.GetVersion(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v2 - GetVersion")
 		v1.ErrorResponse(c, err)
@@ -43,8 +45,9 @@ func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromHeader(c)
 
-	_, v2, err := r.d.GetFeatures(c.Request.Context(), guid)
+	_, v2, err := r.d.GetFeatures(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v2 - getFeatures")
 		v1.ErrorResponse(c, err)
@@ -57,6 +60,7 @@ func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 
 func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromHeader(c)
 
 	var features dto.Features
 
@@ -67,7 +71,7 @@ func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 		return
 	}
 
-	_, v2, err := r.d.SetFeatures(c.Request.Context(), guid, features)
+	_, v2, err := r.d.SetFeatures(c.Request.Context(), guid, tenantID, features)
 	if err != nil {
 		r.l.Error(err, "http - v2 - setFeatures")
 		v1.ErrorResponse(c, err)
@@ -76,4 +80,8 @@ func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, v2)
+}
+
+func tenantIDFromHeader(c *gin.Context) string {
+	return c.GetHeader(middleware.TenantHeaderName)
 }

@@ -10,8 +10,9 @@ import (
 
 func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	versionv1, _, err := r.d.GetVersion(c.Request.Context(), guid)
+	versionv1, _, err := r.d.GetVersion(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - GetVersion")
 		ErrorResponse(c, err)
@@ -24,8 +25,9 @@ func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getFeatures(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	features, _, err := r.d.GetFeatures(c.Request.Context(), guid)
+	features, _, err := r.d.GetFeatures(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getFeatures")
 		ErrorResponse(c, err)
@@ -62,7 +64,8 @@ func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 		return
 	}
 
-	features, _, err := r.d.SetFeatures(c.Request.Context(), guid, features)
+	tenantID := tenantIDFromRequest(c)
+	features, _, err := r.d.SetFeatures(c.Request.Context(), guid, tenantID, features)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setFeatures")
 		ErrorResponse(c, err)

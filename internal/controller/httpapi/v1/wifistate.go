@@ -38,7 +38,8 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 		return
 	}
 
-	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, requestedState)
+	tenantID := tenantIDFromRequest(c)
+	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, tenantID, requestedState)
 	if err != nil {
 		r.l.Error(err, "http - v1 - requestWirelessStateChange")
 
@@ -68,8 +69,9 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getWirelessState(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	returnedEnabledState, err := r.d.GetWirelessState(c.Request.Context(), guid)
+	returnedEnabledState, err := r.d.GetWirelessState(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getWirelessState")
 

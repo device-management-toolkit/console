@@ -18,7 +18,6 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/mocks"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
@@ -123,7 +122,7 @@ func TestGetFeatures(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, nil)
 			},
 			res:   dto.Features{},
@@ -140,7 +139,7 @@ func TestGetFeatures(t *testing.T) {
 					TenantID: "tenant-id-456",
 				}
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(emptyDevice, nil)
 			},
 			res:   dto.Features{},
@@ -221,7 +220,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSet,
@@ -302,7 +301,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -405,7 +404,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSetNoOCR,
@@ -418,7 +417,7 @@ func TestGetFeatures(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res:   dto.Features{},
@@ -438,7 +437,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   dto.Features{},
@@ -468,7 +467,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -516,7 +515,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -586,7 +585,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSetNoOCR,
@@ -644,7 +643,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSetNoOCR,
@@ -707,7 +706,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -798,7 +797,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -893,7 +892,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -986,7 +985,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSetNoKVM,
@@ -1060,7 +1059,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -1162,7 +1161,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -1244,7 +1243,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSetNoOCR,
@@ -1304,7 +1303,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -1385,7 +1384,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -1480,7 +1479,7 @@ func TestGetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -1521,7 +1520,7 @@ func TestGetFeatures(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			v1, v2, err := useCase.GetFeatures(context.Background(), device.GUID)
+			v1, v2, err := useCase.GetFeatures(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, v1)
 
@@ -1626,7 +1625,7 @@ func TestSetFeatures(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, nil) // Returns nil device, no error
 			},
 			res:   dto.Features{},
@@ -1643,7 +1642,7 @@ func TestSetFeatures(t *testing.T) {
 					TenantID: "tenant-id-456",
 				}
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(emptyDevice, nil)
 			},
 			res:   dto.Features{},
@@ -1746,7 +1745,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -1861,7 +1860,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   featureSetDisabledOCRResult,
@@ -1874,7 +1873,7 @@ func TestSetFeatures(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res:   failGetByIDResult,
@@ -1894,7 +1893,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res:   failGetByIDResult,
@@ -1917,7 +1916,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -2018,7 +2017,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2066,7 +2065,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2124,7 +2123,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2203,7 +2202,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2297,7 +2296,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2391,7 +2390,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2444,7 +2443,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2515,7 +2514,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2591,7 +2590,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2671,7 +2670,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2774,7 +2773,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2877,7 +2876,7 @@ func TestSetFeatures(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.Features{
@@ -2934,7 +2933,7 @@ func TestSetFeatures(t *testing.T) {
 				inputFeatures = featureSet
 			}
 
-			v1, v2, err := useCase.SetFeatures(context.Background(), device.GUID, inputFeatures)
+			v1, v2, err := useCase.SetFeatures(context.Background(), device.GUID, device.TenantID, inputFeatures)
 
 			if tc.err == nil {
 				require.Equal(t, tc.res, v1)
@@ -2950,11 +2949,11 @@ func TestSetFeaturesRejectsDeviceOutsideRequestTenant(t *testing.T) {
 	t.Parallel()
 
 	useCase, _, _, repo := initInfoTest(t)
-	ctx := tenant.WithContext(context.Background(), "tenant-b")
+	ctx := context.Background()
 
 	repo.EXPECT().GetByID(ctx, "tenant-a-device", "tenant-b").Return(nil, nil)
 
-	_, _, err := useCase.SetFeatures(ctx, "tenant-a-device", dto.Features{})
+	_, _, err := useCase.SetFeatures(ctx, "tenant-a-device", "tenant-b", dto.Features{})
 	require.IsType(t, devices.ErrNotFound, err)
 }
 

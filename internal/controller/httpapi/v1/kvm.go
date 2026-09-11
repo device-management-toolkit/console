@@ -11,8 +11,9 @@ import (
 // getKVMDisplays returns current IPS_ScreenSettingData for the device
 func (r *deviceManagementRoutes) getKVMDisplays(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	settings, err := r.d.GetKVMScreenSettings(c.Request.Context(), guid)
+	settings, err := r.d.GetKVMScreenSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getKVMDisplays")
 		ErrorResponse(c, err)
@@ -34,7 +35,8 @@ func (r *deviceManagementRoutes) setKVMDisplays(c *gin.Context) {
 		return
 	}
 
-	settings, err := r.d.SetKVMScreenSettings(c.Request.Context(), guid, req)
+	tenantID := tenantIDFromRequest(c)
+	settings, err := r.d.SetKVMScreenSettings(c.Request.Context(), guid, tenantID, req)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setKVMDisplays")
 		ErrorResponse(c, err)

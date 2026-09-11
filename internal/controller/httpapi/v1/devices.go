@@ -47,7 +47,7 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 }
 
 func (dr *deviceRoutes) getStats(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	count, err := dr.t.GetCount(c.Request.Context(), tenantID)
 	if err != nil {
@@ -66,7 +66,7 @@ func (dr *deviceRoutes) getStats(c *gin.Context) {
 
 func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	deviceID := c.Param("id")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	_, err := dr.t.GetByID(c.Request.Context(), deviceID, tenantID, false)
 	if err != nil {
@@ -97,8 +97,6 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -113,6 +111,8 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	var items []dto.Device
 
 	var err error
+
+	tenantID := tenantIDFromRequest(c)
 
 	switch {
 	case hostname != "":
@@ -175,8 +175,6 @@ func (dr *deviceRoutes) getByColumnOrTags(c *gin.Context, column, value string, 
 }
 
 func (dr *deviceRoutes) getByID(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -186,6 +184,7 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 
 	guid := c.Param("guid")
 
+	tenantID := tenantIDFromRequest(c)
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - get")
@@ -353,7 +352,7 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 
 func (dr *deviceRoutes) delete(c *gin.Context) {
 	guid := c.Param("guid")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	err := dr.t.Delete(c.Request.Context(), guid, tenantID)
 	if err != nil {
@@ -376,7 +375,7 @@ func (dr *deviceRoutes) redirectStatus(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) getTags(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	tags, err := dr.t.GetDistinctTags(c.Request.Context(), tenantID)
 	if err != nil {
@@ -390,8 +389,6 @@ func (dr *deviceRoutes) getTags(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -401,6 +398,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
+	tenantID := tenantIDFromRequest(c)
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
@@ -409,7 +407,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 		return
 	}
 
-	cert, err := dr.t.GetDeviceCertificate(c.Request.Context(), item.GUID)
+	cert, err := dr.t.GetDeviceCertificate(c.Request.Context(), item.GUID, tenantID)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
 		ErrorResponse(c, err)
@@ -423,8 +421,6 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var certToPin dto.PinCertificate
 	if err := c.ShouldBindBodyWithJSON(&certToPin); err != nil {
 		ErrorResponse(c, err)
@@ -434,6 +430,7 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
+	tenantID := tenantIDFromRequest(c)
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
@@ -456,8 +453,6 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -467,6 +462,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
+	tenantID := tenantIDFromRequest(c)
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")

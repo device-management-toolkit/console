@@ -10,8 +10,9 @@ import (
 
 func (r *deviceManagementRoutes) getRemoteEraseCapabilities(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	capabilities, err := r.d.GetRemoteEraseCapabilities(c.Request.Context(), guid)
+	capabilities, err := r.d.GetRemoteEraseCapabilities(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getRemoteEraseCapabilities")
 		ErrorResponse(c, err)
@@ -32,7 +33,8 @@ func (r *deviceManagementRoutes) setRemoteEraseOptions(c *gin.Context) {
 		return
 	}
 
-	if err := r.d.SetRemoteEraseOptions(c.Request.Context(), guid, req); err != nil {
+	tenantID := tenantIDFromRequest(c)
+	if err := r.d.SetRemoteEraseOptions(c.Request.Context(), guid, tenantID, req); err != nil {
 		r.l.Error(err, "http - v1 - setRemoteEraseOptions")
 		ErrorResponse(c, err)
 

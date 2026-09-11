@@ -31,8 +31,6 @@ func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logg
 }
 
 func (r *ciraConfigRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - get")
@@ -41,6 +39,7 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
+	tenantID := tenantIDFromRequest(c)
 	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - get")
@@ -71,7 +70,7 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 
 func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, tenantID)
 	if err != nil {
@@ -138,7 +137,7 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 
 func (r *ciraConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	err := r.cira.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {

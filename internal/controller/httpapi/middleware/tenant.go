@@ -2,36 +2,53 @@ package middleware
 
 import (
 	"net/http"
+	"regexp"
 
 	"github.com/gin-gonic/gin"
 
-	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-// TenantHeaderName is the request header carrying the tenant identifier.
-const TenantHeaderName = "x-tenant-id"
+const (
+	// TenantHeaderName is the request header carrying the tenant identifier.
+	TenantHeaderName  = "x-tenant-id"
+	MaxTenantIDLength = 64
+	TenantIDPattern   = `^[A-Za-z0-9][A-Za-z0-9_-]{0,63}$`
+	TenantIDHint      = "x-tenant-id must match " + TenantIDPattern
+	tenantIDKey       = "tenant-id"
+)
 
-// Tenant validates the tenant header and scopes the request context to it. An
-// absent header yields the empty tenant, which is what existing single-tenant
-// rows are stored under.
+var tenantIDPattern = regexp.MustCompile(TenantIDPattern)
+
+func ValidTenantID(tenantID string) bool {
+	return tenantID == "" || tenantIDPattern.MatchString(tenantID)
+}
+
+// TenantID returns the tenant resolved by Tenant for the current request.
+func TenantID(c *gin.Context) string {
+	tenantID, _ := c.Get(tenantIDKey)
+
+	value, _ := tenantID.(string)
+
+	return value
+}
+
+// Tenant resolves, validates, and logs the request tenant. An absent header
+// yields the empty tenant, which is what existing single-tenant rows are stored
+// under. JWT claim resolution can replace the header lookup here without
+// changing handler or use-case interfaces.
 func Tenant(l logger.Interface) gin.HandlerFunc {
 	return func(c *gin.Context) {
 		tenantID := c.GetHeader(TenantHeaderName)
 
-		if !tenant.Valid(tenantID) {
-			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": tenant.Hint, "message": tenant.Hint})
+		if !ValidTenantID(tenantID) {
+			c.AbortWithStatusJSON(http.StatusBadRequest, gin.H{"error": TenantIDHint, "message": TenantIDHint})
 
 			return
 		}
 
 		l.Debug("REST request tenant ID", "tenant_id", tenantID)
-
-		// Leave the context untouched for the default tenant so single-tenant
-		// requests carry no extra value.
-		if tenantID != "" {
-			c.Request = c.Request.WithContext(tenant.WithContext(c.Request.Context(), tenantID))
-		}
+		c.Set(tenantIDKey, tenantID)
 
 		c.Next()
 	}

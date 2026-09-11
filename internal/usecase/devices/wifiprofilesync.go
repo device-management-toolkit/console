@@ -15,8 +15,8 @@ import (
 // partial update).
 var ErrUEFIProfileSyncNotSupported = errors.New("UEFI WiFi profile sync is not supported on this device")
 
-func (uc *UseCase) GetWirelessProfileSync(c context.Context, guid string) (dto.WirelessProfileSyncResponse, error) {
-	device, err := uc.setupWirelessProfileManagement(c, guid)
+func (uc *UseCase) GetWirelessProfileSync(c context.Context, guid, tenantID string) (dto.WirelessProfileSyncResponse, error) {
+	device, err := uc.setupWirelessProfileManagement(c, guid, tenantID)
 	if err != nil {
 		return dto.WirelessProfileSyncResponse{}, err
 	}
@@ -40,8 +40,8 @@ func (uc *UseCase) GetWirelessProfileSync(c context.Context, guid string) (dto.W
 	return buildProfileSyncResponse(response, uefiSupported), nil
 }
 
-func (uc *UseCase) SetWirelessProfileSync(c context.Context, guid string, req dto.WirelessProfileSyncRequest) (dto.WirelessProfileSyncResponse, error) {
-	device, err := uc.setupWirelessProfileManagement(c, guid)
+func (uc *UseCase) SetWirelessProfileSync(c context.Context, guid, tenantID string, req dto.WirelessProfileSyncRequest) (dto.WirelessProfileSyncResponse, error) {
+	device, err := uc.setupWirelessProfileManagement(c, guid, tenantID)
 	if err != nil {
 		return dto.WirelessProfileSyncResponse{}, err
 	}

@@ -41,7 +41,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			method: http.MethodGet,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					GetWirelessProfileSync(gomock.Any(), "my-guid").
+					GetWirelessProfileSync(gomock.Any(), "my-guid", "").
 					Return(dto.WirelessProfileSyncResponse{LocalProfileSync: true, UEFIProfileSync: false, UEFIProfileSyncSupported: true}, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -52,7 +52,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			method: http.MethodGet,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					GetWirelessProfileSync(gomock.Any(), "my-guid").
+					GetWirelessProfileSync(gomock.Any(), "my-guid", "").
 					Return(dto.WirelessProfileSyncResponse{}, errProfileSync)
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -62,7 +62,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			method: http.MethodGet,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					GetWirelessProfileSync(gomock.Any(), "my-guid").
+					GetWirelessProfileSync(gomock.Any(), "my-guid", "").
 					Return(dto.WirelessProfileSyncResponse{}, wsman.ErrNoWiFiPort)
 			},
 			wantStatus: http.StatusNotFound,
@@ -73,7 +73,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			body:   `{"localProfileSync":false,"uefiProfileSync":true}`,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					SetWirelessProfileSync(gomock.Any(), "my-guid", gomock.Any()).
+					SetWirelessProfileSync(gomock.Any(), "my-guid", "", gomock.Any()).
 					Return(dto.WirelessProfileSyncResponse{LocalProfileSync: false, UEFIProfileSync: true, UEFIProfileSyncSupported: true}, nil)
 			},
 			wantStatus: http.StatusOK,
@@ -91,7 +91,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			body:   `{"localProfileSync":true}`,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					SetWirelessProfileSync(gomock.Any(), "my-guid", gomock.Any()).
+					SetWirelessProfileSync(gomock.Any(), "my-guid", "", gomock.Any()).
 					Return(dto.WirelessProfileSyncResponse{}, errProfileSync)
 			},
 			wantStatus: http.StatusInternalServerError,
@@ -102,7 +102,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			body:   `{"localProfileSync":true}`,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					SetWirelessProfileSync(gomock.Any(), "my-guid", gomock.Any()).
+					SetWirelessProfileSync(gomock.Any(), "my-guid", "", gomock.Any()).
 					Return(dto.WirelessProfileSyncResponse{}, wsman.ErrNoWiFiPort)
 			},
 			wantStatus: http.StatusNotFound,
@@ -113,7 +113,7 @@ func TestWiFiProfileSyncHandlers(t *testing.T) {
 			body:   `{"uefiProfileSync":true}`,
 			setupMock: func(devMock *mocks.MockDeviceManagementFeature) {
 				devMock.EXPECT().
-					SetWirelessProfileSync(gomock.Any(), "my-guid", gomock.Any()).
+					SetWirelessProfileSync(gomock.Any(), "my-guid", "", gomock.Any()).
 					Return(dto.WirelessProfileSyncResponse{}, devices.ErrUEFIProfileSyncNotSupported)
 			},
 			wantStatus: http.StatusConflict,

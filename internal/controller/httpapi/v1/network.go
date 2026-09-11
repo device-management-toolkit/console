@@ -10,8 +10,9 @@ import (
 
 func (r *deviceManagementRoutes) getNetworkSettings(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	network, err := r.d.GetNetworkSettings(c.Request.Context(), guid)
+	network, err := r.d.GetNetworkSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getNetworkSettings")
 		ErrorResponse(c, err)
@@ -25,8 +26,9 @@ func (r *deviceManagementRoutes) getNetworkSettings(c *gin.Context) {
 // getWiredNetworkSettings returns the wired network settings for a device.
 func (r *deviceManagementRoutes) getWiredNetworkSettings(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	wired, err := r.d.GetWiredNetworkSettings(c.Request.Context(), guid)
+	wired, err := r.d.GetWiredNetworkSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getWiredNetworkSettings")
 		ErrorResponse(c, err)
@@ -48,7 +50,8 @@ func (r *deviceManagementRoutes) patchWiredNetworkSettings(c *gin.Context) {
 		return
 	}
 
-	if err := r.d.PatchWiredNetworkSettings(c.Request.Context(), guid, req); err != nil {
+	tenantID := tenantIDFromRequest(c)
+	if err := r.d.PatchWiredNetworkSettings(c.Request.Context(), guid, tenantID, req); err != nil {
 		r.l.Error(err, "http - v1 - patchWiredNetworkSettings")
 		ErrorResponse(c, err)
 

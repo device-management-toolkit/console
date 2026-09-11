@@ -7,8 +7,8 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
-func (uc *UseCase) CancelUserConsent(c context.Context, guid string) (dto.UserConsentMessage, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) CancelUserConsent(c context.Context, guid, tenantID string) (dto.UserConsentMessage, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.UserConsentMessage{}, err
 	}
@@ -47,8 +47,8 @@ func (uc *UseCase) CancelUserConsent(c context.Context, guid string) (dto.UserCo
 	}, nil
 }
 
-func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.UserConsentMessage, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetUserConsentCode(c context.Context, guid, tenantID string) (dto.UserConsentMessage, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.UserConsentMessage{}, err
 	}
@@ -87,8 +87,8 @@ func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.UserC
 	}, nil
 }
 
-func (uc *UseCase) SendConsentCode(c context.Context, userConsent dto.UserConsentCode, guid string) (dto.UserConsentMessage, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) SendConsentCode(c context.Context, userConsent dto.UserConsentCode, guid, tenantID string) (dto.UserConsentMessage, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.UserConsentMessage{}, err
 	}

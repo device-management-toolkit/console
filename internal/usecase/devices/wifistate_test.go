@@ -56,7 +56,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiEnabledS0SxAC).Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: wifi.RequestedStateWifiEnabledS0SxAC,
 			err: nil,
@@ -70,7 +70,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiDisabled).Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: wifi.RequestedStateWifiDisabled,
 			err: nil,
@@ -84,7 +84,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 				man2.EXPECT().WiFiRequestStateChange(wifi.RequestedStateWifiEnabledS0).Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: wifi.RequestedStateWifiEnabledS0,
 			err: nil,
@@ -97,7 +97,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 				man2.EXPECT().GetWiFiPorts().Return([]wifi.WiFiPort{{EnabledState: wifi.EnabledStateWifiEnabledS0}}, nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: wifi.RequestedStateWifiEnabledS0,
 			err: nil,
@@ -116,7 +116,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 			request: wifi.RequestedStateWifiDisabled,
 			manMock: nil,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, ErrGeneral)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(nil, ErrGeneral)
 			},
 			res: 0,
 			err: devices.ErrGeneral,
@@ -138,7 +138,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 				man.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(nil, ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: 0,
 			err: devices.ErrGeneral,
@@ -187,7 +187,7 @@ func TestRequestWirelessStateChange(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			res, err := useCase.RequestWirelessStateChange(context.Background(), device.GUID, tc.request)
+			res, err := useCase.RequestWirelessStateChange(context.Background(), device.GUID, device.TenantID, tc.request)
 
 			require.Equal(t, tc.res, res)
 
@@ -300,7 +300,7 @@ func TestGetWirelessState(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			res, err := useCase.GetWirelessState(context.Background(), device.GUID)
+			res, err := useCase.GetWirelessState(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 

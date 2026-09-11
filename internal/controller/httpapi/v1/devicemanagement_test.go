@@ -61,7 +61,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/version/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetVersion(context.Background(), "valid-guid").
+				m.EXPECT().GetVersion(context.Background(), "valid-guid", "").
 					Return(dto.Version{}, dtov2.Version{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -72,7 +72,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/version/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetVersion(context.Background(), "valid-guid").
+				m.EXPECT().GetVersion(context.Background(), "valid-guid", "").
 					Return(dto.Version{}, dtov2.Version{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -83,7 +83,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/power/bootSources/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetBootSourceSetting(context.Background(), "valid-guid").
+				m.EXPECT().GetBootSourceSetting(context.Background(), "valid-guid", "").
 					Return([]dto.BootSources{{
 						InstanceID:           "Hard-drive Boot",
 						BootString:           "\\OemPba.efi",
@@ -108,7 +108,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/power/bootSources/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetBootSourceSetting(context.Background(), "valid-guid").
+				m.EXPECT().GetBootSourceSetting(context.Background(), "valid-guid", "").
 					Return(nil, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -119,7 +119,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/features/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetFeatures(context.Background(), "valid-guid").
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid", "").
 					Return(dto.Features{}, dtov2.Features{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -143,7 +143,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/features/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetFeatures(context.Background(), "valid-guid").
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid", "").
 					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -155,7 +155,7 @@ func TestDeviceManagement(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: dto.Features{},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetFeatures(context.Background(), "valid-guid", dto.Features{}).Return(dto.Features{}, dtov2.Features{}, nil)
+				m.EXPECT().SetFeatures(context.Background(), "valid-guid", "", dto.Features{}).Return(dto.Features{}, dtov2.Features{}, nil)
 			},
 			expectedCode: http.StatusOK,
 			response:     dto.Features{},
@@ -176,7 +176,7 @@ func TestDeviceManagement(t *testing.T) {
 			method:      http.MethodPost,
 			requestBody: dto.Features{},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetFeatures(context.Background(), "valid-guid", dto.Features{}).
+				m.EXPECT().SetFeatures(context.Background(), "valid-guid", "", dto.Features{}).
 					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -187,7 +187,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/alarmOccurrences/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetAlarmOccurrences(context.Background(), "valid-guid").
+				m.EXPECT().GetAlarmOccurrences(context.Background(), "valid-guid", "").
 					Return([]dto.AlarmClockOccurrence{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -201,7 +201,7 @@ func TestDeviceManagement(t *testing.T) {
 				Name: "instanceID",
 			},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().DeleteAlarmOccurrences(context.Background(), "valid-guid", "instanceID").Return(nil)
+				m.EXPECT().DeleteAlarmOccurrences(context.Background(), "valid-guid", "instanceID", "").Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -210,7 +210,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/hardwareInfo/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetHardwareInfo(context.Background(), "valid-guid").
+				m.EXPECT().GetHardwareInfo(context.Background(), "valid-guid", "").
 					Return(dto.HardwareInfo{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -221,7 +221,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/diskInfo/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetDiskInfo(context.Background(), "valid-guid").
+				m.EXPECT().GetDiskInfo(context.Background(), "valid-guid", "").
 					Return(dto.DiskInfo{CIMMediaAccessDevice: dto.CIMResponse{Response: map[string]interface{}{"disk": "info"}}}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -232,7 +232,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/power/state/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetPowerState(context.Background(), "valid-guid").
+				m.EXPECT().GetPowerState(context.Background(), "valid-guid", "").
 					Return(dto.PowerState{PowerState: 2}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -246,7 +246,7 @@ func TestDeviceManagement(t *testing.T) {
 				Action: 4,
 			},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SendPowerAction(context.Background(), "valid-guid", 4).
+				m.EXPECT().SendPowerAction(context.Background(), "valid-guid", "", 4).
 					Return(power.PowerActionResponse{ReturnValue: 0}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -257,7 +257,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/log/audit/valid-guid?startIndex=0",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetAuditLog(context.Background(), 0, "valid-guid").
+				m.EXPECT().GetAuditLog(context.Background(), 0, "valid-guid", "").
 					Return(dto.AuditLog{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -268,7 +268,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/log/event/valid-guid?$skip=1&$top=10",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetEventLog(context.Background(), 1, 10, "valid-guid").
+				m.EXPECT().GetEventLog(context.Background(), 1, 10, "valid-guid", "").
 					Return(dto.EventLogs{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -282,7 +282,7 @@ func TestDeviceManagement(t *testing.T) {
 				Action: 109,
 			},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetBootOptions(context.Background(), "valid-guid", dto.BootSetting{
+				m.EXPECT().SetBootOptions(context.Background(), "valid-guid", "", dto.BootSetting{
 					Action: 109,
 				}).Return(power.PowerActionResponse{ReturnValue: 0}, nil)
 			},
@@ -294,7 +294,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/networkSettings/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetNetworkSettings(context.Background(), "valid-guid").
+				m.EXPECT().GetNetworkSettings(context.Background(), "valid-guid", "").
 					Return(dto.NetworkSettings{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -305,7 +305,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/networkSettings/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetNetworkSettings(context.Background(), "valid-guid").
+				m.EXPECT().GetNetworkSettings(context.Background(), "valid-guid", "").
 					Return(dto.NetworkSettings{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -316,7 +316,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/networkSettings/wired/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetWiredNetworkSettings(context.Background(), "valid-guid").
+				m.EXPECT().GetWiredNetworkSettings(context.Background(), "valid-guid", "").
 					Return(dto.WiredNetworkInfo{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -327,7 +327,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/networkSettings/wired/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetWiredNetworkSettings(context.Background(), "valid-guid").
+				m.EXPECT().GetWiredNetworkSettings(context.Background(), "valid-guid", "").
 					Return(dto.WiredNetworkInfo{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -339,7 +339,7 @@ func TestDeviceManagement(t *testing.T) {
 			method:      http.MethodPatch,
 			requestBody: map[string]interface{}{"dhcpEnabled": true},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().PatchWiredNetworkSettings(context.Background(), "valid-guid", gomock.Any()).
+				m.EXPECT().PatchWiredNetworkSettings(context.Background(), "valid-guid", "", gomock.Any()).
 					Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
@@ -352,7 +352,7 @@ func TestDeviceManagement(t *testing.T) {
 			requestBody: map[string]interface{}{"dhcpEnabled": true},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				validationErr := dto.NotValidError{Console: consoleerrors.CreateConsoleError("PatchWiredNetworkSettings")}
-				m.EXPECT().PatchWiredNetworkSettings(context.Background(), "valid-guid", gomock.Any()).
+				m.EXPECT().PatchWiredNetworkSettings(context.Background(), "valid-guid", "", gomock.Any()).
 					Return(validationErr)
 			},
 			expectedCode: http.StatusBadRequest,
@@ -372,7 +372,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/certificates/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetCertificates(context.Background(), "valid-guid").
+				m.EXPECT().GetCertificates(context.Background(), "valid-guid", "").
 					Return(dto.SecuritySettings{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -383,7 +383,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/certificates/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetCertificates(context.Background(), "valid-guid").
+				m.EXPECT().GetCertificates(context.Background(), "valid-guid", "").
 					Return(dto.SecuritySettings{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -394,7 +394,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/tls/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetTLSSettingData(context.Background(), "valid-guid").
+				m.EXPECT().GetTLSSettingData(context.Background(), "valid-guid", "").
 					Return([]dto.SettingDataResponse{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -405,7 +405,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v1/amt/tls/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetTLSSettingData(context.Background(), "valid-guid").
+				m.EXPECT().GetTLSSettingData(context.Background(), "valid-guid", "").
 					Return([]dto.SettingDataResponse{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -423,6 +423,7 @@ func TestDeviceManagement(t *testing.T) {
 				m.EXPECT().AddCertificate(
 					context.Background(),
 					"valid-guid",
+					"",
 					dto.CertInfo{
 						Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
 						IsTrusted: true,
@@ -444,6 +445,7 @@ func TestDeviceManagement(t *testing.T) {
 				m.EXPECT().AddCertificate(
 					context.Background(),
 					"valid-guid",
+					"",
 					dto.CertInfo{
 						Cert:      "-----BEGIN CERTIFICATE-----\nMIIDtTM=\n-----END CERTIFICATE-----",
 						IsTrusted: true,
@@ -464,6 +466,7 @@ func TestDeviceManagement(t *testing.T) {
 				m.EXPECT().AddCertificate(
 					context.Background(),
 					"valid-guid",
+					"",
 					gomock.Any(),
 				).Return("", ErrGeneral).AnyTimes()
 			},
@@ -479,6 +482,7 @@ func TestDeviceManagement(t *testing.T) {
 					context.Background(),
 					"valid-guid",
 					"Intel(r) AMT Certificate: Handle: 1",
+					"",
 				).Return(nil)
 			},
 			expectedCode: http.StatusOK,
@@ -493,6 +497,7 @@ func TestDeviceManagement(t *testing.T) {
 					context.Background(),
 					"invalid-guid",
 					"Intel(r) AMT Certificate: Handle: 1",
+					"",
 				).Return(devices.ErrNotFound)
 			},
 			expectedCode: http.StatusNotFound,
@@ -508,6 +513,7 @@ func TestDeviceManagement(t *testing.T) {
 					context.Background(),
 					"valid-guid",
 					"Intel(r) AMT Certificate: Handle: 0",
+					"",
 				).Return(validationErr)
 			},
 			expectedCode: http.StatusBadRequest,

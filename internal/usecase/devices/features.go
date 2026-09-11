@@ -53,8 +53,8 @@ type BootConfiguration struct {
 	bootData           boot.BootSettingDataResponse
 }
 
-func (uc *UseCase) GetFeatures(c context.Context, guid string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetFeatures(c context.Context, guid, tenantID string) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.Features{}, dtov2.Features{}, err
 	}
@@ -222,8 +222,8 @@ func FindBootSettingInstances(bootSourceSettings []cimBoot.BootSourceSetting) dt
 	return result
 }
 
-func (uc *UseCase) SetFeatures(c context.Context, guid string, features dto.Features) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) SetFeatures(c context.Context, guid, tenantID string, features dto.Features) (settingsResults dto.Features, settingsResultsV2 dtov2.Features, err error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return settingsResults, settingsResultsV2, err
 	}

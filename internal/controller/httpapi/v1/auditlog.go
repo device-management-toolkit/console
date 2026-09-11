@@ -29,7 +29,9 @@ func (r *deviceManagementRoutes) getAuditLog(c *gin.Context) {
 		return
 	}
 
-	auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIdx, guid)
+	tenantID := tenantIDFromRequest(c)
+
+	auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIdx, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getAuditLog")
 		ErrorResponse(c, err)
@@ -47,8 +49,9 @@ func (r *deviceManagementRoutes) downloadAuditLog(c *gin.Context) {
 
 	startIndex := 1
 
+	tenantID := tenantIDFromRequest(c)
 	for {
-		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid)
+		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid, tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getAuditLog")
 			ErrorResponse(c, err)
@@ -96,7 +99,8 @@ func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 		return
 	}
 
-	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid)
+	tenantID := tenantIDFromRequest(c)
+	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getEventLog")
 		ErrorResponse(c, err)
@@ -114,9 +118,10 @@ func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
 
 	startIndex := 0
 
+	tenantID := tenantIDFromRequest(c)
 	// Keep fetching logs until there are no more records.
 	for {
-		eventLogs, err := r.d.GetEventLog(c.Request.Context(), startIndex, eventLogBatchSize, guid)
+		eventLogs, err := r.d.GetEventLog(c.Request.Context(), startIndex, eventLogBatchSize, guid, tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getEventLog")
 			ErrorResponse(c, err)

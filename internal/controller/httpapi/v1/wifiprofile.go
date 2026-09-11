@@ -15,8 +15,9 @@ var errValidationWirelessProfile = dto.NotValidError{Console: consoleerrors.Crea
 
 func (r *deviceManagementRoutes) getWirelessProfiles(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	response, err := r.d.GetWirelessProfiles(c.Request.Context(), guid)
+	response, err := r.d.GetWirelessProfiles(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getWirelessProfiles")
 		ErrorResponse(c, err)
@@ -38,7 +39,8 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 		return
 	}
 
-	err := r.d.AddWirelessProfile(c.Request.Context(), guid, req.ToWirelessProfile())
+	tenantID := tenantIDFromRequest(c)
+	err := r.d.AddWirelessProfile(c.Request.Context(), guid, tenantID, req.ToWirelessProfile())
 	if err != nil {
 		r.l.Error(err, "http - v1 - addWirelessProfile")
 
@@ -61,8 +63,9 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 func (r *deviceManagementRoutes) deleteWirelessProfile(c *gin.Context) {
 	guid := c.Param("guid")
 	profileName := c.Param("profileName")
+	tenantID := tenantIDFromRequest(c)
 
-	err := r.d.DeleteWirelessProfile(c.Request.Context(), guid, profileName)
+	err := r.d.DeleteWirelessProfile(c.Request.Context(), guid, profileName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - deleteWirelessProfile")
 		ErrorResponse(c, err)
@@ -84,7 +87,8 @@ func (r *deviceManagementRoutes) updateWirelessProfile(c *gin.Context) {
 		return
 	}
 
-	err := r.d.UpdateWirelessProfile(c.Request.Context(), guid, req.ToWirelessProfile())
+	tenantID := tenantIDFromRequest(c)
+	err := r.d.UpdateWirelessProfile(c.Request.Context(), guid, tenantID, req.ToWirelessProfile())
 	if err != nil {
 		r.l.Error(err, "http - v1 - updateWirelessProfile")
 

@@ -9,7 +9,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -19,7 +18,7 @@ func serve(t *testing.T, headerValue string) (recorder *httptest.ResponseRecorde
 	engine := gin.New()
 	engine.Use(middleware.Tenant(logger.New("error")))
 	engine.GET("/", func(c *gin.Context) {
-		seen = tenant.FromContext(c.Request.Context())
+		seen = middleware.TenantID(c)
 		c.Status(http.StatusOK)
 	})
 
@@ -34,7 +33,7 @@ func serve(t *testing.T, headerValue string) (recorder *httptest.ResponseRecorde
 	return recorder, seen
 }
 
-func TestTenantScopesRequestContext(t *testing.T) {
+func TestTenantAllowsValidHeader(t *testing.T) {
 	t.Parallel()
 
 	recorder, seen := serve(t, "tenant-a")

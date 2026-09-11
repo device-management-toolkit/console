@@ -11,7 +11,6 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/mocks"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -26,13 +25,13 @@ func TestSendPowerActionUsesRequestTenant(t *testing.T) {
 
 	wsman.EXPECT().Worker().AnyTimes()
 	uc := devices.New(repo, wsman, mocks.NewMockRedirection(ctrl), logger.New("error"), mocks.MockCrypto{})
-	ctx := tenant.WithContext(context.Background(), "tenant-a")
+	ctx := context.Background()
 	device := &entity.Device{GUID: "device-guid", TenantID: "tenant-a", Password: "encrypted"}
 
 	repo.EXPECT().GetByID(ctx, device.GUID, "tenant-a").Return(device, nil)
 	wsman.EXPECT().SetupWsmanClient(ctx, gomock.Any(), false, true).Return(management, nil)
 	management.EXPECT().SendPowerAction(0).Return(power.PowerActionResponse{}, nil)
 
-	_, err := uc.SendPowerAction(ctx, device.GUID, 0)
+	_, err := uc.SendPowerAction(ctx, device.GUID, device.TenantID, 0)
 	require.NoError(t, err)
 }

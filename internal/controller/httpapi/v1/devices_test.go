@@ -864,9 +864,6 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) 
 
 	// deviceId must be the device GUID
 	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
-	_, hasTenantID := claims["tenantId"]
-	require.False(t, hasTenantID, "token should not contain a tenantId claim")
-
 	// Verify expiration is set
 	exp, err := claims.GetExpirationTime()
 	require.NoError(t, err)

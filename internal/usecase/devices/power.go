@@ -43,8 +43,8 @@ var (
 	ErrLargeFileUseCase  = ValidationError{Console: consoleerrors.CreateConsoleError("UEFI file too large")}
 )
 
-func (uc *UseCase) SendPowerAction(c context.Context, guid string, action int) (power.PowerActionResponse, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) SendPowerAction(c context.Context, guid, tenantID string, action int) (power.PowerActionResponse, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -121,8 +121,8 @@ func ensureFullPowerBeforeReset(device wsman.Management) (power.PowerActionRespo
 	return res, nil
 }
 
-func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetPowerState(c context.Context, guid, tenantID string) (dto.PowerState, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.PowerState{}, err
 	}
@@ -159,8 +159,8 @@ func (uc *UseCase) GetPowerState(c context.Context, guid string) (dto.PowerState
 	}, nil
 }
 
-func (uc *UseCase) GetPowerCapabilities(c context.Context, guid string) (dto.PowerCapabilities, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetPowerCapabilities(c context.Context, guid, tenantID string) (dto.PowerCapabilities, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.PowerCapabilities{}, err
 	}
@@ -279,8 +279,8 @@ func buildBootSettingData(bootData boot.BootSettingDataResponse, bootSetting dto
 	}
 }
 
-func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) SetBootOptions(c context.Context, guid, tenantID string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -304,7 +304,7 @@ func (uc *UseCase) SetBootOptions(c context.Context, guid string, bootSetting dt
 	}
 
 	newData := buildBootSettingData(bootData, bootSetting)
-	bootSource := uc.getBootSource(guid, &bootSetting)
+	bootSource := uc.getBootSource(guid, tenantID, &bootSetting)
 
 	err = determineBootDevice(bootSetting, &newData)
 	if err != nil {
@@ -504,7 +504,7 @@ func ValidatePBAWinReBootParams(file string) (buffer []byte, paramCount int, err
 
 // "Intel(r) AMT: Force PXE Boot".
 // "Intel(r) AMT: Force CD/DVD Boot".
-func (uc *UseCase) getBootSource(guid string, bootSetting *dto.BootSetting) string {
+func (uc *UseCase) getBootSource(guid, tenantID string, bootSetting *dto.BootSetting) string {
 	switch bootSetting.Action {
 	case BootActionResetToPXE, BootActionPowerOnToPXE:
 		return string(cimBoot.PXE)
@@ -513,16 +513,16 @@ func (uc *UseCase) getBootSource(guid string, bootSetting *dto.BootSetting) stri
 	case BootActionHTTPSBoot, BootActionPowerOnHTTPSBoot:
 		return string(cimBoot.OCRUEFIHTTPS)
 	case BootActionPBA, BootActionPowerOnPBA:
-		return uc.getPbaBootSource(guid, bootSetting)
+		return uc.getPbaBootSource(guid, tenantID, bootSetting)
 	case BootActionWinREBoot, BootActionPowerOnWinREBoot:
-		return uc.getWinReBootSource(guid, bootSetting)
+		return uc.getWinReBootSource(guid, tenantID, bootSetting)
 	default:
 		return ""
 	}
 }
 
-func (uc *UseCase) getPbaBootSource(guid string, bootSetting *dto.BootSetting) string {
-	sources, err := uc.GetBootSourceSetting(context.Background(), guid)
+func (uc *UseCase) getPbaBootSource(guid, tenantID string, bootSetting *dto.BootSetting) string {
+	sources, err := uc.GetBootSourceSetting(context.Background(), guid, tenantID)
 	if err != nil {
 		return ""
 	}
@@ -536,8 +536,8 @@ func (uc *UseCase) getPbaBootSource(guid string, bootSetting *dto.BootSetting) s
 	return ""
 }
 
-func (uc *UseCase) getWinReBootSource(guid string, bootSetting *dto.BootSetting) string {
-	sources, err := uc.GetBootSourceSetting(context.Background(), guid)
+func (uc *UseCase) getWinReBootSource(guid, tenantID string, bootSetting *dto.BootSetting) string {
+	sources, err := uc.GetBootSourceSetting(context.Background(), guid, tenantID)
 	if err != nil {
 		return ""
 	}
@@ -592,8 +592,8 @@ func parseVersion(version []software.SoftwareIdentity) (int, error) {
 	return amtversion, nil
 }
 
-func (uc *UseCase) GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetBootSourceSetting(c context.Context, guid, tenantID string) ([]dto.BootSources, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}

@@ -12,8 +12,8 @@ import (
 var ErrNotSupportedUseCase = NotSupportedError{Console: consoleerrors.CreateConsoleError("Not Supported")}
 
 // GetKVMScreenSettings returns IPS_ScreenSettingData for the device.
-func (uc *UseCase) GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetKVMScreenSettings(c context.Context, guid, tenantID string) (dto.KVMScreenSettings, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.KVMScreenSettings{}, err
 	}
@@ -73,8 +73,8 @@ func (uc *UseCase) GetKVMScreenSettings(c context.Context, guid string) (dto.KVM
 
 // SetKVMScreenSettings updates IPS_ScreenSettingData; currently not supported via wsman lib
 // We accept payload but return NotSupported to preserve API contract for future.
-func (uc *UseCase) SetKVMScreenSettings(c context.Context, guid string, reqData dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) SetKVMScreenSettings(c context.Context, guid, tenantID string, reqData dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.KVMScreenSettings{}, err
 	}
@@ -124,7 +124,7 @@ func (uc *UseCase) SetKVMScreenSettings(c context.Context, guid string, reqData 
 	}
 
 	// Read-only for now
-	return uc.GetKVMScreenSettings(c, guid)
+	return uc.GetKVMScreenSettings(c, guid, tenantID)
 }
 
 // Helper functions.

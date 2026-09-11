@@ -105,7 +105,7 @@ func TestGetVersion(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 
@@ -147,7 +147,7 @@ func TestGetVersion(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 
@@ -188,7 +188,7 @@ func TestGetVersion(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 
@@ -213,7 +213,7 @@ func TestGetVersion(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 
@@ -252,7 +252,7 @@ func TestGetVersion(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, _, err := useCase.GetVersion(context.Background(), device.GUID)
+			res, _, err := useCase.GetVersion(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 
@@ -283,7 +283,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.HardwareInfo{
@@ -339,7 +339,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.HardwareInfo{
@@ -369,7 +369,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.HardwareInfo{},
@@ -388,7 +388,7 @@ func TestGetHardwareInfo(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.HardwareInfo{},
@@ -408,7 +408,7 @@ func TestGetHardwareInfo(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetHardwareInfo(context.Background(), device.GUID)
+			res, err := useCase.GetHardwareInfo(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -437,7 +437,7 @@ func TestGetAuditLog(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.AuditLog{},
@@ -449,7 +449,7 @@ func TestGetAuditLog(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.AuditLog{
@@ -471,7 +471,7 @@ func TestGetAuditLog(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.AuditLog{TotalCount: 0, Records: nil},
@@ -491,7 +491,7 @@ func TestGetAuditLog(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetAuditLog(context.Background(), 1, device.GUID)
+			res, err := useCase.GetAuditLog(context.Background(), 1, device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -520,7 +520,7 @@ func TestGetEventLog(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.EventLogs{},
@@ -532,7 +532,7 @@ func TestGetEventLog(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.EventLogs{},
@@ -551,7 +551,7 @@ func TestGetEventLog(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.EventLogs{},
@@ -571,7 +571,7 @@ func TestGetEventLog(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetEventLog(context.Background(), 1, 10, device.GUID)
+			res, err := useCase.GetEventLog(context.Background(), 1, 10, device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -600,7 +600,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.GeneralSettings{Body: gomock.Any()},
@@ -612,7 +612,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.GeneralSettings{},
@@ -631,7 +631,7 @@ func TestGetGeneralSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.GeneralSettings{},
@@ -651,7 +651,7 @@ func TestGetGeneralSettings(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetGeneralSettings(context.Background(), device.GUID)
+			res, err := useCase.GetGeneralSettings(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)
@@ -681,7 +681,7 @@ func TestGetDiskInfo(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.DiskInfo{
@@ -733,7 +733,7 @@ func TestGetDiskInfo(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.DiskInfo{
@@ -763,7 +763,7 @@ func TestGetDiskInfo(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.DiskInfo{},
@@ -782,7 +782,7 @@ func TestGetDiskInfo(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.DiskInfo{},
@@ -802,7 +802,7 @@ func TestGetDiskInfo(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetDiskInfo(context.Background(), device.GUID)
+			res, err := useCase.GetDiskInfo(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)

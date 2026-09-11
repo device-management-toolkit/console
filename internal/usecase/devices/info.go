@@ -12,8 +12,8 @@ import (
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
-func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v2 dtov2.Version, err error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetVersion(c context.Context, guid, tenantID string) (v1 dto.Version, v2 dtov2.Version, err error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return v1, v2, err
 	}
@@ -63,8 +63,8 @@ func (uc *UseCase) GetVersion(c context.Context, guid string) (v1 dto.Version, v
 	return v1, v2, nil
 }
 
-func (uc *UseCase) GetHardwareInfo(c context.Context, guid string) (dto.HardwareInfo, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetHardwareInfo(c context.Context, guid, tenantID string) (dto.HardwareInfo, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.HardwareInfo{}, err
 	}
@@ -112,8 +112,8 @@ func (uc *UseCase) hardwareInfoToDTO(hw wsmanAPI.HWResults) dto.HardwareInfo {
 	}
 }
 
-func (uc *UseCase) GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetDiskInfo(c context.Context, guid, tenantID string) (dto.DiskInfo, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.DiskInfo{}, err
 	}
@@ -142,8 +142,8 @@ func (uc *UseCase) diskInfoToDTO(diskInfo wsmanAPI.DiskResults) dto.DiskInfo {
 	}
 }
 
-func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (dto.AuditLog, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid, tenantID string) (dto.AuditLog, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.AuditLog{}, err
 	}
@@ -169,8 +169,8 @@ func (uc *UseCase) GetAuditLog(c context.Context, startIndex int, guid string) (
 	return auditLogResponse, nil
 }
 
-func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int, guid, tenantID string) (dto.EventLogs, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.EventLogs{}, err
 	}
@@ -223,8 +223,8 @@ func (uc *UseCase) GetEventLog(c context.Context, startIndex, maxReadRecords int
 	}, nil
 }
 
-func (uc *UseCase) GetGeneralSettings(c context.Context, guid string) (dto.GeneralSettings, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetGeneralSettings(c context.Context, guid, tenantID string) (dto.GeneralSettings, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.GeneralSettings{}, err
 	}

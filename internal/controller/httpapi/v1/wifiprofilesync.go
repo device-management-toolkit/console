@@ -16,8 +16,9 @@ var errValidationWirelessProfileSync = dto.NotValidError{Console: consoleerrors.
 
 func (r *deviceManagementRoutes) getWirelessProfileSync(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	response, err := r.d.GetWirelessProfileSync(c.Request.Context(), guid)
+	response, err := r.d.GetWirelessProfileSync(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getWirelessProfileSync")
 
@@ -48,7 +49,8 @@ func (r *deviceManagementRoutes) setWirelessProfileSync(c *gin.Context) {
 		return
 	}
 
-	response, err := r.d.SetWirelessProfileSync(c.Request.Context(), guid, req)
+	tenantID := tenantIDFromRequest(c)
+	response, err := r.d.SetWirelessProfileSync(c.Request.Context(), guid, tenantID, req)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setWirelessProfileSync")
 

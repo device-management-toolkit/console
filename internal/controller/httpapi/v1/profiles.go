@@ -46,8 +46,6 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 }
 
 func (r *profileRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidationProfile.Wrap("get", "BindAndValidate", err)
@@ -56,6 +54,7 @@ func (r *profileRoutes) get(c *gin.Context) {
 		return
 	}
 
+	tenantID := tenantIDFromRequest(c)
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - get")
@@ -84,7 +83,7 @@ func (r *profileRoutes) get(c *gin.Context) {
 
 func (r *profileRoutes) getByName(c *gin.Context) {
 	name := c.Param("name")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	item, err := r.t.GetByName(c.Request.Context(), name, tenantID)
 	if err != nil {
@@ -100,7 +99,7 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 func (r *profileRoutes) export(c *gin.Context) {
 	name := c.Param("name")
 	domainName := c.Query("domainName")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	item, key, err := r.t.Export(c.Request.Context(), name, domainName, tenantID)
 	if err != nil {
@@ -190,7 +189,7 @@ func (r *profileRoutes) update(c *gin.Context) {
 
 func (r *profileRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := tenantIDFromRequest(c)
 
 	err := r.t.Delete(c.Request.Context(), name, tenantID)
 	if err != nil {

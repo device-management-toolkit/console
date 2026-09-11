@@ -154,7 +154,6 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 		if deviceID != "" {
 			claims["deviceId"] = deviceID
 		}
-
 		s, _ := jwt.NewWithClaims(jwt.SigningMethodHS256, claims).SignedString([]byte(config.ConsoleConfig.JWTKey))
 
 		return s

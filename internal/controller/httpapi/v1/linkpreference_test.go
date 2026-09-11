@@ -34,7 +34,7 @@ func TestSetLinkPreferenceHandler(t *testing.T) {
 
 	// Success case -> device.SetLinkPreference returns ReturnValue 0
 	devMock.EXPECT().
-		SetLinkPreference(gomock.Any(), "my-guid", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
+		SetLinkPreference(gomock.Any(), "my-guid", "", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
 		Return(dto.LinkPreferenceResponse{ReturnValue: 0}, nil)
 
 	body := `{"linkPreference":1,"timeout":60}`
@@ -57,7 +57,7 @@ func TestSetLinkPreferenceHandler(t *testing.T) {
 	NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 	devMock.EXPECT().
-		SetLinkPreference(gomock.Any(), "my-guid", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
+		SetLinkPreference(gomock.Any(), "my-guid", "", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
 		Return(dto.LinkPreferenceResponse{ReturnValue: 5}, nil)
 
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))
@@ -78,7 +78,7 @@ func TestSetLinkPreferenceHandler(t *testing.T) {
 	NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 	devMock.EXPECT().
-		SetLinkPreference(gomock.Any(), "my-guid", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
+		SetLinkPreference(gomock.Any(), "my-guid", "", dto.LinkPreferenceRequest{LinkPreference: 1, Timeout: 60}).
 		Return(dto.LinkPreferenceResponse{ReturnValue: -1}, wsman.ErrNoWiFiPort)
 
 	req = httptest.NewRequest(http.MethodPost, "/api/v1/amt/network/linkPreference/my-guid", bytes.NewBufferString(body))

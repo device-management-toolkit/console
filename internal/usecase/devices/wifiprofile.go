@@ -44,8 +44,8 @@ type preparedWirelessProfile struct {
 	certHandles      *IEEE8021xCertHandles
 }
 
-func (uc *UseCase) GetWirelessProfiles(c context.Context, guid string) ([]dto.WirelessProfileResponse, error) {
-	device, err := uc.setupWirelessProfileManagement(c, guid)
+func (uc *UseCase) GetWirelessProfiles(c context.Context, guid, tenantID string) ([]dto.WirelessProfileResponse, error) {
+	device, err := uc.setupWirelessProfileManagement(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -58,8 +58,8 @@ func (uc *UseCase) GetWirelessProfiles(c context.Context, guid string) ([]dto.Wi
 	return dto.NewWirelessProfileResponses(profiles), nil
 }
 
-func (uc *UseCase) AddWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error {
-	device, err := uc.setupWirelessProfileManagement(c, guid)
+func (uc *UseCase) AddWirelessProfile(c context.Context, guid, tenantID string, profile config.WirelessProfile) error {
+	device, err := uc.setupWirelessProfileManagement(c, guid, tenantID)
 	if err != nil {
 		return err
 	}
@@ -106,8 +106,8 @@ func (uc *UseCase) AddWirelessProfile(c context.Context, guid string, profile co
 	return nil
 }
 
-func (uc *UseCase) DeleteWirelessProfile(c context.Context, guid, profileName string) error {
-	device, err := uc.setupWirelessProfileManagement(c, guid)
+func (uc *UseCase) DeleteWirelessProfile(c context.Context, guid, profileName, tenantID string) error {
+	device, err := uc.setupWirelessProfileManagement(c, guid, tenantID)
 	if err != nil {
 		return err
 	}
@@ -129,8 +129,8 @@ func (uc *UseCase) DeleteWirelessProfile(c context.Context, guid, profileName st
 	return nil
 }
 
-func (uc *UseCase) UpdateWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error {
-	device, err := uc.setupWirelessProfileManagement(c, guid)
+func (uc *UseCase) UpdateWirelessProfile(c context.Context, guid, tenantID string, profile config.WirelessProfile) error {
+	device, err := uc.setupWirelessProfileManagement(c, guid, tenantID)
 	if err != nil {
 		return err
 	}
@@ -181,8 +181,8 @@ func (uc *UseCase) UpdateWirelessProfile(c context.Context, guid string, profile
 	return nil
 }
 
-func (uc *UseCase) setupWirelessProfileManagement(c context.Context, guid string) (wsman.Management, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) setupWirelessProfileManagement(c context.Context, guid, tenantID string) (wsman.Management, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}

@@ -16,8 +16,8 @@ const (
 	wirelessEthernetInstanceID = "Intel(r) AMT Ethernet Port Settings 1"
 )
 
-func (uc *UseCase) GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error) {
-	item, err := uc.deviceInTenant(c, guid)
+func (uc *UseCase) GetNetworkSettings(c context.Context, guid, tenantID string) (dto.NetworkSettings, error) {
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return dto.NetworkSettings{}, err
 	}
@@ -161,8 +161,8 @@ func (uc *UseCase) processIEEE8021xSettings(response wsman.NetworkResults) []dto
 
 // GetWiredNetworkSettings returns the wired (Intel® AMT Ethernet Port Settings 0)
 // portion of a device's network settings.
-func (uc *UseCase) GetWiredNetworkSettings(c context.Context, guid string) (dto.WiredNetworkInfo, error) {
-	ns, err := uc.GetNetworkSettings(c, guid)
+func (uc *UseCase) GetWiredNetworkSettings(c context.Context, guid, tenantID string) (dto.WiredNetworkInfo, error) {
+	ns, err := uc.GetNetworkSettings(c, guid, tenantID)
 	if err != nil {
 		return dto.WiredNetworkInfo{}, err
 	}
@@ -176,7 +176,7 @@ func (uc *UseCase) GetWiredNetworkSettings(c context.Context, guid string) (dto.
 
 // PatchWiredNetworkSettings updates a device's wired IPv4 configuration (DHCP or
 // static IP). It returns no content on success.
-func (uc *UseCase) PatchWiredNetworkSettings(c context.Context, guid string, req dto.WiredNetworkConfigRequest) error {
+func (uc *UseCase) PatchWiredNetworkSettings(c context.Context, guid, tenantID string, req dto.WiredNetworkConfigRequest) error {
 	// Wired 802.1X configuration is a forward-looking API contract that is not yet
 	// implemented. Reject requests that supply the ieee8021x object rather than
 	// silently ignoring it, so the behavior is unambiguous for clients.
@@ -188,7 +188,7 @@ func (uc *UseCase) PatchWiredNetworkSettings(c context.Context, guid string, req
 		return err
 	}
 
-	item, err := uc.deviceInTenant(c, guid)
+	item, err := uc.deviceInTenant(c, guid, tenantID)
 	if err != nil {
 		return err
 	}

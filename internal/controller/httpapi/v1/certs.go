@@ -10,8 +10,9 @@ import (
 
 func (r *deviceManagementRoutes) getCertificates(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	certs, err := r.d.GetCertificates(c.Request.Context(), guid)
+	certs, err := r.d.GetCertificates(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		ErrorResponse(c, err)
 
@@ -23,8 +24,9 @@ func (r *deviceManagementRoutes) getCertificates(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getTLSSettingData(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := tenantIDFromRequest(c)
 
-	tlsSettingData, err := r.d.GetTLSSettingData(c.Request.Context(), guid)
+	tlsSettingData, err := r.d.GetTLSSettingData(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		ErrorResponse(c, err)
 
@@ -44,7 +46,8 @@ func (r *deviceManagementRoutes) addCertificate(c *gin.Context) {
 		return
 	}
 
-	handle, err := r.d.AddCertificate(c.Request.Context(), guid, certInfo)
+	tenantID := tenantIDFromRequest(c)
+	handle, err := r.d.AddCertificate(c.Request.Context(), guid, tenantID, certInfo)
 	if err != nil {
 		ErrorResponse(c, err)
 
@@ -57,8 +60,9 @@ func (r *deviceManagementRoutes) addCertificate(c *gin.Context) {
 func (r *deviceManagementRoutes) deleteCertificate(c *gin.Context) {
 	guid := c.Param("guid")
 	instanceID := c.Param("instanceId")
+	tenantID := tenantIDFromRequest(c)
 
-	err := r.d.DeleteCertificate(c.Request.Context(), guid, instanceID)
+	err := r.d.DeleteCertificate(c.Request.Context(), guid, instanceID, tenantID)
 	if err != nil {
 		ErrorResponse(c, err)
 
