@@ -28,11 +28,14 @@ var (
 	ErrRedirect = errors.New("redirection error")
 )
 
-func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
+func TestWebSocketHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = true
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
@@ -109,14 +112,16 @@ func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging libra
 }
 
 // TestWebSocketHandlerDeviceBinding: WS accepts only a token whose deviceId matches host.
-func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
+func TestWebSocketHandlerDeviceBinding(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = false
-	config.ConsoleConfig.JWTKey = "test-jwt-key"
 
 	// deviceID == "" mimics a login token (no deviceId claim).
 	tokenFor := func(deviceID string) string {
@@ -357,14 +362,16 @@ func TestWebSocketHandlerRealUpgrader(t *testing.T) { //nolint:paralleltest // s
 }
 
 // TestWebSocketHandlerTokenValidation: WS rejects missing and unverifiable tokens.
-func TestWebSocketHandlerTokenValidation(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
+func TestWebSocketHandlerTokenValidation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = false
-	config.ConsoleConfig.JWTKey = "test-jwt-key"
 
 	signedWith := func(key string, expiry time.Time) string {
 		claims := jwt.MapClaims{

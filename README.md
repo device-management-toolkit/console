@@ -75,7 +75,7 @@ Local development can be done on **Linux**, **macOS**, and **Windows**. On Windo
 ### Prerequisites
 
 Before you begin, ensure you have:
-- [Go 1.24+](https://go.dev/dl/)
+- [Go 1.27+](https://go.dev/dl/)
 - [Git](https://git-scm.com/downloads)
 - [Node.js & npm](https://nodejs.org/) (for the Web UI)
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/) (optional, for PostgreSQL)

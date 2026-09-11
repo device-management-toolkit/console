@@ -27,7 +27,7 @@ Sibling reference repos in the workspace: [MPS](https://github.com/device-manage
 ## Commands
 
 
-**Go 1.25+ required** (per `go.mod`). **Module path is `github.com/device-management-toolkit/console`** — all intra-repo imports use that prefix. Copy `.env.example` to `.env` (the VS Code launch config and the few `make` targets that still apply read it via `envFile` / `-include`; raw `go run` reads env vars from your shell).
+**Go 1.27+ required** (per `go.mod`). **Module path is `github.com/device-management-toolkit/console`** — all intra-repo imports use that prefix. Copy `.env.example` to `.env` (the VS Code launch config and the few `make` targets that still apply read it via `envFile` / `-include`; raw `go run` reads env vars from your shell).
 
 ### Running the app
 

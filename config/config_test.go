@@ -1,14 +1,18 @@
 package config
 
 import (
+	"bytes"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
 	"time"
 
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func clearEnv() {
@@ -17,10 +21,12 @@ func clearEnv() {
 	os.Unsetenv("LOG_LEVEL")
 	os.Unsetenv("DB_POOL_MAX")
 	os.Unsetenv("DB_URL")
+	os.Unsetenv("AUTH_JWT_KEY")
 }
 
-func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_Defaults(t *testing.T) {
 	clearEnv() // Clear environment variables to ensure defaults are tested
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-default-testing")
 
 	cfg, err := NewConfig()
 
@@ -64,7 +70,7 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, 2, cfg.PoolMax)
 }
 
-func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_EnvVars(t *testing.T) {
 	// Set environment variables
 	os.Setenv("APP_NAME", "testApp")
 	os.Setenv("HTTP_PORT", "9090")
@@ -72,6 +78,7 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://user:password@localhost:5432/testdb")
 	os.Setenv("HTTP_TLS_ENABLED", "false")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-env-testing")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -321,7 +328,7 @@ func TestWriteConfig_TightensExistingLooseFile(t *testing.T) {
 	assert.Equal(t, configFilePerm, fileInfo.Mode().Perm())
 }
 
-func TestNewConfig_FileAndEnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_FileAndEnvVars(t *testing.T) {
 	clearEnv() // Clear environment variables before setting new ones
 
 	// Create a temporary config file
@@ -348,6 +355,7 @@ postgres:
 	os.Setenv("LOG_LEVEL", "debug")
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://envuser:envpassword@localhost:5432/envdb")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-file-and-env-testing")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -401,6 +409,7 @@ func TestValidatePort(t *testing.T) {
 func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
 	clearEnv()
 	os.Setenv("HTTP_PORT", "not-a-port")
+	os.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-invalid-port-testing")
 
 	defer clearEnv()
 
@@ -411,6 +420,7 @@ func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot h
 func TestNewConfig_PortOutOfRange(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
 	clearEnv()
 	os.Setenv("HTTP_PORT", "70000")
+	os.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-port-out-of-range-testing")
 
 	defer clearEnv()
 
@@ -484,6 +494,36 @@ func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
 	require.ErrorIs(t, err, ErrRedirectionJWTExpirationInvalid)
 }
 
+func TestValidate_MissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = ""
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrJWTKeyMissing)
+}
+
+func TestValidate_AuthDisabledAllowsMissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.Disabled = true
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
+func TestValidate_JWTKeyPresent(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key"
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
 func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
 	t.Parallel()
 
@@ -498,6 +538,7 @@ func TestValidate_ValidDefaults(t *testing.T) {
 	t.Parallel()
 
 	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key-for-validation"
 
 	err := cfg.validate()
 	require.NoError(t, err)
@@ -532,4 +573,85 @@ func TestDefaultConfig_NoWildcardCORS(t *testing.T) {
 	// Safe only because the origins above are explicit; setupHTTPHandler drops
 	// it if an admin reintroduces "*".
 	require.True(t, cfg.AllowCredentials)
+// readConfigFile parses what is on disk, bypassing the env overlay.
+func readConfigFile(t *testing.T, path string) *Config {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	fileCfg := defaultConfig()
+	require.NoError(t, yaml.Unmarshal(data, fileCfg))
+
+	return fileCfg
+}
+
+func TestEnsureJWTKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		disabled      bool
+		key           string
+		wantGenerated bool
+	}{
+		{"generates and persists when auth is enabled and no key is set", false, "", true},
+		{"keeps a configured key and never writes it to disk", false, "from-env", false},
+		{"skips generation when auth is disabled", true, "", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			path := filepath.Join(t.TempDir(), "config.yml")
+			require.NoError(t, writeConfig(path, defaultConfig()))
+
+			cfg := defaultConfig()
+			cfg.Disabled = tc.disabled
+			cfg.JWTKey = tc.key
+
+			require.NoError(t, ensureJWTKey(path, cfg))
+
+			if !tc.wantGenerated {
+				assert.Equal(t, tc.key, cfg.JWTKey)
+				assert.Empty(t, readConfigFile(t, path).JWTKey)
+
+				return
+			}
+
+			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
+			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
+
+			// A restart must reuse the persisted key rather than rotate it.
+			again := readConfigFile(t, path)
+			require.NoError(t, ensureJWTKey(path, again))
+			assert.Equal(t, cfg.JWTKey, again.JWTKey)
+		})
+	}
+}
+
+func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:paralleltest // rebinds the global log output
+	var buf bytes.Buffer
+
+	orig := log.Writer()
+
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(orig) })
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, writeConfig(path, defaultConfig()))
+
+	require.NoError(t, ensureJWTKey(path, defaultConfig()))
+	assert.Contains(t, buf.String(), "OAuth2")
+}
+
+// TestReadEnv_EmptyJWTKeyIsNotRejected guards against re-adding env-required to
+// JWTKey: that check runs before ensureJWTKey and ignores auth.disabled.
+func TestReadEnv_EmptyJWTKeyIsNotRejected(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, cleanenv.ReadEnv(defaultConfig()))
 }

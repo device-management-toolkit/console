@@ -87,6 +87,7 @@ func TestNewConfig_RejectsInvalidEncryptionKey(t *testing.T) {
 
 		t.Run(tc.name, func(t *testing.T) {
 			t.Setenv("APP_ENCRYPTION_KEY", tc.key)
+			t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
 
 			cfg, err := NewConfig()
 
@@ -101,6 +102,7 @@ func TestNewConfig_RejectsInvalidEncryptionKey(t *testing.T) {
 func TestNewConfig_AcceptsValidEncryptionKey(t *testing.T) {
 	clearEnv()
 	t.Setenv("APP_ENCRYPTION_KEY", "Jf3Q2nXJ+GZzN1dbVQms0wbB4+i/5PjL")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
 
 	cfg, err := NewConfig()
 

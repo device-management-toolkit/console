@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
@@ -13,6 +14,8 @@ import (
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"gopkg.in/yaml.v2"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 )
 
 var ConsoleConfig *Config
@@ -24,6 +27,7 @@ var (
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 	ErrAllowedOriginsEmpty             = errors.New("config: http.allowed_origins must list at least one origin (e.g. https://localhost:8181) — an empty list disables CORS outright and aborts startup")
+	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 )
 
 const defaultHost = "localhost"
@@ -121,7 +125,7 @@ type (
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -247,7 +251,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			CookieEnabled:            true,
@@ -414,6 +418,11 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
+	return updateConfigFile(configPath, func(c *Config) { c.AdminPassword = adminPassword })
+}
+
+// updateConfigFile applies mutate to the file's own contents, never to the env-overlaid Config.
+func updateConfigFile(configPath string, mutate func(*Config)) error {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -424,9 +433,53 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
-	fileCfg.AdminPassword = adminPassword
+	mutate(fileCfg)
 
 	return writeConfig(configPath, fileCfg)
+}
+
+// ensureJWTKey mirrors the admin-password flow: a key from config or env is
+// used as-is, disabled auth needs none, and otherwise a random key is generated
+// and persisted so every restart signs tokens with the same secret.
+func ensureJWTKey(configPath string, cfg *Config) error {
+	if cfg.Disabled || cfg.JWTKey != "" {
+		return nil
+	}
+
+	key := security.Crypto{}.GenerateKey()
+
+	if err := updateConfigFile(configPath, func(c *Config) { c.JWTKey = key }); err != nil {
+		return fmt.Errorf("config: persisting generated auth.jwtKey to %s (set AUTH_JWT_KEY to provide one instead): %w", configPath, err)
+	}
+
+	cfg.JWTKey = key
+
+	log.Printf(
+		"WARNING: no auth.jwtKey was configured, so a random one was generated and saved to %s. "+
+			"Local basic auth is meant for single-user deployments; for production, configure your own "+
+			"OAuth2/OIDC provider via auth.clientId and auth.issuer instead.",
+		configPath,
+	)
+
+	return nil
+}
+
+// loadConfig layers the file (created with defaults on first run) and the
+// environment onto cfg, then generates auth.jwtKey when nothing supplied one.
+func loadConfig(configPath string, cfg *Config) error {
+	if err := readOrInitConfig(configPath, cfg); err != nil {
+		return err
+	}
+
+	if err := cleanenv.ReadEnv(cfg); err != nil {
+		return err
+	}
+
+	if err := ensureJWTKey(configPath, cfg); err != nil {
+		return err
+	}
+
+	return cfg.validate()
 }
 
 // validate checks that all Config values are sane.
@@ -445,6 +498,8 @@ func (c *Config) validate() error {
 	// opaque "conflict settings: all origins disabled" on an empty list.
 	if len(c.AllowedOrigins) == 0 {
 		return ErrAllowedOriginsEmpty
+	if !c.Disabled && c.JWTKey == "" {
+		return ErrJWTKeyMissing
 	}
 
 	return nil
@@ -485,19 +540,7 @@ func NewConfig() (*Config, error) {
 		}
 	}
 
-	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
-		ConsoleConfig = nil
-
-		return nil, err
-	}
-
-	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
-		ConsoleConfig = nil
-
-		return nil, err
-	}
-
-	if err := ConsoleConfig.validate(); err != nil {
+	if err := loadConfig(configPath, ConsoleConfig); err != nil {
 		ConsoleConfig = nil
 
 		return nil, err
