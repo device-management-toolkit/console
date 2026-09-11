@@ -7,7 +7,7 @@ go 1.27.0
 require (
 	fyne.io/systray v1.12.2
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.20.0
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.50.3
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/gin-contrib/cors v1.7.8
