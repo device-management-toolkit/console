@@ -112,7 +112,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			requestBody: "invalid-json",
 			mock: func(_ *mocks.MockDeviceManagementFeature) {
 			},
-			expectedCode: http.StatusInternalServerError,
+			expectedCode: http.StatusBadRequest,
 		},
 		{
 			name:        "setRemoteEraseOptions - service failure",

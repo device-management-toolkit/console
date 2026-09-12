@@ -1,10 +1,13 @@
 package v1
 
 import (
+	"encoding/json"
 	"errors"
+	"io"
 	"net"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -35,27 +38,26 @@ type response struct {
 // handleValidationErrors handles all validation-related errors.
 func handleValidationErrors(c *gin.Context, err error) bool {
 	var (
-		odataValidationErr *ValidationError
-		validatorErr       validator.ValidationErrors
-		notValidErr        dto.NotValidError
-		validationErr      devices.ValidationError
+		validatorErr  validator.ValidationErrors
+		notValidErr   dto.NotValidError
+		validationErr devices.ValidationError
 	)
 
-	switch {
-	case errors.As(err, &odataValidationErr) || errors.Is(err, ErrInvalidInteger) ||
-		errors.Is(err, ErrExceedsMaxRange) || errors.Is(err, ErrNegativeValue) || errors.Is(err, ErrInvalidBoolean):
-		msg := err.Error()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-
+	if handleODataValidationErrors(c, err) {
 		return true
+	}
+
+	switch {
 	case errors.As(err, &validatorErr):
 		validatorErrorHandle(c, validatorErr)
 
 		return true
+
 	case errors.As(err, &notValidErr):
 		notValidErrorHandle(c, notValidErr)
 
 		return true
+
 	case errors.As(err, &validationErr):
 		msg := validationErr.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
@@ -63,13 +65,52 @@ func handleValidationErrors(c *gin.Context, err error) bool {
 		return true
 	}
 
-	return false
+	return handleJSONBindingErrors(c, err)
+}
+
+func handleODataValidationErrors(c *gin.Context, err error) bool {
+	var odataValidationErr *ValidationError
+
+	if !errors.As(err, &odataValidationErr) && !errors.Is(err, ErrInvalidInteger) &&
+		!errors.Is(err, ErrExceedsMaxRange) && !errors.Is(err, ErrNegativeValue) && !errors.Is(err, ErrInvalidBoolean) {
+		return false
+	}
+
+	msg := err.Error()
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+	return true
+}
+
+func handleJSONBindingErrors(c *gin.Context, err error) bool {
+	var (
+		jsonSyntaxErr *json.SyntaxError
+		jsonTypeErr   *json.UnmarshalTypeError
+		timeParseErr  *time.ParseError
+	)
+
+	if !errors.As(err, &jsonSyntaxErr) && !errors.As(err, &jsonTypeErr) &&
+		!errors.As(err, &timeParseErr) && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+		return false
+	}
+
+	msg := err.Error()
+	if errors.Is(err, io.EOF) {
+		msg = "request body is empty"
+	} else if errors.Is(err, io.ErrUnexpectedEOF) {
+		msg = "request body is truncated"
+	}
+
+	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+	return true
 }
 
 // handleDomainErrors handles domain-specific errors.
 func handleDomainErrors(c *gin.Context, err error) bool {
 	var (
 		certExpErr      domains.CertExpirationError
+		certFormatErr   domains.CertFormatError
 		certPasswordErr domains.CertPasswordError
 		notSupportedErr devices.NotSupportedError
 	)
@@ -77,6 +118,11 @@ func handleDomainErrors(c *gin.Context, err error) bool {
 	switch {
 	case errors.As(err, &certExpErr):
 		msg := certExpErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &certFormatErr):
+		msg := certFormatErr.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
@@ -145,6 +191,14 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 	return false
 }
 
+// ErrorResponse is the central error handler for the v1 API. It processes an
+// error through a series of specialized handlers in a specific order of
+// precedence. New error types should be added to the appropriate handler below.
+// The order is:
+// 1. Sentinel errors (exact matches, e.g., profiles.ErrCIRADisabled) in handleSentinelErrors
+// 2. Validation errors (input validation, JSON binding, OData) in handleValidationErrors
+// 3. Domain-specific errors (custom error types for business logic) in handleDomainErrors
+// 4. General typed errors (database, network, not found, etc.) in handleTypedErrors
 func ErrorResponse(c *gin.Context, err error) {
 	if handleSentinelErrors(c, err) {
 		return
@@ -176,6 +230,16 @@ func cancelledErrorHandle(c *gin.Context, cancelError dto.CanceledError) {
 }
 
 func notValidErrorHandle(c *gin.Context, err dto.NotValidError) {
+	var validatorErr validator.ValidationErrors
+	// If the original error is a validation error, use its message
+	// to preserve the detailed validation failure information.
+	if errors.As(err.Console.OriginalError, &validatorErr) {
+		msg := "Invalid input: " + validatorErr.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return
+	}
+
 	msg := err.Console.FriendlyMessage()
 	c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 }
