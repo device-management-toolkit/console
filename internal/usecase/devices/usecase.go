@@ -103,6 +103,11 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		AllowSelfSigned:  d.AllowSelfSigned,
 	}
 
+	// Sync the queryable mirror column from the deviceinfo blob (source of truth).
+	if d.DeviceInfo != nil {
+		d1.CurrentMode = d.DeviceInfo.CurrentMode
+	}
+
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
 	if err != nil {
 		return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "failed to encrypt password", err)

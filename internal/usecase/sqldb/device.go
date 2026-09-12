@@ -348,6 +348,7 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		Set("useTLS", d.UseTLS).
 		Set("allowSelfSigned", d.AllowSelfSigned).
 		Set("certhash", d.CertHash).
+		Set("currentmode", d.CurrentMode).
 		Where("guid = ? AND tenantid = ?", d.GUID, d.TenantID).
 		ToSql()
 	if err != nil {
@@ -420,8 +421,8 @@ func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
 func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error) {
 	insertBuilder := r.Builder.
 		Insert("devices").
-		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash").
-		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash)
+		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash", "currentmode").
+		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash, d.CurrentMode)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")

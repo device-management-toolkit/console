@@ -42,6 +42,7 @@ type deviceUpdateFields struct {
 	UseTLS           bool    `bson:"usetls"`
 	AllowSelfSigned  bool    `bson:"allowselfsigned"`
 	CertHash         *string `bson:"certhash"`
+	CurrentMode      string  `bson:"currentmode"`
 }
 
 type deviceUpdateDocument struct {
@@ -247,6 +248,7 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 			UseTLS:           d.UseTLS,
 			AllowSelfSigned:  d.AllowSelfSigned,
 			CertHash:         d.CertHash,
+			CurrentMode:      d.CurrentMode,
 		}},
 	)
 	if err != nil {

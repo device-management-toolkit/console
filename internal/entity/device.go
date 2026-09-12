@@ -25,6 +25,8 @@ type Device struct {
 	UseTLS           bool       `bson:"usetls"`
 	AllowSelfSigned  bool       `bson:"allowselfsigned"`
 	CertHash         *string    `bson:"certhash"`
+	// Queryable mirror of the deviceinfo currentMode JSON field, synced on every insert/update.
+	CurrentMode string `bson:"currentmode"`
 }
 
 type Explorer struct {
