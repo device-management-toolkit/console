@@ -111,6 +111,40 @@ func TestDevicesRoutes(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
+			name:   "get activated devices",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetActivated(context.Background(), 25, 0, "").Return([]dto.Device{{
+					GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
+				}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get discovered devices",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?discovered=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetDiscovered(context.Background(), 25, 0, "").Return([]dto.Device{{
+					GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
+				}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get activated devices - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetActivated(context.Background(), 25, 0, "").Return(nil, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
 			name:   "get all devices - with count",
 			method: http.MethodGet,
 			url:    "/api/v1/devices?$top=10&$skip=1&$count=true",
@@ -317,9 +351,21 @@ func TestDevicesRoutes(t *testing.T) {
 			url:    "/api/v1/devices/stats",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
 				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "").Return(4, 1, nil)
 			},
-			response:     dto.DeviceStatResponse{TotalCount: 5},
+			response:     dto.DeviceStatResponse{TotalCount: 5, ActivatedCount: 4, DiscoveredCount: 1},
 			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get devices stats - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/devices/stats",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "").Return(0, 0, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
 		},
 	}
 
