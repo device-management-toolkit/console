@@ -1,0 +1,24 @@
+# Known findings from historical commits that are test-only / example secrets.
+# These cannot be scrubbed without rewriting published git history, so they are
+# allowlisted by fingerprint instead. See CONTRIBUTING.md before adding new entries.
+043d98afe92215d5e527471107bc2661c890a09b:config/config.yml:generic-api-key:5
+76d223b0887b041290239104172f7f47aef95258:config/encryption_key_test.go:generic-api-key:103
+76d223b0887b041290239104172f7f47aef95258:cmd/app/main_test.go:generic-api-key:137
+de7cc90c4d01d53bdb0c5a9cdfae0f96aacec1c9:integration-test/mcp/README.md:generic-api-key:20
+e4e33d2a662f73788cb7583141d67451d5b78d3a:docker-compose.yml:generic-api-key:68
+921de614c0e221fb311ad67746d31c7cac531a37:redfish/internal/controller/http/v1/generated/spec.gen.go:generic-api-key:165
+65f4c902a07c06e7b31ed47dcb6f34048ff833be:redfish/internal/usecase/sessions/usecase_fuzz_test.go:jwt:201
+bb5af18ce42f82bc0fd229d956222867accd0788:integration-test/collections/console_rps_apis.postman_collection.json:jwt:8355
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6102
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6173
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6257
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6334
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6394
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6447
+693297fd2604a083b55fabf262553df6b6a02f99:integration-test/collections/console_rps_apis.postman_collection.json:jwt:6507
+29dfc8790fb4e2ef704d172e4db44f1838664cba:docker-compose.yml:generic-api-key:24
+3d2e033dfad871d5168417723f18925db71b5a82:integration-test/collections/console_mps_apis.postman_collection.json:jwt:133
+3d2e033dfad871d5168417723f18925db71b5a82:integration-test/collections/console_mps_apis.postman_collection.json:jwt:185
+3d2e033dfad871d5168417723f18925db71b5a82:integration-test/collections/console_mps_apis.postman_collection.json:jwt:246
+ded37b9f8053036da4b2b86d6c710caaaa456f76:internal/features/explorer/explorer.go:generic-api-key:760
+f637525448144ec424bc7daea2415fd58257c717:integration-test/console.postman_collection.json:jwt:11692

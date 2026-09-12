@@ -1,0 +1,46 @@
+name: Gitleaks Secret Scan
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    # The branches below must be a subset of the branches above
+    branches: [main]
+
+permissions:
+  contents: read
+
+jobs:
+  scan:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+    env:
+      # Keep in sync with the gitleaks rev in .pre-commit-config.yaml.
+      GITLEAKS_VERSION: 8.30.1
+      GITLEAKS_SHA256: 551f6fc83ea457d62a0d98237cbad105af8d557003051f41f3e7ca7b3f2470eb
+    steps:
+      - name: Harden Runner
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
+        with:
+          egress-policy: audit
+
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+          # Full history is required so gitleaks can scan past commits, not just the working tree.
+          fetch-depth: 0
+
+      # gitleaks/gitleaks-action requires a paid license for organization-owned repos
+      # (device-management-toolkit is an org); the underlying gitleaks CLI itself is
+      # still fully free/OSS, so install and run it directly instead.
+      - name: Install gitleaks
+        run: |
+          curl -sSfLO "https://github.com/gitleaks/gitleaks/releases/download/v${GITLEAKS_VERSION}/gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz"
+          echo "${GITLEAKS_SHA256}  gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" | sha256sum -c -
+          tar -xzf "gitleaks_${GITLEAKS_VERSION}_linux_x64.tar.gz" gitleaks
+          chmod +x gitleaks
+
+      - name: Run Gitleaks
+        run: ./gitleaks git . -v --exit-code 1
+
