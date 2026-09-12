@@ -43,6 +43,8 @@ func NewWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l 
 }
 
 func (r *WirelessConfigRoutes) get(c *gin.Context) {
+	tenantID := tenantIDFromHeader(c)
+
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidationWifiConfig.Wrap("get", "BindAndValidate", err)
@@ -51,7 +53,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
-	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - getCount")
 		ErrorResponse(c, err)
@@ -60,7 +62,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := r.t.GetCount(c.Request.Context(), "")
+		count, err := r.t.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - wireless configs - v1 - getCount")
 			ErrorResponse(c, err)
@@ -79,8 +81,9 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 	profileName := c.Param("profileName")
+	tenantID := tenantIDFromHeader(c)
 
-	config, err := r.t.GetByName(c.Request.Context(), profileName, "")
+	config, err := r.t.GetByName(c.Request.Context(), profileName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - getByName")
 		ErrorResponse(c, err)
@@ -96,6 +99,12 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 	if err := c.ShouldBindJSON(&config); err != nil {
 		validationErr := ErrValidationWifiConfig.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	if err := applyTenantID(c, &config.TenantID); err != nil {
+		ErrorResponse(c, err)
 
 		return
 	}
@@ -121,6 +130,12 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
+	if err := applyTenantID(c, &config.TenantID); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
 	updatedWirelessConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - update")
@@ -134,8 +149,9 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
+	tenantID := tenantIDFromHeader(c)
 
-	err := r.t.Delete(c.Request.Context(), configName, "")
+	err := r.t.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - delete")
 		ErrorResponse(c, err)

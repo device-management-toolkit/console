@@ -773,7 +773,7 @@ func TestLoginRedirection(t *testing.T) {
 			deviceID: "test-device-guid",
 			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
 				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
-					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host", TenantID: "tenant-a"}, nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedErr:  false,
@@ -864,6 +864,8 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) 
 
 	// deviceId must be the device GUID
 	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
+	_, hasTenantID := claims["tenantId"]
+	require.False(t, hasTenantID, "token should not contain a tenantId claim")
 
 	// Verify expiration is set
 	exp, err := claims.GetExpirationTime()

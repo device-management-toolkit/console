@@ -48,6 +48,8 @@ type deviceUpdateDocument struct {
 	Set deviceUpdateFields `bson:"$set"`
 }
 
+const maxGUIDMatches = 2
+
 var _ devices.Repository = (*DeviceRepo)(nil)
 
 func NewDeviceRepo(db *mongo.Database) *DeviceRepo {
@@ -118,6 +120,32 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entit
 	}
 
 	return &d, nil
+}
+
+func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
+	if !identifierRegex.MatchString(guid) {
+		return nil, nil
+	}
+
+	cur, err := r.col.Find(ctx, bson.M{fieldGUID: guid}, options.Find().SetLimit(maxGUIDMatches))
+	if err != nil {
+		return nil, errDeviceDatabase.Wrap("GetByGUID", "Find", err)
+	}
+	defer cur.Close(ctx)
+
+	deviceMatches := make([]entity.Device, 0, maxGUIDMatches)
+	if err := cur.All(ctx, &deviceMatches); err != nil {
+		return nil, errDeviceDatabase.Wrap("GetByGUID", "Cursor.All", err)
+	}
+
+	switch len(deviceMatches) {
+	case 0:
+		return nil, nil
+	case 1:
+		return &deviceMatches[0], nil
+	default:
+		return nil, errDeviceNotUnique.Wrap("multiple devices found for guid")
+	}
 }
 
 func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
@@ -227,7 +255,8 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 	}
 
 	// Explicit field list mirrors sqldb/device.go:Update so a new field must be wired in intentionally.
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		deviceFilter{GUID: d.GUID, TenantID: d.TenantID},
 		deviceUpdateDocument{Set: deviceUpdateFields{
 			GUID:             d.GUID,
@@ -283,7 +312,8 @@ func (r *DeviceRepo) UpdateLastSeen(ctx context.Context, guid string) error {
 		return errDeviceDatabase.Wrap("UpdateLastSeen", "validate", nil)
 	}
 
-	_, err := r.col.UpdateOne(ctx,
+	_, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldGUID: guid},
 		bson.M{opSet: bson.M{"lastseen": time.Now()}},
 	)

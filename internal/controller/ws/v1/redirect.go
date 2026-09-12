@@ -75,14 +75,22 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	// KVM_TIMING: Measure total connection time
 	totalStart := time.Now()
-	err = r.d.Redirect(c, conn, c.Query("host"), c.Query("mode"))
+	err = r.d.Redirect(c.Request.Context(), conn, c.Query("host"), c.Query("mode"))
 	totalDuration := time.Since(totalStart)
 	devices.RecordTotalConnection(totalDuration, c.Query("mode"))
 	r.l.Debug("KVM_TIMING: Total connection time", "duration_ms", totalDuration.Milliseconds(), "mode", c.Query("mode"))
 
 	if err != nil {
 		r.l.Error(err, "http - devices - v1 - redirect")
-		errorResponse(c, http.StatusInternalServerError, "redirect failed")
+
+		// Upgrade hijacks the HTTP connection, so errors after this point must be
+		// reported over the WebSocket rather than through Gin's response writer.
+		_ = conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "redirect failed"),
+			time.Now().Add(time.Second),
+		)
+		_ = conn.Close()
 	}
 }
 

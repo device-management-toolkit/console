@@ -322,6 +322,21 @@ func (mr *MockDeviceManagementRepositoryMockRecorder) GetByColumn(ctx, columnNam
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByColumn", reflect.TypeOf((*MockDeviceManagementRepository)(nil).GetByColumn), ctx, columnName, queryValue, tenantID)
 }
 
+// GetByGUID mocks base method.
+func (m *MockDeviceManagementRepository) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByGUID", ctx, guid)
+	ret0, _ := ret[0].(*entity.Device)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByGUID indicates an expected call of GetByGUID.
+func (mr *MockDeviceManagementRepositoryMockRecorder) GetByGUID(ctx, guid any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByGUID", reflect.TypeOf((*MockDeviceManagementRepository)(nil).GetByGUID), ctx, guid)
+}
+
 // GetByID mocks base method.
 func (m *MockDeviceManagementRepository) GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error) {
 	m.ctrl.T.Helper()
@@ -652,6 +667,21 @@ func (m *MockDeviceManagementFeature) GetByColumn(ctx context.Context, columnNam
 func (mr *MockDeviceManagementFeatureMockRecorder) GetByColumn(ctx, columnName, queryValue, tenantID any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByColumn", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetByColumn), ctx, columnName, queryValue, tenantID)
+}
+
+// GetByGUID mocks base method.
+func (m *MockDeviceManagementFeature) GetByGUID(ctx context.Context, guid string, includeSecrets bool) (*dto.Device, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetByGUID", ctx, guid, includeSecrets)
+	ret0, _ := ret[0].(*dto.Device)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetByGUID indicates an expected call of GetByGUID.
+func (mr *MockDeviceManagementFeatureMockRecorder) GetByGUID(ctx, guid, includeSecrets any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetByGUID", reflect.TypeOf((*MockDeviceManagementFeature)(nil).GetByGUID), ctx, guid, includeSecrets)
 }
 
 // GetByID mocks base method.

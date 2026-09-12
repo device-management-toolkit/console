@@ -8,7 +8,7 @@ import (
 )
 
 func (uc *UseCase) CancelUserConsent(c context.Context, guid string) (dto.UserConsentMessage, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return dto.UserConsentMessage{}, err
 	}
@@ -48,7 +48,7 @@ func (uc *UseCase) CancelUserConsent(c context.Context, guid string) (dto.UserCo
 }
 
 func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.UserConsentMessage, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return dto.UserConsentMessage{}, err
 	}
@@ -88,7 +88,7 @@ func (uc *UseCase) GetUserConsentCode(c context.Context, guid string) (dto.UserC
 }
 
 func (uc *UseCase) SendConsentCode(c context.Context, userConsent dto.UserConsentCode, guid string) (dto.UserConsentMessage, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+	item, err := uc.deviceInTenant(c, guid)
 	if err != nil {
 		return dto.UserConsentMessage{}, err
 	}
