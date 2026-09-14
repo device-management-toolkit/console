@@ -9,7 +9,6 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
-	"github.com/device-management-toolkit/console/internal/tenant"
 )
 
 // specCookieAuthEnabled mirrors the auth middleware. cmd/openapi-gen runs
@@ -56,7 +55,7 @@ func protectedRouteOptions() fuego.RouteOption {
 func tenantHeaderOption() fuego.RouteOption {
 	return fuego.OptionHeader(
 		middleware.TenantHeaderName,
-		"Scopes the request to a tenant. "+tenant.Hint+". Omit for the default tenant.",
+		"Scopes the request to a tenant. "+middleware.TenantIDHint+". Omit for the default tenant.",
 		param.Nullable(),
 		param.Example("tenant", "acme-corp"),
 	)

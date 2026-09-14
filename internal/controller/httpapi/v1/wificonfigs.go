@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -43,8 +44,6 @@ func NewWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l 
 }
 
 func (r *WirelessConfigRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidationWifiConfig.Wrap("get", "BindAndValidate", err)
@@ -52,6 +51,8 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 
 		return
 	}
+
+	tenantID := middleware.TenantID(c)
 
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
@@ -81,7 +82,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 	profileName := c.Param("profileName")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := middleware.TenantID(c)
 
 	config, err := r.t.GetByName(c.Request.Context(), profileName, tenantID)
 	if err != nil {
@@ -103,11 +104,7 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &config.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	config.TenantID = middleware.TenantID(c)
 
 	insertedConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
@@ -130,11 +127,7 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &config.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	config.TenantID = middleware.TenantID(c)
 
 	updatedWirelessConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
@@ -149,7 +142,7 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := middleware.TenantID(c)
 
 	err := r.t.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {

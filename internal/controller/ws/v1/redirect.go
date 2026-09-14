@@ -75,7 +75,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	// KVM_TIMING: Measure total connection time
 	totalStart := time.Now()
-	err = r.d.Redirect(c.Request.Context(), conn, c.Query("host"), c.Query("mode"))
+	err = r.d.Redirect(c, conn, c.Query("host"), c.Query("mode"))
 	totalDuration := time.Since(totalStart)
 	devices.RecordTotalConnection(totalDuration, c.Query("mode"))
 	r.l.Debug("KVM_TIMING: Total connection time", "duration_ms", totalDuration.Milliseconds(), "mode", c.Query("mode"))

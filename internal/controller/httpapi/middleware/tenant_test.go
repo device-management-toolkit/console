@@ -3,13 +3,13 @@ package middleware_test
 import (
 	"net/http"
 	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
-	"github.com/device-management-toolkit/console/internal/tenant"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -17,9 +17,9 @@ func serve(t *testing.T, headerValue string) (recorder *httptest.ResponseRecorde
 	t.Helper()
 
 	engine := gin.New()
-	engine.Use(middleware.Tenant(logger.New("error")))
+	engine.Use(middleware.ResolveTenant(logger.New("error")))
 	engine.GET("/", func(c *gin.Context) {
-		seen = tenant.FromContext(c.Request.Context())
+		seen = middleware.TenantID(c)
 		c.Status(http.StatusOK)
 	})
 
@@ -34,7 +34,7 @@ func serve(t *testing.T, headerValue string) (recorder *httptest.ResponseRecorde
 	return recorder, seen
 }
 
-func TestTenantScopesRequestContext(t *testing.T) {
+func TestTenantAllowsValidHeader(t *testing.T) {
 	t.Parallel()
 
 	recorder, seen := serve(t, "tenant-a")
@@ -52,12 +52,30 @@ func TestTenantWithoutHeaderYieldsEmptyTenant(t *testing.T) {
 	require.Empty(t, seen)
 }
 
-func TestTenantRejectsMalformedHeader(t *testing.T) {
+func TestTenantRejectsInvalidTenantIDHeader(t *testing.T) {
 	t.Parallel()
 
-	recorder, seen := serve(t, "tenant a")
+	invalidTenantIDs := []struct {
+		name  string
+		value string
+	}{
+		{name: "embedded space", value: "tenant a"},
+		{name: "leading hyphen", value: "-tenant-a"},
+		{name: "leading underscore", value: "_tenant-a"},
+		{name: "punctuation", value: "tenant.a"},
+		{name: "over maximum length", value: strings.Repeat("a", middleware.MaxTenantIDLength+1)},
+	}
 
-	require.Equal(t, http.StatusBadRequest, recorder.Code)
-	require.Contains(t, recorder.Body.String(), "x-tenant-id must match")
-	require.Empty(t, seen)
+	for _, test := range invalidTenantIDs {
+		test := test
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			recorder, seen := serve(t, test.value)
+
+			require.Equal(t, http.StatusBadRequest, recorder.Code)
+			require.Contains(t, recorder.Body.String(), "x-tenant-id must match")
+			require.Empty(t, seen)
+		})
+	}
 }

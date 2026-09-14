@@ -137,10 +137,7 @@ func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, 
 
 	device.Password = decryptedPassword
 
-	// Preserve request values such as tenant ID, but do not inherit request
-	// cancellation: the HTTP handler returns immediately after upgrading the
-	// connection while the KVM session must remain active in its goroutines.
-	ctx, cancel := context.WithCancel(context.WithoutCancel(c))
+	ctx, cancel := context.WithCancel(c)
 	now := time.Now()
 	deviceConnection := &DeviceConnection{
 		Conn:          conn,

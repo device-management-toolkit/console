@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -46,8 +47,6 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 }
 
 func (r *profileRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidationProfile.Wrap("get", "BindAndValidate", err)
@@ -55,6 +54,8 @@ func (r *profileRoutes) get(c *gin.Context) {
 
 		return
 	}
+
+	tenantID := middleware.TenantID(c)
 
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
@@ -84,7 +85,7 @@ func (r *profileRoutes) get(c *gin.Context) {
 
 func (r *profileRoutes) getByName(c *gin.Context) {
 	name := c.Param("name")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := middleware.TenantID(c)
 
 	item, err := r.t.GetByName(c.Request.Context(), name, tenantID)
 	if err != nil {
@@ -100,7 +101,7 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 func (r *profileRoutes) export(c *gin.Context) {
 	name := c.Param("name")
 	domainName := c.Query("domainName")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := middleware.TenantID(c)
 
 	item, key, err := r.t.Export(c.Request.Context(), name, domainName, tenantID)
 	if err != nil {
@@ -129,11 +130,7 @@ func (r *profileRoutes) insert(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &profile.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	profile.TenantID = middleware.TenantID(c)
 
 	newProfile, err := r.t.Insert(c.Request.Context(), &profile)
 	if err != nil {
@@ -163,11 +160,7 @@ func (r *profileRoutes) update(c *gin.Context) {
 		return
 	}
 
-	if err := applyTenantID(c, &profile.TenantID); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
+	profile.TenantID = middleware.TenantID(c)
 
 	fields, err := providedJSONFieldsFromBody(body)
 	if err != nil {
@@ -190,7 +183,7 @@ func (r *profileRoutes) update(c *gin.Context) {
 
 func (r *profileRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
-	tenantID := tenantIDFromHeader(c)
+	tenantID := middleware.TenantID(c)
 
 	err := r.t.Delete(c.Request.Context(), name, tenantID)
 	if err != nil {
