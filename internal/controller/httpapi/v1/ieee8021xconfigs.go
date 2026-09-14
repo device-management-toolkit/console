@@ -44,8 +44,6 @@ func NewIEEE8021xConfigRoutes(handler *gin.RouterGroup, t ieee8021xconfigs.Featu
 }
 
 func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidation8021xConfig.Wrap("get", "BindAndValidate", err)

@@ -99,7 +99,6 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) get(c *gin.Context) {
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -178,7 +177,6 @@ func (dr *deviceRoutes) getByColumnOrTags(c *gin.Context, column, value string, 
 }
 
 func (dr *deviceRoutes) getByID(c *gin.Context) {
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -386,7 +384,6 @@ func (dr *deviceRoutes) getTags(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -420,7 +417,6 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
-
 	var certToPin dto.PinCertificate
 	if err := c.ShouldBindBodyWithJSON(&certToPin); err != nil {
 		ErrorResponse(c, err)
@@ -454,7 +450,6 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)

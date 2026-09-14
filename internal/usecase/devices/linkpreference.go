@@ -8,7 +8,7 @@ import (
 
 // SetLinkPreference sets the link preference (ME or Host) on a device's WiFi interface.
 func (uc *UseCase) SetLinkPreference(c context.Context, guid, tenantID string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return dto.LinkPreferenceResponse{}, err
 	}

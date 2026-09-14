@@ -18,7 +18,7 @@ const (
 )
 
 func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid, tenantID string) ([]dto.AlarmClockOccurrence, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}
@@ -53,7 +53,7 @@ func (uc *UseCase) GetAlarmOccurrences(c context.Context, guid, tenantID string)
 }
 
 func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid, tenantID string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return dto.AddAlarmOutput{}, err
 	}
@@ -80,7 +80,7 @@ func (uc *UseCase) CreateAlarmOccurrences(c context.Context, guid, tenantID stri
 }
 
 func (uc *UseCase) DeleteAlarmOccurrences(c context.Context, guid, instanceID, tenantID string) error {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return err
 	}

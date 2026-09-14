@@ -10,7 +10,7 @@ import (
 )
 
 func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid, tenantID string) (dto.BootCapabilities, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return dto.BootCapabilities{}, err
 	}
@@ -40,7 +40,7 @@ func (uc *UseCase) GetRemoteEraseCapabilities(c context.Context, guid, tenantID 
 }
 
 func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid, tenantID string, req dto.RemoteEraseRequest) error {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return err
 	}

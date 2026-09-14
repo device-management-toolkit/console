@@ -44,7 +44,7 @@ var (
 )
 
 func (uc *UseCase) SendPowerAction(c context.Context, guid, tenantID string, action int) (power.PowerActionResponse, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -122,7 +122,7 @@ func ensureFullPowerBeforeReset(device wsman.Management) (power.PowerActionRespo
 }
 
 func (uc *UseCase) GetPowerState(c context.Context, guid, tenantID string) (dto.PowerState, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return dto.PowerState{}, err
 	}
@@ -160,7 +160,7 @@ func (uc *UseCase) GetPowerState(c context.Context, guid, tenantID string) (dto.
 }
 
 func (uc *UseCase) GetPowerCapabilities(c context.Context, guid, tenantID string) (dto.PowerCapabilities, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return dto.PowerCapabilities{}, err
 	}
@@ -280,7 +280,7 @@ func buildBootSettingData(bootData boot.BootSettingDataResponse, bootSetting dto
 }
 
 func (uc *UseCase) SetBootOptions(c context.Context, guid, tenantID string, bootSetting dto.BootSetting) (power.PowerActionResponse, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return power.PowerActionResponse{}, err
 	}
@@ -593,7 +593,7 @@ func parseVersion(version []software.SoftwareIdentity) (int, error) {
 }
 
 func (uc *UseCase) GetBootSourceSetting(c context.Context, guid, tenantID string) ([]dto.BootSources, error) {
-	item, err := uc.deviceInTenant(c, guid, tenantID)
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}

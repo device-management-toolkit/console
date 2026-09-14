@@ -38,8 +38,6 @@ type DomainCountResponse struct {
 }
 
 func (r *domainRoutes) get(c *gin.Context) {
-	tenantID := tenantIDFromHeader(c)
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidationDomains.Wrap("get", "BindAndValidate", err)

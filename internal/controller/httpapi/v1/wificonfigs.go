@@ -44,7 +44,6 @@ func NewWirelessConfigRoutes(handler *gin.RouterGroup, t wificonfigs.Feature, l 
 }
 
 func (r *WirelessConfigRoutes) get(c *gin.Context) {
-
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		validationErr := ErrValidationWifiConfig.Wrap("get", "BindAndValidate", err)
