@@ -7,14 +7,14 @@ go 1.27.0
 require (
 	fyne.io/systray v1.12.2
 	github.com/Masterminds/squirrel v1.5.4
-	github.com/coreos/go-oidc/v3 v3.20.0
+	github.com/coreos/go-oidc/v3 v3.21.0
 	github.com/device-management-toolkit/go-wsman-messages/v2 v2.50.3
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/gin-contrib/cors v1.7.8
 	github.com/gin-contrib/pprof v1.5.5
 	github.com/gin-gonic/gin v1.12.0
 	github.com/go-fuego/fuego v0.19.0
-	github.com/go-playground/validator/v10 v10.30.3
+	github.com/go-playground/validator/v10 v10.30.4
 	github.com/go-xmlfmt/xmlfmt v1.1.3
 	github.com/golang-jwt/jwt/v5 v5.3.1
 	github.com/golang-migrate/migrate/v4 v4.19.1
@@ -22,7 +22,7 @@ require (
 	github.com/gorilla/websocket v1.5.3
 	github.com/hashicorp/vault/api v1.23.0
 	github.com/ilyakaznacheev/cleanenv v1.5.0
-	github.com/jackc/pgx/v5 v5.10.0
+	github.com/jackc/pgx/v5 v5.11.0
 	github.com/prometheus/client_golang v1.24.1
 	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.12.1
@@ -47,7 +47,7 @@ require (
 	github.com/danieljoos/wincred v1.2.3 // indirect
 	github.com/docker/go-connections v0.6.0 // indirect
 	github.com/dustin/go-humanize v1.0.1 // indirect
-	github.com/gabriel-vasile/mimetype v1.4.13 // indirect
+	github.com/gabriel-vasile/mimetype v1.4.15 // indirect
 	github.com/gin-contrib/sse v1.1.1 // indirect
 	github.com/go-jose/go-jose/v4 v4.1.4 // indirect
 	github.com/go-openapi/jsonpointer v0.22.5 // indirect
@@ -76,7 +76,7 @@ require (
 	github.com/klauspost/cpuid/v2 v2.4.0 // indirect
 	github.com/lann/builder v0.0.0-20180802200727-47ae307949d0 // indirect
 	github.com/lann/ps v0.0.0-20150810152359-62de8c46ede0 // indirect
-	github.com/leodido/go-urn v1.4.0 // indirect
+	github.com/leodido/go-urn v1.5.0 // indirect
 	github.com/lib/pq v1.10.9 // indirect
 	github.com/mattn/go-colorable v0.1.14 // indirect
 	github.com/mattn/go-isatty v0.0.24 // indirect
