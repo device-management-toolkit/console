@@ -66,6 +66,7 @@ func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	features, _, err := r.d.SetFeatures(c.Request.Context(), guid, tenantID, features)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setFeatures")

@@ -41,6 +41,7 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	err := r.d.AddWirelessProfile(c.Request.Context(), guid, tenantID, req.ToWirelessProfile())
 	if err != nil {
 		r.l.Error(err, "http - v1 - addWirelessProfile")
@@ -89,6 +90,7 @@ func (r *deviceManagementRoutes) updateWirelessProfile(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	err := r.d.UpdateWirelessProfile(c.Request.Context(), guid, tenantID, req.ToWirelessProfile())
 	if err != nil {
 		r.l.Error(err, "http - v1 - updateWirelessProfile")

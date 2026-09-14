@@ -40,6 +40,7 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, tenantID, requestedState)
 	if err != nil {
 		r.l.Error(err, "http - v1 - requestWirelessStateChange")

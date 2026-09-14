@@ -51,6 +51,7 @@ func (r *deviceManagementRoutes) setWirelessProfileSync(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	response, err := r.d.SetWirelessProfileSync(c.Request.Context(), guid, tenantID, req)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setWirelessProfileSync")

@@ -50,6 +50,7 @@ func (r *deviceManagementRoutes) sendConsentCode(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	response, err := r.d.SendConsentCode(c.Request.Context(), userConsent, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - sendConsentCode")

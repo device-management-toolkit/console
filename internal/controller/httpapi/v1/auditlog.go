@@ -101,6 +101,7 @@ func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getEventLog")

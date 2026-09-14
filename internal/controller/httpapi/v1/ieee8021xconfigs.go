@@ -55,6 +55,7 @@ func (r *ieee8021xConfigRoutes) get(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - IEEE8021x configs - v1 - getCount")
