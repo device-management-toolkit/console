@@ -257,7 +257,6 @@ func TestSetupHTTPHandlerDropsCredentialsUnderWildcard(t *testing.T) {
 }
 
 func TestRun(t *testing.T) { //nolint:tparallel // t.Setenv is incompatible with t.Parallel, so this test can't mark itself parallel even though its subtest does
-
 	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
 
 	ctrl := gomock.NewController(t)
