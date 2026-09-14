@@ -415,8 +415,13 @@ func shufflePassword(password []byte) error {
 
 // handleAdminPassword ensures cfg.AdminPassword is set, generating one and
 // persisting it to config.yml on first run if nothing was provided via config
-// or environment.
+// or environment. When auth is disabled the JWT middleware is bypassed and
+// /api/v1/authorize is never exercised, so there is no credential to generate.
 func handleAdminPassword(cfg *config.Config) {
+	if cfg.Disabled {
+		return
+	}
+
 	if cfg.AdminPassword != "" {
 		warnOnWeakAdminPassword(cfg.AdminPassword)
 

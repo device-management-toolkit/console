@@ -273,3 +273,20 @@ func TestHandleAdminPassword_WeakConfiguredPasswordStillStarts(t *testing.T) { /
 	assert.Equal(t, "weak", cfg.AdminPassword)
 	assert.Contains(t, buf.String(), "Console is starting anyway")
 }
+
+// TestHandleAdminPassword_AuthDisabled verifies no password is generated (and
+// nothing is persisted to config.yml) when authentication is turned off.
+func TestHandleAdminPassword_AuthDisabled(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Auth: config.Auth{
+			Disabled:      true,
+			AdminPassword: "",
+		},
+	}
+
+	handleAdminPassword(cfg)
+
+	assert.Empty(t, cfg.AdminPassword)
+}

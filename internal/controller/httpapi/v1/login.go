@@ -83,7 +83,7 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
-	if creds.Username != lr.Config.AdminUsername || creds.Password != lr.Config.AdminPassword {
+	if !lr.credentialsAccepted(creds) {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
 
 		return
@@ -113,6 +113,27 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	// Token stays in the body for bearer clients, which ignore Set-Cookie.
 	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+}
+
+// credentialsAccepted decides whether creds may be issued a token.
+//
+// With auth disabled there is nothing to authenticate against: the JWT
+// middleware is not mounted (see router.go) and validateRedirectionToken
+// short-circuits, so every route is already open. The UI still renders a login
+// form in that mode, so anything it posts is accepted and gets a token.
+//
+// With auth enabled an empty configured password never matches, otherwise a
+// blank auth.adminPassword would let any caller in with an empty password.
+func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
+	if lr.Config.Disabled {
+		return true
+	}
+
+	if lr.Config.AdminPassword == "" {
+		return false
+	}
+
+	return creds.Username == lr.Config.AdminUsername && creds.Password == lr.Config.AdminPassword
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can

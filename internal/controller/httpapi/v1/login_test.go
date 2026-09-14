@@ -346,3 +346,61 @@ func TestNewLoginRoute(t *testing.T) {
 		require.Nil(t, lr, "expected provider discovery to fail against self-signed cert without skip verify")
 	})
 }
+
+// TestLogin_AuthDisabledAcceptsAnyCredentials pins the contract the UI relies
+// on: it still renders a login form when auth is off, so whatever it posts must
+// be accepted and yield a token.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
+	cfg := cookieAuthTestConfig()
+	cfg.Disabled = true
+	cfg.AdminUsername = "standalone"
+	cfg.AdminPassword = ""
+	cfg.JWTKey = ""
+
+	engine := newAuthTestEngine(t, cfg)
+
+	bodies := []string{
+		`{"username":"anything","password":"whatever"}`,
+		`{"username":"standalone","password":""}`,
+		`{}`,
+	}
+
+	for _, body := range bodies {
+		req, err := http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(body))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code, "body %s must authorize when auth is disabled", body)
+
+		var got map[string]string
+
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
+		require.NotEmpty(t, got["token"], "body %s must still receive a token", body)
+	}
+}
+
+// TestLogin_EmptyConfiguredPasswordRejected guards the bypass that an empty
+// auth.adminPassword would otherwise open while auth is still enabled.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLogin_EmptyConfiguredPasswordRejected(t *testing.T) {
+	cfg := cookieAuthTestConfig()
+	cfg.Disabled = false
+	cfg.AdminPassword = ""
+
+	engine := newAuthTestEngine(t, cfg)
+
+	req, err := http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(`{"username":"admin","password":""}`))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
