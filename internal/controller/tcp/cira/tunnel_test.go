@@ -1,6 +1,7 @@
 package cira
 
 import (
+	"crypto/tls"
 	"errors"
 	"net"
 	"testing"
@@ -221,6 +222,56 @@ func verifyConnectionRemoved(t *testing.T, authenticated bool, deviceID string) 
 
 // fakeConn is a minimal net.Conn implementation for tests.
 type fakeConn struct{ net.Conn }
+
+func TestServer_cipherSuites(t *testing.T) {
+	t.Parallel()
+
+	secureIDs := make([]uint16, 0, len(tls.CipherSuites()))
+	for _, suite := range tls.CipherSuites() {
+		secureIDs = append(secureIDs, suite.ID)
+	}
+
+	t.Run("insecure suites are not advertised by default", func(t *testing.T) {
+		t.Parallel()
+
+		s := &Server{log: logger.New("error")}
+
+		suites := s.cipherSuites()
+
+		assert.Equal(t, secureIDs, suites)
+
+		for _, insecure := range insecureCipherSuites {
+			assert.NotContains(t, suites, insecure, "insecure suite must be opt-in")
+		}
+	})
+
+	t.Run("insecure suites are advertised when explicitly allowed", func(t *testing.T) {
+		t.Parallel()
+
+		s := &Server{log: logger.New("error"), allowInsecureCiphers: true}
+
+		suites := s.cipherSuites()
+
+		want := make([]uint16, 0, len(secureIDs)+len(insecureCipherSuites))
+		want = append(want, secureIDs...)
+		want = append(want, insecureCipherSuites...)
+
+		assert.Equal(t, want, suites)
+	})
+
+	t.Run("every opt-in suite is one Go considers insecure", func(t *testing.T) {
+		t.Parallel()
+
+		goInsecure := make([]uint16, 0, len(tls.InsecureCipherSuites()))
+		for _, suite := range tls.InsecureCipherSuites() {
+			goInsecure = append(goInsecure, suite.ID)
+		}
+
+		for _, suite := range insecureCipherSuites {
+			assert.Contains(t, goInsecure, suite)
+		}
+	})
+}
 
 func TestConnectionContext_registerDevice(t *testing.T) {
 	t.Parallel()
