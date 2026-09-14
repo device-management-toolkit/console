@@ -27,7 +27,7 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ">=1.23.0"
+          go-version-file: go.mod
 
       - name: Install `@semantic-release/exec` plugin
         run: npm install @semantic-release/exec @semantic-release/changelog
@@ -66,7 +66,7 @@ jobs:
       VERSION: ${{ needs.prepare.outputs.version }}
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -99,7 +99,7 @@ jobs:
 
       - uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: ">=1.23.0"
+          go-version-file: go.mod
 
       - name: Version
         run: echo "The next version is $VERSION"
@@ -159,7 +159,7 @@ jobs:
     needs: build
     steps:
       - name: Harden Runner
-        uses: step-security/harden-runner@05e31511f85b41b11d1cf0ef85d0992719546e2c # v2.21.0
+        uses: step-security/harden-runner@e14015d583714f6e62063499dc959a02595150a1 # v2.21.1
         with:
           egress-policy: audit
 
@@ -189,10 +189,10 @@ jobs:
           node-version: 22.x
 
       # Pin Go only for license generation
-      - name: Use Go 1.25.1 for license scan
+      - name: Use Go 1.27.x for license scan
         uses: actions/setup-go@b7ad1dad31e06c5925ef5d2fc7ad053ef454303e # v7.0.0
         with:
-          go-version: "1.25.1"
+          go-version: "1.27.x"
           check-latest: true
       - name: Pin toolchain for this step
         run: |

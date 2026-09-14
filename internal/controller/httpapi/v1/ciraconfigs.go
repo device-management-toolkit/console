@@ -32,6 +32,8 @@ func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logg
 }
 
 func (r *ciraConfigRoutes) get(c *gin.Context) {
+	tenantID := tenantIDFromHeader(c)
+
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - get")

@@ -34,6 +34,7 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 	h := handler.Group("/devices")
 	{
 		h.GET("", r.get)
+		h.GET("export", r.export)
 		h.GET("stats", r.getStats)
 		h.GET("redirectstatus/:guid", r.redirectStatus)
 		h.GET("cert/:guid", r.getDeviceCertificate)
@@ -98,6 +99,7 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) get(c *gin.Context) {
+
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -176,6 +178,7 @@ func (dr *deviceRoutes) getByColumnOrTags(c *gin.Context, column, value string, 
 }
 
 func (dr *deviceRoutes) getByID(c *gin.Context) {
+
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -382,6 +385,7 @@ func (dr *deviceRoutes) getTags(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
+
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -414,6 +418,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
+
 	var certToPin dto.PinCertificate
 	if err := c.ShouldBindBodyWithJSON(&certToPin); err != nil {
 		ErrorResponse(c, err)
@@ -446,6 +451,7 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
+
 	var odata OData
 	if err := odata.BindAndValidate(c); err != nil {
 		ErrorResponse(c, err)
@@ -456,6 +462,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 	guid := c.Param("guid")
 
 	tenantID := middleware.TenantID(c)
+
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")

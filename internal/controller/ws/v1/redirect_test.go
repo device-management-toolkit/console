@@ -24,11 +24,14 @@ var (
 	ErrRedirect = errors.New("redirection error")
 )
 
-func TestWebSocketHandler(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
+func TestWebSocketHandler(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = true
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
@@ -141,10 +144,55 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
+
+	config.ConsoleConfig.Disabled = true
+
+	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
+	mockLogger := mocks.NewMockLogger(ctrl)
+	mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
+	mockLogger.EXPECT().Info("Websocket connection opened")
+	mockFeature.EXPECT().Redirect(gomock.Any(), gomock.Any(), "someHost", "someMode").Return(ErrRedirect)
+	mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "someMode")
+	mockLogger.EXPECT().Error(ErrRedirect, "http - devices - v1 - redirect")
+
+	r := gin.Default()
+	RegisterRoutes(r, mockLogger, mockFeature, &websocket.Upgrader{})
+	server := httptest.NewServer(r)
+	t.Cleanup(server.Close)
+
+	connection, response, err := websocket.DefaultDialer.Dial(
+		"ws"+strings.TrimPrefix(server.URL, "http")+"/relay/webrelay.ashx?host=someHost&mode=someMode",
+		nil,
+	)
+	if response != nil {
+		t.Cleanup(func() { _ = response.Body.Close() })
+	}
+
+	require.NoError(t, err)
+	t.Cleanup(func() { _ = connection.Close() })
+
+	_, _, err = connection.ReadMessage()
+	closeError := &websocket.CloseError{}
+	require.ErrorAs(t, err, &closeError)
+	require.Equal(t, websocket.CloseInternalServerErr, closeError.Code)
+	require.Equal(t, "redirect failed", closeError.Text)
+}
+
+// TestWebSocketHandlerDeviceBinding: WS accepts only a token whose deviceId matches host.
+func TestWebSocketHandlerDeviceBinding(t *testing.T) {
+	ctrl := gomock.NewController(t)
+	t.Cleanup(ctrl.Finish)
+
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = false
-	config.ConsoleConfig.JWTKey = "test-jwt-key"
 
 	// deviceID == "" mimics a login token (no deviceId claim).
 	tokenFor := func(deviceID string) string {
@@ -263,14 +311,16 @@ func TestWebSocketHandlerDeviceBinding(t *testing.T) { //nolint:paralleltest // 
 }
 
 // TestWebSocketHandlerTokenValidation: WS rejects missing and unverifiable tokens.
-func TestWebSocketHandlerTokenValidation(t *testing.T) { //nolint:paralleltest // logging library is not thread-safe for tests
+func TestWebSocketHandlerTokenValidation(t *testing.T) {
 	ctrl := gomock.NewController(t)
 	t.Cleanup(ctrl.Finish)
 
-	_, _ = config.NewConfig()
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	_, err := config.NewConfig()
+	require.NoError(t, err)
 
 	config.ConsoleConfig.Disabled = false
-	config.ConsoleConfig.JWTKey = "test-jwt-key"
 
 	signedWith := func(key string, expiry time.Time) string {
 		claims := jwt.MapClaims{
