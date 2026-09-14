@@ -349,7 +349,7 @@ func TestNewLoginRoute(t *testing.T) {
 
 // TestLogin_AuthDisabledAcceptsAnyCredentials pins the contract the UI relies
 // on: it still renders a login form when auth is off, so whatever it posts must
-// be accepted and yield a token.
+// be accepted, without a signed token or cookie that would outlive the mode.
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
@@ -357,7 +357,6 @@ func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
 	cfg.Disabled = true
 	cfg.AdminUsername = "standalone"
 	cfg.AdminPassword = ""
-	cfg.JWTKey = ""
 
 	engine := newAuthTestEngine(t, cfg)
 
@@ -380,7 +379,11 @@ func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
 		var got map[string]string
 
 		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
-		require.NotEmpty(t, got["token"], "body %s must still receive a token", body)
+
+		token, ok := got["token"]
+		require.True(t, ok, "body %s must keep the token field", body)
+		require.Empty(t, token, "body %s must not receive a signed token", body)
+		require.Empty(t, w.Result().Cookies(), "body %s must not receive a session cookie", body)
 	}
 }
 

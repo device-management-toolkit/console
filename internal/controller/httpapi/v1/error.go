@@ -20,10 +20,12 @@ import (
 
 // errorKey is the JSON field name used for error messages in gin.H responses.
 // messageKey is the JSON field name used for human-readable messages in gin.H responses.
+// tokenKey is the JSON field name used for issued tokens in gin.H responses.
 // errTokenCreation is returned when a JWT cannot be signed.
 const (
 	errorKey         = "error"
 	messageKey       = "message"
+	tokenKey         = "token"
 	errTokenCreation = "could not create token"
 )
 
