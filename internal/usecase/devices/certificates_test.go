@@ -566,7 +566,7 @@ func TestDeleteCertificate_Integration(t *testing.T) {
 
 		useCase, wsmanMock, management, repo := initCertificateTest(t)
 
-		repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil).Times(2)                // Called twice: once by DeleteCertificate, once by GetCertificates
+		repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil).Times(2)   // Called twice: once by DeleteCertificate, once by GetCertificates
 		wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), *device, false, true).Return(management, nil).Times(2) // Called twice: once for GetCertificates, once for DeleteCertificate setup
 
 		// Mock GetCertificates to return a certificate that can be deleted

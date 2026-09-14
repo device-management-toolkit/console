@@ -50,6 +50,7 @@ func (r *deviceManagementRoutes) powerAction(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	response, err := r.d.SendPowerAction(c.Request.Context(), guid, tenantID, powerAction.Action)
 	if err != nil {
 		r.l.Error(err, "http - v1 - powerAction")
@@ -72,6 +73,7 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	features, err := r.d.SetBootOptions(c.Request.Context(), guid, tenantID, bootSetting)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setBootOptions")

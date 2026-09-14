@@ -186,6 +186,7 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 	guid := c.Param("guid")
 
 	tenantID := middleware.TenantID(c)
+
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - get")
@@ -392,6 +393,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 	guid := c.Param("guid")
 
 	tenantID := middleware.TenantID(c)
+
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
@@ -424,6 +426,7 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 	guid := c.Param("guid")
 
 	tenantID := middleware.TenantID(c)
+
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
@@ -456,6 +459,7 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 	guid := c.Param("guid")
 
 	tenantID := middleware.TenantID(c)
+
 	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")

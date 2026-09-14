@@ -53,6 +53,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - getCount")

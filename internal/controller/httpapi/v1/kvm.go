@@ -37,6 +37,7 @@ func (r *deviceManagementRoutes) setKVMDisplays(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	settings, err := r.d.SetKVMScreenSettings(c.Request.Context(), guid, tenantID, req)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setKVMDisplays")

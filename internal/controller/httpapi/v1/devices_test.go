@@ -354,6 +354,7 @@ func TestDevicesRoutes(t *testing.T) {
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
 			}
+
 			if tc.tenantID != "" {
 				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}

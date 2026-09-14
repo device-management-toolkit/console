@@ -48,6 +48,7 @@ func (r *deviceManagementRoutes) addCertificate(c *gin.Context) {
 	}
 
 	tenantID := middleware.TenantID(c)
+
 	handle, err := r.d.AddCertificate(c.Request.Context(), guid, tenantID, certInfo)
 	if err != nil {
 		ErrorResponse(c, err)
