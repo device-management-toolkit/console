@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/wificonfigs"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -51,7 +52,9 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
-	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	tenantID := middleware.TenantID(c)
+
+	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - getCount")
 		ErrorResponse(c, err)
@@ -60,7 +63,7 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := r.t.GetCount(c.Request.Context(), "")
+		count, err := r.t.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - wireless configs - v1 - getCount")
 			ErrorResponse(c, err)
@@ -79,8 +82,9 @@ func (r *WirelessConfigRoutes) get(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 	profileName := c.Param("profileName")
+	tenantID := middleware.TenantID(c)
 
-	config, err := r.t.GetByName(c.Request.Context(), profileName, "")
+	config, err := r.t.GetByName(c.Request.Context(), profileName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - getByName")
 		ErrorResponse(c, err)
@@ -99,6 +103,8 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 
 		return
 	}
+
+	config.TenantID = middleware.TenantID(c)
 
 	insertedConfig, err := r.t.Insert(c.Request.Context(), &config)
 	if err != nil {
@@ -121,6 +127,8 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
+	config.TenantID = middleware.TenantID(c)
+
 	updatedWirelessConfig, err := r.t.Update(c.Request.Context(), &config)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - update")
@@ -134,8 +142,9 @@ func (r *WirelessConfigRoutes) update(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("profileName")
+	tenantID := middleware.TenantID(c)
 
-	err := r.t.Delete(c.Request.Context(), configName, "")
+	err := r.t.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - wireless configs - v1 - delete")
 		ErrorResponse(c, err)

@@ -8,6 +8,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -38,7 +39,9 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 		return
 	}
 
-	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, requestedState)
+	tenantID := middleware.TenantID(c)
+
+	returnedRequestedState, err := r.d.RequestWirelessStateChange(c.Request.Context(), guid, tenantID, requestedState)
 	if err != nil {
 		r.l.Error(err, "http - v1 - requestWirelessStateChange")
 
@@ -68,8 +71,9 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getWirelessState(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	returnedEnabledState, err := r.d.GetWirelessState(c.Request.Context(), guid)
+	returnedEnabledState, err := r.d.GetWirelessState(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getWirelessState")
 

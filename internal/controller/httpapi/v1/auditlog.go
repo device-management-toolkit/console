@@ -9,6 +9,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
@@ -29,7 +30,9 @@ func (r *deviceManagementRoutes) getAuditLog(c *gin.Context) {
 		return
 	}
 
-	auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIdx, guid)
+	tenantID := middleware.TenantID(c)
+
+	auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIdx, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getAuditLog")
 		ErrorResponse(c, err)
@@ -47,8 +50,9 @@ func (r *deviceManagementRoutes) downloadAuditLog(c *gin.Context) {
 
 	startIndex := 1
 
+	tenantID := middleware.TenantID(c)
 	for {
-		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid)
+		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid, tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getAuditLog")
 			ErrorResponse(c, err)
@@ -96,7 +100,9 @@ func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 		return
 	}
 
-	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid)
+	tenantID := middleware.TenantID(c)
+
+	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getEventLog")
 		ErrorResponse(c, err)
@@ -114,9 +120,10 @@ func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
 
 	startIndex := 0
 
+	tenantID := middleware.TenantID(c)
 	// Keep fetching logs until there are no more records.
 	for {
-		eventLogs, err := r.d.GetEventLog(c.Request.Context(), startIndex, eventLogBatchSize, guid)
+		eventLogs, err := r.d.GetEventLog(c.Request.Context(), startIndex, eventLogBatchSize, guid, tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getEventLog")
 			ErrorResponse(c, err)

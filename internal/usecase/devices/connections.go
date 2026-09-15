@@ -8,8 +8,8 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
-func (uc *UseCase) GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error) {
-	item, err := uc.repo.GetByID(c, guid, "")
+func (uc *UseCase) GetTLSSettingData(c context.Context, guid, tenantID string) ([]dto.SettingDataResponse, error) {
+	item, err := uc.repo.GetByID(c, guid, tenantID)
 	if err != nil {
 		return nil, err
 	}

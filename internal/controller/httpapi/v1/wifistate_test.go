@@ -34,7 +34,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			RequestWirelessStateChange(gomock.Any(), "my-guid", wifi.RequestedStateWifiEnabledS0SxAC).
+			RequestWirelessStateChange(gomock.Any(), "my-guid", "", wifi.RequestedStateWifiEnabledS0SxAC).
 			Return(wifi.RequestedStateWifiEnabledS0SxAC, nil)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/amt/networkSettings/wireless/state/my-guid", bytes.NewBufferString(`{"state":"WifiEnabledS0SxAC"}`))
@@ -99,7 +99,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			RequestWirelessStateChange(gomock.Any(), "my-guid", wifi.RequestedStateWifiEnabledS0SxAC).
+			RequestWirelessStateChange(gomock.Any(), "my-guid", "", wifi.RequestedStateWifiEnabledS0SxAC).
 			Return(wifi.RequestedState(0), ErrGeneral)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/amt/networkSettings/wireless/state/my-guid", bytes.NewBufferString(`{"state":"WifiEnabledS0SxAC"}`))
@@ -123,7 +123,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			RequestWirelessStateChange(gomock.Any(), "my-guid", wifi.RequestedStateWifiEnabledS0SxAC).
+			RequestWirelessStateChange(gomock.Any(), "my-guid", "", wifi.RequestedStateWifiEnabledS0SxAC).
 			Return(wifi.RequestedState(0), wsman.ErrNoWiFiPort)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/amt/networkSettings/wireless/state/my-guid", bytes.NewBufferString(`{"state":"WifiEnabledS0SxAC"}`))
@@ -147,7 +147,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			RequestWirelessStateChange(gomock.Any(), "my-guid", wifi.RequestedStateWifiEnabledS0SxAC).
+			RequestWirelessStateChange(gomock.Any(), "my-guid", "", wifi.RequestedStateWifiEnabledS0SxAC).
 			Return(wifi.RequestedState(1), nil)
 
 		req := httptest.NewRequest(http.MethodPost, "/api/v1/amt/networkSettings/wireless/state/my-guid", bytes.NewBufferString(`{"state":"WifiEnabledS0SxAC"}`))
@@ -171,7 +171,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			GetWirelessState(gomock.Any(), "my-guid").
+			GetWirelessState(gomock.Any(), "my-guid", "").
 			Return(wifi.EnabledStateWifiEnabledS0SxAC, nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/amt/networkSettings/wireless/state/my-guid", http.NoBody)
@@ -194,7 +194,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			GetWirelessState(gomock.Any(), "my-guid").
+			GetWirelessState(gomock.Any(), "my-guid", "").
 			Return(wifi.EnabledState(0), ErrGeneral)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/amt/networkSettings/wireless/state/my-guid", http.NoBody)
@@ -216,7 +216,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			GetWirelessState(gomock.Any(), "my-guid").
+			GetWirelessState(gomock.Any(), "my-guid", "").
 			Return(wifi.EnabledState(0), wsman.ErrNoWiFiPort)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/amt/networkSettings/wireless/state/my-guid", http.NoBody)
@@ -238,7 +238,7 @@ func TestWiFiStateHandlers(t *testing.T) {
 		NewAmtRoutes(handler, devMock, nil, nil, logger.New("error"))
 
 		devMock.EXPECT().
-			GetWirelessState(gomock.Any(), "my-guid").
+			GetWirelessState(gomock.Any(), "my-guid", "").
 			Return(wifi.EnabledState(1), nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/amt/networkSettings/wireless/state/my-guid", http.NoBody)
