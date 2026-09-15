@@ -41,7 +41,9 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 			"set as an HttpOnly session cookie so browsers need not store it. The cookie is "+
 			"named `"+config.DefaultSessionCookieName+"` unless the deployment overrides "+
 			"`auth.cookieName`, and is not issued at all when cookie auth is disabled or "+
-			"OIDC is configured."),
+			"OIDC is configured.\n\n"+
+			"When `auth.disabled` is true, any credentials are accepted, `token` is an empty "+
+			"string, and no cookie is set."),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
 	)
 
@@ -56,7 +58,8 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize Redirection"),
-		fuego.OptionDescription("Generate an authorization token for device redirection"),
+		fuego.OptionDescription("Generate an authorization token for device redirection.\n\n"+
+			"When `auth.disabled` is true, `token` is the unsigned placeholder `direct`."),
 		fuego.OptionPath("id", "Device ID"),
 		protectedRouteOptions(),
 	)

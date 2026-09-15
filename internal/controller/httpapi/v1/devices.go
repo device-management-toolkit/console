@@ -18,6 +18,9 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// authDisabledRedirectionToken is a non-JWT placeholder that never verifies once auth is enabled.
+const authDisabledRedirectionToken = "direct"
+
 type deviceRoutes struct {
 	t devices.Feature
 	l logger.Interface
@@ -73,6 +76,14 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 
 		return
 	}
+
+	// Browsers reject an empty WebSocket subprotocol, so auth-off mode returns an unsigned placeholder.
+	if config.ConsoleConfig.Disabled {
+		c.JSON(http.StatusOK, gin.H{tokenKey: authDisabledRedirectionToken})
+
+		return
+	}
+
 	// Short-lived token (5 minutes) bound to the AMT GUID (deviceId).
 	// GUIDs are stored and matched lowercase, so the claim is normalized to match.
 	expirationTime := time.Now().Add(config.ConsoleConfig.RedirectionJWTExpiration)
@@ -91,7 +102,7 @@ func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
 }
 
 func (dr *deviceRoutes) get(c *gin.Context) {

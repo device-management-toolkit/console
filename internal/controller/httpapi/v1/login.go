@@ -89,6 +89,13 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
+	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
+	if lr.Config.Disabled {
+		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
+
+		return
+	}
+
 	// Create JWT token
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
 	claims := jwt.MapClaims{
@@ -112,7 +119,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	setSessionCookies(c, tokenString, expirationTime)
 
 	// Token stays in the body for bearer clients, which ignore Set-Cookie.
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
 }
 
 // credentialsAccepted decides whether creds may be issued a token.
@@ -120,7 +127,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 // With auth disabled there is nothing to authenticate against: the JWT
 // middleware is not mounted (see router.go) and validateRedirectionToken
 // short-circuits, so every route is already open. The UI still renders a login
-// form in that mode, so anything it posts is accepted and gets a token.
+// form in that mode, so anything it posts is accepted.
 //
 // With auth enabled an empty configured password never matches, otherwise a
 // blank auth.adminPassword would let any caller in with an empty password.
