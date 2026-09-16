@@ -2724,7 +2724,7 @@
 								"logout"
 							]
 						},
-						"description": "Expires the HttpOnly session cookie.\n\nPOST /api/v1/authorize returns the token in the body (for Authorization: Bearer clients) and also sets it as an HttpOnly cookie, so browsers need not store it. The Authorization header takes precedence when both are present."
+						"description": "Expires the HttpOnly session cookie.\n\nPOST /api/v1/authorize returns the token in the body (for Authorization: Bearer clients) and also sets it as an HttpOnly cookie, so browsers need not store it. The Authorization header takes precedence when both are present. When auth.disabled is true, token is an empty string and no cookie is set."
 					},
 					"response": []
 				}

@@ -862,6 +862,51 @@ func TestLoginRedirection(t *testing.T) {
 	}
 }
 
+// TestLoginRedirection_AuthDisabled checks that auth-off mode hands out an
+// unsigned placeholder, which a later auth-enabled run cannot verify.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLoginRedirection_AuthDisabled(t *testing.T) {
+	// Consume the sync.Once first so parallel tests keep the shared config after cleanup.
+	setupTestConfig()
+
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = &config.Config{
+		Auth: config.Auth{
+			Disabled:                 true,
+			JWTKey:                   testJWTKey,
+			JWTExpiration:            time.Hour,
+			RedirectionJWTExpiration: 5 * time.Minute,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+	devicesFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+		Return(&dto.Device{GUID: "test-device-guid"}, nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/authorize/redirection/test-device-guid", http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Equal(t, authDisabledRedirectionToken, response["token"])
+
+	_, err = jwt.Parse(response["token"], func(_ *jwt.Token) (interface{}, error) {
+		return []byte(testJWTKey), nil
+	})
+	require.Error(t, err, "placeholder must not verify against the configured key")
+}
+
 // verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
 func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
 	t.Helper()
