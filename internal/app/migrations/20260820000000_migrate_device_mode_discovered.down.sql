@@ -4,3 +4,4 @@
 **********************************************************************/
 
 ALTER TABLE devices DROP COLUMN currentmode;
+ALTER TABLE devices DROP COLUMN discovered;
