@@ -12,6 +12,7 @@ import (
 	"github.com/golang-jwt/jwt/v5"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -51,7 +52,9 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 }
 
 func (dr *deviceRoutes) getStats(c *gin.Context) {
-	count, err := dr.t.GetCount(c.Request.Context(), "")
+	tenantID := middleware.TenantID(c)
+
+	count, err := dr.t.GetCount(c.Request.Context(), tenantID)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - getCount")
 		ErrorResponse(c, err)
@@ -68,8 +71,9 @@ func (dr *deviceRoutes) getStats(c *gin.Context) {
 
 func (dr *deviceRoutes) LoginRedirection(c *gin.Context) {
 	deviceID := c.Param("id")
+	tenantID := middleware.TenantID(c)
 
-	_, err := dr.t.GetByID(c.Request.Context(), deviceID, "", false)
+	_, err := dr.t.GetByID(c.Request.Context(), deviceID, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - LoginRedirection")
 		ErrorResponse(c, err)
@@ -121,18 +125,20 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 
 	var err error
 
+	tenantID := middleware.TenantID(c)
+
 	switch {
 	case hostname != "":
-		items, err = dr.getByColumnOrTags(c, "HostName", hostname, odata.Top, odata.Skip, "")
+		items, err = dr.getByColumnOrTags(c, "HostName", hostname, odata.Top, odata.Skip, tenantID)
 
 	case friendlyName != "":
-		items, err = dr.getByColumnOrTags(c, "FriendlyName", friendlyName, odata.Top, odata.Skip, "")
+		items, err = dr.getByColumnOrTags(c, "FriendlyName", friendlyName, odata.Top, odata.Skip, tenantID)
 
 	case tags != "":
-		items, err = dr.getByColumnOrTags(c, "Tags", tags, odata.Top, odata.Skip, "")
+		items, err = dr.getByColumnOrTags(c, "Tags", tags, odata.Top, odata.Skip, tenantID)
 
 	default:
-		items, err = dr.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+		items, err = dr.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	}
 
 	if err != nil {
@@ -143,7 +149,7 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := dr.t.GetCount(c.Request.Context(), "")
+		count, err := dr.t.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			dr.l.Error(err, "http - devices - v1 - get")
 			ErrorResponse(c, err)
@@ -171,7 +177,7 @@ func (dr *deviceRoutes) getByColumnOrTags(c *gin.Context, column, value string, 
 	if column == "Tags" {
 		items, err = dr.t.GetByTags(ctx, value, c.Query("method"), limit, skip, tenantID)
 	} else {
-		items, err = dr.t.GetByColumn(ctx, column, value, "")
+		items, err = dr.t.GetByColumn(ctx, column, value, tenantID)
 	}
 
 	if err != nil {
@@ -191,7 +197,9 @@ func (dr *deviceRoutes) getByID(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "", false)
+	tenantID := middleware.TenantID(c)
+
+	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - get")
 		ErrorResponse(c, err)
@@ -218,6 +226,8 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 
 		return
 	}
+
+	device.TenantID = middleware.TenantID(c)
 
 	var raw map[string]json.RawMessage
 	if err := json.Unmarshal(body, &raw); err != nil {
@@ -326,6 +336,8 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 		return
 	}
 
+	device.TenantID = middleware.TenantID(c)
+
 	fields, err := providedJSONFieldsFromBody(body)
 	if err != nil {
 		ErrorResponse(c, err)
@@ -346,8 +358,9 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 
 func (dr *deviceRoutes) delete(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	err := dr.t.Delete(c.Request.Context(), guid, "")
+	err := dr.t.Delete(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - delete")
 		ErrorResponse(c, err)
@@ -368,7 +381,9 @@ func (dr *deviceRoutes) redirectStatus(c *gin.Context) {
 }
 
 func (dr *deviceRoutes) getTags(c *gin.Context) {
-	tags, err := dr.t.GetDistinctTags(c.Request.Context(), "")
+	tenantID := middleware.TenantID(c)
+
+	tags, err := dr.t.GetDistinctTags(c.Request.Context(), tenantID)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - tags")
 		ErrorResponse(c, err)
@@ -389,7 +404,9 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "", false)
+	tenantID := middleware.TenantID(c)
+
+	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, false)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
 		ErrorResponse(c, err)
@@ -397,7 +414,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 		return
 	}
 
-	cert, err := dr.t.GetDeviceCertificate(c.Request.Context(), item.GUID)
+	cert, err := dr.t.GetDeviceCertificate(c.Request.Context(), item.GUID, tenantID)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - cert")
 		ErrorResponse(c, err)
@@ -420,7 +437,9 @@ func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "", true)
+	tenantID := middleware.TenantID(c)
+
+	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
 		ErrorResponse(c, err)
@@ -451,7 +470,9 @@ func (dr *deviceRoutes) deleteDeviceCertificate(c *gin.Context) {
 
 	guid := c.Param("guid")
 
-	item, err := dr.t.GetByID(c.Request.Context(), guid, "", true)
+	tenantID := middleware.TenantID(c)
+
+	item, err := dr.t.GetByID(c.Request.Context(), guid, tenantID, true)
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - deleteDeviceCertificate - getById")
 		ErrorResponse(c, err)

@@ -51,7 +51,7 @@ func TestRedirect(t *testing.T) {
 				mockWSMAN.EXPECT().Worker().Do(func() {
 					defer wg.Done()
 				}).Times(1)
-				mockRepo.EXPECT().GetByID(gomock.Any(), guid, "").Return(nil, ErrInterceptorGeneral)
+				mockRepo.EXPECT().GetByGUID(gomock.Any(), guid).Return(nil, ErrInterceptorGeneral)
 			},
 			expectedErr: ErrInterceptorGeneral,
 		},
@@ -61,7 +61,7 @@ func TestRedirect(t *testing.T) {
 				mockWSMAN.EXPECT().Worker().Do(func() {
 					defer wg.Done()
 				}).Times(1)
-				mockRepo.EXPECT().GetByID(gomock.Any(), guid, "").Return(&entity.Device{
+				mockRepo.EXPECT().GetByGUID(gomock.Any(), guid).Return(&entity.Device{
 					GUID:     guid,
 					Username: "user",
 					Password: "pass",
@@ -137,7 +137,7 @@ func TestRedirectSuccessfulFlow(t *testing.T) {
 	}
 
 	// Mock successful flow up to RedirectConnect, then fail to avoid goroutines
-	mockRepo.EXPECT().GetByID(gomock.Any(), testGUID, "").Return(device, nil)
+	mockRepo.EXPECT().GetByGUID(gomock.Any(), testGUID).Return(device, nil)
 	mockRedirection.EXPECT().SetupWsmanClient(gomock.Any(), *device, true, true).Return(wsman.Messages{}, nil)
 	// Return error to avoid starting problematic goroutines but still test the flow
 	mockRedirection.EXPECT().RedirectConnect(gomock.Any(), gomock.Any()).Return(ErrConnectionFailed)
@@ -172,7 +172,7 @@ func TestRedirectDeviceNotFound(t *testing.T) {
 	wg.Wait()
 
 	// Mock device not found
-	mockRepo.EXPECT().GetByID(gomock.Any(), testGUID, "").Return(nil, nil)
+	mockRepo.EXPECT().GetByGUID(gomock.Any(), testGUID).Return(nil, nil)
 
 	// Test device not found
 	err := uc.Redirect(context.Background(), mockConn, testGUID, testMode)
@@ -210,7 +210,7 @@ func TestRedirectConnectionReuse(t *testing.T) {
 	}
 
 	// First call - create new connection but fail at connect to avoid goroutines
-	mockRepo.EXPECT().GetByID(gomock.Any(), testGUID, "").Return(device, nil)
+	mockRepo.EXPECT().GetByGUID(gomock.Any(), testGUID).Return(device, nil)
 	mockRedirection.EXPECT().SetupWsmanClient(gomock.Any(), *device, true, true).Return(wsman.Messages{}, nil)
 	mockRedirection.EXPECT().RedirectConnect(gomock.Any(), gomock.Any()).Return(ErrFirstConnectionFailed)
 
@@ -218,7 +218,7 @@ func TestRedirectConnectionReuse(t *testing.T) {
 	require.Error(t, err)
 
 	// Second call - also fail to avoid goroutines but test reuse logic
-	mockRepo.EXPECT().GetByID(gomock.Any(), testGUID, "").Return(device, nil)
+	mockRepo.EXPECT().GetByGUID(gomock.Any(), testGUID).Return(device, nil)
 	mockRedirection.EXPECT().SetupWsmanClient(gomock.Any(), *device, true, true).Return(wsman.Messages{}, nil)
 	mockRedirection.EXPECT().RedirectConnect(gomock.Any(), gomock.Any()).Return(ErrSecondConnectionFailed)
 
@@ -304,7 +304,7 @@ func TestRedirectWithErrorScenarios(t *testing.T) {
 				}).Times(1)
 
 				device := &entity.Device{GUID: testGUID, Username: "user", Password: "pass"}
-				mockRepo.EXPECT().GetByID(gomock.Any(), testGUID, "").Return(device, nil)
+				mockRepo.EXPECT().GetByGUID(gomock.Any(), testGUID).Return(device, nil)
 				mockRedir.EXPECT().SetupWsmanClient(gomock.Any(), *device, true, true).Return(wsman.Messages{}, nil)
 				mockRedir.EXPECT().RedirectConnect(gomock.Any(), gomock.Any()).Return(ErrConnectionFailed)
 			},
@@ -382,7 +382,7 @@ func TestRedirectConnectionFlowCoverage(t *testing.T) {
 				}).Times(1)
 
 				device := &entity.Device{GUID: "test-device", Username: "user", Password: "pass"}
-				mockRepo.EXPECT().GetByID(gomock.Any(), "test-device", "").Return(device, nil)
+				mockRepo.EXPECT().GetByGUID(gomock.Any(), "test-device").Return(device, nil)
 				mockRedir.EXPECT().SetupWsmanClient(gomock.Any(), *device, true, true).Return(wsman.Messages{}, nil)
 				// Return error to avoid starting goroutines, but still exercise connection creation
 				mockRedir.EXPECT().RedirectConnect(gomock.Any(), gomock.Any()).Return(ErrTestError)
@@ -445,7 +445,7 @@ func TestRedirectAdditionalCoverage(t *testing.T) {
 				mockWSMAN.EXPECT().Worker().Do(func() {
 					defer wg.Done()
 				}).Times(1)
-				mockRepo.EXPECT().GetByID(gomock.Any(), "missing-guid", "").Return(nil, nil)
+				mockRepo.EXPECT().GetByGUID(gomock.Any(), "missing-guid").Return(nil, nil)
 			},
 			guid:        "missing-guid",
 			mode:        "kvm",
@@ -457,7 +457,7 @@ func TestRedirectAdditionalCoverage(t *testing.T) {
 				mockWSMAN.EXPECT().Worker().Do(func() {
 					defer wg.Done()
 				}).Times(1)
-				mockRepo.EXPECT().GetByID(gomock.Any(), "error-guid", "").Return(nil, ErrDatabaseError)
+				mockRepo.EXPECT().GetByGUID(gomock.Any(), "error-guid").Return(nil, ErrDatabaseError)
 			},
 			guid:        "error-guid",
 			mode:        "kvm",

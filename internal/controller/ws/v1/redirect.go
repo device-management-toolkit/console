@@ -82,7 +82,15 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	if err != nil {
 		r.l.Error(err, "http - devices - v1 - redirect")
-		errorResponse(c, http.StatusInternalServerError, "redirect failed")
+
+		// Upgrade hijacks the HTTP connection, so errors after this point must be
+		// reported over the WebSocket rather than through Gin's response writer.
+		_ = conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "redirect failed"),
+			time.Now().Add(time.Second),
+		)
+		_ = conn.Close()
 	}
 }
 
