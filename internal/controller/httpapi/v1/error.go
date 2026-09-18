@@ -14,6 +14,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/packaging"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
@@ -140,6 +141,16 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 	case errors.Is(err, wsmanAPI.ErrCIRADeviceNotConnected):
 		msg := wsmanAPI.ErrCIRADeviceNotConnected.Error()
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, response{Error: msg, Message: msg})
+
+		return true
+	case errors.Is(err, packaging.ErrAssetNotFound):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusNotFound, response{Error: msg, Message: msg})
+
+		return true
+	case errors.Is(err, packaging.ErrUnsafeVersion), errors.Is(err, packaging.ErrChecksumMismatch):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
 	}

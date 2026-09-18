@@ -102,6 +102,9 @@ func (f *FuegoAdapter) RegisterRoutes() {
 
 	// Server features
 	f.RegisterServerRoutes()
+
+	// Download RPC packaging
+	f.RegisterPackageRoutes()
 }
 
 // Generates OpenAPI specification as JSON.
