@@ -15,14 +15,14 @@ const (
 	fieldPriority             = "priority"
 	fieldWiredInterface       = "wiredinterface"
 	fieldCurrentMode          = "currentmode"
+	fieldDiscovered           = "discovered"
 )
 
 const (
 	opSet    = "$set"
 	opRegex  = "$regex"
-	opNin    = "$nin"
 	opExists = "$exists"
 	opIn     = "$in"
+	opNor    = "$nor"
 	opOr     = "$or"
-	opNot    = "$not"
 )

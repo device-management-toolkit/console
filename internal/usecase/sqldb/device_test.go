@@ -1470,6 +1470,8 @@ func TestDeviceRepo_GetActivated(t *testing.T) {
 	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> not activated
 	seedMode(t, dbConn, "guid-nullmode", "tenant1", nil)                        // NULL -> not activated
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
+	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?)`, "guid-notactivated", "guid-notactivated-caps", "guid-empty", "guid-nullmode")
+	require.NoError(t, err)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
@@ -1497,6 +1499,11 @@ func TestDeviceRepo_GetDiscovered(t *testing.T) {
 	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive
 	seedMode(t, dbConn, "guid-activated", "tenant1", &adminMode)
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &notActivated)
+
+	_, err := dbConn.ExecContext(context.Background(),
+		`UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?)`,
+		"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps")
+	require.NoError(t, err)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
@@ -1529,6 +1536,11 @@ func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
 	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)
 	seedMode(t, dbConn, "guid-legacy", "tenant1", nil)
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
+
+	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?)`, "guid-notactivated", "guid-empty", "guid-legacy")
+	require.NoError(t, err)
+	_, err = dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = false WHERE guid = ?`, "guid-client")
+	require.NoError(t, err)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
