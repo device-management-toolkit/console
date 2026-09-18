@@ -378,32 +378,35 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 	return devs, nil
 }
 
-// activatedFilter matches devices provisioned into a real AMT control mode
-// (CCM/ACM): currentmode is present, non-empty, and not the "not activated"
-// pre-provisioning string that rpc-go reports for un-provisioned devices.
+// activatedFilter is retained as the internal/API predicate name for managed
+// devices. It is the complement of discoveredFilter, including legacy rows
+// with no discovery or control-mode information.
 func activatedFilter(tenantID string) bson.M {
 	return bson.M{
 		fieldTenantID: tenantID,
-		fieldCurrentMode: bson.M{
-			opExists: true,
-			opNin:    bson.A{"", nil},
-			opNot:    bson.Regex{Pattern: "^not activated$", Options: "i"},
-		},
+		opNor:         bson.A{discoveredStateFilter()},
 	}
 }
 
-// discoveredFilter is the exact complement of activatedFilter: a device is
-// discovered (not yet activated) when currentmode is missing, null, empty, or
-// the "not activated" pre-provisioning string.
-func discoveredFilter(tenantID string) bson.M {
+// discoveredStateFilter identifies a device still in pre-provisioning state
+// after RPC discovery. A later ACM/CCM sync moves it to the managed result set.
+func discoveredStateFilter() bson.M {
 	return bson.M{
-		fieldTenantID: tenantID,
+		fieldDiscovered: true,
 		opOr: bson.A{
 			bson.M{fieldCurrentMode: bson.M{opExists: false}},
 			bson.M{fieldCurrentMode: bson.M{opIn: bson.A{"", nil}}},
 			bson.M{fieldCurrentMode: bson.Regex{Pattern: "^not activated$", Options: "i"}},
 		},
 	}
+}
+
+// discoveredFilter applies discoveredStateFilter within a tenant.
+func discoveredFilter(tenantID string) bson.M {
+	filter := discoveredStateFilter()
+	filter[fieldTenantID] = tenantID
+
+	return filter
 }
 
 // GetActivated returns devices that have been provisioned into an AMT control mode.
