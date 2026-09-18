@@ -8931,6 +8931,406 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Package",
+			"item": [
+				{
+					"name": "Get RPC Versions",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Returns at most five releases\", function () {",
+									"    pm.expect(pm.response.json().length).to.be.at.most(5);",
+									"});",
+									"",
+									"pm.test(\"Every release is v3 or above and lists assets\", function () {",
+									"    pm.response.json().forEach(function (release) {",
+									"        pm.expect(release.version).to.match(/^v?[3-9]\\d*\\./);",
+									"        pm.expect(release.assets).to.be.an(\"array\");",
+									"    });",
+									"});",
+									"",
+									"var releases = pm.response.json();",
+									"if (releases.length > 0 && releases[0].assets.length > 0) {",
+									"    pm.collectionVariables.set(\"rpcVersion\", releases[0].version);",
+									"    pm.collectionVariables.set(\"rpcOS\", releases[0].assets[0].os);",
+									"    pm.collectionVariables.set(\"rpcArch\", releases[0].assets[0].arch);",
+									"}",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package/rpc-versions",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package",
+								"rpc-versions"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (Activate)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Responds with a zip attachment\", function () {",
+									"    pm.expect(pm.response.headers.get(\"Content-Type\")).to.include(\"application/zip\");",
+									"    pm.expect(pm.response.headers.get(\"Content-Disposition\")).to.include(\".zip\");",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"activate\",\n    \"version\": \"{{rpcVersion}}\",\n    \"os\": \"{{rpcOS}}\",\n    \"arch\": \"{{rpcArch}}\",\n    \"auth\": {\n        \"mode\": \"userpass\",\n        \"username\": \"standalone\",\n        \"password\": \"G@ppm0ym\"\n    },\n    \"profile\": \"profile1\",\n    \"tokenTtl\": \"1h\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (Tenant Scoped)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"activate\",\n    \"version\": \"{{rpcVersion}}\",\n    \"os\": \"{{rpcOS}}\",\n    \"arch\": \"{{rpcArch}}\",\n    \"auth\": {\n        \"mode\": \"userpass\",\n        \"username\": \"standalone\",\n        \"password\": \"G@ppm0ym\"\n    },\n    \"profile\": \"profile1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (Deactivate)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"deactivate\",\n    \"version\": \"{{rpcVersion}}\",\n    \"os\": \"{{rpcOS}}\",\n    \"arch\": \"{{rpcArch}}\",\n    \"auth\": {\n        \"mode\": \"userpass\",\n        \"username\": \"standalone\",\n        \"password\": \"G@ppm0ym\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (No Credentials)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"activate\",\n    \"version\": \"{{rpcVersion}}\",\n    \"os\": \"{{rpcOS}}\",\n    \"arch\": \"{{rpcArch}}\",\n    \"auth\": {\n        \"mode\": \"none\"\n    },\n    \"profile\": \"profile1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (Activate Without Profile - 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"activate\",\n    \"version\": \"{{rpcVersion}}\",\n    \"os\": \"{{rpcOS}}\",\n    \"arch\": \"{{rpcArch}}\",\n    \"auth\": {\n        \"mode\": \"userpass\",\n        \"username\": \"standalone\",\n        \"password\": \"G@ppm0ym\"\n    }\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (Unknown Version - 404)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"activate\",\n    \"version\": \"v99.99.99\",\n    \"os\": \"linux\",\n    \"arch\": \"x86_64\",\n    \"auth\": {\n        \"mode\": \"userpass\",\n        \"username\": \"standalone\",\n        \"password\": \"G@ppm0ym\"\n    },\n    \"profile\": \"profile1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Build Package (Path Traversal Version - 400)",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});",
+									""
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"command\": \"activate\",\n    \"version\": \"../../etc\",\n    \"os\": \"linux\",\n    \"arch\": \"x86_64\",\n    \"auth\": {\n        \"mode\": \"userpass\",\n        \"username\": \"standalone\",\n        \"password\": \"G@ppm0ym\"\n    },\n    \"profile\": \"profile1\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/package",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"package"
+							]
+						}
+					},
+					"response": []
+				}
+			]
 		}
 	],
 	"auth": {
