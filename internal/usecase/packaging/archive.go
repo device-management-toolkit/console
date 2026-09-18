@@ -5,6 +5,7 @@ import (
 	"archive/zip"
 	"bytes"
 	"compress/gzip"
+	"context"
 	"errors"
 	"fmt"
 	"io"
@@ -32,6 +33,8 @@ var (
 	ErrBinaryNotFound = errors.New("rpc binary not found in archive")
 	// ErrEntryTooLarge indicates an archive entry exceeded the size cap.
 	ErrEntryTooLarge = errors.New("archive entry exceeds size limit")
+	// ErrDownloadAsset indicates a non-200 response downloading an asset.
+	ErrDownloadAsset = errors.New("failed to download asset")
 )
 
 // readLimited reads up to maxArchiveBytes from r, guarding against decompression bombs.
@@ -201,4 +204,24 @@ func buildZip(binaries []zipEntry, configYAML []byte) ([]byte, error) {
 	}
 
 	return buf.Bytes(), nil
+}
+
+// downloadAsset fetches an asset's bytes over HTTP (used for the online path).
+func downloadAsset(ctx context.Context, url string) ([]byte, error) {
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, url, http.NoBody)
+	if err != nil {
+		return nil, err
+	}
+
+	resp, err := httpClient.Do(req)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+
+	if resp.StatusCode != http.StatusOK {
+		return nil, fmt.Errorf("%w: %s", ErrDownloadAsset, resp.Status)
+	}
+
+	return readLimited(resp.Body)
 }
