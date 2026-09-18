@@ -80,6 +80,24 @@ func getReleases(ctx context.Context, url string) ([]github.Release, error) {
 	return releases, nil
 }
 
+// findAsset searches releases for an asset matching version, goos, and arch.
+// It returns the download URL, asset name, and whether a match was found.
+func findAsset(releases []github.Release, version, goos, arch string) (url, name string, ok bool) {
+	for i := range releases {
+		if releases[i].TagName != version {
+			continue
+		}
+
+		for _, a := range releases[i].Assets {
+			if aos, aarch, parsed := parseAsset(a.Name); parsed && aos == goos && aarch == arch {
+				return a.BrowserDownloadURL, a.Name, true
+			}
+		}
+	}
+
+	return "", "", false
+}
+
 // filterReleases keeps the newest maxReleases v3+ releases and maps them to the
 // UI DTO shape.
 func filterReleases(releases []github.Release) []dto.RPCRelease {
@@ -105,6 +123,25 @@ func filterReleases(releases []github.Release) []dto.RPCRelease {
 		}
 
 		out = append(out, dto.RPCRelease{Version: r.TagName, Assets: assets})
+	}
+
+	return out
+}
+
+// mergeReleases appends local versions missing from fetched; fetched wins on a
+// shared version.
+func mergeReleases(fetched, local []dto.RPCRelease) []dto.RPCRelease {
+	seen := make(map[string]bool, len(fetched))
+	out := append(make([]dto.RPCRelease, 0, len(fetched)+len(local)), fetched...)
+
+	for _, r := range fetched {
+		seen[r.Version] = true
+	}
+
+	for _, r := range local {
+		if !seen[r.Version] {
+			out = append(out, r)
+		}
 	}
 
 	return out

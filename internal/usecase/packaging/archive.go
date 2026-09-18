@@ -31,6 +31,8 @@ var (
 	ErrBinaryNotFound = errors.New("rpc binary not found in archive")
 	// ErrEntryTooLarge indicates an archive entry exceeded the size cap.
 	ErrEntryTooLarge = errors.New("archive entry exceeds size limit")
+	// ErrDownloadAsset indicates a non-200 response downloading an asset.
+	ErrDownloadAsset = errors.New("failed to download asset")
 )
 
 // readLimited reads up to maxArchiveBytes from r, guarding against decompression bombs.
@@ -149,4 +151,15 @@ func httpGet(ctx context.Context, url string, sentinel error) (io.ReadCloser, er
 	}
 
 	return resp.Body, nil
+}
+
+// downloadAsset fetches an asset's bytes over HTTP.
+func downloadAsset(ctx context.Context, url string) ([]byte, error) {
+	body, err := httpGet(ctx, url, ErrDownloadAsset)
+	if err != nil {
+		return nil, err
+	}
+	defer body.Close()
+
+	return readLimited(body)
 }
