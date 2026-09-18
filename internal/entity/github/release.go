@@ -24,10 +24,11 @@ type Author struct {
 }
 
 type Asset struct {
-	URL         string `json:"url"`
-	ID          int    `json:"id"`
-	Name        string `json:"name"`
-	Label       string `json:"label"`
-	State       string `json:"state"`
-	ContentType string `json:"content_type"`
+	URL                string `json:"url"`
+	ID                 int    `json:"id"`
+	Name               string `json:"name"`
+	Label              string `json:"label"`
+	State              string `json:"state"`
+	ContentType        string `json:"content_type"`
+	BrowserDownloadURL string `json:"browser_download_url"`
 }

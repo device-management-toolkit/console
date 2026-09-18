@@ -29,6 +29,7 @@ require (
 	github.com/zsais/go-gin-prometheus v1.0.3
 	go.mongodb.org/mongo-driver/v2 v2.9.0
 	go.uber.org/mock v0.6.0
+	golang.org/x/mod v0.38.0
 	golang.org/x/sys v0.48.0
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.58.0
