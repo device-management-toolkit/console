@@ -1,16 +1,21 @@
 package main
 
 import (
+	"bufio"
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
+	"flag"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"golang.org/x/crypto/bcrypt"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -19,16 +24,54 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+type mockCredentialStore struct {
+	values      map[string]string
+	errMap      map[string]error
+	deletedKeys []string
+}
+
+func (m *mockCredentialStore) GetKeyValue(key string) (string, error) {
+	if err, ok := m.errMap[key]; ok {
+		return "", err
+	}
+
+	if v, ok := m.values[key]; ok {
+		return v, nil
+	}
+
+	return "", security.ErrKeyNotFound
+}
+
+func (m *mockCredentialStore) SetKeyValue(key, value string) error {
+	if m.values == nil {
+		m.values = map[string]string{}
+	}
+
+	m.values[key] = value
+
+	return nil
+}
+
+func (m *mockCredentialStore) DeleteKeyValue(key string) error {
+	if err, ok := m.errMap[key+":delete"]; ok {
+		return err
+	}
+
+	m.deletedKeys = append(m.deletedKeys, key)
+	delete(m.values, key)
+
+	return nil
+}
+
 func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying env variables.
 	os.Setenv("GIN_MODE", "debug")
 
-	// Mock functions
 	initializeConfigFunc = func() (*config.Config, error) {
 		return &config.Config{
 			HTTP: config.HTTP{Port: "8080"},
 			App:  config.App{EncryptionKey: "test"},
 			Log:  config.Log{Level: "info"},
-			Auth: config.Auth{AdminPassword: "test"},
+			Auth: config.Auth{Disabled: true},
 		}, nil
 	}
 
@@ -38,7 +81,6 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 
 	runAppFunc = func(_ *config.Config, _ logger.Interface) {}
 
-	// Mock certificate functions
 	loadOrGenerateRootCertFunc = func(_ security.Storager, _ bool, _, _, _ string, _ bool) (*x509.Certificate, *rsa.PrivateKey, error) {
 		return &x509.Certificate{}, &rsa.PrivateKey{}, nil
 	}
@@ -47,11 +89,9 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 		return &x509.Certificate{}, &rsa.PrivateKey{}, nil
 	}
 
-	// Call the main function
 	main()
 }
 
-// TestGenerateRandomPassword tests the password generation function.
 func TestGenerateRandomPassword(t *testing.T) {
 	t.Parallel()
 
@@ -72,20 +112,6 @@ func TestGenerateRandomPassword(t *testing.T) {
 			require.NoError(t, err)
 			assert.Len(t, password, tc.length)
 		})
-	}
-}
-
-// TestGenerateRandomPassword_SatisfiesPolicy locks the generator to the checker:
-// a per-class miss would otherwise surface as a rare flake rather than a failure.
-func TestGenerateRandomPassword_SatisfiesPolicy(t *testing.T) {
-	t.Parallel()
-
-	for _, length := range []int{adminPasswordMinLength, adminPasswordLength, 64} {
-		for range 100 {
-			password, err := generateRandomPassword(length)
-			require.NoError(t, err)
-			assert.True(t, isStrongAdminPassword(password), "generated %q fails the policy", password)
-		}
 	}
 }
 
@@ -121,7 +147,6 @@ func TestGenerateRandomPassword_Uniqueness(t *testing.T) {
 		password, err := generateRandomPassword(16)
 		require.NoError(t, err)
 		assert.False(t, passwords[password], "generated duplicate password")
-
 		passwords[password] = true
 	}
 }
@@ -159,134 +184,330 @@ func TestCheckStoredEncryptionKey(t *testing.T) { //nolint:paralleltest // rebin
 	}
 }
 
-// TestHandleAdminPassword_AlreadyConfigured tests when password is already set.
-func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
+func TestNormalizeAdminPasswordHash_PlainTextInput(t *testing.T) {
+	t.Parallel()
+
+	hash, converted, err := normalizeAdminPasswordHash("plain-password")
+	require.NoError(t, err)
+	assert.True(t, converted)
+	require.NoError(t, bcrypt.CompareHashAndPassword([]byte(hash), []byte("plain-password")))
+}
+
+func TestNormalizeAdminPasswordHash_AlreadyHashed(t *testing.T) {
+	t.Parallel()
+
+	existingHash, err := bcrypt.GenerateFromPassword([]byte("secret"), bcrypt.DefaultCost)
+	require.NoError(t, err)
+
+	hash, converted, err := normalizeAdminPasswordHash(string(existingHash))
+	require.NoError(t, err)
+	assert.False(t, converted)
+	assert.Equal(t, string(existingHash), hash)
+}
+
+func TestResolveAdminCredentialsFromSources_PriorityOrder(t *testing.T) {
+	t.Setenv(authAdminUsernameEnv, "env-user")
+	t.Setenv(authAdminSecretEnv, "env-pass")
+
+	cfg := &config.Config{Auth: config.Auth{AdminUsername: "cfg-user", AdminPassword: "cfg-pass"}}
+	store := &mockCredentialStore{values: map[string]string{
+		keyringAdminUsername: "keyring-user",
+		keyringAdminPassword: "keyring-pass",
+	}}
+
+	username, password, _ := resolveAdminCredentialsFromSources(cfg, store, map[string]string{
+		authAdminUsernameEnv: "dotenv-user",
+		authAdminSecretEnv:   "dotenv-pass",
+	})
+
+	assert.Equal(t, "keyring-user", username)
+	assert.Equal(t, "keyring-pass", password)
+}
+
+func TestResolveAdminCredentialsFromSources_FallbackToDotEnvThenConfig(t *testing.T) {
+	t.Setenv(authAdminUsernameEnv, "")
+	t.Setenv(authAdminSecretEnv, "")
+
+	cfg := &config.Config{Auth: config.Auth{AdminUsername: "cfg-user", AdminPassword: "cfg-pass"}}
+	store := &mockCredentialStore{errMap: map[string]error{
+		keyringAdminUsername: security.ErrKeyNotFound,
+		keyringAdminPassword: security.ErrKeyNotFound,
+	}}
+
+	username, password, _ := resolveAdminCredentialsFromSources(cfg, store, map[string]string{
+		authAdminUsernameEnv: "dotenv-user",
+	})
+
+	assert.Equal(t, "dotenv-user", username)
+	assert.Equal(t, "cfg-pass", password)
+}
+
+func TestResolveAdminCredentialsFromSources_KeyringReadErrorFallsBack(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Auth: config.Auth{AdminUsername: "cfg-user", AdminPassword: "cfg-pass"}}
+	store := &mockCredentialStore{errMap: map[string]error{
+		keyringAdminUsername: errors.New("keyring unavailable"),
+		keyringAdminPassword: errors.New("keyring unavailable"),
+	}}
+
+	username, password, _ := resolveAdminCredentialsFromSources(cfg, store, map[string]string{})
+
+	assert.Equal(t, "cfg-user", username)
+	assert.Equal(t, "cfg-pass", password)
+}
+
+func TestHandleAdminCLI_Clean(t *testing.T) {
+	t.Parallel()
+
+	store := &mockCredentialStore{values: map[string]string{
+		keyringAdminUsername: "alice",
+		keyringAdminPassword: "super-secret",
+		keyringAdminJWTKey:   "jwt-token-key",
+	}}
+	buf := &bytes.Buffer{}
+
+	handled, err := handleAdminCLIWithInput([]string{"--clean"}, store, buf, strings.NewReader("y\n"))
+	require.NoError(t, err)
+	assert.True(t, handled)
+	assert.Contains(t, store.deletedKeys, keyringAdminUsername)
+	assert.Contains(t, store.deletedKeys, keyringAdminPassword)
+	assert.Contains(t, store.deletedKeys, keyringAdminJWTKey)
+	assert.Contains(t, buf.String(), "Admin credentials and JWT key removed from keystore.")
+}
+
+func TestResolveAdminCredentialsFromSources_IncludesJWTKey(t *testing.T) {
+	t.Setenv(authAdminUsernameEnv, "env-user")
+	t.Setenv(authAdminSecretEnv, "env-pass")
+	t.Setenv(authAdminJWTKeyEnv, "env-jwt-key")
+
+	cfg := &config.Config{Auth: config.Auth{
+		AdminUsername: "cfg-user",
+		AdminPassword: "cfg-pass",
+		JWTKey:        "cfg-jwt-key",
+	}}
+	store := &mockCredentialStore{values: map[string]string{
+		keyringAdminUsername: "keyring-user",
+		keyringAdminPassword: "keyring-pass",
+		keyringAdminJWTKey:   "keyring-jwt-key",
+	}}
+
+	username, password, jwtKey := resolveAdminCredentialsFromSources(cfg, store, map[string]string{
+		authAdminUsernameEnv: "dotenv-user",
+		authAdminSecretEnv:   "dotenv-pass",
+		authAdminJWTKeyEnv:   "dotenv-jwt-key",
+	})
+
+	assert.Equal(t, "keyring-user", username)
+	assert.Equal(t, "keyring-pass", password)
+	assert.Equal(t, "keyring-jwt-key", jwtKey)
+}
+
+func TestReadDotEnvFile_ParsesQuotedValuesAndIgnoresComments(t *testing.T) {
+	t.Parallel()
+
+	dir := t.TempDir()
+	path := filepath.Join(dir, ".env")
+	require.NoError(t, os.WriteFile(path, []byte("# comment\nAUTH_ADMIN_USERNAME=\"quoted-user\"\nAUTH_ADMIN_PASSWORD='secret-value'\nAUTH_JWT_KEY=jwt-key\n"), 0o600))
+
+	values := readDotEnvFile(path)
+	assert.Equal(t, "quoted-user", values[authAdminUsernameEnv])
+	assert.Equal(t, "secret-value", values[authAdminSecretEnv])
+	assert.Equal(t, "jwt-key", values[authAdminJWTKeyEnv])
+}
+
+func TestLogKeyringSaveAndRollbackWarnings_LogsEachFailure(t *testing.T) {
+	t.Parallel()
+
+	store := &mockCredentialStore{errMap: map[string]error{
+		keyringAdminUsername: errors.New("user failed"),
+		keyringAdminPassword: errors.New("password failed"),
+		keyringAdminJWTKey:   errors.New("jwt failed"),
+	}}
+
+	var out bytes.Buffer
+
+	oldWriter := log.Writer()
+	log.SetOutput(&out)
+
+	defer log.SetOutput(oldWriter)
+
+	logKeyringSaveAndRollbackWarnings(store, errors.New("user save failed"), errors.New("password save failed"), errors.New("jwt save failed"))
+
+	assert.Contains(t, out.String(), "admin username")
+	assert.Contains(t, out.String(), "admin password")
+	assert.Contains(t, out.String(), "admin JWT key")
+}
+
+func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testing.T) {
+	t.Parallel()
+
+	configFile := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, os.WriteFile(configFile, []byte("auth:\n  jwtExpiration: 24h\n"), 0o600))
+
+	flagValue := flag.Lookup("config")
+	if flagValue == nil {
+		flag.String("config", "", "path to config file")
+
+		flagValue = flag.Lookup("config")
+	}
+
+	oldConfigValue := flagValue.Value.String()
+	require.NoError(t, flag.Set("config", configFile))
+
+	t.Cleanup(func() {
+		_ = flag.Set("config", oldConfigValue)
+	})
+
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = writer.WriteString("\n")
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	os.Stdin = reader
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	store := &mockCredentialStore{values: map[string]string{}}
+	origFunc := newKeyringStorageFunc
+	newKeyringStorageFunc = func() credentialStore { return store }
+
+	t.Cleanup(func() { newKeyringStorageFunc = origFunc })
+
+	cfg := &config.Config{}
+	handleAdminCredentials(cfg)
+
+	assert.Equal(t, "standalone", cfg.AdminUsername)
+	assert.NotEmpty(t, cfg.AdminPassword)
+	assert.NotEmpty(t, cfg.JWTKey)
+	assert.Equal(t, "standalone", store.values[keyringAdminUsername])
+	assert.NotEmpty(t, store.values[keyringAdminPassword])
+	assert.NotEmpty(t, store.values[keyringAdminJWTKey])
+
+	configData, err := os.ReadFile(configFile)
+	require.NoError(t, err)
+	assert.NotContains(t, string(configData), cfg.AdminUsername)
+	assert.NotContains(t, string(configData), cfg.AdminPassword)
+	assert.NotContains(t, string(configData), cfg.JWTKey)
+	assert.Contains(t, string(configData), "adminUsername: \"\"")
+	assert.Contains(t, string(configData), "jwtKey: \"\"")
+}
+
+func TestHandleAdminCredentials_OAuthConfiguredSkipsBootstrap(t *testing.T) {
 	t.Parallel()
 
 	cfg := &config.Config{
 		Auth: config.Auth{
-			AdminPassword: "already-set",
+			ClientID: "oauth-client-id",
 		},
 	}
 
-	handleAdminPassword(cfg)
+	var callCount int
 
-	assert.Equal(t, "already-set", cfg.AdminPassword)
+	origFunc := newKeyringStorageFunc
+	newKeyringStorageFunc = func() credentialStore {
+		callCount++
+
+		return nil
+	}
+
+	t.Cleanup(func() { newKeyringStorageFunc = origFunc })
+
+	handleAdminCredentials(cfg)
+	assert.Equal(t, 0, callCount, "keyring storage should not be accessed when OAuth2 is configured")
 }
 
-func TestIsStrongAdminPassword(t *testing.T) {
+func TestSaveAdminCredentialsToKeyring_StoresAllThreeValues(t *testing.T) {
 	t.Parallel()
 
-	tests := []struct {
-		name     string
-		password string
-		want     bool
-	}{
-		{"meets every rule", "P@ssw0rdd", true},
-		{"exactly min length", "P@ssw0rd", true},
-		{"empty", "", false},
-		{"one under min length", "P@ss0rd", false},
-		{"no lowercase", "P@SSW0RD", false},
-		{"no uppercase", "p@ssw0rd", false},
-		{"no digit", "P@ssword", false},
-		{"no symbol", "Passw0rdd", false},
-		// AMT requires the special to come from !@#$%^&*; these do not, but the
-		// admin password never reaches AMT, so they count as a symbol here.
-		{"symbol AMT would not accept as its special", "Passw0rd(", true},
-		{"hyphen counts as a symbol", "Passw0rd-x", true},
-		{"underscore counts as a symbol", "Passw0rd_x", true},
-		// No upper length bound: a long passphrase must not be reported as weak.
-		{"long passphrase", "P@ssw0rd" + strings.Repeat("a", 40), true},
-		{"length counts runes not bytes", "P@ssw0ré", true},
-	}
+	store := &mockCredentialStore{values: map[string]string{}}
+	persisted, usernameErr, passwordErr, jwtKeyErr := saveAdminCredentialsToKeyring(
+		store,
+		"admin",
+		"hashed-password",
+		"jwt-key",
+	)
 
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, tc.want, isStrongAdminPassword(tc.password))
-		})
-	}
+	assert.True(t, persisted)
+	assert.NoError(t, usernameErr)
+	assert.NoError(t, passwordErr)
+	assert.NoError(t, jwtKeyErr)
+	assert.Equal(t, "admin", store.values[keyringAdminUsername])
+	assert.Equal(t, "hashed-password", store.values[keyringAdminPassword])
+	assert.Equal(t, "jwt-key", store.values[keyringAdminJWTKey])
 }
 
-func TestWarnOnWeakAdminPassword(t *testing.T) { //nolint:paralleltest // rebinds the global log output.
-	tests := []struct {
-		name     string
-		password string
-		wantLog  string
-	}{
-		{
-			name:     "weak password warns",
-			password: "weak",
-			wantLog:  "WARNING: the configured admin password is weak",
-		},
-		{
-			name:     "long but not complex still warns",
-			password: "alllowercaseletters",
-			wantLog:  "WARNING: the configured admin password is weak",
-		},
-		{
-			name:     "compliant password is silent",
-			password: "P@ssw0rdd",
-			wantLog:  "",
-		},
-	}
-
-	for _, tc := range tests { //nolint:paralleltest // rebinds the global log output.
-		t.Run(tc.name, func(t *testing.T) {
-			var buf bytes.Buffer
-
-			orig := log.Writer()
-
-			log.SetOutput(&buf)
-			t.Cleanup(func() { log.SetOutput(orig) })
-
-			warnOnWeakAdminPassword(tc.password)
-
-			if tc.wantLog == "" {
-				assert.Empty(t, buf.String())
-
-				return
-			}
-
-			assert.Contains(t, buf.String(), tc.wantLog)
-		})
-	}
-}
-
-func TestHandleAdminPassword_WeakConfiguredPasswordStillStarts(t *testing.T) { //nolint:paralleltest // rebinds the global log output.
-	var buf bytes.Buffer
-
-	orig := log.Writer()
-
-	log.SetOutput(&buf)
-	t.Cleanup(func() { log.SetOutput(orig) })
-
-	cfg := &config.Config{
-		Auth: config.Auth{
-			AdminPassword: "weak",
-		},
-	}
-
-	handleAdminPassword(cfg)
-
-	assert.Equal(t, "weak", cfg.AdminPassword)
-	assert.Contains(t, buf.String(), "Console is starting anyway")
-}
-
-// TestHandleAdminPassword_AuthDisabled verifies no password is generated (and
-// nothing is persisted to config.yml) when authentication is turned off.
-func TestHandleAdminPassword_AuthDisabled(t *testing.T) {
+func TestResolveAdminCredentials_FirstRunBootstrap(t *testing.T) {
 	t.Parallel()
 
-	cfg := &config.Config{
-		Auth: config.Auth{
-			Disabled:      true,
-			AdminPassword: "",
-		},
+	input := "admin\npassword123\npassword123\n\n"
+	reader := bufio.NewReader(strings.NewReader(input))
+
+	username, password, jwtKey, promptedUsername, promptedPassword := resolveAdminCredentials(
+		reader, true, "", "", "",
+	)
+
+	assert.Equal(t, "standalone", username)
+	assert.NotEmpty(t, password)
+	assert.NotEmpty(t, jwtKey)
+	assert.True(t, promptedUsername)
+	assert.True(t, promptedPassword)
+}
+
+func TestResolveAdminCredentials_NonFirstRunPromptsForMissing(t *testing.T) {
+	t.Parallel()
+
+	input := "entered-user\nentered-pass\n"
+	reader := bufio.NewReader(strings.NewReader(input))
+
+	username, password, jwtKey, promptedUsername, promptedPassword := resolveAdminCredentials(
+		reader, false, "", "", "",
+	)
+
+	assert.Equal(t, "entered-user", username)
+	assert.Equal(t, "entered-pass", password)
+	assert.NotEmpty(t, jwtKey)
+	assert.True(t, promptedUsername)
+	assert.True(t, promptedPassword)
+}
+
+func TestResolveAdminCredentials_NonFirstRunGeneratesJWTKeyWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	reader := bufio.NewReader(strings.NewReader(""))
+
+	username, password, jwtKey, promptedUsername, promptedPassword := resolveAdminCredentials(
+		reader, false, "existing-user", "existing-pass", "",
+	)
+
+	assert.Equal(t, "existing-user", username)
+	assert.Equal(t, "existing-pass", password)
+	assert.NotEmpty(t, jwtKey)
+	assert.False(t, promptedUsername)
+	assert.False(t, promptedPassword)
+}
+
+func TestRollbackKeyringEntry_SuccessfulDelete(t *testing.T) {
+	t.Parallel()
+
+	store := &mockCredentialStore{
+		values:      map[string]string{"test-key": "test-value"},
+		errMap:      map[string]error{},
+		deletedKeys: []string{},
 	}
+	rollbackKeyringEntry(store, "test-key")
 
-	handleAdminPassword(cfg)
+	require.Equal(t, 1, len(store.deletedKeys))
+	assert.Equal(t, "test-key", store.deletedKeys[0])
+}
 
-	assert.Empty(t, cfg.AdminPassword)
+func TestRollbackKeyringEntry_IgnoresNotFoundError(t *testing.T) {
+	t.Parallel()
+
+	store := &mockCredentialStore{
+		errMap: map[string]error{"test-key:delete": security.ErrKeyNotFound},
+	}
+	// Should not panic or log an error for ErrKeyNotFound
+	rollbackKeyringEntry(store, "test-key")
 }
