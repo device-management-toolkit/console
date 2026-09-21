@@ -47,6 +47,9 @@ type (
 		Update(ctx context.Context, d *entity.Device) (bool, error)
 		Insert(ctx context.Context, d *entity.Device) (string, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]entity.Device, error)
+		// GetActivated returns every managed device: anything not currently flagged
+		// as still-in-discovery pre-provisioning, including legacy rows with no
+		// recorded control mode.
 		GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
 		GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
 		GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error)
@@ -69,6 +72,9 @@ type (
 		Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error)
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
+		// GetActivated returns every managed device: anything not currently flagged
+		// as still-in-discovery pre-provisioning, including legacy rows with no
+		// recorded control mode.
 		GetActivated(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 		GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 		GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error)

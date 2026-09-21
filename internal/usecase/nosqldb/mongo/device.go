@@ -379,8 +379,9 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 }
 
 // activatedFilter is retained as the internal/API predicate name for managed
-// devices. It is the complement of discoveredFilter, including legacy rows
-// with no discovery or control-mode information.
+// devices: it matches everything not currently flagged as still-in-discovery
+// pre-provisioning, including legacy rows with no discovery or control-mode
+// information.
 func activatedFilter(tenantID string) bson.M {
 	return bson.M{
 		fieldTenantID: tenantID,

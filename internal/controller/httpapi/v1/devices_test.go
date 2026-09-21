@@ -364,6 +364,18 @@ func TestDevicesRoutes(t *testing.T) {
 			expectedCode: http.StatusOK,
 		},
 		{
+			name:     "get devices stats scoped to tenant",
+			method:   http.MethodGet,
+			url:      "/api/v1/devices/stats",
+			tenantID: "tenant1",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetCount(context.Background(), "tenant1").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "tenant1").Return(4, 1, nil)
+			},
+			response:     dto.DeviceStatResponse{TotalCount: 5, ActivatedCount: 4, DiscoveredCount: 1},
+			expectedCode: http.StatusOK,
+		},
+		{
 			name:   "get devices stats - failed",
 			method: http.MethodGet,
 			url:    "/api/v1/devices/stats",

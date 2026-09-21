@@ -28,8 +28,9 @@ var (
 
 const (
 	// activatedWhere is retained as the internal/API predicate name for managed
-	// devices. It is the complement of discoveredWhere, including legacy rows
-	// with no discovery or control-mode information.
+	// devices: it matches everything not currently flagged as still-in-discovery
+	// pre-provisioning, including legacy rows with no discovery or control-mode
+	// information.
 	activatedWhere = "(discovered IS NOT TRUE OR (currentmode IS NOT NULL AND currentmode <> '' AND LOWER(currentmode) <> 'not activated'))"
 	// discoveredWhere requires the persisted discovery flag and a pre-provisioning
 	// control mode. A device that has since entered ACM/CCM remains managed.
@@ -211,10 +212,6 @@ func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, s
 	}
 	defer rows.Close()
 
-	if rows.Err() != nil {
-		return nil, ErrDeviceDatabase.Wrap(op, "rows.Err", rows.Err())
-	}
-
 	devices := make([]entity.Device, 0)
 
 	for rows.Next() {
@@ -226,6 +223,10 @@ func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, s
 		}
 
 		devices = append(devices, d)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "rows.Err", err)
 	}
 
 	return devices, nil
