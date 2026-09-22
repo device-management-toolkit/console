@@ -69,10 +69,13 @@ Console binary** behind the `mcp` build tag. All commands run from
 The default Console build does **not** link the MCP dependency at all — the `mcp`
 tag is what pulls it in, so a Console-only binary is unaffected.
 
-Cross-compile a Windows combined binary directly:
+Cross-compile the combined binary directly (Windows and Linux):
 
 ```sh
+# Windows x64
 CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags mcp -ldflags "-s -w" -trimpath -o console-mcp.exe ./cmd/app
+# Linux x64
+CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags mcp -ldflags "-s -w" -trimpath -o console-mcp ./cmd/app
 ```
 
 ### Embedded mode
@@ -87,6 +90,30 @@ credentials (`AUTH_ADMIN_USERNAME` / `AUTH_ADMIN_PASSWORD`) unless you override
 # Run Console with the embedded MCP server
 make run-mcp
 ```
+
+### Connecting an agent to the combined binary
+
+Run the combined binary (`console-mcp.exe` on Windows, or `./console-mcp` on
+Linux after `chmod +x`). Console and the embedded MCP server start together and
+log the endpoints on startup:
+
+```
+starting embedded MCP SSE server on :8080 (backend https://127.0.0.1:8181)
+  SSE endpoint:     http://localhost:8080/sse
+  Message endpoint: http://localhost:8080/message
+```
+
+Point any MCP-capable agent/LLM client at the **SSE endpoint**:
+
+```json
+{ "servers": { "console": { "type": "sse", "url": "http://localhost:8080/sse" } } }
+```
+
+For stdio-only hosts (e.g. Claude Desktop), bridge with
+`npx -y mcp-remote http://localhost:8080/sse`. See
+[Integrating agentic AI / LLMs](#integrating-agentic-ai--llms) for per-client
+configuration. Change the listen address with `MCP_ADDR` (default `:8080`) and
+the advertised URL with `MCP_BASE_URL`.
 
 ## Run (standalone)
 
@@ -277,7 +304,7 @@ def rgb332_to_png(frame: dict, path: str):
 | `get_device_stats` | Total / connected / disconnected device counts. |
 | `get_power_state` | Current AMT power state for a `guid`. |
 | `get_power_capabilities` | Supported power actions for a `guid`. |
-| `send_power_action` | Send a power `action` (see codes below) to a `guid`. |
+| `send_power_action` | Send a power **or boot** `action` (see codes below) to a `guid`; boot actions accept `url`/`bootPath`/`useSOL`/`enforceSecureBoot`. |
 | `get_hardware_info` | AMT hardware inventory for a `guid`. |
 | `get_disk_info` | AMT disk information for a `guid`. |
 | `get_general_settings` | AMT general settings for a `guid`. |
@@ -293,6 +320,22 @@ def rgb332_to_png(frame: dict, path: str):
 `8` Power Off (Soft) · `9` Power Cycle (Off Hard) · `10` Reset (Master Bus
 Reset) · `11` Diagnostic Interrupt (NMI) · `12` Power Off (Soft Graceful) ·
 `13` Power Off (Hard Graceful) · `14` Reset Graceful.
+
+### Intel One-Click Recovery (OCR)
+
+One-Click Recovery boots are **not a separate tool** — they are `send_power_action`
+calls with an action code `>= 100`, mirroring how Console itself routes power
+actions (`power/action` for `< 100`, `power/bootOptions` for `>= 100`). Each
+target has a *reset* (reboot) and a *power-up* code:
+
+| Target | Reset | Power up | Requires (from AMT features) | Extra `send_power_action` args |
+| --- | --- | --- | --- | --- |
+| UEFI HTTPS Boot | `105` | `106` | `ocr` + `httpsBootSupported` | `url` (required), `username`, `password`, `enforceSecureBoot` |
+| Local PBA | `107` | `108` | `ocr` + `localPBABootSupported` | `bootPath` (e.g. `\OemPba.efi`), `enforceSecureBoot` |
+| Windows Recovery (WinRE) | `109` | `110` | `ocr` + `winREBootSupported` | `enforceSecureBoot` |
+
+Other boot codes: `100`/`101` BIOS, `202` IDER, `400`/`401` PXE. All boot actions
+also accept `useSOL`; `enforceSecureBoot` defaults to `true`.
 
 ### KVM / SOL sessions
 

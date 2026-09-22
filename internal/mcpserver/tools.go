@@ -129,12 +129,23 @@ func registerPowerTools(s *server.MCPServer, client *ConsoleClient) {
 
 	s.AddTool(
 		mcp.NewTool("send_power_action",
-			mcp.WithDescription("Send an AMT power action to a device. Common actions: "+
-				"2=Power On, 5=Power Cycle (Off Soft), 6=Power Off (Hard), 8=Power Off (Soft), "+
+			mcp.WithDescription("Send an AMT power or boot action to a device. Standard power actions "+
+				"(code < 100): 2=Power On, 5=Power Cycle (Off Soft), 6=Power Off (Hard), 8=Power Off (Soft), "+
 				"9=Power Cycle (Off Hard), 10=Reset (Master Bus Reset), 11=Diagnostic Interrupt (NMI), "+
-				"12=Power Off (Soft Graceful), 13=Power Off (Hard Graceful), 14=Reset Graceful."),
+				"12=Power Off (Soft Graceful), 13=Power Off (Hard Graceful), 14=Reset Graceful. "+
+				"Boot / Intel One-Click Recovery actions (code >= 100, reset / power up): 100/101=BIOS, "+
+				"105/106=HTTPS Boot, 107/108=local PBA, 109/110=WinRE, 202=IDER, 400/401=PXE. For HTTPS "+
+				`Boot pass 'url' (+ optional 'username'/'password'); for a local PBA pass 'bootPath' (e.g. \OemPba.efi). `+
+				"'enforceSecureBoot' (default true) and 'useSOL' apply to boot actions. One-Click Recovery "+
+				"targets require the matching AMT feature (ocr plus httpsBootSupported / localPBABootSupported / winREBootSupported)."),
 			mcp.WithString("guid", mcp.Required(), mcp.Description("Device GUID.")),
-			mcp.WithNumber("action", mcp.Required(), mcp.Description("Numeric AMT power action code.")),
+			mcp.WithNumber("action", mcp.Required(), mcp.Description("Numeric AMT power or boot action code.")),
+			mcp.WithString("url", mcp.Description("HTTPS Boot image URL (boot action 105/106).")),
+			mcp.WithString("username", mcp.Description("Optional HTTP auth username for the boot URL.")),
+			mcp.WithString("password", mcp.Description("Optional HTTP auth password for the boot URL.")),
+			mcp.WithString("bootPath", mcp.Description(`Local PBA EFI path, e.g. \OemPba.efi (boot action 107/108).`)),
+			mcp.WithBoolean("enforceSecureBoot", mcp.Description("Enforce UEFI Secure Boot for boot actions (default true).")),
+			mcp.WithBoolean("useSOL", mcp.Description("Open a Serial-over-LAN session for boot actions (default false).")),
 		),
 		func(ctx context.Context, req mcp.CallToolRequest) (*mcp.CallToolResult, error) {
 			guid, err := req.RequireString("guid")
@@ -147,9 +158,7 @@ func registerPowerTools(s *server.MCPServer, client *ConsoleClient) {
 				return mcp.NewToolResultError(err.Error()), nil
 			}
 
-			raw, err := client.post(ctx, "/api/v1/amt/power/action/"+escapePath(guid), map[string]int{
-				"action": int(action),
-			})
+			raw, err := sendPowerAction(ctx, client, guid, int(action), req)
 			if err != nil {
 				return mcp.NewToolResultErrorFromErr("send_power_action failed", err), nil
 			}
@@ -315,4 +324,40 @@ func guidHandler(client *ConsoleClient, pathFn func(guid string) string, toolNam
 
 		return rawResult(raw), nil
 	}
+}
+
+// powerBootActionThreshold: action codes at or above this are boot / One-Click
+// Recovery actions routed through power/bootOptions; lower codes use power/action.
+const powerBootActionThreshold = 100
+
+// sendPowerAction routes a power action to the correct Console endpoint. Simple
+// power actions go to power/action; boot / One-Click Recovery actions (>= 100,
+// e.g. HTTPS Boot, PBA, WinRE) go to power/bootOptions with the optional
+// bootDetails assembled from the tool arguments.
+func sendPowerAction(ctx context.Context, client *ConsoleClient, guid string, action int, req mcp.CallToolRequest) (json.RawMessage, error) {
+	if action < powerBootActionThreshold {
+		return client.post(ctx, "/api/v1/amt/power/action/"+escapePath(guid), map[string]int{"action": action})
+	}
+
+	bootDetails := map[string]any{"enforceSecureBoot": req.GetBool("enforceSecureBoot", true)}
+	if v := req.GetString("url", ""); v != "" {
+		bootDetails["url"] = v
+	}
+	if v := req.GetString("username", ""); v != "" {
+		bootDetails["username"] = v
+	}
+	if v := req.GetString("password", ""); v != "" {
+		bootDetails["password"] = v
+	}
+	if v := req.GetString("bootPath", ""); v != "" {
+		bootDetails["bootPath"] = v
+	}
+
+	payload := map[string]any{
+		"action":      action,
+		"useSOL":      req.GetBool("useSOL", false),
+		"bootDetails": bootDetails,
+	}
+
+	return client.post(ctx, "/api/v1/amt/power/bootOptions/"+escapePath(guid), payload)
 }
