@@ -1,6 +1,8 @@
 package config
 
 import (
+	"crypto/rand"
+	"encoding/base64"
 	"errors"
 	"flag"
 	"fmt"
@@ -10,12 +12,11 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"gopkg.in/yaml.v2"
-
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 )
 
 var ConsoleConfig *Config
@@ -27,6 +28,8 @@ var (
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
+	ErrConfigFlagValueMissing          = errors.New("config: missing value for --config")
+	ErrConfigPathEmpty                 = errors.New("config: path is empty")
 )
 
 const defaultHost = "localhost"
@@ -42,6 +45,8 @@ const (
 
 	goosWindows = "windows"
 )
+
+const runtimeJWTKeyByteSize = 32
 
 type (
 	// Config -.
@@ -226,8 +231,8 @@ func defaultConfig() *Config {
 			Password: "",
 		},
 		Auth: Auth{
-			AdminUsername:            "standalone",
-			AdminPassword:            "", // Generated and stored in config on first run if not provided
+			AdminUsername:            "", // Resolved at startup: keystore > .env > env var > config.yml > prompt
+			AdminPassword:            "", // Resolved at startup: keystore > .env > env var > config.yml > prompt
 			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
@@ -252,6 +257,31 @@ func defaultConfig() *Config {
 			ExternalURL: "",
 		},
 	}
+}
+
+func GenerateRuntimeJWTKey() (string, error) {
+	bytes := make([]byte, runtimeJWTKeyByteSize)
+
+	if _, err := rand.Read(bytes); err != nil {
+		return "", err
+	}
+
+	return base64.RawURLEncoding.EncodeToString(bytes), nil
+}
+
+func ensureRuntimeJWTKey(cfg *Config) error {
+	if cfg.JWTKey != "" {
+		return nil
+	}
+
+	jwtKey, err := GenerateRuntimeJWTKey()
+	if err != nil {
+		return err
+	}
+
+	cfg.JWTKey = jwtKey
+
+	return nil
 }
 
 // resolveConfigPath determines the effective config file path based on a flag value or default location.
@@ -380,26 +410,109 @@ func writeConfig(configPath string, cfg *Config) error {
 	return encoder.Encode(cfg)
 }
 
-// SaveAdminPassword persists adminPassword to auth.adminPassword in config.yml
-// without touching any other field. It re-reads the file directly (bypassing the
-// env-var overlay applied by cleanenv) so env-only secrets like APP_ENCRYPTION_KEY,
-// SECRETS_TOKEN, DB_URL, EA_PASSWORD, and AUTH_JWT_KEY cannot leak to disk.
-func SaveAdminPassword(adminPassword string) error {
-	var configPathFlag string
-	if f := flag.Lookup("config"); f != nil {
-		configPathFlag = f.Value.String()
+// ensureJWTKey uses a configured key as-is or generates one for this process.
+func ensureJWTKey(cfg *Config) error {
+	if cfg.Disabled || cfg.JWTKey != "" {
+		return nil
 	}
 
-	configPath, err := resolveConfigPath(configPathFlag)
+	key, err := GenerateRuntimeJWTKey()
 	if err != nil {
-		return err
+		return fmt.Errorf("config: generating auth.jwtKey: %w", err)
 	}
 
-	return updateConfigFile(configPath, func(c *Config) { c.AdminPassword = adminPassword })
+	cfg.JWTKey = key
+
+	log.Printf(
+		"WARNING: no auth.jwtKey was configured, so a runtime-only JWT key was generated for this process. " +
+			"For production, provide AUTH_JWT_KEY or auth.jwtKey explicitly, or use OAuth2/OIDC; local basic auth is intended for single-user deployments.",
+	)
+
+	return nil
 }
 
-// updateConfigFile applies mutate to the file's own contents, never to the env-overlaid Config.
-func updateConfigFile(configPath string, mutate func(*Config)) error {
+func ResolveConfigPathFromArgs(args []string) (string, error) {
+	for i, arg := range args {
+		switch {
+		case arg == "--config" || arg == "-config":
+			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" {
+				return "", ErrConfigFlagValueMissing
+			}
+
+			return resolveConfigPath(args[i+1])
+		case strings.HasPrefix(arg, "--config="):
+			return resolveConfigPath(strings.TrimPrefix(arg, "--config="))
+		case strings.HasPrefix(arg, "-config="):
+			return resolveConfigPath(strings.TrimPrefix(arg, "-config="))
+		}
+	}
+
+	return resolveConfigPath("")
+}
+
+// ClearAdminCredentials removes adminUsername and adminPassword from config.yml
+// so plaintext credentials do not remain on disk after being saved to the
+// keystore. The jwtKey field, if any, is left untouched — use
+// ClearAdminCredentialsAndJWTKey to also remove it.
+func ClearAdminCredentials() error {
+	return ClearAdminCredentialsForPath("")
+}
+
+func ClearAdminCredentialsForPath(configPath string) error {
+	if configPath == "" {
+		var configPathFlag string
+		if f := flag.Lookup("config"); f != nil {
+			configPathFlag = f.Value.String()
+		}
+
+		var err error
+
+		configPath, err = resolveConfigPath(configPathFlag)
+		if err != nil {
+			return err
+		}
+	}
+
+	return updateAdminCredentialsFile(configPath, func(fileCfg *Config) {
+		fileCfg.AdminUsername = ""
+		fileCfg.AdminPassword = ""
+	})
+}
+
+// ClearAdminCredentialsAndJWTKey removes adminUsername, adminPassword, and
+// jwtKey from config.yml. Used by the `-clean` recovery flow, which resets all
+// three keystore-backed secrets.
+func ClearAdminCredentialsAndJWTKey() error {
+	return ClearAdminCredentialsAndJWTKeyForPath("")
+}
+
+func ClearAdminCredentialsAndJWTKeyForPath(configPath string) error {
+	if configPath == "" {
+		var configPathFlag string
+		if f := flag.Lookup("config"); f != nil {
+			configPathFlag = f.Value.String()
+		}
+
+		var err error
+
+		configPath, err = resolveConfigPath(configPathFlag)
+		if err != nil {
+			return err
+		}
+	}
+
+	return updateAdminCredentialsFile(configPath, func(fileCfg *Config) {
+		fileCfg.AdminUsername = ""
+		fileCfg.AdminPassword = ""
+		fileCfg.JWTKey = ""
+	})
+}
+
+func updateAdminCredentialsFile(configPath string, mutate func(fileCfg *Config)) error {
+	if configPath == "" {
+		return ErrConfigPathEmpty
+	}
+
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -415,32 +528,6 @@ func updateConfigFile(configPath string, mutate func(*Config)) error {
 	return writeConfig(configPath, fileCfg)
 }
 
-// ensureJWTKey mirrors the admin-password flow: a key from config or env is
-// used as-is, disabled auth needs none, and otherwise a random key is generated
-// and persisted so every restart signs tokens with the same secret.
-func ensureJWTKey(configPath string, cfg *Config) error {
-	if cfg.Disabled || cfg.JWTKey != "" {
-		return nil
-	}
-
-	key := security.Crypto{}.GenerateKey()
-
-	if err := updateConfigFile(configPath, func(c *Config) { c.JWTKey = key }); err != nil {
-		return fmt.Errorf("config: persisting generated auth.jwtKey to %s (set AUTH_JWT_KEY to provide one instead): %w", configPath, err)
-	}
-
-	cfg.JWTKey = key
-
-	log.Printf(
-		"WARNING: no auth.jwtKey was configured, so a random one was generated and saved to %s. "+
-			"Local basic auth is meant for single-user deployments; for production, configure your own "+
-			"OAuth2/OIDC provider via auth.clientId and auth.issuer instead.",
-		configPath,
-	)
-
-	return nil
-}
-
 // loadConfig layers the file (created with defaults on first run) and the
 // environment onto cfg, then generates auth.jwtKey when nothing supplied one.
 func loadConfig(configPath string, cfg *Config) error {
@@ -452,11 +539,11 @@ func loadConfig(configPath string, cfg *Config) error {
 		return err
 	}
 
-	if err := ensureJWTKey(configPath, cfg); err != nil {
+	if err := ensureJWTKey(cfg); err != nil {
 		return err
 	}
 
-	return cfg.validate()
+	return nil
 }
 
 // validate checks that all Config values are sane.
@@ -524,6 +611,16 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := validateAndSetEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
+		return nil, err
+	}
+
+	if err := ensureRuntimeJWTKey(ConsoleConfig); err != nil {
+		return nil, err
+	}
+
+	if err := ConsoleConfig.validate(); err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
