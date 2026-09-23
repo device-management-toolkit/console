@@ -256,3 +256,36 @@ func TestSetupWsmanClient_NonCIRA_WithCertHash(t *testing.T) {
 	require.NoError(t, err)
 	require.NotNil(t, explorer)
 }
+
+// vaultStore is a Vault-backed store holding one device secret.
+type vaultStore struct {
+	data map[string]string
+	key  string
+}
+
+func (s *vaultStore) GetKeyValue(string) (string, error) { return "", nil }
+func (s *vaultStore) SetKeyValue(_, _ string) error      { return nil }
+func (s *vaultStore) DeleteKeyValue(string) error        { return nil }
+
+func (s *vaultStore) GetObject(key string) (map[string]string, error) {
+	s.key = key
+
+	return s.data, nil
+}
+
+// TestSetupWsmanClient_VaultFallback covers a device whose AMT password exists
+// only in Vault, as RPS leaves it.
+func TestSetupWsmanClient_VaultFallback(t *testing.T) {
+	t.Parallel()
+
+	store := &vaultStore{data: map[string]string{"AMT_PASSWORD": "vault-amt"}}
+	g := newExplorerWSMAN()
+	g.SetCredentialResolver(wsmanAPI.NewCredentialResolver(store, logger.New("error")))
+
+	device := entity.Device{GUID: "vault-guid", Hostname: "192.168.1.101"}
+
+	explorer, err := g.SetupWsmanClient(device, false)
+	require.NoError(t, err)
+	require.NotNil(t, explorer)
+	require.Equal(t, "devices/vault-guid", store.key)
+}
