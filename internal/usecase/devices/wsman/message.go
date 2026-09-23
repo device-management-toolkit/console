@@ -109,6 +109,7 @@ type ConnectionEntry struct {
 type GoWSMANMessages struct {
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	creds            *CredentialResolver
 }
 
 func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor) *GoWSMANMessages {
@@ -116,6 +117,11 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 		log:              log,
 		safeRequirements: safeRequirements,
 	}
+}
+
+// SetCredentialResolver wires the Vault resolver shared with RPS.
+func (g *GoWSMANMessages) SetCredentialResolver(creds *CredentialResolver) {
+	g.creds = creds
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
@@ -166,19 +172,19 @@ type setupResult struct {
 }
 
 func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
+	// Resolved here so the serialized Worker below never blocks on Vault I/O.
+	password, err := DecryptStoredPassword(g.safeRequirements, device.Password)
+	if err != nil {
+		return nil, err
+	}
+
+	device.Password = password
+	device = g.creds.ApplyAMT(device)
+
 	resultChan := make(chan setupResult, 1)
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
-		decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
-		if err != nil {
-			errChan <- err
-
-			return
-		}
-
-		device.Password = decryptedPassword
-
 		if device.MPSUsername != "" {
 			if !HasConnections() {
 				errChan <- ErrCIRADeviceNotConnected

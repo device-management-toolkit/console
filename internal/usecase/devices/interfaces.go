@@ -30,7 +30,8 @@ type (
 	}
 
 	Redirection interface {
-		SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsman.Messages, error)
+		// Returns the resolved device so callers can reuse its credentials.
+		SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsman.Messages, entity.Device, error)
 		RedirectConnect(ctx context.Context, deviceConnection *DeviceConnection) error
 		RedirectClose(ctx context.Context, deviceConnection *DeviceConnection) error
 		RedirectListen(ctx context.Context, deviceConnection *DeviceConnection) ([]byte, error)
