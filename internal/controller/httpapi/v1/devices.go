@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -14,6 +15,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -251,6 +253,14 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 
 	newDevice, err := dr.t.Insert(c.Request.Context(), &device)
 	if err != nil {
+		// RPS posts the same device more than once, and a 409 fails its CIRA flow.
+		// Upsert on GUID, as MPS does.
+		if isDuplicateDevice(err) {
+			dr.upsert(c, &device, body)
+
+			return
+		}
+
 		dr.l.Error(err, "http - devices - v1 - insert")
 		ErrorResponse(c, err)
 
@@ -280,6 +290,45 @@ func hasJSONKey(raw map[string]json.RawMessage, field string) bool {
 	}
 
 	return false
+}
+
+// isDuplicateDevice reports whether err is the repo's unique-constraint violation,
+// bare or wrapped, as dbErrorHandle detects it before returning 409.
+func isDuplicateDevice(err error) bool {
+	var notUniqueErr repoerrors.NotUniqueError
+
+	if errors.As(err, &notUniqueErr) {
+		return true
+	}
+
+	var dbErr repoerrors.DatabaseError
+
+	if errors.As(err, &dbErr) {
+		return errors.As(dbErr.Console.OriginalError, &notUniqueErr)
+	}
+
+	return false
+}
+
+// upsert merges only the supplied fields, the same merge PATCH performs, and
+// returns 200 so 201 keeps meaning "created".
+func (dr *deviceRoutes) upsert(c *gin.Context, device *dto.Device, body []byte) {
+	fields, err := providedJSONFieldsFromBody(body)
+	if err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	updatedDevice, err := dr.t.Update(c.Request.Context(), device, fields)
+	if err != nil {
+		dr.l.Error(err, "http - devices - v1 - insert - upsert")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, updatedDevice)
 }
 
 // Keys are lowercased so callers can match against setter maps regardless of
