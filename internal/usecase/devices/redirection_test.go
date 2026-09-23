@@ -61,7 +61,7 @@ func TestSetupWsmanClient(t *testing.T) {
 
 			redirector.SafeRequirements = mocks.MockCrypto{}
 
-			res, err := redirector.SetupWsmanClient(context.Background(), *device, true, true)
+			res, _, err := redirector.SetupWsmanClient(context.Background(), *device, true, true)
 
 			require.IsType(t, tc.res, res)
 			require.Equal(t, tc.err, err)
@@ -82,7 +82,7 @@ func TestSetupWsmanClient_CIRARedirection(t *testing.T) {
 
 		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
 
-		_, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
+		_, _, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
 		require.ErrorIs(t, err, wsmanAPI.ErrCIRADeviceNotConnected)
 	})
 
@@ -109,7 +109,7 @@ func TestSetupWsmanClient_CIRARedirection(t *testing.T) {
 
 		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
 
-		msgs, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
+		msgs, _, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
 		require.NoError(t, err)
 		require.NotNil(t, msgs.Client)
 	})
@@ -126,7 +126,7 @@ func TestSetupWsmanClient_CIRARedirection(t *testing.T) {
 
 		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
 
-		msgs, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
+		msgs, _, err := redirector.SetupWsmanClient(context.Background(), device, true, false)
 		require.NoError(t, err)
 		require.NotNil(t, msgs)
 	})
@@ -144,7 +144,7 @@ func TestSetupWsmanClient_CIRARedirection(t *testing.T) {
 
 		redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
 
-		msgs, err := redirector.SetupWsmanClient(context.Background(), device, false, false)
+		msgs, _, err := redirector.SetupWsmanClient(context.Background(), device, false, false)
 		require.NoError(t, err)
 		require.NotNil(t, msgs)
 	})
@@ -176,4 +176,21 @@ func TestNewRedirector(t *testing.T) {
 			require.NotNil(t, redirector)
 		})
 	}
+}
+
+// TestSetupWsmanClientVaultFallback covers a device whose AMT password exists only
+// in Vault, as RPS leaves it.
+func TestSetupWsmanClientVaultFallback(t *testing.T) {
+	t.Parallel()
+
+	store := &objectStore{data: map[string]string{"AMT_PASSWORD": "vault-amt"}}
+	redirector := &devices.Redirector{SafeRequirements: mocks.MockCrypto{}}
+	redirector.SetCredentialResolver(vaultResolver(store))
+
+	device := entity.Device{GUID: "vault-device", Hostname: "192.168.1.1"}
+
+	msgs, _, err := redirector.SetupWsmanClient(context.Background(), device, false, false)
+	require.NoError(t, err)
+	require.NotNil(t, msgs)
+	require.Equal(t, "devices/vault-device", store.key)
 }

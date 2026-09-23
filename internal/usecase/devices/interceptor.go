@@ -125,17 +125,13 @@ func (uc *UseCase) getOrCreateConnection(c context.Context, conn *websocket.Conn
 }
 
 func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
-	wsmanConnection, err := uc.redirection.SetupWsmanClient(c, *device, true, true)
+	// Reuse the resolved device for the Challenge below.
+	wsmanConnection, resolvedDevice, err := uc.redirection.SetupWsmanClient(c, *device, true, true)
 	if err != nil {
 		return nil, err
 	}
 
-	decryptedPassword, err := uc.safeRequirements.Decrypt(device.Password)
-	if err != nil {
-		return nil, err
-	}
-
-	device.Password = decryptedPassword
+	*device = resolvedDevice
 
 	ctx, cancel := context.WithCancel(c)
 	now := time.Now()

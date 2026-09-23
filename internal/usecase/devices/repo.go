@@ -77,6 +77,21 @@ func (uc *UseCase) GetByColumn(ctx context.Context, columnName, queryValue, tena
 }
 
 func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
+	d2, err := uc.getByID(ctx, guid, tenantID, includeSecrets)
+	if err != nil {
+		return nil, err
+	}
+
+	if includeSecrets {
+		uc.applyVaultSecrets(d2)
+	}
+
+	return d2, nil
+}
+
+// getByID reads the device without the Vault fallback, so the merge in Update
+// cannot copy a Vault-only secret into the database.
+func (uc *UseCase) getByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
 	data, err := uc.repo.GetByID(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
@@ -121,27 +136,54 @@ func (uc *UseCase) GetByGUID(ctx context.Context, guid string, includeSecrets bo
 		if err := uc.decryptSecrets(d2, data); err != nil {
 			return nil, err
 		}
+
+		uc.applyVaultSecrets(d2)
 	}
 
 	return d2, nil
 }
 
+// applyVaultSecrets fills in the secrets that live only in Vault. Read paths call
+// it; Update's merge does not, so the value is never written back.
+func (uc *UseCase) applyVaultSecrets(d2 *dto.Device) {
+	if d2.MPSPassword == "" {
+		d2.MPSPassword = uc.creds.MPSPassword(d2.GUID)
+	}
+}
+
+// clearVaultOnlyMPSPassword blanks d.MPSPassword if it only reflects the Vault fallback.
+func (uc *UseCase) clearVaultOnlyMPSPassword(ctx context.Context, d *dto.Device) {
+	raw, err := uc.repo.GetByID(ctx, strings.ToLower(d.GUID), d.TenantID)
+	if err != nil || raw == nil {
+		return
+	}
+
+	storedEmpty := raw.MPSPassword == nil || *raw.MPSPassword == ""
+	if storedEmpty && d.MPSPassword == uc.creds.MPSPassword(strings.ToLower(d.GUID)) {
+		d.MPSPassword = ""
+	}
+}
+
 func (uc *UseCase) decryptSecrets(d2 *dto.Device, data *entity.Device) error {
 	var err error
 
-	d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
-	if err != nil {
-		return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt Password", err)
+	// An empty column is not ciphertext, so decrypting it fails. Leave the field
+	// empty instead and let the Vault fallback supply what RPS wrote.
+	if data.Password != "" {
+		d2.Password, err = uc.safeRequirements.Decrypt(data.Password)
+		if err != nil {
+			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt Password", err)
+		}
 	}
 
-	if data.MPSPassword != nil {
+	if data.MPSPassword != nil && *data.MPSPassword != "" {
 		d2.MPSPassword, err = uc.safeRequirements.Decrypt(*data.MPSPassword)
 		if err != nil {
 			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MPSPassword", err)
 		}
 	}
 
-	if data.MEBXPassword != nil {
+	if data.MEBXPassword != nil && *data.MEBXPassword != "" {
 		d2.MEBXPassword, err = uc.safeRequirements.Decrypt(*data.MEBXPassword)
 		if err != nil {
 			return ErrDeviceUseCase.Wrap("decryptSecrets", "uc.safeRequirements.Decrypt MEBXPassword", err)
@@ -228,13 +270,18 @@ func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
 // listed JSON keys onto the existing record.
 func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error) {
 	if fields != nil {
-		existing, err := uc.GetByID(ctx, d.GUID, d.TenantID, true)
+		// getByID, not GetByID: a Vault-only secret must not be merged in and
+		// persisted, or the stored copy would shadow later rotations in Vault.
+		existing, err := uc.getByID(ctx, d.GUID, d.TenantID, true)
 		if err != nil {
 			return nil, err
 		}
 
 		mergeDeviceFields(existing, d, fields)
 		d = existing
+	} else {
+		// Don't persist a Vault-only MPSPassword back into the database.
+		uc.clearVaultOnlyMPSPassword(ctx, d)
 	}
 
 	d1, err := uc.dtoToEntity(d)
