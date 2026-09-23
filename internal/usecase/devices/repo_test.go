@@ -3,17 +3,21 @@ package devices_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 	"time"
 
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -322,11 +326,12 @@ func TestUpdate(t *testing.T) {
 			name: "successful update",
 			mock: func(repo *mocks.MockDeviceManagementRepository, management *mocks.MockWSMAN) {
 				repo.EXPECT().
+					GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+					Return(device, nil).
+					Times(2)
+				repo.EXPECT().
 					Update(context.Background(), device).
 					Return(true, nil)
-				repo.EXPECT().
-					GetByID(context.Background(), "device-guid-123", "tenant-id-456").
-					Return(device, nil)
 				management.EXPECT().
 					DestroyWsmanClient(*deviceDTO)
 			},
@@ -337,6 +342,9 @@ func TestUpdate(t *testing.T) {
 			name: "update fails - not found",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				repo.EXPECT().
+					GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+					Return(device, nil)
+				repo.EXPECT().
 					Update(context.Background(), device).
 					Return(false, nil)
 			},
@@ -346,6 +354,9 @@ func TestUpdate(t *testing.T) {
 		{
 			name: "update fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
+				repo.EXPECT().
+					GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+					Return(device, nil)
 				repo.EXPECT().
 					Update(context.Background(), device).
 					Return(false, devices.ErrDatabase)
@@ -484,11 +495,12 @@ func TestUpdateWithPasswords(t *testing.T) {
 		useCase, repo, management := devicesTest(t)
 
 		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceWithPasswords, nil).
+			Times(2)
+		repo.EXPECT().
 			Update(context.Background(), deviceWithPasswords).
 			Return(true, nil)
-		repo.EXPECT().
-			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
-			Return(deviceWithPasswords, nil)
 		management.EXPECT().
 			DestroyWsmanClient(*expectedDTO)
 
@@ -725,11 +737,12 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 		}
 
 		repo.EXPECT().
+			GetByID(context.Background(), "aaf0c395-c2a2-992e-5655-48210b50d8c9", "tenant-id-456").
+			Return(expectedEntity, nil).
+			Times(2)
+		repo.EXPECT().
 			Update(context.Background(), expectedEntity).
 			Return(true, nil)
-		repo.EXPECT().
-			GetByID(context.Background(), "aaf0c395-c2a2-992e-5655-48210b50d8c9", "tenant-id-456").
-			Return(expectedEntity, nil)
 		management.EXPECT().
 			DestroyWsmanClient(*expectedDTO)
 
@@ -1154,4 +1167,166 @@ func TestUpdateLastSeen(t *testing.T) {
 			require.IsType(t, tc.err, err)
 		})
 	}
+}
+
+// errVaultUnavailable stands in for a Vault read that fails.
+var errVaultUnavailable = errors.New("vault unavailable")
+
+// vaultResolver builds a resolver over a test store.
+func vaultResolver(store security.Storager) *wsman.CredentialResolver {
+	return wsman.NewCredentialResolver(store, logger.New("error"))
+}
+
+// plainStore implements only security.Storager, with no object read.
+type plainStore struct{}
+
+func (plainStore) GetKeyValue(string) (string, error) { return "", nil }
+func (plainStore) SetKeyValue(_, _ string) error      { return nil }
+func (plainStore) DeleteKeyValue(string) error        { return nil }
+
+// objectStore adds the object read the Vault-backed store provides.
+type objectStore struct {
+	plainStore
+
+	key  string
+	data map[string]string
+	err  error
+}
+
+func (s *objectStore) GetObject(key string) (map[string]string, error) {
+	s.key = key
+
+	return s.data, s.err
+}
+
+func TestGetByIDMPSPasswordFromVault(t *testing.T) {
+	t.Parallel()
+
+	deviceNoMPSPassword := &entity.Device{
+		GUID:        "device-guid-123",
+		TenantID:    "tenant-id-456",
+		Password:    "encrypted",
+		MPSPassword: nil,
+	}
+
+	t.Run("read from vault when the device row has none", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+		store := &objectStore{data: map[string]string{"MPS_PASSWORD": "vault-password"}}
+		useCase.SetCredentialResolver(vaultResolver(store))
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceNoMPSPassword, nil)
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Equal(t, "vault-password", got.MPSPassword)
+		require.Equal(t, "devices/device-guid-123", store.key)
+	})
+
+	t.Run("vault read fails", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+		useCase.SetCredentialResolver(vaultResolver(&objectStore{err: errVaultUnavailable}))
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceNoMPSPassword, nil)
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Empty(t, got.MPSPassword)
+	})
+
+	t.Run("store without object support is skipped", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+		useCase.SetCredentialResolver(vaultResolver(plainStore{}))
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(deviceNoMPSPassword, nil)
+
+		got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+		require.NoError(t, err)
+		require.Empty(t, got.MPSPassword)
+	})
+}
+
+func TestGetByIDEmptyStoredPasswords(t *testing.T) {
+	t.Parallel()
+
+	// A row written outside Console can hold empty strings rather than ciphertext.
+	deviceEmptyPasswords := &entity.Device{
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "",
+		MPSPassword:  ptr(""),
+		MEBXPassword: ptr(""),
+	}
+
+	useCase, repo, _ := devicesTest(t)
+	useCase.SetCredentialResolver(vaultResolver(&objectStore{data: map[string]string{"MPS_PASSWORD": "vault-password"}}))
+
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(deviceEmptyPasswords, nil)
+
+	got, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", true)
+
+	require.NoError(t, err)
+	require.Empty(t, got.Password)
+	require.Empty(t, got.MEBXPassword)
+	require.Equal(t, "vault-password", got.MPSPassword)
+}
+
+func TestUpdateDoesNotPersistVaultPassword(t *testing.T) {
+	t.Parallel()
+
+	// The stored row has no MPS password; it lives only in Vault.
+	stored := &entity.Device{
+		GUID:        "device-guid-123",
+		TenantID:    "tenant-id-456",
+		Hostname:    "hostname",
+		Password:    "encrypted",
+		MPSPassword: nil,
+	}
+
+	useCase, repo, management := devicesTest(t)
+	useCase.SetCredentialResolver(vaultResolver(&objectStore{data: map[string]string{"MPS_PASSWORD": "vault-password"}}))
+
+	incoming := &dto.Device{
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		Hostname: "new-hostname",
+	}
+	fields := map[string]bool{"guid": true, "tenantId": true, "hostname": true}
+
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(stored, nil)
+	repo.EXPECT().
+		Update(context.Background(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, actual *entity.Device) (bool, error) {
+			require.Nil(t, actual.MPSPassword, "the Vault password must not be written to the device row")
+			require.Equal(t, "new-hostname", actual.Hostname)
+
+			return true, nil
+		})
+	repo.EXPECT().
+		GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+		Return(stored, nil)
+	management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+	got, err := useCase.Update(context.Background(), incoming, fields)
+
+	require.NoError(t, err)
+	require.NotNil(t, got)
 }

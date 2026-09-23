@@ -9,6 +9,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -49,6 +50,7 @@ type UseCase struct {
 	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	creds            *wsman.CredentialResolver
 }
 
 var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
@@ -67,6 +69,11 @@ func New(r Repository, d WSMAN, redirection Redirection, log logger.Interface, s
 	go d.Worker()
 
 	return uc
+}
+
+// SetCredentialResolver wires the Vault resolver shared with RPS.
+func (uc *UseCase) SetCredentialResolver(creds *wsman.CredentialResolver) {
+	uc.creds = creds
 }
 
 // convert dto.Device to entity.Device.
