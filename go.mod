@@ -8,7 +8,7 @@ require (
 	fyne.io/systray v1.12.2
 	github.com/Masterminds/squirrel v1.5.4
 	github.com/coreos/go-oidc/v3 v3.21.0
-	github.com/device-management-toolkit/go-wsman-messages/v2 v2.50.3
+	github.com/device-management-toolkit/go-wsman-messages/v2 v2.50.4
 	github.com/getkin/kin-openapi v0.149.0
 	github.com/gin-contrib/cors v1.7.8
 	github.com/gin-contrib/pprof v1.5.5
@@ -98,7 +98,7 @@ require (
 	github.com/rogpeppe/go-internal v1.14.1 // indirect
 	github.com/ryanuber/go-glob v1.0.0 // indirect
 	github.com/santhosh-tekuri/jsonschema/v6 v6.0.3 // indirect
-	github.com/sirupsen/logrus v1.10.0 // indirect
+	github.com/sirupsen/logrus v1.10.2 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
 	github.com/twitchyliquid64/golang-asm v0.15.1 // indirect
 	github.com/ugorji/go/codec v1.3.1 // indirect
