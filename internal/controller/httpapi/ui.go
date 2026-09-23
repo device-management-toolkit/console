@@ -92,6 +92,22 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 		return ""
 	}
 
+	data = applyUIConfig(data, cfg)
+
+	// Write to /tmp
+	permissions := 0o600
+
+	tempFile := filepath.Join(os.TempDir(), "main.js")
+
+	if err := os.WriteFile(tempFile, data, os.FileMode(permissions)); err != nil {
+		log.Fatalf("Could not write modified main.js: %v", err)
+	}
+
+	return tempFile
+}
+
+// applyUIConfig patches the minified environment values in the UI bundle.
+func applyUIConfig(data []byte, cfg *config.Config) []byte {
 	protocol := protocolHTTP
 
 	requireHTTPSReplacement := ",requireHttps:!1"
@@ -104,8 +120,13 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 		protocol = protocolHTTPS
 	}
 
-	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
-	if cfg.ClientID != "" {
+	// Auth off wins over OAuth: there is no identity provider to send the user to.
+	if cfg.Disabled {
+		data = injectPlaceholders(data, map[string]string{
+			",authDisabled:!1,": ",authDisabled:!0,",
+		})
+	} else if cfg.ClientID != "" {
+		// A clientID means OAuth is configured, so inject the UI values from YAML.
 		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
 		if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
 			strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
@@ -126,16 +147,7 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 		"##CONSOLE_SERVER_API##": consoleServerAPIBase(protocol, cfg.Host, cfg.Port),
 	})
 
-	// Write to /tmp
-	permissions := 0o600
-
-	tempFile := filepath.Join(os.TempDir(), "main.js")
-
-	if err := os.WriteFile(tempFile, data, os.FileMode(permissions)); err != nil {
-		log.Fatalf("Could not write modified main.js: %v", err)
-	}
-
-	return tempFile
+	return data
 }
 
 // Returns "" on wildcard hosts so the UI uses same-origin requests matching the user's URL/SNI.

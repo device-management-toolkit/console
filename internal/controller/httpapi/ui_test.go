@@ -3,9 +3,12 @@
 package httpapi
 
 import (
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
+
+	"github.com/device-management-toolkit/console/config"
 )
 
 func TestConsoleServerAPIBase(t *testing.T) {
@@ -75,6 +78,40 @@ func TestConsoleServerAPIBase(t *testing.T) {
 
 			got := consoleServerAPIBase(tt.protocol, tt.host, tt.port)
 			require.Equal(t, tt.want, got)
+		})
+	}
+}
+
+func TestApplyUIConfigAuthMode(t *testing.T) {
+	t.Parallel()
+
+	const bundle = `{cloud:!1,useOAuth:!1,authDisabled:!1,mpsServer:"##CONSOLE_SERVER_API##",auth:{clientId:"##CLIENTID##"}}`
+
+	tests := []struct {
+		name         string
+		disabled     bool
+		clientID     string
+		wantDisabled bool
+		wantOAuth    bool
+	}{
+		{name: "auth enabled without OAuth leaves both flags off"},
+		{name: "auth disabled turns on authDisabled", disabled: true, wantDisabled: true},
+		{name: "OAuth client turns on useOAuth", clientID: "client", wantOAuth: true},
+		{name: "auth disabled wins over OAuth", disabled: true, clientID: "client", wantDisabled: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := &config.Config{}
+			cfg.Disabled = tc.disabled
+			cfg.ClientID = tc.clientID
+
+			got := string(applyUIConfig([]byte(bundle), cfg))
+
+			require.Equal(t, tc.wantDisabled, strings.Contains(got, ",authDisabled:!0,"))
+			require.Equal(t, tc.wantOAuth, strings.Contains(got, ",useOAuth:!0,"))
 		})
 	}
 }
