@@ -6,6 +6,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -39,7 +40,9 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 		return
 	}
 
-	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	tenantID := middleware.TenantID(c)
+
+	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - get")
 		ErrorResponse(c, err)
@@ -48,7 +51,7 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := r.cira.GetCount(c.Request.Context(), "")
+		count, err := r.cira.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - CIRA configs - v1 - getCount")
 			ErrorResponse(c, err)
@@ -69,8 +72,9 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 
 func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
+	tenantID := middleware.TenantID(c)
 
-	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, "")
+	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - getByName")
 		ErrorResponse(c, err)
@@ -89,6 +93,8 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 
 		return
 	}
+
+	ciraConfig.TenantID = middleware.TenantID(c)
 
 	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &ciraConfig)
 	if err != nil {
@@ -110,6 +116,8 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 		return
 	}
 
+	ciraConfig.TenantID = middleware.TenantID(c)
+
 	updatedConfig, err := r.cira.Update(c.Request.Context(), &ciraConfig)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - update")
@@ -123,8 +131,9 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 
 func (r *ciraConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
+	tenantID := middleware.TenantID(c)
 
-	err := r.cira.Delete(c.Request.Context(), configName, "")
+	err := r.cira.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - delete")
 		ErrorResponse(c, err)

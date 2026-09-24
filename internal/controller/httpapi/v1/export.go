@@ -10,6 +10,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
@@ -30,7 +31,7 @@ func (dr *deviceRoutes) export(c *gin.Context) {
 	start := time.Now()
 
 	userID := ""
-	tenantID := ""
+	tenantID := middleware.TenantID(c)
 
 	ctx, cancel := context.WithTimeout(c.Request.Context(), exportTimeout)
 	defer cancel()

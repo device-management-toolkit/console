@@ -40,6 +40,7 @@ type (
 		GetCount(context.Context, string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
 		GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error)
+		GetByGUID(ctx context.Context, guid string) (*entity.Device, error)
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
 		GetByTags(ctx context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) (bool, error)
@@ -54,6 +55,9 @@ type (
 		GetCount(context.Context, string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 		GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error)
+		// GetByGUID resolves a device without a tenant filter. CIRA devices
+		// authenticate by GUID and cannot present a tenant.
+		GetByGUID(ctx context.Context, guid string, includeSecrets bool) (*dto.Device, error)
 		UpdateConnectionStatus(ctx context.Context, guid string, status bool) error
 		UpdateLastSeen(ctx context.Context, guid string) error
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
@@ -63,48 +67,48 @@ type (
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
 		// Management Calls
-		GetVersion(ctx context.Context, guid string) (dto.Version, dtov2.Version, error)
-		GetFeatures(ctx context.Context, guid string) (dto.Features, dtov2.Features, error)
-		SetFeatures(ctx context.Context, guid string, features dto.Features) (dto.Features, dtov2.Features, error)
-		GetAlarmOccurrences(ctx context.Context, guid string) ([]dto.AlarmClockOccurrence, error)
-		CreateAlarmOccurrences(ctx context.Context, guid string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error)
-		DeleteAlarmOccurrences(ctx context.Context, guid, instanceID string) error
-		GetHardwareInfo(ctx context.Context, guid string) (dto.HardwareInfo, error)
-		GetPowerState(ctx context.Context, guid string) (dto.PowerState, error)
-		GetPowerCapabilities(ctx context.Context, guid string) (dto.PowerCapabilities, error)
-		GetRemoteEraseCapabilities(ctx context.Context, guid string) (dto.BootCapabilities, error)
-		SetRemoteEraseOptions(ctx context.Context, guid string, req dto.RemoteEraseRequest) error
-		GetGeneralSettings(ctx context.Context, guid string) (dto.GeneralSettings, error)
-		CancelUserConsent(ctx context.Context, guid string) (dto.UserConsentMessage, error)
-		GetUserConsentCode(ctx context.Context, guid string) (dto.UserConsentMessage, error)
-		SendConsentCode(ctx context.Context, code dto.UserConsentCode, guid string) (dto.UserConsentMessage, error)
-		SendPowerAction(ctx context.Context, guid string, action int) (power.PowerActionResponse, error)
-		SetBootOptions(ctx context.Context, guid string, bootSetting dto.BootSetting) (power.PowerActionResponse, error)
-		GetAuditLog(ctx context.Context, startIndex int, guid string) (dto.AuditLog, error)
-		GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid string) (dto.EventLogs, error)
+		GetVersion(ctx context.Context, guid, tenantID string) (dto.Version, dtov2.Version, error)
+		GetFeatures(ctx context.Context, guid, tenantID string) (dto.Features, dtov2.Features, error)
+		SetFeatures(ctx context.Context, guid, tenantID string, features dto.Features) (dto.Features, dtov2.Features, error)
+		GetAlarmOccurrences(ctx context.Context, guid, tenantID string) ([]dto.AlarmClockOccurrence, error)
+		CreateAlarmOccurrences(ctx context.Context, guid, tenantID string, alarm dto.AlarmClockOccurrenceInput) (dto.AddAlarmOutput, error)
+		DeleteAlarmOccurrences(ctx context.Context, guid, instanceID, tenantID string) error
+		GetHardwareInfo(ctx context.Context, guid, tenantID string) (dto.HardwareInfo, error)
+		GetPowerState(ctx context.Context, guid, tenantID string) (dto.PowerState, error)
+		GetPowerCapabilities(ctx context.Context, guid, tenantID string) (dto.PowerCapabilities, error)
+		GetRemoteEraseCapabilities(ctx context.Context, guid, tenantID string) (dto.BootCapabilities, error)
+		SetRemoteEraseOptions(ctx context.Context, guid, tenantID string, req dto.RemoteEraseRequest) error
+		GetGeneralSettings(ctx context.Context, guid, tenantID string) (dto.GeneralSettings, error)
+		CancelUserConsent(ctx context.Context, guid, tenantID string) (dto.UserConsentMessage, error)
+		GetUserConsentCode(ctx context.Context, guid, tenantID string) (dto.UserConsentMessage, error)
+		SendConsentCode(ctx context.Context, code dto.UserConsentCode, guid, tenantID string) (dto.UserConsentMessage, error)
+		SendPowerAction(ctx context.Context, guid, tenantID string, action int) (power.PowerActionResponse, error)
+		SetBootOptions(ctx context.Context, guid, tenantID string, bootSetting dto.BootSetting) (power.PowerActionResponse, error)
+		GetAuditLog(ctx context.Context, startIndex int, guid, tenantID string) (dto.AuditLog, error)
+		GetEventLog(ctx context.Context, startIndex, maxReadRecords int, guid, tenantID string) (dto.EventLogs, error)
 		Redirect(ctx context.Context, conn *websocket.Conn, guid, mode string) error
-		GetNetworkSettings(c context.Context, guid string) (dto.NetworkSettings, error)
-		GetWiredNetworkSettings(c context.Context, guid string) (dto.WiredNetworkInfo, error)
-		PatchWiredNetworkSettings(c context.Context, guid string, req dto.WiredNetworkConfigRequest) error
-		RequestWirelessStateChange(c context.Context, guid string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
-		GetWirelessState(c context.Context, guid string) (wifi.EnabledState, error)
-		GetWirelessProfileSync(c context.Context, guid string) (dto.WirelessProfileSyncResponse, error)
-		SetWirelessProfileSync(c context.Context, guid string, req dto.WirelessProfileSyncRequest) (dto.WirelessProfileSyncResponse, error)
-		GetWirelessProfiles(c context.Context, guid string) ([]dto.WirelessProfileResponse, error)
-		AddWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
-		DeleteWirelessProfile(c context.Context, guid, profileName string) error
-		UpdateWirelessProfile(c context.Context, guid string, profile config.WirelessProfile) error
-		GetCertificates(c context.Context, guid string) (dto.SecuritySettings, error)
-		GetTLSSettingData(c context.Context, guid string) ([]dto.SettingDataResponse, error)
-		GetDiskInfo(c context.Context, guid string) (dto.DiskInfo, error)
-		GetDeviceCertificate(c context.Context, guid string) (dto.Certificate, error)
-		AddCertificate(c context.Context, guid string, certInfo dto.CertInfo) (string, error)
-		DeleteCertificate(c context.Context, guid, instanceID string) error
-		GetBootSourceSetting(c context.Context, guid string) ([]dto.BootSources, error)
+		GetNetworkSettings(c context.Context, guid, tenantID string) (dto.NetworkSettings, error)
+		GetWiredNetworkSettings(c context.Context, guid, tenantID string) (dto.WiredNetworkInfo, error)
+		PatchWiredNetworkSettings(c context.Context, guid, tenantID string, req dto.WiredNetworkConfigRequest) error
+		RequestWirelessStateChange(c context.Context, guid, tenantID string, requestedState wifi.RequestedState) (wifi.RequestedState, error)
+		GetWirelessState(c context.Context, guid, tenantID string) (wifi.EnabledState, error)
+		GetWirelessProfileSync(c context.Context, guid, tenantID string) (dto.WirelessProfileSyncResponse, error)
+		SetWirelessProfileSync(c context.Context, guid, tenantID string, req dto.WirelessProfileSyncRequest) (dto.WirelessProfileSyncResponse, error)
+		GetWirelessProfiles(c context.Context, guid, tenantID string) ([]dto.WirelessProfileResponse, error)
+		AddWirelessProfile(c context.Context, guid, tenantID string, profile config.WirelessProfile) error
+		DeleteWirelessProfile(c context.Context, guid, profileName, tenantID string) error
+		UpdateWirelessProfile(c context.Context, guid, tenantID string, profile config.WirelessProfile) error
+		GetCertificates(c context.Context, guid, tenantID string) (dto.SecuritySettings, error)
+		GetTLSSettingData(c context.Context, guid, tenantID string) ([]dto.SettingDataResponse, error)
+		GetDiskInfo(c context.Context, guid, tenantID string) (dto.DiskInfo, error)
+		GetDeviceCertificate(c context.Context, guid, tenantID string) (dto.Certificate, error)
+		AddCertificate(c context.Context, guid, tenantID string, certInfo dto.CertInfo) (string, error)
+		DeleteCertificate(c context.Context, guid, instanceID, tenantID string) error
+		GetBootSourceSetting(c context.Context, guid, tenantID string) ([]dto.BootSources, error)
 		// KVM Screen Settings (IPS_ScreenSettingData)
-		GetKVMScreenSettings(c context.Context, guid string) (dto.KVMScreenSettings, error)
-		SetKVMScreenSettings(c context.Context, guid string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
+		GetKVMScreenSettings(c context.Context, guid, tenantID string) (dto.KVMScreenSettings, error)
+		SetKVMScreenSettings(c context.Context, guid, tenantID string, req dto.KVMScreenSettingsRequest) (dto.KVMScreenSettings, error)
 		// Link Preference (AMT_EthernetPortSettings)
-		SetLinkPreference(c context.Context, guid string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error)
+		SetLinkPreference(c context.Context, guid, tenantID string, req dto.LinkPreferenceRequest) (dto.LinkPreferenceResponse, error)
 	}
 )

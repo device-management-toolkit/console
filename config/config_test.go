@@ -474,6 +474,50 @@ func TestValidate_SubMinuteJWTExpiration(t *testing.T) {
 	require.ErrorIs(t, err, ErrJWTExpirationInvalid)
 }
 
+func TestValidate_SubMinuteMaxTokenTTL(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.MaxTokenTTL = 30 * time.Second
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrMaxTokenTTLInvalid)
+}
+
+func TestValidate_NegativeMaxTokenTTL(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.MaxTokenTTL = -1 * time.Hour
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrMaxTokenTTLInvalid)
+}
+
+func TestValidate_UnsetMaxTokenTTLIsAllowed(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.MaxTokenTTL = 0
+	cfg.JWTKey = "test-jwt-key"
+
+	require.NoError(t, cfg.validate())
+}
+
+func TestValidate_DisableFetchRequiresLocalDir(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key"
+	cfg.DisableFetch = true
+
+	require.ErrorIs(t, cfg.validate(), ErrLocalDirRequired)
+
+	cfg.LocalDir = "/opt/rpc-go"
+
+	require.NoError(t, cfg.validate())
+}
+
 func TestValidate_ZeroRedirectionJWTExpiration(t *testing.T) {
 	t.Parallel()
 

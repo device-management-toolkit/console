@@ -27,6 +27,8 @@ var (
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 	ErrAllowedOriginsEmpty             = errors.New("config: http.allowed_origins must list at least one origin (e.g. https://localhost:8181) — an empty list disables CORS outright and aborts startup")
+	ErrMaxTokenTTLInvalid              = errors.New("config: package.max_token_ttl must be at least 1 minute (e.g. 24h), or 0 to use the default")
+	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 )
 
@@ -55,6 +57,7 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
+		Package `yaml:"package"`
 	}
 
 	// App -.
@@ -152,6 +155,16 @@ type (
 	// UI -.
 	UI struct {
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
+	}
+
+	// Package -. Settings for the Download RPC packaging endpoints.
+	Package struct {
+		RPCRepo  string `yaml:"rpc_repo" env:"RPC_REPO"`
+		LocalDir string `yaml:"local_dir" env:"RPC_LOCAL_DIR"`
+		// DisableFetch serves rpc-go builds from LocalDir only, never contacting GitHub.
+		DisableFetch bool `yaml:"disable_fetch" env:"RPC_DISABLE_FETCH"`
+		// MaxTokenTTL caps the auth-token lifetime a package request may ask for.
+		MaxTokenTTL time.Duration `yaml:"max_token_ttl" env:"RPC_MAX_TOKEN_TTL"`
 	}
 )
 
@@ -273,6 +286,10 @@ func defaultConfig() *Config {
 		},
 		UI: UI{
 			ExternalURL: "",
+		},
+		Package: Package{
+			RPCRepo:     "device-management-toolkit/rpc-go",
+			MaxTokenTTL: 24 * time.Hour,
 		},
 	}
 }
@@ -492,6 +509,14 @@ func (c *Config) validate() error {
 
 	if c.RedirectionJWTExpiration < time.Minute {
 		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	if c.MaxTokenTTL != 0 && c.MaxTokenTTL < time.Minute {
+		return ErrMaxTokenTTLInvalid
+	}
+
+	if c.DisableFetch && c.LocalDir == "" {
+		return ErrLocalDirRequired
 	}
 
 	if !c.Disabled && c.JWTKey == "" {

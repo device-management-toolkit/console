@@ -79,4 +79,7 @@ ui:
   # - Ignored: When building without 'noui' tag (embedded UI is served normally)
   # Example: https://ui.example.com
   externalUrl: ""
+package:
+  rpc_repo: device-management-toolkit/rpc-go
+  local_dir: ""
 
