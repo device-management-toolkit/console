@@ -65,7 +65,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.GetWirelessProfileSync(context.Background(), guid)
+				return useCase.GetWirelessProfileSync(context.Background(), guid, "")
 			},
 			want: dto.WirelessProfileSyncResponse{LocalProfileSync: true, UEFIProfileSync: true, UEFIProfileSyncSupported: true},
 		},
@@ -81,7 +81,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: false}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.GetWirelessProfileSync(context.Background(), guid)
+				return useCase.GetWirelessProfileSync(context.Background(), guid, "")
 			},
 			want: dto.WirelessProfileSyncResponse{LocalProfileSync: false, UEFIProfileSync: false, UEFIProfileSyncSupported: false},
 		},
@@ -91,7 +91,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), guid, "").Return(nil, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.GetWirelessProfileSync(context.Background(), guid)
+				return useCase.GetWirelessProfileSync(context.Background(), guid, "")
 			},
 			wantErr: true,
 		},
@@ -102,7 +102,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetWiFiPorts().Return(nil, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.GetWirelessProfileSync(context.Background(), guid)
+				return useCase.GetWirelessProfileSync(context.Background(), guid, "")
 			},
 			wantErr: true,
 		},
@@ -114,7 +114,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetWiFiPortConfigurationService().Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.GetWirelessProfileSync(context.Background(), guid)
+				return useCase.GetWirelessProfileSync(context.Background(), guid, "")
 			},
 			wantErr: true,
 		},
@@ -127,7 +127,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.GetWirelessProfileSync(context.Background(), guid)
+				return useCase.GetWirelessProfileSync(context.Background(), guid, "")
 			},
 			wantErr: true,
 		},
@@ -154,7 +154,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				})
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
 			},
 			want: dto.WirelessProfileSyncResponse{LocalProfileSync: true, UEFIProfileSync: false, UEFIProfileSyncSupported: true},
 		},
@@ -180,7 +180,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				})
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{UEFIProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{UEFIProfileSync: testBoolPtr(true)})
 			},
 			want: dto.WirelessProfileSyncResponse{LocalProfileSync: false, UEFIProfileSync: true, UEFIProfileSyncSupported: true},
 		},
@@ -196,7 +196,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: false}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true), UEFIProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true), UEFIProfileSync: testBoolPtr(true)})
 			},
 			wantErr:   true,
 			wantErrIs: devices.ErrUEFIProfileSyncNotSupported,
@@ -213,7 +213,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true), UEFIProfileSync: testBoolPtr(false)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true), UEFIProfileSync: testBoolPtr(false)})
 			},
 			want: dto.WirelessProfileSyncResponse{LocalProfileSync: true, UEFIProfileSync: false, UEFIProfileSyncSupported: true},
 		},
@@ -229,7 +229,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{UEFIWiFiCoExistenceAndProfileShare: true}, nil)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{})
 			},
 			want: dto.WirelessProfileSyncResponse{LocalProfileSync: true, UEFIProfileSync: true, UEFIProfileSyncSupported: true},
 		},
@@ -239,7 +239,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				repo.EXPECT().GetByID(context.Background(), guid, "").Return(nil, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
 			},
 			wantErr: true,
 		},
@@ -250,7 +250,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetWiFiPorts().Return(nil, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
 			},
 			wantErr: true,
 		},
@@ -262,7 +262,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetWiFiPortConfigurationService().Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
 			},
 			wantErr: true,
 		},
@@ -275,7 +275,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
 			},
 			wantErr: true,
 		},
@@ -291,7 +291,7 @@ func TestWiFiProfileSync(t *testing.T) {
 				management.EXPECT().PutWiFiPortConfigurationService(gomock.Any()).Return(wifiportconfiguration.WiFiPortConfigurationServiceResponse{}, errWiFiProfileSync)
 			},
 			invoke: func(useCase *devices.UseCase) (dto.WirelessProfileSyncResponse, error) {
-				return useCase.SetWirelessProfileSync(context.Background(), guid, dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
+				return useCase.SetWirelessProfileSync(context.Background(), guid, "", dto.WirelessProfileSyncRequest{LocalProfileSync: testBoolPtr(true)})
 			},
 			wantErr: true,
 		},

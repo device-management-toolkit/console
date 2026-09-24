@@ -10,8 +10,10 @@ import (
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
-// globalRequestThreshold is the number of global requests required before sending keep-alive.
-const globalRequestThreshold = 4
+const (
+	globalRequestThreshold = 4
+	authMethodPassword     = "password"
+)
 
 // APFHandler implements apf.Handler for the CIRA server.
 // It provides application-specific logic for authentication and device registration.
@@ -55,7 +57,7 @@ func (h *APFHandler) OnAuthRequest(request apf.AuthRequest) apf.AuthResponse {
 		h.deviceID, request.Username, request.MethodName)
 
 	// Only support password authentication
-	if request.MethodName != "password" {
+	if request.MethodName != authMethodPassword {
 		h.log.Warn("Unsupported authentication method: %s", request.MethodName)
 
 		return apf.AuthResponse{Authenticated: false}
@@ -85,7 +87,9 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 	ctx := context.Background()
 
 	// Fetch device from database using the UUID
-	device, err := h.devices.GetByID(ctx, h.deviceID, "", true)
+	// CIRA devices authenticate by GUID and cannot present a tenant, so the
+	// lookup must span tenants rather than defaulting to the empty one.
+	device, err := h.devices.GetByGUID(ctx, h.deviceID, true)
 	if err != nil {
 		h.log.Warn("Failed to fetch device %s from database: %v", h.deviceID, err)
 

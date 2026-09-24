@@ -17,16 +17,19 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/packaging"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
 
 // errorKey is the JSON field name used for error messages in gin.H responses.
 // messageKey is the JSON field name used for human-readable messages in gin.H responses.
+// tokenKey is the JSON field name used for issued tokens in gin.H responses.
 // errTokenCreation is returned when a JWT cannot be signed.
 const (
 	errorKey         = "error"
 	messageKey       = "message"
+	tokenKey         = "token"
 	errTokenCreation = "could not create token"
 )
 
@@ -184,6 +187,16 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 	case errors.Is(err, wsmanAPI.ErrCIRADeviceNotConnected):
 		msg := wsmanAPI.ErrCIRADeviceNotConnected.Error()
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, response{Error: msg, Message: msg})
+
+		return true
+	case errors.Is(err, packaging.ErrAssetNotFound):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusNotFound, response{Error: msg, Message: msg})
+
+		return true
+	case errors.Is(err, packaging.ErrUnsafeVersion):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
 	}

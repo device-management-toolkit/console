@@ -26,7 +26,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 		{
 			name: "getRemoteEraseCapabilities - successful retrieval",
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetRemoteEraseCapabilities(context.Background(), "valid-guid").
+				m.EXPECT().GetRemoteEraseCapabilities(context.Background(), "valid-guid", "").
 					Return(dto.BootCapabilities{SecureEraseAllSSDs: true}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -35,7 +35,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 		{
 			name: "getRemoteEraseCapabilities - service failure",
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetRemoteEraseCapabilities(context.Background(), "valid-guid").
+				m.EXPECT().GetRemoteEraseCapabilities(context.Background(), "valid-guid", "").
 					Return(dto.BootCapabilities{}, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
@@ -81,7 +81,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			name:        "setRemoteEraseOptions - successful",
 			requestBody: dto.RemoteEraseRequest{SecureEraseAllSSDs: true, TPMClear: true},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", dto.RemoteEraseRequest{SecureEraseAllSSDs: true, TPMClear: true}).
+				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", "", dto.RemoteEraseRequest{SecureEraseAllSSDs: true, TPMClear: true}).
 					Return(nil)
 			},
 			expectedCode: http.StatusOK,
@@ -96,7 +96,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 				SSDPassword:        "s3cr3t",
 			},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", dto.RemoteEraseRequest{
+				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", "", dto.RemoteEraseRequest{
 					SecureEraseAllSSDs: true,
 					TPMClear:           true,
 					RestoreBIOSToEOM:   true,
@@ -118,7 +118,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			name:        "setRemoteEraseOptions - service failure",
 			requestBody: dto.RemoteEraseRequest{UnconfigureCSME: true},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", dto.RemoteEraseRequest{UnconfigureCSME: true}).
+				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", "", dto.RemoteEraseRequest{UnconfigureCSME: true}).
 					Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,

@@ -16,6 +16,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -49,6 +50,7 @@ func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine)
 	device := mocks.NewMockDeviceManagementFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1")
 
 	NewDeviceRoutes(handler, device, log)
@@ -63,6 +65,7 @@ type deviceTest struct {
 	mock         func(repo *mocks.MockDeviceManagementFeature)
 	response     interface{}
 	requestBody  dto.Device
+	tenantID     string
 	expectedCode int
 }
 
@@ -182,6 +185,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -211,6 +215,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -260,6 +265,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -289,6 +295,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -346,6 +353,10 @@ func TestDevicesRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()
@@ -773,7 +784,7 @@ func TestLoginRedirection(t *testing.T) {
 			deviceID: "test-device-guid",
 			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
 				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
-					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host", TenantID: "tenant-a"}, nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedErr:  false,
@@ -851,6 +862,51 @@ func TestLoginRedirection(t *testing.T) {
 	}
 }
 
+// TestLoginRedirection_AuthDisabled checks that auth-off mode hands out an
+// unsigned placeholder, which a later auth-enabled run cannot verify.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLoginRedirection_AuthDisabled(t *testing.T) {
+	// Consume the sync.Once first so parallel tests keep the shared config after cleanup.
+	setupTestConfig()
+
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = &config.Config{
+		Auth: config.Auth{
+			Disabled:                 true,
+			JWTKey:                   testJWTKey,
+			JWTExpiration:            time.Hour,
+			RedirectionJWTExpiration: 5 * time.Minute,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+	devicesFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+		Return(&dto.Device{GUID: "test-device-guid"}, nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/authorize/redirection/test-device-guid", http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Equal(t, authDisabledRedirectionToken, response["token"])
+
+	_, err = jwt.Parse(response["token"], func(_ *jwt.Token) (interface{}, error) {
+		return []byte(testJWTKey), nil
+	})
+	require.Error(t, err, "placeholder must not verify against the configured key")
+}
+
 // verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
 func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
 	t.Helper()
@@ -864,7 +920,6 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) 
 
 	// deviceId must be the device GUID
 	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
-
 	// Verify expiration is set
 	exp, err := claims.GetExpirationTime()
 	require.NoError(t, err)

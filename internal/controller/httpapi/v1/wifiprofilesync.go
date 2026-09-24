@@ -6,6 +6,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -16,8 +17,9 @@ var errValidationWirelessProfileSync = dto.NotValidError{Console: consoleerrors.
 
 func (r *deviceManagementRoutes) getWirelessProfileSync(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	response, err := r.d.GetWirelessProfileSync(c.Request.Context(), guid)
+	response, err := r.d.GetWirelessProfileSync(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getWirelessProfileSync")
 
@@ -48,7 +50,9 @@ func (r *deviceManagementRoutes) setWirelessProfileSync(c *gin.Context) {
 		return
 	}
 
-	response, err := r.d.SetWirelessProfileSync(c.Request.Context(), guid, req)
+	tenantID := middleware.TenantID(c)
+
+	response, err := r.d.SetWirelessProfileSync(c.Request.Context(), guid, tenantID, req)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setWirelessProfileSync")
 
