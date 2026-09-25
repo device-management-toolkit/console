@@ -305,14 +305,13 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 			"deviceinfo").
 		From("devices")
 
-	var params []interface{}
-
 	if method == "AND" {
 		// All tags must be present (simulating an 'AND' operation)
 		for _, tag := range tags {
 			builder = builder.Where("(',' || tags || ',') LIKE ? AND tenantId = ?", "%,"+tag+",%", tenantID)
 		}
 	} else {
+		var params []interface{}
 		// Any tag is present (simulating an 'OR' operation)
 		var conditions []string
 		for _, tag := range tags {
