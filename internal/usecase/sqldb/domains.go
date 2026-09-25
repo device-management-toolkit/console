@@ -120,7 +120,8 @@ func (r *DomainRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 // GetDomainByDomainSuffix -.
 func (r *DomainRepo) GetDomainByDomainSuffix(_ context.Context, domainSuffix, tenantID string) (*entity.Domain, error) {
 	sqlQuery, _, err := r.Builder.
-		Select("name",
+		Select(
+			"name",
 			"domain_suffix",
 			"provisioning_cert",
 			"provisioning_cert_storage_format",

@@ -9,7 +9,8 @@ import (
 )
 
 func (f *FuegoAdapter) RegisterWirelessConfigRoutes() {
-	fuego.Get(f.server, "/api/v1/admin/wirelessconfigs", f.getWirelessConfigs,
+	fuego.Get(
+		f.server, "/api/v1/admin/wirelessconfigs", f.getWirelessConfigs,
 		fuego.OptionTags("Wireless"),
 		fuego.OptionSummary("List Wireless Configurations"),
 		fuego.OptionDescription("Retrieve all wireless configurations with optional pagination"),
@@ -19,7 +20,8 @@ func (f *FuegoAdapter) RegisterWirelessConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/wirelessconfigs/{profileName}", f.getWirelessConfigByName,
+	fuego.Get(
+		f.server, "/api/v1/admin/wirelessconfigs/{profileName}", f.getWirelessConfigByName,
 		fuego.OptionTags("Wireless"),
 		fuego.OptionSummary("Get Wireless Configuration by Name"),
 		fuego.OptionDescription("Retrieve a specific wireless configuration by profile name"),
@@ -27,7 +29,8 @@ func (f *FuegoAdapter) RegisterWirelessConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/wirelessconfigs", f.createWirelessConfig,
+	fuego.Post(
+		f.server, "/api/v1/admin/wirelessconfigs", f.createWirelessConfig,
 		fuego.OptionTags("Wireless"),
 		fuego.OptionSummary("Create Wireless Configuration"),
 		fuego.OptionDescription("Create a new wireless configuration"),
@@ -35,14 +38,16 @@ func (f *FuegoAdapter) RegisterWirelessConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/admin/wirelessconfigs", f.updateWirelessConfig,
+	fuego.Patch(
+		f.server, "/api/v1/admin/wirelessconfigs", f.updateWirelessConfig,
 		fuego.OptionTags("Wireless"),
 		fuego.OptionSummary("Update Wireless Configuration"),
 		fuego.OptionDescription("Update an existing wireless configuration"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/wirelessconfigs/{profileName}", f.deleteWirelessConfig,
+	fuego.Delete(
+		f.server, "/api/v1/admin/wirelessconfigs/{profileName}", f.deleteWirelessConfig,
 		fuego.OptionTags("Wireless"),
 		fuego.OptionSummary("Delete Wireless Configuration"),
 		fuego.OptionDescription("Delete a wireless configuration by profile name"),
