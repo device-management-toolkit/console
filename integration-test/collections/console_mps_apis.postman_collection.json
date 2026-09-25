@@ -2461,6 +2461,56 @@
 					"response": []
 				},
 				{
+					"name": "Create Device - repeat POST merges",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"pm.test(\"Expect supplied fields merged and omitted fields kept\",function(){\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.guid).to.be.equal(\"143e4567-e89b-12d3-a456-426614174000\");\r",
+									"    pm.expect(jsonData.friendlyName).to.be.equal(\"friendlyNameUpdated\");\r",
+									"    pm.expect(jsonData.hostname).to.be.equal(\"hostname\");\r",
+									"    pm.expect(jsonData.dnsSuffix).to.be.equal(\"os.suffix.com\");\r",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyNameUpdated\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Device with an invalid GUID",
 					"event": [
 						{
