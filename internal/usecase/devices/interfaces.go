@@ -47,6 +47,12 @@ type (
 		Update(ctx context.Context, d *entity.Device) (bool, error)
 		Insert(ctx context.Context, d *entity.Device) (string, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]entity.Device, error)
+		// GetActivated returns every managed device: anything not currently flagged
+		// as still-in-discovery pre-provisioning, including legacy rows with no
+		// recorded control mode.
+		GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
+		GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
+		GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error)
 		UpdateConnectionStatus(ctx context.Context, guid string, status bool) error
 		UpdateLastSeen(ctx context.Context, guid string) error
 	}
@@ -66,6 +72,12 @@ type (
 		Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error)
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
+		// GetActivated returns every managed device: anything not currently flagged
+		// as still-in-discovery pre-provisioning, including legacy rows with no
+		// recorded control mode.
+		GetActivated(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
+		GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
+		GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error)
 		// Management Calls
 		GetVersion(ctx context.Context, guid, tenantID string) (dto.Version, dtov2.Version, error)
 		GetFeatures(ctx context.Context, guid, tenantID string) (dto.Features, dtov2.Features, error)
