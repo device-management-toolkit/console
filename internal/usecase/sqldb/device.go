@@ -26,6 +26,17 @@ var (
 	errDuplicateDevice = errors.New("duplicate device found for guid and tenant")
 )
 
+const (
+	// activatedWhere is retained as the internal/API predicate name for managed
+	// devices: it matches everything not currently flagged as still-in-discovery
+	// pre-provisioning, including legacy rows with no discovery or control-mode
+	// information.
+	activatedWhere = "(discovered IS NOT TRUE OR (currentmode IS NOT NULL AND currentmode <> '' AND LOWER(currentmode) <> 'not activated'))"
+	// discoveredWhere requires the persisted discovery flag and a pre-provisioning
+	// control mode. A device that has since entered ACM/CCM remains managed.
+	discoveredWhere = "(discovered = ? AND (currentmode IS NULL OR currentmode = '' OR LOWER(currentmode) = 'not activated'))"
+)
+
 // New -.
 func NewDeviceRepo(database *db.SQL, log logger.Interface) *DeviceRepo {
 	return &DeviceRepo{database, log}
@@ -125,6 +136,126 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	}
 
 	return devices, nil
+}
+
+// GetActivated returns devices that have been provisioned into an AMT control mode.
+func (r *DeviceRepo) GetActivated(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	return r.getFiltered("GetActivated", activatedWhere, nil, top, skip, tenantID)
+}
+
+// GetDiscovered returns devices that have not yet been activated (currentmode empty/NULL).
+func (r *DeviceRepo) GetDiscovered(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	return r.getFiltered("GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
+}
+
+// GetDeviceStateCounts returns the number of activated and discovered devices for a tenant.
+func (r *DeviceRepo) GetDeviceStateCounts(_ context.Context, tenantID string) (activated, discovered int, err error) {
+	activated, err = r.countFiltered("GetDeviceStateCounts", activatedWhere, nil, tenantID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	discovered, err = r.countFiltered("GetDeviceStateCounts", discoveredWhere, []any{true}, tenantID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return activated, discovered, nil
+}
+
+// getFiltered runs a paginated device query constrained by an extra WHERE clause.
+func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, skip int, tenantID string) ([]entity.Device, error) {
+	const defaultTop = 100
+
+	limitedTop := uint64(defaultTop)
+	if top > 0 {
+		limitedTop = uint64(top)
+	}
+
+	limitedSkip := uint64(0)
+	if skip > 0 {
+		limitedSkip = uint64(skip)
+	}
+
+	sqlQuery, args, err := r.Builder.
+		Select(
+			"guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"usetls",
+			"allowselfsigned",
+			"certhash",
+		).
+		From("devices").
+		Where("tenantid = ?", tenantID).
+		Where(whereClause, whereArgs...).
+		OrderBy("guid").
+		Limit(limitedTop).
+		Offset(limitedSkip).
+		ToSql()
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "r.Builder: ", err)
+	}
+
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, args...)
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "r.Pool.Query", err)
+	}
+	defer rows.Close()
+
+	devices := make([]entity.Device, 0)
+
+	for rows.Next() {
+		d := entity.Device{}
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		if err != nil {
+			return nil, ErrDeviceDatabase.Wrap(op, "rows.Scan: ", err)
+		}
+
+		devices = append(devices, d)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "rows.Err", err)
+	}
+
+	return devices, nil
+}
+
+// countFiltered counts devices constrained by an extra WHERE clause.
+func (r *DeviceRepo) countFiltered(op, whereClause string, whereArgs []any, tenantID string) (int, error) {
+	sqlQuery, args, err := r.Builder.
+		Select("COUNT(*)").
+		From("devices").
+		Where("tenantid = ?", tenantID).
+		Where(whereClause, whereArgs...).
+		ToSql()
+	if err != nil {
+		return 0, ErrDeviceDatabase.Wrap(op, "r.Builder: ", err)
+	}
+
+	var count int
+
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&count)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
+
+		return 0, ErrDeviceDatabase.Wrap(op, "r.Pool.QueryRow", err)
+	}
+
+	return count, nil
 }
 
 // GetByID -.
