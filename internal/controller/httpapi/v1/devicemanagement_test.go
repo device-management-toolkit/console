@@ -167,7 +167,7 @@ func TestDeviceManagement(t *testing.T) {
 			requestBody: "invalid-json",
 			mock: func(_ *mocks.MockDeviceManagementFeature) {
 			},
-			expectedCode: http.StatusInternalServerError,
+			expectedCode: http.StatusBadRequest,
 			response:     nil,
 		},
 		{
@@ -364,7 +364,7 @@ func TestDeviceManagement(t *testing.T) {
 			method:       http.MethodPatch,
 			requestBody:  map[string]interface{}{"dhcpEnabled": "not-a-bool"},
 			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
-			expectedCode: http.StatusInternalServerError,
+			expectedCode: http.StatusBadRequest,
 			response:     nil,
 		},
 		{
