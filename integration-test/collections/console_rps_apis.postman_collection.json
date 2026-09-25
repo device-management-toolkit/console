@@ -315,7 +315,6 @@
 							}
 						},
 						"url": {
-							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains"
 							"raw": "{{protocol}}://{{host}}/api/v1/admin/domains",
 							"protocol": "{{protocol}}",
 							"host": [
@@ -1432,7 +1431,7 @@
 									"",
 									"pm.test(\"Response body contains validation error\", function () {",
 									"    var jsonData = pm.response.json();",
-									"    pm.expect(jsonData.error).to.include('Invalid input: Key: \\'Profile.ProfileName\\'');",
+									"    pm.expect(jsonData.error).to.include('Key: \\'Profile.ProfileName\\'');",
 									"});"
 								],
 								"type": "text/javascript"
