@@ -143,7 +143,10 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 	fuego.Post(f.server, "/api/v1/devices", f.createDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
-		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true."),
+		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true. "+
+			"id, createdDate, and lastUpdate are server-generated; deletedDate is read-only. "+
+			"productType and connectionType are optional client-supplied metadata. "+
+			"isDeleted is reserved metadata and does not hide or delete the device."),
 		fuego.OptionDefaultStatusCode(http.StatusCreated),
 		protectedRouteOptions(),
 	)
@@ -151,7 +154,9 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 	fuego.Patch(f.server, "/api/v1/devices", f.updateDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Update Device"),
-		fuego.OptionDescription("Update an existing device"),
+		fuego.OptionDescription("Update an existing device. id, createdDate, and deletedDate are immutable; "+
+			"lastUpdate is refreshed by the server. productType and connectionType are optional metadata; "+
+			"connectionType does not control transport routing. isDeleted does not perform soft deletion."),
 		protectedRouteOptions(),
 	)
 
