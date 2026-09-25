@@ -11,14 +11,16 @@ import (
 // RegisterPackageRoutes declares the Download RPC endpoints. They sit under
 // /api/package rather than a versioned group, matching the Gin routes.
 func (f *FuegoAdapter) RegisterPackageRoutes() {
-	fuego.Get(f.server, "/api/package/rpc-versions", f.listRPCVersions,
+	fuego.Get(
+		f.server, "/api/package/rpc-versions", f.listRPCVersions,
 		fuego.OptionTags("Package"),
 		fuego.OptionSummary("List RPC Versions"),
 		fuego.OptionDescription("List the most recent rpc-go releases (v3 and above) available for packaging, with the OS/arch builds each one publishes"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/package", f.buildPackage,
+	fuego.Post(
+		f.server, "/api/package", f.buildPackage,
 		fuego.OptionTags("Package"),
 		fuego.OptionSummary("Build RPC Package"),
 		fuego.OptionDescription("Build a zip containing the requested rpc-go binary and a generated config.yaml pointing at this Console. The response is the zip itself, not JSON."),

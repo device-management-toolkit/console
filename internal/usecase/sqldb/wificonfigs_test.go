@@ -407,7 +407,8 @@ func TestWirelessRepo_Delete(t *testing.T) {
 					"wirelessProfile1", 1, 2, "SSID1", "psk123", "policy1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
+				_, err = dbConn.ExecContext(
+					context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode, 

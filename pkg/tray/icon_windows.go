@@ -24,7 +24,8 @@ func pngToICO(png []byte) []byte {
 	ico = append(ico, 0, 0, 1, 0, 1, 0)
 
 	// ICONDIRENTRY
-	ico = append(ico,
+	ico = append(
+		ico,
 		iconWidth,  // width
 		iconHeight, // height
 		0,          // color count (0 for true color)
