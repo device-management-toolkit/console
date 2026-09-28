@@ -47,7 +47,8 @@ func TestProfileWiFiConfigsRepo_GetByProfileName(t *testing.T) {
 				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO wirelessconfigs (wireless_profile_name, tenant_id) VALUES (?, ?)`, "wireless1", "tenant1")
 				require.NoError(t, err)
 
-				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO profiles (
+				_, err = dbConn.ExecContext(
+					context.Background(), `INSERT INTO profiles (
 					profile_name, amt_password, creation_date, created_by, generate_random_password,
 					 activation, mebx_password, generate_random_mebx_password, tags,
 					dhcp_enabled, ip_sync_enabled, local_wifi_sync_enabled, tenant_id, tls_mode, 

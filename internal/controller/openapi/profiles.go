@@ -9,7 +9,8 @@ import (
 )
 
 func (f *FuegoAdapter) RegisterProfileRoutes() {
-	fuego.Get(f.server, "/api/v1/admin/profiles", f.getProfiles,
+	fuego.Get(
+		f.server, "/api/v1/admin/profiles", f.getProfiles,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("List Profiles"),
 		fuego.OptionDescription("Retrieve all profiles with optional pagination"),
@@ -19,7 +20,8 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/profiles/{name}", f.getProfileByName,
+	fuego.Get(
+		f.server, "/api/v1/admin/profiles/{name}", f.getProfileByName,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Get Profile by Name"),
 		fuego.OptionDescription("Retrieve a specific profile by name"),
@@ -27,7 +29,8 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/profiles", f.createProfile,
+	fuego.Post(
+		f.server, "/api/v1/admin/profiles", f.createProfile,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Create Profile"),
 		fuego.OptionDescription("Create a new profile"),
@@ -35,14 +38,16 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/admin/profiles", f.updateProfile,
+	fuego.Patch(
+		f.server, "/api/v1/admin/profiles", f.updateProfile,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Update Profile"),
 		fuego.OptionDescription("Update an existing profile"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/profiles/{name}", f.deleteProfile,
+	fuego.Delete(
+		f.server, "/api/v1/admin/profiles/{name}", f.deleteProfile,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Delete Profile"),
 		fuego.OptionDescription("Delete a profile by name"),
@@ -51,7 +56,8 @@ func (f *FuegoAdapter) RegisterProfileRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/profiles/export/{name}", f.exportProfile,
+	fuego.Get(
+		f.server, "/api/v1/admin/profiles/export/{name}", f.exportProfile,
 		fuego.OptionTags("Profiles"),
 		fuego.OptionSummary("Export Profile"),
 		fuego.OptionDescription("Export a profile configuration"),

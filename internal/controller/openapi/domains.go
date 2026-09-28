@@ -14,7 +14,8 @@ type DomainCountResponse struct {
 }
 
 func (f *FuegoAdapter) RegisterDomainRoutes() {
-	fuego.Get(f.server, "/api/v1/admin/domains", f.getDomains,
+	fuego.Get(
+		f.server, "/api/v1/admin/domains", f.getDomains,
 		fuego.OptionTags("Domains"),
 		fuego.OptionSummary("List Domains"),
 		fuego.OptionDescription("Retrieve all domains with optional pagination"),
@@ -24,7 +25,8 @@ func (f *FuegoAdapter) RegisterDomainRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/domains/{name}", f.getDomainByName,
+	fuego.Get(
+		f.server, "/api/v1/admin/domains/{name}", f.getDomainByName,
 		fuego.OptionTags("Domains"),
 		fuego.OptionSummary("Get Domain by Name"),
 		fuego.OptionDescription("Retrieve a specific domain by name"),
@@ -32,7 +34,8 @@ func (f *FuegoAdapter) RegisterDomainRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/domains", f.createDomain,
+	fuego.Post(
+		f.server, "/api/v1/admin/domains", f.createDomain,
 		fuego.OptionTags("Domains"),
 		fuego.OptionSummary("Create Domain"),
 		fuego.OptionDescription("Create a new domain"),
@@ -40,14 +43,16 @@ func (f *FuegoAdapter) RegisterDomainRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/admin/domains", f.updateDomain,
+	fuego.Patch(
+		f.server, "/api/v1/admin/domains", f.updateDomain,
 		fuego.OptionTags("Domains"),
 		fuego.OptionSummary("Update Domain"),
 		fuego.OptionDescription("Update an existing domain"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/domains/{name}", f.deleteDomain,
+	fuego.Delete(
+		f.server, "/api/v1/admin/domains/{name}", f.deleteDomain,
 		fuego.OptionTags("Domains"),
 		fuego.OptionSummary("Delete Domain"),
 		fuego.OptionDescription("Delete a domain by name"),

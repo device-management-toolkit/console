@@ -148,7 +148,8 @@ func (r *DomainRepo) Update(ctx context.Context, d *entity.Domain) (bool, error)
 	}
 
 	// profilename intentionally not in $set — it's the filter key, immutable per SQL semantics.
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldProfileName: d.ProfileName, fieldTenantID: d.TenantID},
 		bson.M{opSet: bson.M{
 			fieldDomainSuffix:               d.DomainSuffix,
