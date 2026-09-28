@@ -1,13 +1,11 @@
 package v1
 
 import (
-	"encoding/json"
 	"errors"
 	"io"
 	"net"
 	"net/http"
 	"strings"
-	"time"
 
 	"github.com/gin-gonic/gin"
 	"github.com/go-playground/validator/v10"
@@ -36,6 +34,44 @@ const (
 type response struct {
 	Error   string `json:"error,omitempty" example:"message"`
 	Message string `json:"message,omitempty" example:"message"`
+}
+
+// requestBindingError marks malformed REST API request bodies for HTTP 400
+// responses. Do not use it for backend or WSMAN errors.
+type requestBindingError struct {
+	err error
+}
+
+func (e requestBindingError) Error() string {
+	return e.err.Error()
+}
+
+func (e requestBindingError) Unwrap() error {
+	return e.err
+}
+
+func wrapRequestBindingError(err error) error {
+	return requestBindingError{err: err}
+}
+
+// BindJSON decodes the request body into target, tagging any failure as a
+// request error so ErrorResponse answers 4xx rather than 5xx.
+func BindJSON(c *gin.Context, target any) error {
+	if err := c.ShouldBindJSON(target); err != nil {
+		return wrapRequestBindingError(err)
+	}
+
+	return nil
+}
+
+// BindBodyJSON is BindJSON for handlers that need the body to stay readable by
+// later binds.
+func BindBodyJSON(c *gin.Context, target any) error {
+	if err := c.ShouldBindBodyWithJSON(target); err != nil {
+		return wrapRequestBindingError(err)
+	}
+
+	return nil
 }
 
 // handleValidationErrors handles all validation-related errors.
@@ -86,21 +122,21 @@ func handleODataValidationErrors(c *gin.Context, err error) bool {
 }
 
 func handleJSONBindingErrors(c *gin.Context, err error) bool {
-	var (
-		jsonSyntaxErr *json.SyntaxError
-		jsonTypeErr   *json.UnmarshalTypeError
-		timeParseErr  *time.ParseError
-	)
-
-	if !errors.As(err, &jsonSyntaxErr) && !errors.As(err, &jsonTypeErr) &&
-		!errors.As(err, &timeParseErr) && !errors.Is(err, io.EOF) && !errors.Is(err, io.ErrUnexpectedEOF) {
+	var bindingErr requestBindingError
+	// Match provenance, not just the underlying error type: io.EOF and JSON
+	// errors can also be returned by backend processing.
+	if !errors.As(err, &bindingErr) {
 		return false
 	}
 
+	// The body failed to bind, so this is a client error whatever the
+	// underlying type is. The type only selects a friendlier message.
 	msg := err.Error()
-	if errors.Is(err, io.EOF) {
+
+	switch {
+	case errors.Is(err, io.EOF):
 		msg = "request body is empty"
-	} else if errors.Is(err, io.ErrUnexpectedEOF) {
+	case errors.Is(err, io.ErrUnexpectedEOF):
 		msg = "request body is truncated"
 	}
 
