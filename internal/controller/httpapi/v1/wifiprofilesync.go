@@ -43,7 +43,7 @@ func (r *deviceManagementRoutes) setWirelessProfileSync(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.WirelessProfileSyncRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		validationErr := errValidationWirelessProfileSync.Wrap("setWirelessProfileSync", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 

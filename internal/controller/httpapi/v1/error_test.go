@@ -11,6 +11,7 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/assert"
+	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -72,7 +73,7 @@ func TestErrorResponse_JSONBindingError(t *testing.T) {
 		var powerAction dto.PowerAction
 
 		err := json.Unmarshal([]byte(requestBody), &powerAction)
-		w := runErrorResponse(t, err)
+		w := runErrorResponse(t, wrapRequestBindingError(err))
 
 		assert.Equal(t, http.StatusBadRequest, w.Code)
 	}
@@ -97,21 +98,67 @@ func TestErrorResponse_InvalidTimestamp(t *testing.T) {
 	var alarm dto.AlarmClockOccurrenceInput
 
 	err := json.Unmarshal([]byte(`{"StartTime":"fuzzstring"}`), &alarm)
-	w := runErrorResponse(t, err)
+	w := runErrorResponse(t, wrapRequestBindingError(err))
 
 	var parseErr *time.ParseError
 	assert.ErrorAs(t, err, &parseErr)
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
-func TestErrorResponse_EmptyRequestBody(t *testing.T) {
+func TestErrorResponse_BackendEOF(t *testing.T) {
 	t.Parallel()
 
-	for _, err := range []error{io.EOF, io.ErrUnexpectedEOF} {
-		w := runErrorResponse(t, err)
+	w := runErrorResponse(t, io.EOF)
 
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
+}
+
+func TestErrorResponse_RequestEOF(t *testing.T) {
+	t.Parallel()
+
+	w := runErrorResponse(t, wrapRequestBindingError(io.EOF))
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.JSONEq(t, `{"error":"request body is empty","message":"request body is empty"}`, w.Body.String())
+}
+
+func TestErrorResponse_RequestTruncatedBody(t *testing.T) {
+	t.Parallel()
+
+	w := runErrorResponse(t, wrapRequestBindingError(io.ErrUnexpectedEOF))
+
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.JSONEq(t, `{"error":"request body is truncated","message":"request body is truncated"}`, w.Body.String())
+}
+
+// A binding failure is a client error regardless of the underlying error type.
+// gin returns a bare errors.New for a nil body, and encoding/json does the same
+// for unknown fields; neither is a *json.SyntaxError.
+func TestErrorResponse_RequestBindingErrorOfUnrecognizedType(t *testing.T) {
+	t.Parallel()
+
+	for _, inner := range []error{
+		errors.New("invalid request"),
+		errors.New(`json: unknown field "foo"`),
+	} {
+		w := runErrorResponse(t, wrapRequestBindingError(inner))
+
+		var got response
+
+		require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 		assert.Equal(t, http.StatusBadRequest, w.Code)
+		assert.Equal(t, inner.Error(), got.Error)
+		assert.Equal(t, inner.Error(), got.Message)
 	}
+}
+
+// The same unrecognized shapes coming from the backend must stay 5xx.
+func TestErrorResponse_BackendErrorOfUnrecognizedType(t *testing.T) {
+	t.Parallel()
+
+	w := runErrorResponse(t, errors.New("wsman transport failure"))
+
+	assert.Equal(t, http.StatusInternalServerError, w.Code)
 }
 
 func TestHandleSentinelErrors_CIRADeviceNotConnected(t *testing.T) {

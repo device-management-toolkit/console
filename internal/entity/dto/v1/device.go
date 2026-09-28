@@ -13,6 +13,8 @@ type DeviceStatResponse struct {
 	TotalCount        int `json:"totalCount"`
 	ConnectedCount    int `json:"connectedCount"`
 	DisconnectedCount int `json:"disconnectedCount"`
+	ActivatedCount    int `json:"activatedCount"`
+	DiscoveredCount   int `json:"discoveredCount"`
 }
 type Device struct {
 	ConnectionStatus bool        `json:"connectionStatus"`
