@@ -116,7 +116,23 @@ func ensureIndexes(ctx context.Context, db *mongo.Database, log logger.Interface
 		return fmt.Errorf("create case-insensitive unique index on %s: %w", CollectionDomains, err)
 	}
 
-	log.Info("mongo unique indexes ensured (%d total)", len(tenantScoped)+1)
+	// Mirrors the SQL partial unique index idx_devices_id (WHERE id <> ''): the
+	// partial filter excludes legacy docs without an `id` and the empty default,
+	// so only populated surrogate keys are constrained to be unique.
+	if _, err := db.Collection(CollectionDevices).Indexes().CreateOne(ctx, mongo.IndexModel{
+		Keys: bson.D{{Key: fieldID, Value: 1}},
+		Options: options.Index().
+			SetUnique(true).
+			SetPartialFilterExpression(bson.M{fieldID: bson.M{"$gt": ""}}).
+			SetName("idx_devices_id"),
+	}); err != nil {
+		return fmt.Errorf("create unique index on %s.id: %w", CollectionDevices, err)
+	}
+
+	// The domain collation and device identity indexes are created separately.
+	const specialIndexes = 2
+
+	log.Info("mongo unique indexes ensured (%d total)", len(tenantScoped)+len(globalIndexes)+specialIndexes)
 
 	return nil
 }
