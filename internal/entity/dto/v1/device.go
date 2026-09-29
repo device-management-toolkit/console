@@ -1,6 +1,7 @@
 package dto
 
 import (
+	"encoding/json"
 	"time"
 )
 
@@ -12,6 +13,8 @@ type DeviceStatResponse struct {
 	TotalCount        int `json:"totalCount"`
 	ConnectedCount    int `json:"connectedCount"`
 	DisconnectedCount int `json:"disconnectedCount"`
+	ActivatedCount    int `json:"activatedCount"`
+	DiscoveredCount   int `json:"discoveredCount"`
 }
 type Device struct {
 	ConnectionStatus bool        `json:"connectionStatus"`
@@ -37,14 +40,132 @@ type Device struct {
 }
 
 type DeviceInfo struct {
-	FWVersion    string    `json:"fwVersion"`
-	FWBuild      string    `json:"fwBuild"`
-	FWSku        string    `json:"fwSku"`
-	CurrentMode  string    `json:"currentMode"`
-	Features     string    `json:"features"`
-	IPAddress    string    `json:"ipAddress"`
-	LastUpdated  time.Time `json:"lastUpdated"`
-	LMSInstalled *bool     `json:"lmsInstalled,omitempty"`
+	FWVersion            string                     `json:"fwVersion"`
+	FWBuild              string                     `json:"fwBuild"`
+	FWSku                string                     `json:"fwSku"`
+	Discovered           *bool                      `json:"discovered,omitempty"`
+	FirstDiscovered      *time.Time                 `json:"firstDiscovered,omitempty"`
+	CurrentMode          string                     `json:"currentMode"`
+	Features             string                     `json:"features"`
+	IPAddress            string                     `json:"ipAddress"`
+	LastSynced           *time.Time                 `json:"lastSynced,omitempty"`
+	LMSInstalled         *bool                      `json:"lmsInstalled,omitempty"`
+	LMSVersion           string                     `json:"lmsVersion,omitempty"`
+	TLSMode              string                     `json:"tlsMode,omitempty"`
+	UPID                 map[string]json.RawMessage `json:"upid,omitempty"`
+	AMTEnabledInBIOS     *bool                      `json:"amtEnabledInBIOS,omitempty"`
+	MEInterfaceVersion   string                     `json:"meInterfaceVersion,omitempty"`
+	DHCPEnabled          *bool                      `json:"dhcpEnabled,omitempty"`
+	CertHashes           []string                   `json:"certHashes,omitempty"`
+	OSName               string                     `json:"osName,omitempty"`
+	OSVersion            string                     `json:"osVersion,omitempty"`
+	OSDistro             string                     `json:"osDistro,omitempty"`
+	DNSSuffixOS          string                     `json:"dnsSuffixOS,omitempty"`
+	CPUModel             string                     `json:"cpuModel,omitempty"`
+	OSIPAddress          string                     `json:"osIpAddress,omitempty"`
+	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
+	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
+	IEEE8021XEnabled     *bool                      `json:"ieee8021xEnabled,omitempty"`
+	MENetwork            *MENetworkInfo             `json:"meNetwork,omitempty"`
+	OSNetwork            *OSNetworkInfo             `json:"osNetwork,omitempty"`
+	PlatformAdapters     *PlatformAdaptersInfo      `json:"platformAdapters,omitempty"`
+}
+
+type MENetworkInfo struct {
+	Wired    *MEInterfaceInfo `json:"wired,omitempty"`
+	Wireless *MEInterfaceInfo `json:"wireless,omitempty"`
+}
+
+type MEInterfaceInfo struct {
+	IPAddress   string `json:"ipAddress,omitempty"`
+	DHCPEnabled *bool  `json:"dhcpEnabled,omitempty"`
+	DHCPMode    string `json:"dhcpMode,omitempty"`
+	LinkStatus  string `json:"linkStatus,omitempty"`
+	MACAddress  string `json:"macAddress,omitempty"`
+}
+
+type OSNetworkInfo struct {
+	Wired    []OSInterfaceInfo `json:"wired,omitempty"`
+	Wireless *OSInterfaceInfo  `json:"wireless,omitempty"`
+}
+
+type OSInterfaceInfo struct {
+	Name        string `json:"name,omitempty"`
+	IPAddress   string `json:"ipAddress,omitempty"`
+	DHCPEnabled *bool  `json:"dhcpEnabled,omitempty"`
+	LinkStatus  string `json:"linkStatus,omitempty"`
+	MACAddress  string `json:"macAddress,omitempty"`
+}
+
+type PlatformAdaptersInfo struct {
+	Wired    []string `json:"wired,omitempty"`
+	Wireless []string `json:"wireless,omitempty"`
+}
+
+func (p *PlatformAdaptersInfo) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Wired    json.RawMessage `json:"wired"`
+		Wireless json.RawMessage `json:"wireless"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	var err error
+
+	p.Wired, err = unmarshalAdapterNames(raw.Wired)
+	if err != nil {
+		return err
+	}
+
+	p.Wireless, err = unmarshalAdapterNames(raw.Wireless)
+
+	return err
+}
+
+func unmarshalAdapterNames(data json.RawMessage) ([]string, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return nil, nil
+	}
+
+	var names []string
+	if err := json.Unmarshal(data, &names); err == nil {
+		return names, nil
+	}
+
+	var name string
+	if err := json.Unmarshal(data, &name); err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		return nil, nil
+	}
+
+	return []string{name}, nil
+}
+
+// UnmarshalJSON implements custom JSON deserialization to support backwards compatibility
+// for the lastUpdated -> lastSynced field rename. Existing clients may send the old
+// "lastUpdated" key; this method migrates it to the new "lastSynced" field if present.
+func (d *DeviceInfo) UnmarshalJSON(data []byte) error {
+	type Alias DeviceInfo
+
+	type deviceInfoCompat struct {
+		*Alias
+		LegacyLastUpdated *time.Time `json:"lastUpdated,omitempty"`
+	}
+
+	aux := deviceInfoCompat{Alias: (*Alias)(d)}
+	if err := json.Unmarshal(data, &aux); err != nil {
+		return err
+	}
+
+	if d.LastSynced == nil && aux.LegacyLastUpdated != nil {
+		d.LastSynced = aux.LegacyLastUpdated
+	}
+
+	return nil
 }
 
 type Explorer struct {

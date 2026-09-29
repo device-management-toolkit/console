@@ -8,6 +8,51 @@
 	},
 	"item": [
 		{
+			"name": "Server",
+			"item": [
+				{
+					"name": "Get Server Features",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response contains ciraEnabled boolean\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property(\"ciraEnabled\");\r",
+									"    pm.expect(jsonData.ciraEnabled).to.be.a(\"boolean\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/server/features",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"server",
+								"features"
+							]
+						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
 			"name": "AMT",
 			"item": [
 				{
@@ -648,7 +693,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"userConsent\": \"none\",\r\n    \"enableSOL\": false,\r\n    \"enableIDER\": false,\r\n    \"enableKVM\": false,\r\n    \"httpBoot\": false,\r\n\t\"remoteErase\": false\r\n}",
+							"raw": "{\r\n    \"userConsent\": \"none\",\r\n    \"enableSOL\": false,\r\n    \"enableIDER\": false,\r\n    \"enableKVM\": false,\r\n    \"ocr\": false,\r\n    \"rpe\": true\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -818,6 +863,101 @@
 					"response": []
 				},
 				{
+					"name": "Get Wired Network Settings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wired",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Wired Network Settings",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"dhcpEnabled\": false,\r\n    \"ipAddress\": \"192.168.1.50\",\r\n    \"subnetMask\": \"255.255.255.0\",\r\n    \"defaultGateway\": \"192.168.1.1\",\r\n    \"primaryDNS\": \"192.168.1.1\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wired",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Get Wireless State",
 					"event": [
 						{
@@ -908,6 +1048,103 @@
 								"networkSettings",
 								"wireless",
 								"state",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Get Wireless Profile Sync",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wireless/profileSync/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wireless",
+								"profileSync",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Wireless Profile Sync",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"localProfileSync\": true,\r\n    \"uefiProfileSync\": false\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wireless/profileSync/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wireless",
+								"profileSync",
 								"{{deviceId}}"
 							]
 						}
@@ -1161,6 +1398,101 @@
 						}
 					},
 					"response": []
+				},
+				{
+					"name": "Get Remote Erase Capabilities",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/boot/remoteErase/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"boot",
+								"remoteErase",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Set Remote Erase Options",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"secureEraseAllSSDs\": true,\r\n    \"tpmClear\": false,\r\n    \"restoreBIOSToEOM\": false,\r\n    \"unconfigureCSME\": false,\r\n    \"ssdPassword\": \"\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/boot/remoteErase/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"boot",
+								"remoteErase",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
 				}
 			]
 		},
@@ -1232,6 +1564,8 @@
 									"    pm.expect(jsonData.totalCount).to.be.equal(0)\r",
 									"    pm.expect(jsonData.connectedCount).to.be.equal(0)\r",
 									"    pm.expect(jsonData.disconnectedCount).to.be.equal(0)\r",
+									"    pm.expect(jsonData.activatedCount).to.be.equal(0)\r",
+									"    pm.expect(jsonData.discoveredCount).to.be.equal(0)\r",
 									"    \r",
 									"})"
 								],
@@ -1265,6 +1599,68 @@
 								"v1",
 								"devices",
 								"stats"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Export Devices",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"pm.test(\"Has metadata, summary and data\",function(){\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property('metadata');\r",
+									"    pm.expect(jsonData.metadata).to.have.property('exportedAt');\r",
+									"    pm.expect(jsonData.metadata).to.have.property('swVersion');\r",
+									"    pm.expect(jsonData).to.have.property('summary');\r",
+									"    pm.expect(jsonData.summary).to.have.property('totalCount');\r",
+									"    pm.expect(jsonData).to.have.property('data');\r",
+									"    pm.expect(jsonData.data).to.be.an('array');\r",
+									"});\r",
+									"pm.test(\"Export never leaks credential fields\",function(){\r",
+									"    var raw = pm.response.text();\r",
+									"    pm.expect(raw).to.not.include('mpspassword');\r",
+									"    pm.expect(raw).to.not.include('mebxpassword');\r",
+									"    pm.expect(raw).to.not.include('\\\"password\\\"');\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/export",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"export"
 							]
 						}
 					},
@@ -1384,6 +1780,8 @@
 									"    pm.expect(jsonData.tags.length).to.be.equal(0);\r",
 									"    pm.expect(jsonData.mpsInstance).to.be.equal(\"\");\r",
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false);\r",
+									"    pm.expect(jsonData.useTLS).to.be.equal(true);\r",
+									"    pm.expect(jsonData.allowSelfSigned).to.be.equal(true);\r",
 									"})"
 								],
 								"type": "text/javascript",
@@ -1396,7 +1794,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyName\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [],\r\n    \"mpsusername\": \"admin\"\r\n}",
+							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyName\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [],\r\n    \"mpsusername\": \"admin\",\r\n    \"deviceInfo\": {\r\n        \"fwVersion\": \"16.1.30\",\r\n        \"fwBuild\": \"3400\",\r\n        \"fwSku\": \"11\",\r\n        \"discovered\": true,\r\n        \"firstDiscovered\": \"2026-05-20T00:00:00Z\",\r\n        \"currentMode\": \"Admin\",\r\n        \"features\": \"SOL,IDER,KVM\",\r\n        \"ipAddress\": \"10.0.0.12\",\r\n        \"lastSynced\": \"2026-05-21T00:00:00Z\",\r\n        \"tlsMode\": \"TLS 1.2\",\r\n        \"upid\": {\r\n            \"oemPlatformIdType\": \"Not Set (0)\",\r\n            \"oemId\": \"\",\r\n            \"csmeId\": \"4A45A39C5ED9462082510000\"\r\n        },\r\n        \"amtEnabledInBIOS\": true,\r\n        \"meInterfaceVersion\": \"16.1.25.2124\",\r\n        \"dhcpEnabled\": true,\r\n        \"certHashes\": [\r\n            \"a1b2c3\",\r\n            \"d4e5f6\"\r\n        ],\r\n        \"lmsInstalled\": true,\r\n        \"lmsVersion\": \"2410.5.0.0\",\r\n        \"osName\": \"linux\",\r\n        \"osVersion\": \"6.8.0-51-generic\",\r\n        \"osDistro\": \"Ubuntu 24.04 LTS\",\r\n        \"cpuModel\": \"Intel(R) Core(TM) Ultra 7 165H\",\r\n        \"osIpAddress\": \"10.49.76.163\",\r\n        \"ethernetAdapterCount\": 2,\r\n        \"monitorConnected\": true,\r\n        \"ieee8021xEnabled\": false\r\n    }\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1935,6 +2333,110 @@
 					"response": []
 				},
 				{
+					"name": "All Devices activated",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices?activated=true",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							],
+							"query": [
+								{
+									"key": "activated",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "All Devices discovered",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"protocolProfileBehavior": {
+						"disableBodyPruning": true
+					},
+					"request": {
+						"method": "GET",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices?discovered=true",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							],
+							"query": [
+								{
+									"key": "discovered",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "All Devices with count set to true",
 					"event": [
 						{
@@ -2271,6 +2773,431 @@
 					"response": []
 				}
 			]
+		},
+		{
+			"name": "Session",
+			"item": [
+				{
+					"name": "Logout clears session cookies",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"// Public route: an expired session must still be able to clear its cookie.\r",
+									"pm.test(\"Session cookie is expired\", function () {\r",
+									"    var setCookie = pm.response.headers.all()\r",
+									"        .filter(function (h) { return h.key.toLowerCase() === \"set-cookie\"; })\r",
+									"        .map(function (h) { return h.value; });\r",
+									"\r",
+									"    var session = setCookie.filter(function (v) { return v.indexOf(\"console_session=\") === 0; });\r",
+									"\r",
+									"    pm.expect(session.length, \"session cookie cleared\").to.eql(1);\r",
+									"    pm.expect(session[0]).to.include(\"Max-Age=0\");\r",
+									"    pm.expect(session[0]).to.include(\"HttpOnly\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/authorize/logout",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"authorize",
+								"logout"
+							]
+						},
+						"description": "Expires the HttpOnly session cookie.\n\nPOST /api/v1/authorize returns the token in the body (for Authorization: Bearer clients) and also sets it as an HttpOnly cookie, so browsers need not store it. The Authorization header takes precedence when both are present. When auth.disabled is true, token is an empty string and no cookie is set."
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Tenancy",
+			"item": [
+				{
+					"name": "Tenant A device list is scoped",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});",
+									"",
+									"pm.test(\"Every device belongs to tenant A\", function () {",
+									"    const body = pm.response.json();",
+									"    const items = Array.isArray(body) ? body : (body.data || []);",
+									"    items.forEach(function (device) {",
+									"        pm.expect(device.tenantId).to.eql(pm.variables.get('tenantA'));",
+									"    });",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot read a tenant A device",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404 Not Found\", function () {",
+									"    pm.response.to.have.status(404);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantB}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant A tag list is scoped",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200 OK\", function () {",
+									"    pm.response.to.have.status(200);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "{{tenantA}}"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/tags",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"tags"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot delete a tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "DELETE", "header": [{"key": "x-tenant-id", "value": "{{tenantB}}"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot modify tenant A AMT features",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"userConsent\": \"none\",\n  \"enableSOL\": false,\n  \"enableIDER\": false,\n  \"enableKVM\": false,\n  \"ocr\": false,\n  \"rpe\": true\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/features/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "features", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot add a certificate to tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "POST", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"cert\": \"-----BEGIN CERTIFICATE-----\\nMIIDtTM=\\n-----END CERTIFICATE-----\",\n  \"isTrusted\": true\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/certificates/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "certificates", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot update tenant A wired network",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "PATCH", "header": [{"key": "Content-Type", "value": "application/json"}, {"key": "x-tenant-id", "value": "{{tenantB}}"}], "body": {"mode": "raw", "raw": "{\n  \"dhcpEnabled\": false,\n  \"ipAddress\": \"192.168.1.50\",\n  \"subnetMask\": \"255.255.255.0\",\n  \"defaultGateway\": \"192.168.1.1\",\n  \"primaryDNS\": \"192.168.1.1\"\n}", "options": {"raw": {"language": "json"}}}, "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wired/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "networkSettings", "wired", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Tenant B cannot use AMT Explorer on tenant A device",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 404 Not Found\", function () {", "    pm.response.to.have.status(404);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "{{tenantB}}"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/amt/version/{{deviceId}}", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "amt", "version", "{{deviceId}}"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - space",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - slash",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant/a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - sql quote",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "tenant'a"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - over max length",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400 Bad Request\", function () {",
+									"    pm.response.to.have.status(400);",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							},
+							{
+								"key": "x-tenant-id",
+								"value": "aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa"
+							}
+						],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "tenant.a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading dot",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": ".tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading underscore",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "_tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				},
+				{
+					"name": "Malformed tenant rejected - leading hyphen",
+					"event": [{"listen": "test", "script": {"exec": ["pm.test(\"Status code is 400 Bad Request\", function () {", "    pm.response.to.have.status(400);", "});"], "type": "text/javascript"}}],
+					"request": {"method": "GET", "header": [{"key": "x-tenant-id", "value": "-tenant-a"}], "url": {"raw": "{{protocol}}://{{host}}/api/v1/devices", "protocol": "{{protocol}}", "host": ["{{host}}"], "path": ["api", "v1", "devices"]}},
+					"response": []
+				}
+			]
 		}
 	],
 	"event": [
@@ -2281,7 +3208,13 @@
 				"packages": {},
 				"requests": {},
 				"exec": [
-					""
+					"// Scope every request to {{tenantId}} when it is set. Leave it blank to",
+					"// exercise the default tenant, which is where single-tenant data lives.",
+					"const tenantId = pm.variables.get('tenantId');",
+					"",
+					"if (tenantId) {",
+					"    pm.request.headers.upsert({ key: 'x-tenant-id', value: tenantId });",
+					"}"
 				]
 			}
 		},
@@ -2292,9 +3225,36 @@
 				"packages": {},
 				"requests": {},
 				"exec": [
-					""
+					"pm.test(\"Response includes X-Content-Type-Options: nosniff\", function () {",
+					"    pm.expect(pm.response.headers.get(\"X-Content-Type-Options\")).to.eql(\"nosniff\");",
+					"});",
+					"",
+					"pm.test(\"Explicit false TLS settings remain false when present\", function () {",
+					"    var jsonData = {};",
+					"    try {",
+					"        jsonData = pm.response.json();",
+					"    } catch (e) {",
+					"        return;",
+					"    }",
+					"    if (jsonData && Object.prototype.hasOwnProperty.call(jsonData, 'useTLS') && jsonData.useTLS === false) {",
+					"        pm.expect(jsonData.useTLS).to.be.equal(false);",
+					"    }",
+					"    if (jsonData && Object.prototype.hasOwnProperty.call(jsonData, 'allowSelfSigned') && jsonData.allowSelfSigned === false) {",
+					"        pm.expect(jsonData.allowSelfSigned).to.be.equal(false);",
+					"    }",
+					"});"
 				]
 			}
 		}
-	]
+	],
+	"auth": {
+		"type": "bearer",
+		"bearer": [
+			{
+				"key": "token",
+				"value": "{{token}}",
+				"type": "string"
+			}
+		]
+	}
 }

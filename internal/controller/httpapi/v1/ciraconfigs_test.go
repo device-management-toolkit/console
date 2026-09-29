@@ -12,6 +12,8 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
@@ -28,9 +30,10 @@ func ciraconfigsTest(t *testing.T) (*mocks.MockCIRAConfigsFeature, *gin.Engine) 
 	ciraconfig := mocks.NewMockCIRAConfigsFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
-	NewCIRAConfigRoutes(handler, ciraconfig, log)
+	NewCIRAConfigRoutes(handler, ciraconfig, log, &config.Config{})
 
 	return ciraconfig, engine
 }
@@ -42,6 +45,7 @@ type ciraconfigTest struct {
 	mock         func(repo *mocks.MockCIRAConfigsFeature)
 	response     interface{}
 	requestBody  dto.CIRAConfig
+	tenantID     string
 	expectedCode int
 }
 
@@ -135,6 +139,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     responseCIRAConfig,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -161,6 +166,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     ciraconfigs.ErrDatabase,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -182,6 +188,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     ciraconfigs.ErrDatabase,
 			requestBody:  dto.CIRAConfig{ConfigName: "ciraconfig", ServerAddressFormat: 201, AuthMethod: 2, MPSRootCertificate: "-----BEGIN CERTIFICATE-----\n...", ProxyDetails: "http://example.com", TenantID: "abc123", GenerateRandomPassword: true, Version: "1.0.0"},
+			tenantID:     "abc123",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -228,6 +235,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     responseCIRAConfig,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -254,6 +262,7 @@ func TestCIRAConfigRoutes(t *testing.T) {
 			},
 			response:     ciraconfigs.ErrDatabase,
 			requestBody:  requestCIRAConfig,
+			tenantID:     "abc123",
 			expectedCode: http.StatusBadRequest,
 		},
 	}
@@ -283,6 +292,10 @@ func TestCIRAConfigRoutes(t *testing.T) {
 				t.Fatalf("Couldn't create request: %v\n", err)
 			}
 
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
+			}
+
 			w := httptest.NewRecorder()
 
 			engine.ServeHTTP(w, req)
@@ -293,6 +306,46 @@ func TestCIRAConfigRoutes(t *testing.T) {
 				jsonBytes, _ := json.Marshal(tc.response)
 				require.Equal(t, string(jsonBytes), w.Body.String())
 			}
+		})
+	}
+}
+
+func TestCIRAConfigRoutes_DisabledReturns404(t *testing.T) {
+	t.Parallel()
+
+	cases := []struct {
+		method string
+		url    string
+	}{
+		{http.MethodGet, "/api/v1/admin/ciraconfigs"},
+		{http.MethodGet, "/api/v1/admin/ciraconfigs/example"},
+		{http.MethodPost, "/api/v1/admin/ciraconfigs"},
+		{http.MethodPatch, "/api/v1/admin/ciraconfigs"},
+		{http.MethodDelete, "/api/v1/admin/ciraconfigs/example"},
+	}
+
+	for _, tc := range cases {
+		tc := tc
+
+		t.Run(tc.method+" "+tc.url, func(t *testing.T) {
+			t.Parallel()
+
+			engine := gin.New()
+			handler := engine.Group("/api/v1/admin")
+
+			// Per-subtest controller/mock so parallel subtests don't share one.
+			// No expectations are set: the guard must reject before the feature is reached.
+			ciraconfig := mocks.NewMockCIRAConfigsFeature(gomock.NewController(t))
+			NewCIRAConfigRoutes(handler, ciraconfig, logger.New("error"), &config.Config{App: config.App{DisableCIRA: true}})
+
+			req, err := http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusNotFound, w.Code)
+			require.JSONEq(t, `{"error":"CIRA is disabled on this instance"}`, w.Body.String())
 		})
 	}
 }

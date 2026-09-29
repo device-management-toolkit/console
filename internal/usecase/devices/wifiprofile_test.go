@@ -112,7 +112,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: []dto.WirelessProfileResponse{{
 				ProfileName:          "Corp",
@@ -151,7 +151,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: []dto.WirelessProfileResponse{{
 				ProfileName:          "Corp",
@@ -192,7 +192,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: []dto.WirelessProfileResponse{{
 				ProfileName:          "CorpEAP2",
@@ -211,7 +211,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 			name:    "GetByID fails",
 			manMock: nil,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, ErrGeneral)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(nil, ErrGeneral)
 			},
 			res: nil,
 			err: devices.ErrGeneral,
@@ -220,7 +220,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 			name:    "device not found",
 			manMock: nil,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(nil, nil)
 			},
 			res: nil,
 			err: devices.ErrNotFound,
@@ -305,7 +305,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			res, err := useCase.GetWirelessProfiles(context.Background(), device.GUID)
+			res, err := useCase.GetWirelessProfiles(context.Background(), device.GUID, device.TenantID)
 			require.Equal(t, tc.res, res)
 
 			if tc.err != nil {
@@ -472,7 +472,7 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(gomock.Any(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			err: context.Canceled,
 		},
@@ -484,7 +484,7 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 			},
 			portMock: expectWiFiPortAbsent,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			err: wsman.ErrNoWiFiPort,
 		},
@@ -516,7 +516,7 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 				ctx = context.Background()
 			}
 
-			err := useCase.AddWirelessProfile(ctx, device.GUID, tc.profile)
+			err := useCase.AddWirelessProfile(ctx, device.GUID, device.TenantID, tc.profile)
 			if tc.err != nil {
 				require.Error(t, err)
 
@@ -620,7 +620,7 @@ func TestDeleteWirelessProfile(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			err := useCase.DeleteWirelessProfile(context.Background(), device.GUID, "Home")
+			err := useCase.DeleteWirelessProfile(context.Background(), device.GUID, "Home", device.TenantID)
 			if tc.err != nil {
 				require.Error(t, err)
 				require.IsType(t, tc.err, err)
@@ -954,7 +954,7 @@ func TestUpdateWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven
 				ctx = context.Background()
 			}
 
-			err := useCase.UpdateWirelessProfile(ctx, device.GUID, tc.request)
+			err := useCase.UpdateWirelessProfile(ctx, device.GUID, device.TenantID, tc.request)
 			if tc.err != nil {
 				require.Error(t, err)
 
@@ -1145,7 +1145,7 @@ func TestAddWirelessProfileIEEE8021xCertificateHandling(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			err := useCase.AddWirelessProfile(context.Background(), device.GUID, tc.profile)
+			err := useCase.AddWirelessProfile(context.Background(), device.GUID, device.TenantID, tc.profile)
 			if tc.err != nil {
 				require.Error(t, err)
 				require.IsType(t, tc.err, err)

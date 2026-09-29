@@ -72,7 +72,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v2/amt/version/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetVersion(context.Background(), "valid-guid").
+				m.EXPECT().GetVersion(context.Background(), "valid-guid", "").
 					Return(dto.Version{}, dtov2.Version{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -83,7 +83,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v2/amt/features/valid-guid",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().GetFeatures(context.Background(), "valid-guid").
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid", "").
 					Return(dto.Features{}, dtov2.Features{}, nil)
 			},
 			expectedCode: http.StatusOK,
@@ -94,7 +94,7 @@ func TestDeviceManagement(t *testing.T) {
 			url:    "/api/v2/amt/features/valid-guid",
 			method: http.MethodPost,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
-				m.EXPECT().SetFeatures(context.Background(), "valid-guid", featuresInput).
+				m.EXPECT().SetFeatures(context.Background(), "valid-guid", "", featuresInput).
 					Return(dto.Features{}, featuresOutput, nil)
 			},
 			expectedCode: http.StatusOK,

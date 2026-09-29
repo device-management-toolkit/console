@@ -19,8 +19,10 @@ import (
 // Inlined to avoid the import cycle with internal/mocks.
 type passthroughCryptor struct{}
 
-func (passthroughCryptor) Decrypt(cipherText string) (string, error)          { return cipherText, nil }
-func (passthroughCryptor) Encrypt(plainText string) (string, error)           { return plainText, nil }
+func (passthroughCryptor) Decrypt(cipherText string) (string, error) { return cipherText, nil }
+
+func (passthroughCryptor) Encrypt(plainText string) (string, error) { return plainText, nil }
+
 func (passthroughCryptor) EncryptWithKey(plainText, _ string) (string, error) { return plainText, nil }
 func (passthroughCryptor) GenerateKey() string                                { return "" }
 func (passthroughCryptor) ReadAndDecryptFile(string) (gwmconfig.Configuration, error) {

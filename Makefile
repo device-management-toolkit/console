@@ -46,11 +46,15 @@ build-noui: ### build app without UI
 	CGO_ENABLED=0 go build -tags=noui -o ./bin/console-noui ./cmd/app
 .PHONY: build-noui
 
+# Linux builds use -buildmode=pie for ASLR. Windows PE and macOS Mach-O binaries
+# are already position independent without the flag, so it is only applied to the
+# Linux targets. A PIE ELF requires the glibc dynamic loader at runtime, so the
+# scratch-based container image in Dockerfile is deliberately built without it.
 build-all-platforms: ### cross-compile for all platforms (Linux, Windows, macOS)
 	@echo "Building for all platforms using cross-compilation (CGO_ENABLED=0)..."
 	@mkdir -p dist/linux dist/windows dist/darwin
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
-	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -buildmode=pie -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64 ./cmd/app
+	CGO_ENABLED=0 GOOS=linux GOARCH=amd64 go build -tags=noui -buildmode=pie -ldflags "-s -w" -trimpath -o dist/linux/console_linux_x64_headless ./cmd/app
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64.exe ./cmd/app
 	CGO_ENABLED=0 GOOS=windows GOARCH=amd64 go build -tags=noui -ldflags "-s -w" -trimpath -o dist/windows/console_windows_x64_headless.exe ./cmd/app
 	CGO_ENABLED=0 GOOS=darwin GOARCH=arm64 go build -ldflags "-s -w" -trimpath -o dist/darwin/console_mac_arm64 ./cmd/app
@@ -141,8 +145,20 @@ migrate-create:  ### create new migration
 	migrate create -ext sql -dir /internal/app/migrations 'migrate_name'
 .PHONY: migrate-create
 
+# Mirror pkg/db.MigrationDSN: default sslmode=disable only when DB_URL doesn't
+# set one, using the right separator for a DSN that already carries query params.
+ifeq (,$(DB_URL))
+MIGRATE_DB_URL :=
+else ifneq (,$(findstring sslmode=,$(DB_URL)))
+MIGRATE_DB_URL := $(DB_URL)
+else ifeq (,$(findstring ?,$(DB_URL)))
+MIGRATE_DB_URL := $(DB_URL)?sslmode=disable
+else
+MIGRATE_DB_URL := $(DB_URL)&sslmode=disable
+endif
+
 migrate-up: ### migration up
-	migrate -path /internal/app/migrations -database '$(DB_URL)?sslmode=disable' up
+	migrate -path /internal/app/migrations -database '$(MIGRATE_DB_URL)' up
 .PHONY: migrate-up
 
 bin-deps:

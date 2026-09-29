@@ -22,6 +22,9 @@ import (
 const (
 	RootCertPath = "config/root_cert.pem"
 	RootKeyPath  = "config/root_key.pem"
+
+	// keyFilePerm limits generated private key files to owner read/write.
+	keyFilePerm os.FileMode = 0o600
 )
 
 // PEM block type constants.
@@ -453,7 +456,7 @@ func GenerateRootCertificate(addThumbPrintToName bool, commonName, country, orga
 
 	certOut.Close()
 
-	keyOut, err := os.Create("config/root_key.pem")
+	keyOut, err := os.OpenFile("config/root_key.pem", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, keyFilePerm)
 	if err != nil {
 		return nil, nil, err
 	}
@@ -571,7 +574,7 @@ func saveCertAndKeyToFiles(commonName string, certBytes []byte, keys *rsa.Privat
 		return err
 	}
 
-	keyOut, err := os.Create("config/" + commonName + "_key.pem")
+	keyOut, err := os.OpenFile("config/"+commonName+"_key.pem", os.O_CREATE|os.O_WRONLY|os.O_TRUNC, keyFilePerm)
 	if err != nil {
 		return err
 	}

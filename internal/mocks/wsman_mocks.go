@@ -18,6 +18,7 @@ import (
 	alarmclock "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
 	auditlog "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	boot "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	ethernetport "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
 	messagelog "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	redirection "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
 	setupandconfiguration "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
@@ -437,6 +438,21 @@ func (mr *MockManagementMockRecorder) GetDiskInfo() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetDiskInfo", reflect.TypeOf((*MockManagement)(nil).GetDiskInfo))
 }
 
+// GetEthernetPortSettings mocks base method.
+func (m *MockManagement) GetEthernetPortSettings() ([]ethernetport.SettingsResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetEthernetPortSettings")
+	ret0, _ := ret[0].([]ethernetport.SettingsResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetEthernetPortSettings indicates an expected call of GetEthernetPortSettings.
+func (mr *MockManagementMockRecorder) GetEthernetPortSettings() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetEthernetPortSettings", reflect.TypeOf((*MockManagement)(nil).GetEthernetPortSettings))
+}
+
 // GetEventLog mocks base method.
 func (m *MockManagement) GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error) {
 	m.ctrl.T.Helper()
@@ -662,6 +678,21 @@ func (mr *MockManagementMockRecorder) GetUserConsentCode() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUserConsentCode", reflect.TypeOf((*MockManagement)(nil).GetUserConsentCode))
 }
 
+// GetWiFiPortConfigurationService mocks base method.
+func (m *MockManagement) GetWiFiPortConfigurationService() (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetWiFiPortConfigurationService")
+	ret0, _ := ret[0].(wifiportconfiguration.WiFiPortConfigurationServiceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetWiFiPortConfigurationService indicates an expected call of GetWiFiPortConfigurationService.
+func (mr *MockManagementMockRecorder) GetWiFiPortConfigurationService() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetWiFiPortConfigurationService", reflect.TypeOf((*MockManagement)(nil).GetWiFiPortConfigurationService))
+}
+
 // GetWiFiPorts mocks base method.
 func (m *MockManagement) GetWiFiPorts() ([]wifi.WiFiPort, error) {
 	m.ctrl.T.Helper()
@@ -705,6 +736,36 @@ func (m *MockManagement) PullWiFiPort(enumerationContext string) (wifi.Response,
 func (mr *MockManagementMockRecorder) PullWiFiPort(enumerationContext any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PullWiFiPort", reflect.TypeOf((*MockManagement)(nil).PullWiFiPort), enumerationContext)
+}
+
+// PutEthernetPortSettings mocks base method.
+func (m *MockManagement) PutEthernetPortSettings(ethernetPortSettings ethernetport.SettingsRequest, instanceID string) (ethernetport.Response, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutEthernetPortSettings", ethernetPortSettings, instanceID)
+	ret0, _ := ret[0].(ethernetport.Response)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PutEthernetPortSettings indicates an expected call of PutEthernetPortSettings.
+func (mr *MockManagementMockRecorder) PutEthernetPortSettings(ethernetPortSettings, instanceID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutEthernetPortSettings", reflect.TypeOf((*MockManagement)(nil).PutEthernetPortSettings), ethernetPortSettings, instanceID)
+}
+
+// PutWiFiPortConfigurationService mocks base method.
+func (m *MockManagement) PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "PutWiFiPortConfigurationService", request)
+	ret0, _ := ret[0].(wifiportconfiguration.WiFiPortConfigurationServiceResponse)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// PutWiFiPortConfigurationService indicates an expected call of PutWiFiPortConfigurationService.
+func (mr *MockManagementMockRecorder) PutWiFiPortConfigurationService(request any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "PutWiFiPortConfigurationService", reflect.TypeOf((*MockManagement)(nil).PutWiFiPortConfigurationService), request)
 }
 
 // RequestAMTRedirectionServiceStateChange mocks base method.
@@ -870,6 +931,20 @@ func (m *MockManagement) SetLinkPreference(linkPreference, timeout uint32) (int,
 func (mr *MockManagementMockRecorder) SetLinkPreference(linkPreference, timeout any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetLinkPreference", reflect.TypeOf((*MockManagement)(nil).SetLinkPreference), linkPreference, timeout)
+}
+
+// SetRemoteEraseOptions mocks base method.
+func (m *MockManagement) SetRemoteEraseOptions(eraseMask int, ssdPassword string) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "SetRemoteEraseOptions", eraseMask, ssdPassword)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// SetRemoteEraseOptions indicates an expected call of SetRemoteEraseOptions.
+func (mr *MockManagementMockRecorder) SetRemoteEraseOptions(eraseMask, ssdPassword any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetRemoteEraseOptions", reflect.TypeOf((*MockManagement)(nil).SetRemoteEraseOptions), eraseMask, ssdPassword)
 }
 
 // UpdateWiFiSettings mocks base method.

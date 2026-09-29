@@ -6,21 +6,42 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
+var testConfigOnce sync.Once
+
+func setupTestConfig() {
+	testConfigOnce.Do(func() {
+		if config.ConsoleConfig == nil {
+			config.ConsoleConfig = &config.Config{
+				Auth: config.Auth{
+					JWTKey:                   "test-key",
+					JWTExpiration:            24 * time.Hour,
+					RedirectionJWTExpiration: 5 * time.Minute,
+				},
+			}
+		}
+	})
+}
+
 func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine) {
 	t.Helper()
+	setupTestConfig()
 
 	mockCtl := gomock.NewController(t)
 	defer mockCtl.Finish()
@@ -29,6 +50,7 @@ func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine)
 	device := mocks.NewMockDeviceManagementFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1")
 
 	NewDeviceRoutes(handler, device, log)
@@ -43,6 +65,7 @@ type deviceTest struct {
 	mock         func(repo *mocks.MockDeviceManagementFeature)
 	response     interface{}
 	requestBody  dto.Device
+	tenantID     string
 	expectedCode int
 }
 
@@ -89,6 +112,40 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
 			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get activated devices",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetActivated(context.Background(), 25, 0, "").Return([]dto.Device{{
+					GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
+				}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get discovered devices",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?discovered=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetDiscovered(context.Background(), 25, 0, "").Return([]dto.Device{{
+					GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
+				}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get activated devices - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetActivated(context.Background(), 25, 0, "").Return(nil, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
 		},
 		{
 			name:   "get all devices - with count",
@@ -162,6 +219,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -191,6 +249,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -240,6 +299,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -269,6 +329,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -297,9 +358,33 @@ func TestDevicesRoutes(t *testing.T) {
 			url:    "/api/v1/devices/stats",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
 				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "").Return(4, 1, nil)
 			},
-			response:     dto.DeviceStatResponse{TotalCount: 5},
+			response:     dto.DeviceStatResponse{TotalCount: 5, ActivatedCount: 4, DiscoveredCount: 1},
 			expectedCode: http.StatusOK,
+		},
+		{
+			name:     "get devices stats scoped to tenant",
+			method:   http.MethodGet,
+			url:      "/api/v1/devices/stats",
+			tenantID: "tenant1",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetCount(context.Background(), "tenant1").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "tenant1").Return(4, 1, nil)
+			},
+			response:     dto.DeviceStatResponse{TotalCount: 5, ActivatedCount: 4, DiscoveredCount: 1},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get devices stats - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/devices/stats",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "").Return(0, 0, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
 		},
 	}
 
@@ -326,6 +411,10 @@ func TestDevicesRoutes(t *testing.T) {
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()
@@ -391,6 +480,112 @@ func TestDevicesUpdatePartialPatch(t *testing.T) {
 	require.Equal(t, string(expected), w.Body.String())
 }
 
+func TestDevicesInsertDefaultsUseTLSToTrueWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-no-tls-field",
+		GUID:             "123e4567-e89b-12d3-a456-426614174000",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           true,
+		AllowSelfSigned:  true,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-no-tls-field","guid":"123e4567-e89b-12d3-a456-426614174000","username":"admin1","password":"password1"}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertDefaultsAllowSelfSignedToTrueWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-no-self-signed-field",
+		GUID:             "123e4567-e89b-12d3-a456-426614174001",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           true,
+		AllowSelfSigned:  true,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-no-self-signed-field","guid":"123e4567-e89b-12d3-a456-426614174001","username":"admin1","password":"password1"}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertHonorsExplicitUseTLSFalse(t *testing.T) {
+	t.Parallel()
+
+	devicesFeature, engine := devicesTest(t)
+
+	expected := &dto.Device{
+		ConnectionStatus: false,
+		Hostname:         "host-explicit-false",
+		GUID:             "123e4567-e89b-12d3-a456-426614174001",
+		Username:         "admin1",
+		Password:         "password1",
+		UseTLS:           false,
+		AllowSelfSigned:  false,
+	}
+
+	devicesFeature.EXPECT().Insert(context.Background(), expected).Return(expected, nil)
+
+	body := []byte(`{"connectionStatus":false,"hostname":"host-explicit-false","guid":"123e4567-e89b-12d3-a456-426614174001","username":"admin1","password":"password1","useTLS":false,"allowSelfSigned":false}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	jsonBytes, _ := json.Marshal(expected)
+	require.Equal(t, string(jsonBytes), w.Body.String())
+}
+
+func TestDevicesInsertRejectsInvalidJSON(t *testing.T) {
+	t.Parallel()
+
+	_, engine := devicesTest(t)
+
+	// Invalid JSON should fail during request binding.
+	body := []byte(`{invalid json}`)
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
 // encoding/json unmarshals case-insensitively; the merge must see the field as
 // provided regardless of the casing the client used.
 func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
@@ -420,4 +615,388 @@ func TestDevicesUpdatePartialPatchMixedCaseKeys(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestDevicesUpdatePartialPatchTracksDeviceInfoSubfields(t *testing.T) {
+	t.Parallel()
+
+	guid := testDeviceGUID
+	discovered := true
+
+	incoming := &dto.Device{
+		GUID: guid,
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:  "16.1.30",
+			Discovered: &discovered,
+		},
+	}
+
+	expectedFields := map[string]bool{
+		"guid":                  true,
+		"deviceinfo":            true,
+		"deviceinfo.fwversion":  true,
+		"deviceinfo.discovered": true,
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), incoming, expectedFields).
+		Return(incoming, nil)
+
+	body := []byte(`{"guid":"` + guid + `","deviceInfo":{"fwVersion":"16.1.30","discovered":true}}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
+func TestCollectNestedJSONFields(t *testing.T) {
+	t.Parallel()
+
+	t.Run("collects nested keys", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30","upid":{"csmeId":"x"}}`), fields, 0)
+
+		require.True(t, fields["deviceinfo.fwversion"])
+		require.True(t, fields["deviceinfo.upid"])
+		require.True(t, fields["deviceinfo.upid.csmeid"])
+	})
+
+	t.Run("stops at max depth", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`{"fwVersion":"16.1.30"}`), fields, maxNestedJSONFieldDepth)
+
+		require.Empty(t, fields)
+	})
+
+	t.Run("ignores non-object payload", func(t *testing.T) {
+		t.Parallel()
+
+		fields := map[string]bool{}
+		collectNestedJSONFields("deviceinfo", json.RawMessage(`"not-an-object"`), fields, 0)
+
+		require.Empty(t, fields)
+	})
+}
+
+func TestDevicesInsertDefaultsTLSAndSelfSignedWhenOmitted(t *testing.T) {
+	t.Parallel()
+
+	incoming := &dto.Device{
+		AllowSelfSigned: true,
+		GUID:            testDeviceGUID,
+		Hostname:        "test-device",
+		UseTLS:          true,
+	}
+
+	devicesFeature, engine := devicesTest(t)
+	devicesFeature.EXPECT().
+		Insert(context.Background(), incoming).
+		Return(incoming, nil)
+
+	body := []byte(`{
+		"guid":"` + testDeviceGUID + `",
+		"hostname":"test-device"
+	}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	expected, _ := json.Marshal(incoming)
+	require.Equal(t, string(expected), w.Body.String())
+}
+
+func TestDevicesInsertAcceptsFullDeviceInfo(t *testing.T) {
+	t.Parallel()
+
+	lmsInstalled := false
+	discovered := true
+	amtEnabledInBIOS := true
+	dhcpEnabled := true
+	ethernetAdapterCount := 2
+	monitorConnected := true
+	ieee8021xEnabled := false
+
+	incoming := &dto.Device{
+		GUID:            testDeviceGUID,
+		Hostname:        "test-device",
+		UseTLS:          true,
+		AllowSelfSigned: true,
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion:       "16.1.30",
+			FWBuild:         "3400",
+			FWSku:           "11",
+			Discovered:      &discovered,
+			CurrentMode:     "Admin",
+			Features:        "SOL,IDER,KVM",
+			IPAddress:       "10.0.0.12",
+			FirstDiscovered: &timeNow,
+			LastSynced:      &timeNow,
+			TLSMode:         "TLS 1.2",
+			UPID: map[string]json.RawMessage{
+				"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
+				"oemId":             json.RawMessage(`""`),
+				"csmeId":            json.RawMessage(`"4A45A39C5ED9462082510000"`),
+			},
+			AMTEnabledInBIOS:     &amtEnabledInBIOS,
+			MEInterfaceVersion:   "16.1.25.2124",
+			DHCPEnabled:          &dhcpEnabled,
+			CertHashes:           []string{"a1b2c3", "d4e5f6"},
+			LMSInstalled:         &lmsInstalled,
+			LMSVersion:           "2410.5.0.0",
+			OSName:               "linux",
+			OSVersion:            "6.8.0-51-generic",
+			OSDistro:             "Ubuntu 24.04 LTS",
+			CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
+			OSIPAddress:          "10.49.76.163",
+			EthernetAdapterCount: &ethernetAdapterCount,
+			MonitorConnected:     &monitorConnected,
+			IEEE8021XEnabled:     &ieee8021xEnabled,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Insert(context.Background(), incoming).
+		Return(incoming, nil)
+
+	body := []byte(`{
+		"guid":"` + testDeviceGUID + `",
+		"hostname":"test-device",
+		"deviceInfo":{
+			"fwVersion":"16.1.30",
+			"fwBuild":"3400",
+			"fwSku":"11",
+			"discovered":true,
+			"currentMode":"Admin",
+			"features":"SOL,IDER,KVM",
+			"ipAddress":"10.0.0.12",
+			"firstDiscovered":"` + timeNow.Format(time.RFC3339Nano) + `",
+			"lastSynced":"` + timeNow.Format(time.RFC3339Nano) + `",
+			"tlsMode":"TLS 1.2",
+			"upid":{
+				"oemPlatformIdType":"Not Set (0)",
+				"oemId":"",
+				"csmeId":"4A45A39C5ED9462082510000"
+			},
+			"amtEnabledInBIOS":true,
+			"meInterfaceVersion":"16.1.25.2124",
+			"dhcpEnabled":true,
+			"certHashes":["a1b2c3","d4e5f6"],
+			"lmsInstalled":false,
+			"lmsVersion":"2410.5.0.0",
+			"osName":"linux",
+			"osVersion":"6.8.0-51-generic",
+			"osDistro":"Ubuntu 24.04 LTS",
+			"cpuModel":"Intel(R) Core(TM) Ultra 7 165H",
+			"osIpAddress":"10.49.76.163",
+			"ethernetAdapterCount":2,
+			"monitorConnected":true,
+			"ieee8021xEnabled":false
+		}
+	}`)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusCreated, w.Code)
+
+	expected, _ := json.Marshal(incoming)
+	require.Equal(t, string(expected), w.Body.String())
+}
+
+// TestLoginRedirection verifies the device redirection token endpoint
+func TestLoginRedirection(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		// deviceID is the GUID as it appears in the request path.
+		deviceID string
+		// expectedClaim is the deviceId the token must carry; empty means deviceID.
+		expectedClaim string
+		mock          func(devFeature *mocks.MockDeviceManagementFeature)
+		expectedCode  int
+		expectedErr   bool
+	}{
+		{
+			name:     "login redirection - success",
+			deviceID: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host", TenantID: "tenant-a"}, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedErr:  false,
+		},
+		{
+			name:          "login redirection - mixed-case guid is normalized in claim",
+			deviceID:      "Test-Device-GUID",
+			expectedClaim: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "Test-Device-GUID", "", false).
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+			},
+			expectedCode: http.StatusOK,
+			expectedErr:  false,
+		},
+		{
+			name:     "login redirection - device not found",
+			deviceID: "invalid-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "invalid-guid", "", false).
+					Return(nil, devices.ErrNotFound)
+			},
+			expectedCode: http.StatusNotFound,
+			expectedErr:  true,
+		},
+		{
+			name:     "login redirection - database error",
+			deviceID: "test-device-guid",
+			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
+				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+					Return(nil, devices.ErrDatabase)
+			},
+			expectedCode: http.StatusBadRequest,
+			expectedErr:  true,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			devicesFeature, engine := devicesTest(t)
+			tc.mock(devicesFeature)
+
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+				"/api/v1/authorize/redirection/"+tc.deviceID, http.NoBody)
+			require.NoError(t, err)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, tc.expectedCode, w.Code)
+
+			if !tc.expectedErr && tc.expectedCode == http.StatusOK {
+				// Parse response
+				var response map[string]string
+
+				err := json.Unmarshal(w.Body.Bytes(), &response)
+				require.NoError(t, err)
+
+				tokenString, ok := response["token"]
+				require.True(t, ok, "token field not found in response")
+				require.NotEmpty(t, tokenString)
+
+				expectedClaim := tc.expectedClaim
+				if expectedClaim == "" {
+					expectedClaim = tc.deviceID
+				}
+
+				// Decode and verify token expiration and device binding
+				verifyRedirectionToken(t, tokenString, expectedClaim)
+			}
+		})
+	}
+}
+
+// TestLoginRedirection_AuthDisabled checks that auth-off mode hands out an
+// unsigned placeholder, which a later auth-enabled run cannot verify.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLoginRedirection_AuthDisabled(t *testing.T) {
+	// Consume the sync.Once first so parallel tests keep the shared config after cleanup.
+	setupTestConfig()
+
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = &config.Config{
+		Auth: config.Auth{
+			Disabled:                 true,
+			JWTKey:                   testJWTKey,
+			JWTExpiration:            time.Hour,
+			RedirectionJWTExpiration: 5 * time.Minute,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+	devicesFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+		Return(&dto.Device{GUID: "test-device-guid"}, nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/authorize/redirection/test-device-guid", http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Equal(t, authDisabledRedirectionToken, response["token"])
+
+	_, err = jwt.Parse(response["token"], func(_ *jwt.Token) (interface{}, error) {
+		return []byte(testJWTKey), nil
+	})
+	require.Error(t, err, "placeholder must not verify against the configured key")
+}
+
+// verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
+func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
+	t.Helper()
+
+	// Parse the token, verifying its signature against the test signing key.
+	claims := jwt.MapClaims{}
+	_, err := jwt.ParseWithClaims(tokenString, &claims, func(_ *jwt.Token) (interface{}, error) {
+		return []byte(config.ConsoleConfig.JWTKey), nil
+	})
+	require.NoError(t, err, "token should be parseable")
+
+	// deviceId must be the device GUID
+	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
+	// Verify expiration is set
+	exp, err := claims.GetExpirationTime()
+	require.NoError(t, err)
+	require.NotNil(t, exp, "token should have expiration time")
+
+	// Calculate expected expiration window
+	now := time.Now()
+	timeDiff := exp.Sub(now)
+
+	// Should be approximately 5 minutes (with some tolerance for test execution time)
+	expectedDuration := config.ConsoleConfig.RedirectionJWTExpiration
+	tolerance := 10 * time.Second
+
+	// Verify expiration is close to configured RedirectionJWTExpiration (5 minutes by default)
+	require.True(t, timeDiff > expectedDuration-tolerance && timeDiff < expectedDuration+tolerance,
+		"token expiration should be ~5 minutes, got %v", timeDiff)
+
+	// Specifically verify it's NOT 24 hours (the bug)
+	maxWrongExpiration := 24 * time.Hour
+	require.True(t, timeDiff < maxWrongExpiration-time.Hour,
+		"token expiration time %v is suspiciously close to 24 hours (the bug)", timeDiff)
 }

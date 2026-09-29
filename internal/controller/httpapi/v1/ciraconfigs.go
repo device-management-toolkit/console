@@ -5,6 +5,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/ciraconfigs"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -15,10 +17,11 @@ type ciraConfigRoutes struct {
 	l    logger.Interface
 }
 
-func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logger.Interface) {
+func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logger.Interface, cfg *config.Config) {
 	r := &ciraConfigRoutes{t, l}
 
 	h := handler.Group("/ciraconfigs")
+	h.Use(ciraDisabledMiddleware(cfg.DisableCIRA))
 	{
 		h.GET("", r.get)
 		h.GET(":ciraConfigName", r.getByName)
@@ -30,23 +33,25 @@ func NewCIRAConfigRoutes(handler *gin.RouterGroup, t ciraconfigs.Feature, l logg
 
 func (r *ciraConfigRoutes) get(c *gin.Context) {
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		r.l.Error(err, "http - CIRA configs - v1 - getCount")
+	if err := odata.BindAndValidate(c); err != nil {
+		r.l.Error(err, "http - CIRA configs - v1 - get")
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	tenantID := middleware.TenantID(c)
+
+	configs, err := r.cira.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
-		r.l.Error(err, "http - CIRA configs - v1 - getCount")
+		r.l.Error(err, "http - CIRA configs - v1 - get")
 		ErrorResponse(c, err)
 
 		return
 	}
 
 	if odata.Count {
-		count, err := r.cira.GetCount(c.Request.Context(), "")
+		count, err := r.cira.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - CIRA configs - v1 - getCount")
 			ErrorResponse(c, err)
@@ -67,8 +72,9 @@ func (r *ciraConfigRoutes) get(c *gin.Context) {
 
 func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
+	tenantID := middleware.TenantID(c)
 
-	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, "")
+	foundConfig, err := r.cira.GetByName(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - getByName")
 		ErrorResponse(c, err)
@@ -80,15 +86,17 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 }
 
 func (r *ciraConfigRoutes) insert(c *gin.Context) {
-	var config dto.CIRAConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	var ciraConfig dto.CIRAConfig
+	if err := c.ShouldBindJSON(&ciraConfig); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &config)
+	ciraConfig.TenantID = middleware.TenantID(c)
+
+	newCiraConfig, err := r.cira.Insert(c.Request.Context(), &ciraConfig)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 		ErrorResponse(c, err)
@@ -100,15 +108,17 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 }
 
 func (r *ciraConfigRoutes) update(c *gin.Context) {
-	var config dto.CIRAConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	var ciraConfig dto.CIRAConfig
+	if err := c.ShouldBindJSON(&ciraConfig); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - update")
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	updatedConfig, err := r.cira.Update(c.Request.Context(), &config)
+	ciraConfig.TenantID = middleware.TenantID(c)
+
+	updatedConfig, err := r.cira.Update(c.Request.Context(), &ciraConfig)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - update")
 		ErrorResponse(c, err)
@@ -121,8 +131,9 @@ func (r *ciraConfigRoutes) update(c *gin.Context) {
 
 func (r *ciraConfigRoutes) delete(c *gin.Context) {
 	configName := c.Param("ciraConfigName")
+	tenantID := middleware.TenantID(c)
 
-	err := r.cira.Delete(c.Request.Context(), configName, "")
+	err := r.cira.Delete(c.Request.Context(), configName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - delete")
 		ErrorResponse(c, err)

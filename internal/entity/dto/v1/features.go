@@ -23,7 +23,8 @@ type Features struct {
 	HTTPSBootSupported    bool   `json:"httpsBootSupported" example:"true"`
 	WinREBootSupported    bool   `json:"winREBootSupported" example:"true"`
 	LocalPBABootSupported bool   `json:"localPBABootSupported" example:"true"`
-	RemoteErase           bool   `json:"remoteErase" example:"true"`
+	RPE                   bool   `json:"rpe" example:"true"`
+	RPESupported          bool   `json:"rpeSupported" example:"true"`
 }
 
 type FeaturesRequest struct {
@@ -32,5 +33,5 @@ type FeaturesRequest struct {
 	EnableIDER  bool   `json:"enableIDER" example:"true"`
 	EnableKVM   bool   `json:"enableKVM" example:"true"`
 	OCR         bool   `json:"ocr" example:"true"`
-	RemoteErase bool   `json:"remoteErase" example:"true"`
+	RPE         bool   `json:"rpe" example:"true"`
 }

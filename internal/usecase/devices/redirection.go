@@ -15,7 +15,7 @@ type Redirector struct {
 	SafeRequirements security.Cryptor
 }
 
-func (g *Redirector) SetupWsmanClient(device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, error) {
+func (g *Redirector) SetupWsmanClient(_ context.Context, device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, error) {
 	// CIRA device: route redirection through the APF tunnel
 	if isRedirection && device.MPSUsername != "" {
 		connection := wsmanAPI.GetConnectionEntry(device.GUID)

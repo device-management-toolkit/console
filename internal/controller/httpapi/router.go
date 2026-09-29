@@ -11,18 +11,18 @@ import (
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
-	"github.com/device-management-toolkit/console/pkg/db"
+	"github.com/device-management-toolkit/console/internal/usecase/packaging"
 	"github.com/device-management-toolkit/console/pkg/logger"
-	redfish "github.com/device-management-toolkit/console/redfish"
 )
 
-// NewRouter sets up the HTTP router with redfish support.
-func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config, database *db.SQL) {
+// NewRouter -.
+func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
@@ -34,11 +34,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Use middleware function directly without calling Use() which would register conflicting routes
 	handler.Use(p.HandlerFunc())
 
-	// Initialize redfish directly
-	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
-		l.Fatal("Failed to initialize redfish: " + err.Error())
-	}
-
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
 	fuegoAdapter.RegisterRoutes()
@@ -47,6 +42,8 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Public routes
 	login := v1.NewLoginRoute(cfg)
 	handler.POST("/api/v1/authorize", login.Login)
+	// Public so an expired session can still clear its cookies.
+	handler.POST("/api/v1/authorize/logout", login.Logout)
 
 	// Setup UI routes (no-op in noui builds)
 	setupUIRoutes(handler, l, cfg)
@@ -69,6 +66,8 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
 	}
 
+	protected.Use(middleware.ResolveTenant(l))
+
 	registerCustomValidators(l)
 
 	// Routers
@@ -76,13 +75,14 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v1.NewDeviceRoutes(h2, t.Devices, l)
 		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, t.Exporter, l)
-		v1.NewCIRACertRoutes(h2, l)
+		v1.NewCIRACertRoutes(h2, l, cfg)
+		v1.NewServerRoutes(h2, cfg)
 	}
 
 	h := protected.Group("/v1/admin")
 	{
 		v1.NewDomainRoutes(h, t.Domains, l)
-		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l)
+		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l, cfg)
 		v1.NewProfileRoutes(h, t.Profiles, l)
 		v1.NewWirelessConfigRoutes(h, t.WirelessProfiles, l)
 		v1.NewIEEE8021xConfigRoutes(h, t.IEEE8021xProfiles, l)
@@ -93,10 +93,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		v2.NewAmtRoutes(h3, t.Devices, l)
 	}
 
-	// Register redfish routes directly
-	if err := redfish.RegisterRoutes(handler, l); err != nil {
-		l.Fatal("Failed to register redfish routes: " + err.Error())
-	}
+	v1.NewPackageRoutes(protected, packaging.New(cfg, l), l)
 }
 
 func registerCustomValidators(l logger.Interface) {

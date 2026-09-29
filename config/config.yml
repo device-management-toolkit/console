@@ -14,10 +14,30 @@ http:
     # If certFile/keyFile are both empty and enabled is true, a self-signed certificate will be generated at runtime.
     certFile: ""
     keyFile: ""
+  # Origins allowed to make cross-origin calls and to open a redirection
+  # (KVM/SOL/IDER) websocket. Add the origin the UI is served from if it is not
+  # this server. Never use "*": it exposes every API response to any site, and
+  # the relay refuses cross-origin handshakes while it is set.
   allowed_origins:
-    - "*"
+    - "https://localhost:8181"
+    - "https://127.0.0.1:8181"
+    - "http://localhost:8181"
+    - "http://127.0.0.1:8181"
+    # `ng serve` dev UI
+    - "http://localhost:4200"
+    - "https://localhost:4200"
+    - "http://127.0.0.1:4200"
+    - "https://127.0.0.1:4200"
   allowed_headers:
-    - "*"
+    - "Origin"
+    - "Accept"
+    - "Content-Type"
+    - "Content-Length"
+    - "Authorization"
+    - "If-Match"
+  # Lets a cross-origin UI send the HttpOnly session cookie. Forced off while
+  # allowed_origins contains "*", as CORS forbids that combination.
+  allow_credentials: true
 logger:
   log_level: info
 secrets: 
@@ -39,7 +59,7 @@ auth:
   disabled: false
   adminUsername: standalone
   adminPassword: 
-  jwtKey: your_secret_jwt_key
+  jwtKey: ""
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
   clientId: ""
@@ -59,7 +79,7 @@ ui:
   # - Ignored: When building without 'noui' tag (embedded UI is served normally)
   # Example: https://ui.example.com
   externalUrl: ""
-redfish:
-  # Optional: Set a fixed UUID for this Redfish service instance
-  # If not set, a persistent UUID will be auto-generated and stored in ~/.config/dmt-redfish-service/service_uuid
-  # environment_uuid: ""
+package:
+  rpc_repo: device-management-toolkit/rpc-go
+  local_dir: ""
+

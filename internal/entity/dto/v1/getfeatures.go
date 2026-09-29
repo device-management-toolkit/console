@@ -12,5 +12,6 @@ type GetFeaturesResponse struct {
 	HTTPSBootSupported    bool   `json:"httpsBootSupported" binding:"required" example:"false"`
 	WinREBootSupported    bool   `json:"winREBootSupported" binding:"required" example:"false"`
 	LocalPBABootSupported bool   `json:"localPBABootSupported" binding:"required" example:"false"`
-	RemoteErase           bool   `json:"remoteErase" binding:"required" example:"false"`
+	RPE                   bool   `json:"rpe" binding:"required" example:"false"`
+	RPESupported          bool   `json:"rpeSupported" example:"false"`
 }

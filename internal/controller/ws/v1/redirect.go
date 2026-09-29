@@ -5,6 +5,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/gin-gonic/gin"
@@ -36,41 +37,30 @@ func RegisterRoutes(r *gin.Engine, l logger.Interface, t devices.Feature, u Upgr
 func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 	tokenString := c.GetHeader("Sec-Websocket-Protocol")
 
-	// validate jwt token in the Sec-Websocket-protocol header
-	if !config.ConsoleConfig.Disabled {
-		if tokenString == "" {
-			http.Error(c.Writer, "request does not contain an access token", http.StatusUnauthorized)
-
-			return
-		}
-
-		claims := &jwt.MapClaims{}
-
-		token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-			if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-				return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
-			}
-
-			return []byte(config.ConsoleConfig.JWTKey), nil
-		})
-
-		if err != nil || !token.Valid {
-			http.Error(c.Writer, "invalid access token", http.StatusUnauthorized)
-
-			return
-		}
+	// validate the jwt token in the Sec-Websocket-protocol header
+	if !r.validateRedirectionToken(c, tokenString) {
+		return
 	}
 
-	upgrader, ok := r.u.(*websocket.Upgrader)
-	if !ok {
-		r.l.Debug("failed to cast Upgrader to *websocket.Upgrader")
+	// Negotiate the caller's token as the subprotocol. A single upgrader is
+	// shared by every relay handshake, so copy it per request instead of
+	// mutating it in place: an in-place write races concurrent handshakes and
+	// makes them negotiate no subprotocol at all, which browsers reject.
+	// websocket.Upgrader is pure configuration, so copying by value is safe and
+	// keeps WriteBufferPool shared.
+	upgrader := r.u
+
+	if shared, ok := r.u.(*websocket.Upgrader); ok {
+		perRequest := *shared
+		perRequest.Subprotocols = []string{tokenString}
+		upgrader = &perRequest
 	} else {
-		upgrader.Subprotocols = []string{tokenString}
+		r.l.Debug("failed to cast Upgrader to *websocket.Upgrader")
 	}
 
 	// KVM_TIMING: Measure WebSocket upgrade duration
 	upgradeStart := time.Now()
-	conn, err := r.u.Upgrade(c.Writer, c.Request, nil)
+	conn, err := upgrader.Upgrade(c.Writer, c.Request, nil)
 	upgradeDuration := time.Since(upgradeStart)
 	devices.RecordWebsocketUpgrade(upgradeDuration)
 	r.l.Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", upgradeDuration.Milliseconds())
@@ -101,6 +91,55 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 	if err != nil {
 		r.l.Error(err, "http - devices - v1 - redirect")
-		errorResponse(c, http.StatusInternalServerError, "redirect failed")
+
+		// Upgrade hijacks the HTTP connection, so errors after this point must be
+		// reported over the WebSocket rather than through Gin's response writer.
+		_ = conn.WriteControl(
+			websocket.CloseMessage,
+			websocket.FormatCloseMessage(websocket.CloseInternalServerErr, "redirect failed"),
+			time.Now().Add(time.Second),
+		)
+		_ = conn.Close()
 	}
+}
+
+// validateRedirectionToken checks the JWT and that its deviceId matches the host.
+func (r *RedirectRoutes) validateRedirectionToken(c *gin.Context, tokenString string) bool {
+	if config.ConsoleConfig.Disabled {
+		return true
+	}
+
+	if tokenString == "" {
+		http.Error(c.Writer, "request does not contain an access token", http.StatusUnauthorized)
+
+		return false
+	}
+
+	claims := &jwt.MapClaims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
+		}
+
+		return []byte(config.ConsoleConfig.JWTKey), nil
+	})
+
+	if err != nil || !token.Valid {
+		http.Error(c.Writer, "invalid access token", http.StatusUnauthorized)
+
+		return false
+	}
+
+	// deviceId must be present and match host; blocks other-device and login tokens.
+	// GUIDs are case-insensitive, so match them that way to avoid false rejections.
+	deviceID, _ := (*claims)["deviceId"].(string)
+	if deviceID == "" || !strings.EqualFold(deviceID, c.Query("host")) {
+		r.l.Warn("redirection token not authorized for requested device", "host", c.Query("host"))
+		http.Error(c.Writer, "token not authorized for this device", http.StatusForbidden)
+
+		return false
+	}
+
+	return true
 }

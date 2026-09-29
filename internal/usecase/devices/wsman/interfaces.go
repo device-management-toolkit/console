@@ -7,6 +7,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/alarmclock"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/ethernetport"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/messagelog"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/redirection"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/setupandconfiguration"
@@ -63,7 +64,11 @@ type Management interface {
 	GetAuditLog(startIndex int) (auditlog.Response, error)
 	GetEventLog(startIndex, maxReadRecords int) (messagelog.GetRecordsResponse, error)
 	GetNetworkSettings() (NetworkResults, error)
+	GetEthernetPortSettings() ([]ethernetport.SettingsResponse, error)
+	PutEthernetPortSettings(ethernetPortSettings ethernetport.SettingsRequest, instanceID string) (ethernetport.Response, error)
 	GetWiFiSettings() ([]wifi.WiFiEndpointSettingsResponse, error)
+	GetWiFiPortConfigurationService() (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error)
+	PutWiFiPortConfigurationService(request wifiportconfiguration.WiFiPortConfigurationServiceRequest) (wifiportconfiguration.WiFiPortConfigurationServiceResponse, error)
 	GetCIMIEEE8021xSettings() (cimIEEE8021x.Response, error)
 	DeleteWiFiSetting(instanceID string) error
 	AddWiFiSettings(wifiEndpointSettings wifi.WiFiEndpointSettingsRequest, ieee8021xSettings models.IEEE8021xSettings, wifiEndpoint, clientCredential, caCredential string) (wifiportconfiguration.Response, error)
@@ -86,4 +91,5 @@ type Management interface {
 	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
 	DeleteCertificate(instanceID string) error
 	SetLinkPreference(linkPreference, timeout uint32) (int, error)
+	SetRemoteEraseOptions(eraseMask int, ssdPassword string) error
 }

@@ -52,7 +52,7 @@ type DeviceConnection struct {
 func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode string) error {
 	// KVM_TIMING: Measure device lookup latency
 	lookupStart := time.Now()
-	device, err := uc.repo.GetByID(c, guid, "")
+	device, err := uc.repo.GetByGUID(c, guid)
 
 	RecordDeviceLookup(time.Since(lookupStart))
 	uc.log.Debug("KVM_TIMING: Device lookup", "duration_ms", time.Since(lookupStart).Milliseconds(), "guid", guid)
@@ -125,7 +125,7 @@ func (uc *UseCase) getOrCreateConnection(c context.Context, conn *websocket.Conn
 }
 
 func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
-	wsmanConnection, err := uc.redirection.SetupWsmanClient(*device, true, true)
+	wsmanConnection, err := uc.redirection.SetupWsmanClient(c, *device, true, true)
 	if err != nil {
 		return nil, err
 	}
@@ -212,7 +212,11 @@ func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection
 }
 
 func (uc *UseCase) closeDeviceWebSocket(conn WebSocketConn, deviceConnection *DeviceConnection) {
-	uc.log.Debug("KVM session closed by AMT", "guid", deviceConnection.Device.GUID)
+	if deviceConnection.ctx.Err() != nil {
+		uc.log.Debug("KVM session closed after browser disconnect", "guid", deviceConnection.Device.GUID)
+	} else {
+		uc.log.Debug("KVM session closed by AMT", "guid", deviceConnection.Device.GUID)
+	}
 
 	if conn != nil {
 		_ = conn.WriteMessage(
@@ -264,6 +268,8 @@ func (uc *UseCase) ListenToDevice(deviceConnection *DeviceConnection) {
 		uc.observeDeviceReceive(deviceConnection, time.Since(recvStart))
 
 		if err != nil {
+			uc.log.Debug("KVM device listener stopped", "guid", deviceConnection.Device.GUID, "error", err)
+
 			break
 		}
 
@@ -337,6 +343,8 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 		uc.observeBrowserRead(deviceConnection, time.Since(readStart))
 
 		if err != nil {
+			uc.log.Debug("KVM browser listener stopped", "guid", deviceConnection.Device.GUID, "error", err)
+
 			if websocket.IsUnexpectedCloseError(err, websocket.CloseGoingAway, websocket.CloseAbnormalClosure) {
 				_ = fmt.Errorf("interceptor - listenToBrowser - websocket closed unexpectedly (reading from browser): %w", err)
 			}

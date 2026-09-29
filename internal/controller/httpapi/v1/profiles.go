@@ -1,12 +1,14 @@
 package v1
 
 import (
+	"encoding/json"
 	"net/http"
 
 	"github.com/gin-gonic/gin"
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -44,14 +46,16 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 
 func (r *profileRoutes) get(c *gin.Context) {
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		validationErr := ErrValidationProfile.Wrap("get", "ShouldBindQuery", err)
+	if err := odata.BindAndValidate(c); err != nil {
+		validationErr := ErrValidationProfile.Wrap("get", "BindAndValidate", err)
 		ErrorResponse(c, validationErr)
 
 		return
 	}
 
-	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, "")
+	tenantID := middleware.TenantID(c)
+
+	items, err := r.t.Get(c.Request.Context(), odata.Top, odata.Skip, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - get")
 		ErrorResponse(c, err)
@@ -60,7 +64,7 @@ func (r *profileRoutes) get(c *gin.Context) {
 	}
 
 	if odata.Count {
-		count, err := r.t.GetCount(c.Request.Context(), "")
+		count, err := r.t.GetCount(c.Request.Context(), tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getCount")
 			ErrorResponse(c, err)
@@ -79,8 +83,9 @@ func (r *profileRoutes) get(c *gin.Context) {
 
 func (r *profileRoutes) getByName(c *gin.Context) {
 	name := c.Param("name")
+	tenantID := middleware.TenantID(c)
 
-	item, err := r.t.GetByName(c.Request.Context(), name, "")
+	item, err := r.t.GetByName(c.Request.Context(), name, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getByName")
 		ErrorResponse(c, err)
@@ -94,8 +99,9 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 func (r *profileRoutes) export(c *gin.Context) {
 	name := c.Param("name")
 	domainName := c.Query("domainName")
+	tenantID := middleware.TenantID(c)
 
-	item, key, err := r.t.Export(c.Request.Context(), name, domainName, "")
+	item, key, err := r.t.Export(c.Request.Context(), name, domainName, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - export")
 		ErrorResponse(c, err)
@@ -122,6 +128,8 @@ func (r *profileRoutes) insert(c *gin.Context) {
 		return
 	}
 
+	profile.TenantID = middleware.TenantID(c)
+
 	newProfile, err := r.t.Insert(c.Request.Context(), &profile)
 	if err != nil {
 		r.l.Error(err, "http - v1 - insert")
@@ -134,17 +142,27 @@ func (r *profileRoutes) insert(c *gin.Context) {
 }
 
 func (r *profileRoutes) update(c *gin.Context) {
-	var profile dto.Profile
-	if err := c.ShouldBindBodyWithJSON(&profile); err != nil {
-		validationErr := ErrValidationProfile.Wrap("update", "ShouldBindBodyWithJSON", err)
+	body, err := readJSONBody(c)
+	if err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "readJSONBody", err)
 		ErrorResponse(c, validationErr)
 
 		return
 	}
 
-	fields, err := providedJSONFields(c)
+	var profile dto.Profile
+	if err := json.Unmarshal(body, &profile); err != nil {
+		validationErr := ErrValidationProfile.Wrap("update", "json.Unmarshal", err)
+		ErrorResponse(c, validationErr)
+
+		return
+	}
+
+	profile.TenantID = middleware.TenantID(c)
+
+	fields, err := providedJSONFieldsFromBody(body)
 	if err != nil {
-		validationErr := ErrValidationProfile.Wrap("update", "providedJSONFields", err)
+		validationErr := ErrValidationProfile.Wrap("update", "providedJSONFieldsFromBody", err)
 		ErrorResponse(c, validationErr)
 
 		return
@@ -163,8 +181,9 @@ func (r *profileRoutes) update(c *gin.Context) {
 
 func (r *profileRoutes) delete(c *gin.Context) {
 	name := c.Param("name")
+	tenantID := middleware.TenantID(c)
 
-	err := r.t.Delete(c.Request.Context(), name, "")
+	err := r.t.Delete(c.Request.Context(), name, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - delete")
 		ErrorResponse(c, err)
