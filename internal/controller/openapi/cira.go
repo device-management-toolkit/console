@@ -9,7 +9,8 @@ import (
 )
 
 func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
-	fuego.Get(f.server, "/api/v1/admin/ciraconfigs", f.getCIRAConfigs,
+	fuego.Get(
+		f.server, "/api/v1/admin/ciraconfigs", f.getCIRAConfigs,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("List CIRA Configurations"),
 		fuego.OptionDescription("Retrieve all CIRA configurations with optional pagination"),
@@ -19,7 +20,8 @@ func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/ciraconfigs/{ciraConfigName}", f.getCIRAConfigByName,
+	fuego.Get(
+		f.server, "/api/v1/admin/ciraconfigs/{ciraConfigName}", f.getCIRAConfigByName,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Get CIRA Configuration by Name"),
 		fuego.OptionDescription("Retrieve a specific CIRA configuration by profile name"),
@@ -27,7 +29,8 @@ func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/ciraconfigs", f.createCIRAConfig,
+	fuego.Post(
+		f.server, "/api/v1/admin/ciraconfigs", f.createCIRAConfig,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Create CIRA Configuration"),
 		fuego.OptionDescription("Create a new CIRA configuration"),
@@ -35,14 +38,16 @@ func (f *FuegoAdapter) RegisterCIRAConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/admin/ciraconfigs", f.updateCIRAConfig,
+	fuego.Patch(
+		f.server, "/api/v1/admin/ciraconfigs", f.updateCIRAConfig,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Update CIRA Configuration"),
 		fuego.OptionDescription("Update an existing CIRA configuration"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/ciraconfigs/{ciraConfigName}", f.deleteCIRAConfig,
+	fuego.Delete(
+		f.server, "/api/v1/admin/ciraconfigs/{ciraConfigName}", f.deleteCIRAConfig,
 		fuego.OptionTags("CIRA"),
 		fuego.OptionSummary("Delete CIRA Configuration"),
 		fuego.OptionDescription("Delete a CIRA configuration by profile name"),
