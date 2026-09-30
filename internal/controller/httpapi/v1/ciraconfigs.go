@@ -87,7 +87,7 @@ func (r *ciraConfigRoutes) getByName(c *gin.Context) {
 
 func (r *ciraConfigRoutes) insert(c *gin.Context) {
 	var ciraConfig dto.CIRAConfig
-	if err := c.ShouldBindJSON(&ciraConfig); err != nil {
+	if err := BindJSON(c, &ciraConfig); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - insert")
 		ErrorResponse(c, err)
 
@@ -109,7 +109,7 @@ func (r *ciraConfigRoutes) insert(c *gin.Context) {
 
 func (r *ciraConfigRoutes) update(c *gin.Context) {
 	var ciraConfig dto.CIRAConfig
-	if err := c.ShouldBindJSON(&ciraConfig); err != nil {
+	if err := BindJSON(c, &ciraConfig); err != nil {
 		r.l.Error(err, "http - CIRA configs - v1 - update")
 		ErrorResponse(c, err)
 

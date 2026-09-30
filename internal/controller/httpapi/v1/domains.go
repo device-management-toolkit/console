@@ -91,7 +91,7 @@ func (r *domainRoutes) getByName(c *gin.Context) {
 
 func (r *domainRoutes) insert(c *gin.Context) {
 	var domain dto.Domain
-	if err := c.ShouldBindJSON(&domain); err != nil {
+	if err := BindJSON(c, &domain); err != nil {
 		validationErr := ErrValidationDomains.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
@@ -113,7 +113,7 @@ func (r *domainRoutes) insert(c *gin.Context) {
 
 func (r *domainRoutes) update(c *gin.Context) {
 	var domain dto.Domain
-	if err := c.ShouldBindJSON(&domain); err != nil {
+	if err := BindJSON(c, &domain); err != nil {
 		validationErr := ErrValidationDomains.Wrap("update", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
