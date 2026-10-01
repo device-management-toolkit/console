@@ -53,6 +53,7 @@ func TestNewConfig_Defaults(t *testing.T) {
 		"https://localhost:4200",
 		"https://127.0.0.1:8181",
 		"https://127.0.0.1:4200",
+		"http://localhost:5173",
 	}, cfg.AllowedOrigins)
 	assert.Equal(t, []string{
 		"Origin",

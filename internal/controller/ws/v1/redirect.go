@@ -20,16 +20,23 @@ import (
 var ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
 
 type RedirectRoutes struct {
-	d devices.Feature
-	l logger.Interface
-	u Upgrader
+	d             devices.Feature
+	l             logger.Interface
+	u             Upgrader
+	authDisabled  bool
+	jwtKey        string
+	wsCompression bool
 }
 
 func RegisterRoutes(r *gin.Engine, l logger.Interface, t devices.Feature, u Upgrader) {
+	cfg := config.ConsoleConfig
 	rr := &RedirectRoutes{
-		t,
-		l,
-		u,
+		d:             t,
+		l:             l,
+		u:             u,
+		authDisabled:  cfg.Disabled,
+		jwtKey:        cfg.JWTKey,
+		wsCompression: cfg.WSCompression,
 	}
 	r.GET("/relay/webrelay.ashx", rr.websocketHandler)
 }
@@ -72,7 +79,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 	}
 
 	// Optimize websocket data path for streaming; respect config compression toggle
-	if config.ConsoleConfig.WSCompression {
+	if r.wsCompression {
 		conn.EnableWriteCompression(true)
 		_ = conn.SetCompressionLevel(flate.BestSpeed)
 	} else {
@@ -105,7 +112,7 @@ func (r *RedirectRoutes) websocketHandler(c *gin.Context) {
 
 // validateRedirectionToken checks the JWT and that its deviceId matches the host.
 func (r *RedirectRoutes) validateRedirectionToken(c *gin.Context, tokenString string) bool {
-	if config.ConsoleConfig.Disabled {
+	if r.authDisabled {
 		return true
 	}
 
@@ -122,7 +129,7 @@ func (r *RedirectRoutes) validateRedirectionToken(c *gin.Context, tokenString st
 			return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
 		}
 
-		return []byte(config.ConsoleConfig.JWTKey), nil
+		return []byte(r.jwtKey), nil
 	})
 
 	if err != nil || !token.Valid {

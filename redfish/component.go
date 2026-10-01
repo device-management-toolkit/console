@@ -137,6 +137,11 @@ func isPublicEndpoint(path, method string) bool {
 	return (path == redfishSessionsPath || path == redfishSessionsMembers) && method == "POST"
 }
 
+// HandleUnknownRoute writes a Redfish-compliant 404 response for unmatched Redfish paths.
+func HandleUnknownRoute(c *gin.Context) {
+	v1.NotFoundError(c, "Resource", c.Request.URL.Path)
+}
+
 // createAuthMiddleware creates the authentication middleware for protected endpoints.
 // Supports both X-Auth-Token (Redfish session) and Basic Auth.
 func createAuthMiddleware() redfishgenerated.MiddlewareFunc {
@@ -175,6 +180,10 @@ func createAuthMiddleware() redfishgenerated.MiddlewareFunc {
 
 // RegisterRoutes registers Redfish API routes.
 func RegisterRoutes(router *gin.Engine, _ logger.Interface) error {
+	if componentConfig == nil || server == nil {
+		return nil
+	}
+
 	if !componentConfig.Enabled {
 		server.Logger.Info("Redfish component is disabled, skipping route registration")
 

@@ -18,11 +18,13 @@ import (
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/internal/usecase/packaging"
+	"github.com/device-management-toolkit/console/pkg/db"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	redfish "github.com/device-management-toolkit/console/redfish"
 )
 
 // NewRouter -.
-func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
+func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config, database *db.SQL) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
@@ -33,6 +35,11 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	p.MetricsPath = ""
 	// Use middleware function directly without calling Use() which would register conflicting routes
 	handler.Use(p.HandlerFunc())
+
+	// Initialize redfish directly
+	if err := redfish.Initialize(handler, l, database, &t, cfg); err != nil {
+		l.Fatal("Failed to initialize redfish: " + err.Error())
+	}
 
 	// Initialize Fuego adapter
 	fuegoAdapter := openapi.NewFuegoAdapter(t, l)
@@ -94,6 +101,11 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	}
 
 	v1.NewPackageRoutes(protected, packaging.New(cfg, l), l)
+
+	// Register redfish routes directly
+	if err := redfish.RegisterRoutes(handler, l); err != nil {
+		l.Fatal("Failed to register redfish routes: " + err.Error())
+	}
 }
 
 func registerCustomValidators(l logger.Interface) {

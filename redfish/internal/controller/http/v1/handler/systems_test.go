@@ -1095,7 +1095,9 @@ func createTestSystemEntityDataWithProcessor(systemID, name, manufacturer, model
 	}
 
 	return system
-} // Helper functions for pointer creation
+}
+
+// Helper functions for pointer creation
 func intPtr(i int) *int {
 	return &i
 }

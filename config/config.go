@@ -220,6 +220,7 @@ func defaultConfig() *Config {
 				"https://localhost:4200",
 				"https://127.0.0.1:8181",
 				"https://127.0.0.1:4200",
+				"http://localhost:5173",
 			},
 			// Explicit rather than "*": Access-Control-Allow-Headers: * is taken
 			// literally by browsers once credentials are in play, and never

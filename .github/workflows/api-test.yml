@@ -3,9 +3,9 @@ name: Console API Tests
 
 on:
   push:
-    branches: [ main ]
+    branches: [ main, redfish ]
   pull_request:
-    branches: [ main ]
+    branches: [ main, redfish ]
   workflow_dispatch:
 permissions:
   contents: read

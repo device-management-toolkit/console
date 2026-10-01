@@ -7,6 +7,8 @@ import (
 	"testing"
 	"time"
 
+	"github.com/golang-jwt/jwt/v5"
+
 	"github.com/device-management-toolkit/console/config"
 	devicev1 "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	devusecase "github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -1092,9 +1094,29 @@ func TestGenerateRedirectionToken_UsesDeviceRepo(t *testing.T) {
 
 		t.Run(tt.name, func(t *testing.T) {
 			uc := &ComputerSystemUseCase{DeviceRepo: tt.deviceRepo}
-			resp, err := uc.GenerateRedirectionToken(context.Background(), "system-1")
+			resp, err := uc.GenerateRedirectionToken(context.Background(), "System-1")
 			assertGenerateTokenResult(t, resp, err, tt.wantErr)
+
+			if tt.wantErr == nil {
+				assertTokenDeviceID(t, *resp.RedirectionToken, "system-1")
+			}
 		})
+	}
+}
+
+func assertTokenDeviceID(t *testing.T, tokenString, wantDeviceID string) {
+	t.Helper()
+
+	claims := jwt.MapClaims{}
+
+	if _, err := jwt.ParseWithClaims(tokenString, claims, func(*jwt.Token) (interface{}, error) {
+		return []byte(config.ConsoleConfig.JWTKey), nil
+	}); err != nil {
+		t.Fatalf("parse redirection token: %v", err)
+	}
+
+	if got, _ := claims["deviceId"].(string); got != wantDeviceID {
+		t.Fatalf("deviceId claim = %q, want %q", got, wantDeviceID)
 	}
 }
 
@@ -1115,6 +1137,30 @@ func assertGenerateTokenResult(t *testing.T, resp *generated.ComputerSystemOemIn
 
 	if err == nil || err.Error() != wantErr.Error() {
 		t.Fatalf("GenerateRedirectionToken() error = %v, want %v", err, wantErr)
+	}
+}
+
+//nolint:paralleltest // Mutates global config.ConsoleConfig and must run serially.
+func TestGenerateRedirectionToken_AuthDisabledReturnsPlaceholder(t *testing.T) {
+	generateRedirectionTokenConfigMu.Lock()
+	original := config.ConsoleConfig
+	config.ConsoleConfig = &config.Config{}
+	config.ConsoleConfig.Disabled = true
+
+	t.Cleanup(func() {
+		config.ConsoleConfig = original
+		generateRedirectionTokenConfigMu.Unlock()
+	})
+
+	uc := &ComputerSystemUseCase{DeviceRepo: testDeviceLookupRepo{}}
+
+	resp, err := uc.GenerateRedirectionToken(context.Background(), "system-1")
+	if err != nil {
+		t.Fatalf("GenerateRedirectionToken() unexpected error: %v", err)
+	}
+
+	if resp.RedirectionToken == nil || *resp.RedirectionToken != authDisabledRedirectionToken {
+		t.Fatalf("GenerateRedirectionToken() token = %v, want %q", resp.RedirectionToken, authDisabledRedirectionToken)
 	}
 }
 

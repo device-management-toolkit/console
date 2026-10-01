@@ -28,6 +28,8 @@ http:
     - "https://localhost:4200"
     - "http://127.0.0.1:4200"
     - "https://127.0.0.1:4200"
+    # `vite` dev UI
+    - "http://localhost:5173"
   allowed_headers:
     - "Origin"
     - "Accept"
@@ -40,7 +42,7 @@ http:
   allow_credentials: true
 logger:
   log_level: info
-secrets: 
+secrets:
   address: http://localhost:8200
   token: ""
 postgres:
@@ -58,13 +60,13 @@ ea:
 auth:
   disabled: false
   adminUsername: standalone
-  adminPassword: 
+  adminPassword:
   jwtKey: ""
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
   clientId: ""
   issuer: ""
-  ui: 
+  ui:
     clientId: ""
     issuer: ""
     scope: ""

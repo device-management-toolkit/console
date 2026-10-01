@@ -1,7 +1,7 @@
 #!/bin/bash
 # run_tests.sh - Run Redfish API tests with mock server
 
-set -e
+set -eo pipefail
 
 echo "=== Redfish API Test Runner ==="
 echo ""
@@ -16,52 +16,115 @@ cd "${REPO_ROOT}"
 
 # Use port from environment or default to 8181
 PORT=${HTTP_PORT:-8181}
+TEST_CONFIG_DIR=$(mktemp -d)
+TEST_CONFIG="${TEST_CONFIG_DIR}/config.yml"
+if [ -n "${NEWMAN_REPORT:-}" ]; then
+    REPORT_FILE=$NEWMAN_REPORT
+else
+    REPORT_DIR=$(mktemp -d "${TMPDIR:-/tmp}/redfish-results.XXXXXX")
+    REPORT_FILE="${REPORT_DIR}/newman-report.json"
+fi
+SERVER_PID=""
 
-# Create test config file if it doesn't exist or if we're in CI
-if [ ! -f config/config.yml ] || [ -n "$CI" ]; then
-    echo "Creating test configuration..."
-    mkdir -p config
-    # Backup existing config if it exists
-    [ -f config/config.yml ] && cp config/config.yml config/config.yml.bak 2>/dev/null || true
+cleanup() {
+    if [ -n "$SERVER_PID" ]; then
+        kill "$SERVER_PID" 2>/dev/null || true
+        wait "$SERVER_PID" 2>/dev/null || true
+    fi
+    rm -f "$TEST_CONFIG"
+    rmdir "$TEST_CONFIG_DIR" 2>/dev/null || true
+}
+trap cleanup EXIT
 
-    cat > config/config.yml << 'EOF'
+# Always use the isolated test config instead of a developer's local config.
+echo "Creating test configuration..."
+cat > "$TEST_CONFIG" << 'EOF'
 app:
-  name: "console"
-  repo: "device-management-toolkit/console"
-  version: "test"
-  encryption_key: "test-encryption-key-for-ci-testing-only"
+    name: "console"
+    repo: "device-management-toolkit/console"
+    version: "test"
+    common_name: "localhost"
+    encryption_key: "test-encryption-key-for-ci-testing-only"
+    allow_insecure_ciphers: false
+    disable_cira: true
 
 http:
-  host: "localhost"
-  port: "8181"
-  allowed_origins: ["*"]
-  allowed_headers: ["*"]
-  ws_compression: false
-  tls:
-    enabled: false
+    host: "localhost"
+    port: "8181"
+    allowed_origins:
+        - "http://localhost:8181"
+        - "http://localhost:4200"
+        - "http://127.0.0.1:8181"
+        - "http://127.0.0.1:4200"
+        - "https://localhost:8181"
+        - "https://localhost:4200"
+        - "https://127.0.0.1:8181"
+        - "https://127.0.0.1:4200"
+    allowed_headers:
+        - "Origin"
+        - "Accept"
+        - "Content-Type"
+        - "Content-Length"
+        - "Authorization"
+        - "If-Match"
+    allow_credentials: true
+    ws_compression: false
+    tls:
+        enabled: false
+        certFile: ""
+        keyFile: ""
 
 logger:
-  log_level: "info"
+    log_level: "info"
+
+secrets:
+    address: "http://localhost:8200"
+    token: ""
+    path: "secret/data/console"
 
 postgres:
-  pool_max: 10
-  url: ""
+    provider: "sqlite"
+    pool_max: 2
+    url: ""
+
+ea:
+    url: "http://localhost:8000"
+    username: ""
+    password: ""
 
 auth:
-  disabled: false
-  adminUsername: "standalone"
-  adminPassword: "G@ppm0ym"
-  jwtKey: "test-jwt-key-for-testing"
-  jwtExpiration: 1h
-  redirectionJWTExpiration: 5m
-EOF
-    echo "✓ Test configuration created"
-fi
+    disabled: false
+    adminUsername: "standalone"
+    adminPassword: "G@ppm0ym"
+    jwtKey: "test-jwt-key-for-testing"
+    jwtExpiration: 1h
+    redirectionJWTExpiration: 5m
+    clientId: ""
+    issuer: ""
+    tlsSkipVerify: false
+    cookieEnabled: true
+    cookieName: "console_session"
+    cookieSecure: true
+    cookieSameSite: "strict"
+    ui:
+        clientId: ""
+        issuer: ""
+        scope: ""
+        redirectUri: ""
+        responseType: "code"
+        requireHttps: false
+        strictDiscoveryDocumentValidation: true
 
-# Kill any existing servers
-pkill -9 -f "redfish_test_app" 2>/dev/null || true
-pkill -9 -f "go run.*cmd/app" 2>/dev/null || true
-sleep 2
+ui:
+    externalUrl: ""
+
+package:
+    rpc_repo: "device-management-toolkit/rpc-go"
+    local_dir: ""
+    disable_fetch: false
+    max_token_ttl: 24h
+EOF
+echo "✓ Test configuration created"
 
 # Start server with mock repository
 echo "Starting server with mock WSMAN repository on port ${PORT}..."
@@ -77,7 +140,7 @@ fi
 echo "✓ Build successful"
 
 # Start the built binary with config flag
-REDFISH_USE_MOCK=true HTTP_TLS_ENABLED=false HTTP_PORT=${PORT} GIN_MODE=debug APP_ENCRYPTION_KEY="test-encryption-key-for-ci-testing-only" /tmp/redfish_test_app -config ./config/config.yml > /tmp/redfish_test_server.log 2>&1 &
+REDFISH_USE_MOCK=true HTTP_TLS_ENABLED=false HTTP_PORT=${PORT} GIN_MODE=debug AUTH_ADMIN_USERNAME="standalone" AUTH_ADMIN_PASSWORD="G@ppm0ym" APP_ENCRYPTION_KEY="aB3dE5gH7jK9mN1pQ2rS4tU6wX8zC0vB" /tmp/redfish_test_app -config "$TEST_CONFIG" > /tmp/redfish_test_server.log 2>&1 &
 SERVER_PID=$!
 echo "Server PID: ${SERVER_PID}"
 
@@ -97,7 +160,7 @@ for i in {1..10}; do
         exit 1
     fi
 
-    if curl -s http://localhost:${PORT}/redfish/v1/ > /dev/null 2>&1; then
+    if curl -fsS http://localhost:"${PORT}"/redfish/v1/ > /dev/null 2>&1; then
         echo "✓ Server started successfully on port ${PORT}"
         break
     fi
@@ -118,17 +181,23 @@ echo ""
 # Bypass proxy for localhost
 export no_proxy=localhost,127.0.0.1,::1
 export NO_PROXY=localhost,127.0.0.1,::1
-newman run "${SCRIPT_DIR}/postman/redfish-collection.json" \
+mkdir -p "$(dirname "$REPORT_FILE")"
+if newman run "${SCRIPT_DIR}/postman/redfish-collection.json" \
     --environment "${SCRIPT_DIR}/postman/test-environment.json" \
+    --env-var "base_url=http://localhost:${PORT}" \
     --reporters cli,json \
-    --reporter-json-export "${SCRIPT_DIR}/postman/results/newman-report.json"
-
-TEST_RESULT=$?
+    --reporter-json-export "$REPORT_FILE"; then
+    TEST_RESULT=0
+else
+    TEST_RESULT=$?
+fi
+echo "Newman report: ${REPORT_FILE}"
 
 # Cleanup
 echo ""
 echo "Stopping server..."
-kill $SERVER_PID 2>/dev/null || true
+cleanup
+SERVER_PID=""
 
 # Show server logs only on failure
 if [ $TEST_RESULT -ne 0 ]; then

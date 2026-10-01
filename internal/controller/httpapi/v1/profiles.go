@@ -30,6 +30,8 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 			_ = v.RegisterValidation("genpasswordwone", dto.ValidateAMTPassOrGenRan)
 			_ = v.RegisterValidation("ciraortls", dto.ValidateCIRAOrTLS)
 			_ = v.RegisterValidation("wifidhcp", dto.ValidateWiFiDHCP)
+			_ = v.RegisterValidation("profilename", dto.ValidateProfileName)
+			_ = v.RegisterValidation("amtpasswordcomplexity", dto.ValidateAMTPasswordComplexity)
 		}
 	}
 

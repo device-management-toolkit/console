@@ -9,7 +9,7 @@ name: Semantic-Release CI
 
 on:
   push:
-    branches: [main, beta]
+    branches: [main, beta, redfish]
 
 permissions:
   contents: read
@@ -39,7 +39,8 @@ jobs:
           GITHUB_TOKEN: ${{ secrets.ROSIE_TOKEN }}
         run: |
           # unset GITHUB_ACTIONS
-          npx semantic-release --dry-run --no-ci --branches main --branches "$GITHUB_REF"
+          # Branches come from .releaserc.json so prerelease channels get their suffixed version.
+          npx semantic-release --dry-run --no-ci
           # No .VERSION means no release-triggering commits, not a failure.
           if [ -f .VERSION ]; then
             version=$(cat .VERSION)
@@ -168,7 +169,7 @@ jobs:
         with:
           persist-credentials: false
           fetch-depth: 2
-  
+
       # Restore unified build cache
       - shell: bash
         run: |
@@ -181,7 +182,7 @@ jobs:
             dist/darwin
             dist/windows
           key: all-platforms-${{ env.sha_short }}
-      
+
       # Generate licenses.zip
       - name: Use Node.js 22.x
         uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
@@ -229,7 +230,7 @@ jobs:
 
       - name: Create licenses.zip
         run: zip -r licenses.zip licenses
-      
+
       - name: Docker Login
         uses: docker/login-action@dbcb813823bdd20940b903addbd779551569679f # v4.6.0
         with:
