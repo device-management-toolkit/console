@@ -23,6 +23,18 @@ type DeviceRepo struct {
 var (
 	ErrDeviceDatabase  = repoerrors.DatabaseError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
 	ErrDeviceNotUnique = repoerrors.NotUniqueError{Console: consoleerrors.CreateConsoleError("DeviceRepo")}
+	errDuplicateDevice = errors.New("duplicate device found for guid and tenant")
+)
+
+const (
+	// activatedWhere is retained as the internal/API predicate name for managed
+	// devices: it matches everything not currently flagged as still-in-discovery
+	// pre-provisioning, including legacy rows with no discovery or control-mode
+	// information.
+	activatedWhere = "(discovered IS NOT TRUE OR (currentmode IS NOT NULL AND currentmode <> '' AND LOWER(currentmode) <> 'not activated'))"
+	// discoveredWhere requires the persisted discovery flag and a pre-provisioning
+	// control mode. A device that has since entered ACM/CCM remains managed.
+	discoveredWhere = "(discovered = ? AND (currentmode IS NULL OR currentmode = '' OR LOWER(currentmode) = 'not activated'))"
 )
 
 // New -.
@@ -126,6 +138,126 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	return devices, nil
 }
 
+// GetActivated returns devices that have been provisioned into an AMT control mode.
+func (r *DeviceRepo) GetActivated(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	return r.getFiltered("GetActivated", activatedWhere, nil, top, skip, tenantID)
+}
+
+// GetDiscovered returns devices that have not yet been activated (currentmode empty/NULL).
+func (r *DeviceRepo) GetDiscovered(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	return r.getFiltered("GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
+}
+
+// GetDeviceStateCounts returns the number of activated and discovered devices for a tenant.
+func (r *DeviceRepo) GetDeviceStateCounts(_ context.Context, tenantID string) (activated, discovered int, err error) {
+	activated, err = r.countFiltered("GetDeviceStateCounts", activatedWhere, nil, tenantID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	discovered, err = r.countFiltered("GetDeviceStateCounts", discoveredWhere, []any{true}, tenantID)
+	if err != nil {
+		return 0, 0, err
+	}
+
+	return activated, discovered, nil
+}
+
+// getFiltered runs a paginated device query constrained by an extra WHERE clause.
+func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, skip int, tenantID string) ([]entity.Device, error) {
+	const defaultTop = 100
+
+	limitedTop := uint64(defaultTop)
+	if top > 0 {
+		limitedTop = uint64(top)
+	}
+
+	limitedSkip := uint64(0)
+	if skip > 0 {
+		limitedSkip = uint64(skip)
+	}
+
+	sqlQuery, args, err := r.Builder.
+		Select(
+			"guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"usetls",
+			"allowselfsigned",
+			"certhash",
+		).
+		From("devices").
+		Where("tenantid = ?", tenantID).
+		Where(whereClause, whereArgs...).
+		OrderBy("guid").
+		Limit(limitedTop).
+		Offset(limitedSkip).
+		ToSql()
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "r.Builder: ", err)
+	}
+
+	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, args...)
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "r.Pool.Query", err)
+	}
+	defer rows.Close()
+
+	devices := make([]entity.Device, 0)
+
+	for rows.Next() {
+		d := entity.Device{}
+
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+		if err != nil {
+			return nil, ErrDeviceDatabase.Wrap(op, "rows.Scan: ", err)
+		}
+
+		devices = append(devices, d)
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap(op, "rows.Err", err)
+	}
+
+	return devices, nil
+}
+
+// countFiltered counts devices constrained by an extra WHERE clause.
+func (r *DeviceRepo) countFiltered(op, whereClause string, whereArgs []any, tenantID string) (int, error) {
+	sqlQuery, args, err := r.Builder.
+		Select("COUNT(*)").
+		From("devices").
+		Where("tenantid = ?", tenantID).
+		Where(whereClause, whereArgs...).
+		ToSql()
+	if err != nil {
+		return 0, ErrDeviceDatabase.Wrap(op, "r.Builder: ", err)
+	}
+
+	var count int
+
+	err = r.Pool.QueryRowContext(context.Background(), sqlQuery, args...).Scan(&count)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return 0, nil
+		}
+
+		return 0, ErrDeviceDatabase.Wrap(op, "r.Pool.QueryRow", err)
+	}
+
+	return count, nil
+}
+
 // GetByID -.
 func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.Device, error) {
 	sqlQuery, _, err := r.Builder.
@@ -146,7 +278,8 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 			"mebxpassword",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+		).
 		From("devices").
 		Where("guid = ? and tenantid = ?").
 		ToSql()
@@ -165,24 +298,87 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", rows.Err())
 	}
 
-	devices := make([]*entity.Device, 0)
+	if !rows.Next() {
+		if err := rows.Err(); err != nil {
+			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
+		}
 
-	for rows.Next() {
+		return nil, nil
+	}
+
+	d := &entity.Device{}
+
+	err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
+	if err != nil {
+		return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
+	}
+
+	if rows.Next() {
+		return nil, ErrDeviceNotUnique.Wrap(errDuplicateDevice.Error())
+	}
+
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
+	}
+
+	return d, nil
+}
+
+func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
+	sqlQuery, _, err := r.Builder.
+		Select(
+			"guid",
+			"hostname",
+			"tags",
+			"mpsinstance",
+			"connectionstatus",
+			"mpsusername",
+			"tenantid",
+			"friendlyname",
+			"dnssuffix",
+			"deviceinfo",
+			"username",
+			"password",
+			"mpspassword",
+			"mebxpassword",
+			"usetls",
+			"allowselfsigned",
+			"certhash",
+		).
+		From("devices").
+		Where("guid = ?").
+		ToSql()
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Builder: ", err)
+	}
+
+	rows, err := r.Pool.QueryContext(ctx, sqlQuery, guid)
+	if err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "r.Pool.Query", err)
+	}
+
+	defer rows.Close()
+
+	if rows.Err() != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Err", rows.Err())
+	}
+
+	if rows.Next() {
 		d := &entity.Device{}
 
 		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash)
 		if err != nil {
-			return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
+			return d, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Scan: ", err)
 		}
 
-		devices = append(devices, d)
+		return d, nil
 	}
 
-	if len(devices) == 0 {
-		return nil, nil
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Err", err)
 	}
 
-	return devices[0], nil
+	return nil, nil
 }
 
 func (r *DeviceRepo) GetDistinctTags(_ context.Context, tenantID string) ([]string, error) {
@@ -240,15 +436,13 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 			"deviceinfo").
 		From("devices")
 
-	var params []interface{}
-
 	if method == "AND" {
 		// All tags must be present (simulating an 'AND' operation)
 		for _, tag := range tags {
 			builder = builder.Where("(',' || tags || ',') LIKE ? AND tenantId = ?", "%,"+tag+",%", tenantID)
-			params = append(params, "%,"+tag+",%", tenantID)
 		}
 	} else {
+		var params []interface{}
 		// Any tag is present (simulating an 'OR' operation)
 		var conditions []string
 		for _, tag := range tags {
@@ -347,6 +541,8 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		Set("useTLS", d.UseTLS).
 		Set("allowSelfSigned", d.AllowSelfSigned).
 		Set("certhash", d.CertHash).
+		Set("currentmode", d.CurrentMode).
+		Set("discovered", d.Discovered).
 		Where("guid = ? AND tenantid = ?", d.GUID, d.TenantID).
 		ToSql()
 	if err != nil {
@@ -419,8 +615,8 @@ func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
 func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error) {
 	insertBuilder := r.Builder.
 		Insert("devices").
-		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash").
-		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash)
+		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash", "currentmode", "discovered").
+		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash, d.CurrentMode, d.Discovered)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
@@ -467,7 +663,8 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 			"password",
 			"usetls",
 			"allowselfsigned",
-			"certhash").
+			"certhash",
+		).
 		From("devices").
 		Where(columnName+" = ? AND tenantid = ?", queryValue, tenantID).
 		ToSql()

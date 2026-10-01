@@ -319,7 +319,7 @@ func (r *WsmanComputerSystemRepo) getCIMProperties(ctx context.Context, systemID
 	results := make(map[string]interface{})
 
 	// Get hardware info only once to avoid multiple WSMAN calls
-	hwInfo, err := r.usecase.GetHardwareInfo(ctx, systemID)
+	hwInfo, err := r.usecase.GetHardwareInfo(ctx, systemID, "")
 	if err != nil {
 		if !isContextTimeoutOrCancelError(err) {
 			r.log.Error("Failed to get hardware info: systemID=%s error=%v", systemID, err)
@@ -934,7 +934,7 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 		powerCtx, powerCancel := context.WithTimeout(ctx, wsmanCallTimeout)
 		defer powerCancel()
 
-		powerState, err := r.usecase.GetPowerState(powerCtx, systemID)
+		powerState, err := r.usecase.GetPowerState(powerCtx, systemID, "")
 		if err != nil {
 			powerErr = err
 
@@ -1001,7 +1001,7 @@ func (r *WsmanComputerSystemRepo) GetByID(ctx context.Context, systemID string) 
 		featCtx, featCancel := context.WithTimeout(ctx, enrichmentTimeout)
 		defer featCancel()
 
-		_, featuresV2, featuresErr = r.usecase.GetFeatures(featCtx, systemID)
+		_, featuresV2, featuresErr = r.usecase.GetFeatures(featCtx, systemID, "")
 	}()
 
 	go func() {
@@ -1085,7 +1085,8 @@ func mapCachedFeaturesV1(raw string) (dtov2.Features, bool) {
 		HTTPSBootSupported:    featuresV1.HTTPSBootSupported,
 		WinREBootSupported:    featuresV1.WinREBootSupported,
 		LocalPBABootSupported: featuresV1.LocalPBABootSupported,
-		RemoteErase:           featuresV1.RemoteErase,
+		RPE:                   featuresV1.RPE,
+		RPESupported:          featuresV1.RPESupported,
 	}
 
 	return featuresV2, true
@@ -1384,7 +1385,7 @@ func determineSOLStatus(enableSOL, solAvailable bool, userConsent string, optInS
 }
 
 func (r *WsmanComputerSystemRepo) getAMTControlMode(ctx context.Context, systemID string) string {
-	version, _, err := r.usecase.GetVersion(ctx, systemID)
+	version, _, err := r.usecase.GetVersion(ctx, systemID, "")
 	if err != nil {
 		if ctx.Err() != nil {
 			return ""
@@ -1415,7 +1416,7 @@ func mapProvisioningModeToControlMode(mode setupandconfiguration.ProvisioningMod
 
 // UpdateGraphicalConsoleServiceEnabled updates KVM enabled state through the existing devices feature flow.
 func (r *WsmanComputerSystemRepo) UpdateGraphicalConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error {
-	features, _, err := r.usecase.GetFeatures(ctx, systemID)
+	features, _, err := r.usecase.GetFeatures(ctx, systemID, "")
 	if err != nil {
 		if r.isDeviceNotFoundError(err) {
 			return ErrSystemNotFound
@@ -1426,7 +1427,7 @@ func (r *WsmanComputerSystemRepo) UpdateGraphicalConsoleServiceEnabled(ctx conte
 
 	features.EnableKVM = enabled
 
-	_, _, err = r.usecase.SetFeatures(ctx, systemID, features)
+	_, _, err = r.usecase.SetFeatures(ctx, systemID, "", features)
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1436,7 +1437,7 @@ func (r *WsmanComputerSystemRepo) UpdateGraphicalConsoleServiceEnabled(ctx conte
 
 // UpdateSerialConsoleServiceEnabled updates SOL enabled state through the existing devices feature flow.
 func (r *WsmanComputerSystemRepo) UpdateSerialConsoleServiceEnabled(ctx context.Context, systemID string, enabled bool) error {
-	features, _, err := r.usecase.GetFeatures(ctx, systemID)
+	features, _, err := r.usecase.GetFeatures(ctx, systemID, "")
 	if err != nil {
 		if r.isDeviceNotFoundError(err) {
 			return ErrSystemNotFound
@@ -1447,7 +1448,7 @@ func (r *WsmanComputerSystemRepo) UpdateSerialConsoleServiceEnabled(ctx context.
 
 	features.EnableSOL = enabled
 
-	_, _, err = r.usecase.SetFeatures(ctx, systemID, features)
+	_, _, err = r.usecase.SetFeatures(ctx, systemID, "", features)
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1462,7 +1463,7 @@ func (r *WsmanComputerSystemRepo) RequestKVMConsent(ctx context.Context, systemI
 		return ErrKVMConsentNotRequiredInACM
 	}
 
-	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)
+	resp, err := r.usecase.GetUserConsentCode(ctx, systemID, "")
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1484,7 +1485,7 @@ func (r *WsmanComputerSystemRepo) SubmitKVMConsentCode(ctx context.Context, syst
 		return ErrInvalidConsentCode
 	}
 
-	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID)
+	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID, "")
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1516,7 +1517,7 @@ func isSixDigitNumeric(code string) bool {
 
 // CancelKVMConsent cancels a pending user consent request.
 func (r *WsmanComputerSystemRepo) CancelKVMConsent(ctx context.Context, systemID string) error {
-	resp, err := r.usecase.CancelUserConsent(ctx, systemID)
+	resp, err := r.usecase.CancelUserConsent(ctx, systemID, "")
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1555,7 +1556,7 @@ func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID
 		powerCtx, powerCancel := context.WithTimeout(ctx, powerStateCheckTimeout)
 		defer powerCancel()
 
-		powerState, err := r.usecase.GetPowerState(powerCtx, systemID)
+		powerState, err := r.usecase.GetPowerState(powerCtx, systemID, "")
 		if err == nil {
 			currentState := r.mapCIMPowerStateToRedfish(powerState.PowerState)
 			requestState := r.normalizeToRequestState(resetType)
@@ -1574,7 +1575,7 @@ func (r *WsmanComputerSystemRepo) UpdatePowerState(ctx context.Context, systemID
 	}
 
 	// Send power action command
-	_, err = r.usecase.SendPowerAction(ctx, systemID, action)
+	_, err = r.usecase.SendPowerAction(ctx, systemID, "", action)
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1791,7 +1792,7 @@ func (r *WsmanComputerSystemRepo) RequestSolConsent(ctx context.Context, systemI
 		return ErrSOLConsentNotRequiredInACM
 	}
 
-	resp, err := r.usecase.GetUserConsentCode(ctx, systemID)
+	resp, err := r.usecase.GetUserConsentCode(ctx, systemID, "")
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1813,7 +1814,7 @@ func (r *WsmanComputerSystemRepo) SubmitSolConsentCode(ctx context.Context, syst
 		return ErrInvalidConsentCode
 	}
 
-	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID)
+	resp, err := r.usecase.SendConsentCode(ctx, dto.UserConsentCode{ConsentCode: consentCode}, systemID, "")
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}
@@ -1831,7 +1832,7 @@ func (r *WsmanComputerSystemRepo) SubmitSolConsentCode(ctx context.Context, syst
 
 // CancelSolConsent cancels a pending SOL user consent request.
 func (r *WsmanComputerSystemRepo) CancelSolConsent(ctx context.Context, systemID string) error {
-	resp, err := r.usecase.CancelUserConsent(ctx, systemID)
+	resp, err := r.usecase.CancelUserConsent(ctx, systemID, "")
 	if r.isDeviceNotFoundError(err) {
 		return ErrSystemNotFound
 	}

@@ -848,12 +848,14 @@ type spyRedirection struct {
 	listenErr error
 }
 
-func (s *spyRedirection) SetupWsmanClient(_ entity.Device, _, _ bool) (wsman.Messages, error) {
+func (s *spyRedirection) SetupWsmanClient(_ context.Context, _ entity.Device, _, _ bool) (wsman.Messages, error) {
 	return wsman.Messages{}, nil
 }
 
 func (s *spyRedirection) RedirectConnect(_ context.Context, _ *DeviceConnection) error { return nil }
-func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error   { return nil }
+
+func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error { return nil }
+
 func (s *spyRedirection) RedirectSend(_ context.Context, _ *DeviceConnection, _ []byte) error {
 	return nil
 }

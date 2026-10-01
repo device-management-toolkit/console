@@ -40,11 +40,10 @@ func (e *RealCommandExecutor) Execute(name string, arg ...string) error {
 	return exec.CommandContext(context.Background(), name, arg...).Start()
 }
 
-// windowsCmdFlag is the /c flag passed to cmd.exe to run a command and exit.
-// windowsCmdStart is the Windows shell verb that opens a URL in the default browser.
+// windowsURLHandler is the rundll32 entrypoint that asks Windows to open the
+// URL with the registered default handler, avoiding cmd.exe parsing.
 const (
-	windowsCmdFlag  = "/c"
-	windowsCmdStart = "start"
+	windowsURLHandler = "url.dll,FileProtocolHandler"
 )
 
 // Global command executor, can be replaced in tests.
@@ -60,8 +59,8 @@ func openBrowser(url, currentOS string) error {
 		cmd = "open"
 		args = []string{url}
 	case "windows":
-		cmd = "cmd"
-		args = []string{windowsCmdFlag, windowsCmdStart, url}
+		cmd = "rundll32"
+		args = []string{windowsURLHandler, url}
 	default:
 		cmd = "xdg-open"
 		args = []string{url}

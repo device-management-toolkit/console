@@ -35,6 +35,39 @@ type WiredNetworkInfo struct {
 	NetworkInfo
 	IEEE8021x IEEE8021x `json:"ieee8021x"`
 }
+
+// WiredNetworkConfigRequest represents a request to update a device's wired
+// (Intel® AMT Ethernet Port Settings 0) IPv4 configuration. Field-level format
+// validation is enforced by the binding tags; the DHCP vs static-IP combination
+// rules are enforced in the use case.
+type WiredNetworkConfigRequest struct {
+	DHCPEnabled    *bool                 `json:"dhcpEnabled" binding:"required"`          // Required: true selects DHCP mode (IP sync is forced on and explicit IP fields are ignored); false selects static IP mode, either manual or host-synced depending on ipSyncEnabled.
+	IPSyncEnabled  *bool                 `json:"ipSyncEnabled"`                           // Optional, static mode only: true synchronizes the IP settings with the host OS and explicit static IP fields must not be supplied; false (or unset, defaulting to the device's current value) selects manual static IP. Ignored when DHCP is enabled.
+	IPAddress      string                `json:"ipAddress" binding:"omitempty,ipv4"`      // Required for static IP mode (DHCP disabled, IP sync disabled).
+	SubnetMask     string                `json:"subnetMask" binding:"omitempty,ipv4"`     // Required for static IP mode.
+	DefaultGateway string                `json:"defaultGateway" binding:"omitempty,ipv4"` // Required for static IP mode.
+	PrimaryDNS     string                `json:"primaryDNS" binding:"omitempty,ipv4"`     // Required for static IP mode.
+	SecondaryDNS   string                `json:"secondaryDNS" binding:"omitempty,ipv4"`   // Optional for static IP mode.
+	IEEE8021x      *WiredIEEE8021xConfig `json:"ieee8021x,omitempty"`                     // Optional: wired 802.1X authentication. Not yet supported; supplying this object returns HTTP 501.
+}
+
+// WiredIEEE8021xConfig represents a request to configure wired 802.1X (port-based
+// network access control) authentication on the AMT Ethernet port.
+//
+// NOTE: This is a forward-looking API contract. Wired 802.1X configuration is not
+// yet implemented; supplying this object causes PatchWiredNetworkSettings to return
+// a "not supported" error (HTTP 501). The field shape is defined now so that the
+// future implementation is purely additive and does not break existing clients.
+type WiredIEEE8021xConfig struct {
+	ProfileName            string `json:"profileName"`            // Friendly name of the 802.1X profile.
+	AuthenticationProtocol int    `json:"authenticationProtocol"` // 0 = EAP-TLS, 2 = PEAPv0/EAP-MSCHAPv2.
+	Username               string `json:"username"`               // 802.1X identity/username.
+	Password               string `json:"password"`               // Required for PEAPv0/EAP-MSCHAPv2 (protocol 2).
+	PrivateKey             string `json:"privateKey"`             // PEM-encoded private key. Required for EAP-TLS (protocol 0).
+	ClientCert             string `json:"clientCert"`             // PEM-encoded client certificate. Required for EAP-TLS (protocol 0).
+	CACert                 string `json:"caCert"`                 // PEM-encoded CA certificate.
+}
+
 type WirelessNetworkInfo struct {
 	NetworkInfo
 	WiFiNetworks          []WiFiNetwork         `json:"wifiNetworks"`

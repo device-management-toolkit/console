@@ -830,7 +830,7 @@ func expectSetFeaturesSuccess(t *testing.T, repo *mocks.MockDeviceManagementRepo
 		ForceUEFIHTTPSBoot:    true,
 		ForceWinREBoot:        false,
 		ForceUEFILocalPBABoot: false,
-	}, nil)
+	}, nil).Times(2)
 	management.EXPECT().GetBootData().Return(boot.BootSettingDataResponse{
 		UEFIHTTPSBootEnabled:    true,
 		WinREBootEnabled:        false,
@@ -891,7 +891,7 @@ func expectSetFeaturesSuccessSOL(t *testing.T, repo *mocks.MockDeviceManagementR
 		ForceUEFIHTTPSBoot:    true,
 		ForceWinREBoot:        false,
 		ForceUEFILocalPBABoot: false,
-	}, nil)
+	}, nil).Times(2)
 	management.EXPECT().GetBootData().Return(boot.BootSettingDataResponse{
 		UEFIHTTPSBootEnabled:    true,
 		WinREBootEnabled:        false,

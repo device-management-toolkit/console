@@ -71,6 +71,7 @@ func TestUsecases(t *testing.T) {
 					domains.New(sqldb.NewDomainRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements, nil),
 					sqldb.NewCIRARepo(&db.SQL{}, mocks.NewMockLogger(nil)),
 					safeRequirements,
+					false,
 				),
 				IEEE8021xProfiles:  ieee8021xconfigs.New(sqldb.NewIEEE8021xRepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil)),
 				CIRAConfigs:        ciraconfigs.New(sqldb.NewCIRARepo(&db.SQL{}, mocks.NewMockLogger(nil)), mocks.NewMockLogger(nil), safeRequirements),

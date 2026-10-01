@@ -136,7 +136,8 @@ formatters:
         - Prefix(github.com/device-management-toolkit)
         - localmodule
     gofumpt:
-      extra-rules: true
+      extra:
+        group-params: true
   exclusions:
     generated: lax
     paths:

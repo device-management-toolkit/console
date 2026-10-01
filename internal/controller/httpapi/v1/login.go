@@ -18,6 +18,14 @@ import (
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
 
+const (
+	// sessionCookiePath covers both the UI (/) and the API (/api).
+	sessionCookiePath = "/"
+
+	authorizationHeader = "Authorization"
+	bearerPrefix        = "Bearer "
+)
+
 var (
 	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
 	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
@@ -75,36 +83,82 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
-	if creds.Username != lr.Config.AdminUsername || creds.Password != lr.Config.AdminPassword {
-		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials"})
+	if !lr.credentialsAccepted(creds) {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
+
+		return
+	}
+
+	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
+	if lr.Config.Disabled {
+		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
 
 		return
 	}
 
 	// Create JWT token
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
-		Issuer:    config.ConsoleConfig.Issuer,
+	claims := jwt.MapClaims{
+		"exp": expirationTime.Unix(),
+	}
+
+	// Conditional so the claim set still matches what callers saw before.
+	if config.ConsoleConfig.Issuer != "" {
+		claims["iss"] = config.ConsoleConfig.Issuer
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString([]byte(lr.Config.JWTKey))
 	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not create token"})
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: errTokenCreation})
 
 		return
 	}
 
-	c.JSON(http.StatusOK, gin.H{"token": tokenString})
+	setSessionCookies(c, tokenString, expirationTime)
+
+	// Token stays in the body for bearer clients, which ignore Set-Cookie.
+	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
 }
 
-// JWT Middleware
+// credentialsAccepted decides whether creds may be issued a token.
+//
+// With auth disabled there is nothing to authenticate against: the JWT
+// middleware is not mounted (see router.go) and validateRedirectionToken
+// short-circuits, so every route is already open. The UI still renders a login
+// form in that mode, so anything it posts is accepted.
+//
+// With auth enabled an empty configured password never matches, otherwise a
+// blank auth.adminPassword would let any caller in with an empty password.
+func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
+	if lr.Config.Disabled {
+		return true
+	}
+
+	if lr.Config.AdminPassword == "" {
+		return false
+	}
+
+	return creds.Username == lr.Config.AdminUsername && creds.Password == lr.Config.AdminPassword
+}
+
+// Logout expires the session cookies. Public, so an already-expired session can
+// still clear its own. Not revocation: the JWT stays valid until it expires.
+func (lr LoginRoute) Logout(c *gin.Context) {
+	clearSessionCookies(c)
+	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
+	c.Header("Pragma", "no-cache")
+	c.Header("Expires", "0")
+
+	c.JSON(http.StatusOK, gin.H{messageKey: "logged out"})
+}
+
+// JWTAuthMiddleware accepts either the Authorization header (REST clients) or
+// the session cookie (browser). The header wins, so REST clients are unchanged.
 func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		tokenString := c.GetHeader("Authorization")
-		tokenString = strings.Replace(tokenString, "Bearer ", "", 1)
+		tokenString := resolveToken(c)
 
 		if tokenString == "" {
 			c.JSON(http.StatusUnauthorized, gin.H{errorKey: "request does not contain an access token"})
@@ -113,34 +167,123 @@ func (lr LoginRoute) JWTAuthMiddleware() gin.HandlerFunc {
 			return
 		}
 
-		// if clientID is set, use the oidc verifier
-		if config.ConsoleConfig.ClientID != "" {
-			_, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
-			if err != nil {
-				c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid access token"})
-				c.Abort()
+		if !lr.verifyToken(c, tokenString) {
+			c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid access token"})
+			c.Abort()
 
-				return
-			}
-		} else {
-			claims := &jwt.MapClaims{}
-
-			token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
-				if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
-					return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
-				}
-
-				return []byte(lr.Config.JWTKey), nil
-			})
-
-			if err != nil || !token.Valid {
-				c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid access token"})
-				c.Abort()
-
-				return
-			}
+			return
 		}
 
 		c.Next()
 	}
+}
+
+// resolveToken prefers the Authorization header, falling back to the cookie.
+func resolveToken(c *gin.Context) string {
+	if header := c.GetHeader(authorizationHeader); header != "" {
+		return strings.Replace(header, bearerPrefix, "", 1)
+	}
+
+	if !cookieAuthEnabled() {
+		return ""
+	}
+
+	cookie, err := c.Cookie(sessionCookieName())
+	if err != nil {
+		return ""
+	}
+
+	return cookie
+}
+
+// verifyToken reports whether the token is valid.
+func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
+	// if clientID is set, use the oidc verifier
+	if config.ConsoleConfig.ClientID != "" {
+		_, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
+
+		return err == nil
+	}
+
+	claims := &jwt.MapClaims{}
+
+	token, err := jwt.ParseWithClaims(tokenString, claims, func(token *jwt.Token) (interface{}, error) {
+		if _, ok := token.Method.(*jwt.SigningMethodHMAC); !ok {
+			return nil, fmt.Errorf("%w: %v", ErrUnexpectedSigningMethod, token.Header["alg"])
+		}
+
+		return []byte(lr.Config.JWTKey), nil
+	})
+
+	return err == nil && token.Valid
+}
+
+// cookieAuthEnabled reports whether session cookies are in use. An unconfigured
+// process issues none.
+func cookieAuthEnabled() bool {
+	if config.ConsoleConfig == nil {
+		return false
+	}
+
+	return config.ConsoleConfig.CookieAuthEnabled()
+}
+
+func sessionCookieName() string {
+	if config.ConsoleConfig.CookieName != "" {
+		return config.ConsoleConfig.CookieName
+	}
+
+	return config.DefaultSessionCookieName
+}
+
+func cookieSameSite() http.SameSite {
+	switch strings.ToLower(config.ConsoleConfig.CookieSameSite) {
+	case "none":
+		return http.SameSiteNoneMode
+	case "lax":
+		return http.SameSiteLaxMode
+	default:
+		return http.SameSiteStrictMode
+	}
+}
+
+// setSessionCookies issues the JWT as an HttpOnly cookie, so the browser need
+// not persist it in Web Storage.
+func setSessionCookies(c *gin.Context, tokenString string, expiresAt time.Time) {
+	if !cookieAuthEnabled() {
+		return
+	}
+
+	writeSessionCookie(c, tokenString, int(time.Until(expiresAt).Seconds()))
+}
+
+// clearSessionCookies expires the cookie, even when cookie auth is now off, so
+// one issued earlier can still be cleaned up.
+func clearSessionCookies(c *gin.Context) {
+	writeSessionCookie(c, "", -1)
+}
+
+func writeSessionCookie(c *gin.Context, tokenString string, maxAge int) {
+	if config.ConsoleConfig == nil {
+		return
+	}
+
+	secure := config.ConsoleConfig.CookieSecure
+	sameSite := cookieSameSite()
+
+	// Browsers drop SameSite=None cookies that are not Secure.
+	if sameSite == http.SameSiteNoneMode {
+		secure = true
+	}
+
+	//nolint:gosec // G124: Secure and SameSite are set from config above; the linter cannot see through the variables
+	http.SetCookie(c.Writer, &http.Cookie{
+		Name:     sessionCookieName(),
+		Value:    tokenString,
+		Path:     sessionCookiePath,
+		MaxAge:   maxAge,
+		Secure:   secure,
+		HttpOnly: true,
+		SameSite: sameSite,
+	})
 }

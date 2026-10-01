@@ -5,6 +5,7 @@ import (
 	"context"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/golang-jwt/jwt/v5"
@@ -61,6 +62,9 @@ const (
 
 	// WSMAN boot settings call timeout for system GET responses.
 	bootSettingsTimeout = 2 * time.Second
+
+	// authDisabledRedirectionToken mirrors mainline's non-JWT placeholder; it never verifies once auth is enabled.
+	authDisabledRedirectionToken = "direct"
 )
 
 // Resource Health constants.
@@ -608,9 +612,21 @@ func (uc *ComputerSystemUseCase) GenerateRedirectionToken(ctx context.Context, s
 		return nil, ErrConsoleConfigNotInitialized
 	}
 
+	// Browsers reject an empty WebSocket subprotocol, so auth-off mode returns a placeholder.
+	if config.ConsoleConfig.Disabled {
+		tokenString := authDisabledRedirectionToken
+
+		return &generated.ComputerSystemOemIntelAmtGenerateRedirectionTokenResponse{
+			RedirectionToken: &tokenString,
+		}, nil
+	}
+
 	expirationTime := time.Now().Add(config.ConsoleConfig.RedirectionJWTExpiration)
-	claims := jwt.RegisteredClaims{
-		ExpiresAt: jwt.NewNumericDate(expirationTime),
+	// The relay rejects tokens whose deviceId does not match the requested host; GUIDs are matched lowercase.
+	claims := jwt.MapClaims{
+		"exp":      expirationTime.Unix(),
+		"iss":      config.ConsoleConfig.Issuer,
+		"deviceId": strings.ToLower(systemID),
 	}
 
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)

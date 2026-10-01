@@ -19,6 +19,39 @@ type DeviceRepo struct {
 	col *mongo.Collection
 }
 
+type deviceFilter struct {
+	GUID     string `bson:"guid"`
+	TenantID string `bson:"tenantid"`
+}
+
+type deviceUpdateFields struct {
+	GUID             string  `bson:"guid"`
+	Hostname         string  `bson:"hostname"`
+	Tags             string  `bson:"tags"`
+	MPSInstance      string  `bson:"mpsinstance"`
+	ConnectionStatus bool    `bson:"connectionstatus"`
+	MPSUsername      string  `bson:"mpsusername"`
+	TenantID         string  `bson:"tenantid"`
+	FriendlyName     string  `bson:"friendlyname"`
+	DNSSuffix        string  `bson:"dnssuffix"`
+	DeviceInfo       string  `bson:"deviceinfo"`
+	Username         string  `bson:"username"`
+	Password         string  `bson:"password"`
+	MPSPassword      *string `bson:"mpspassword"`
+	MEBXPassword     *string `bson:"mebxpassword"`
+	UseTLS           bool    `bson:"usetls"`
+	AllowSelfSigned  bool    `bson:"allowselfsigned"`
+	CertHash         *string `bson:"certhash"`
+	CurrentMode      string  `bson:"currentmode"`
+	Discovered       *bool   `bson:"discovered"`
+}
+
+type deviceUpdateDocument struct {
+	Set deviceUpdateFields `bson:"$set"`
+}
+
+const maxGUIDMatches = 2
+
 var _ devices.Repository = (*DeviceRepo)(nil)
 
 func NewDeviceRepo(db *mongo.Database) *DeviceRepo {
@@ -89,6 +122,32 @@ func (r *DeviceRepo) GetByID(ctx context.Context, guid, tenantID string) (*entit
 	}
 
 	return &d, nil
+}
+
+func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device, error) {
+	if !identifierRegex.MatchString(guid) {
+		return nil, nil
+	}
+
+	cur, err := r.col.Find(ctx, bson.M{fieldGUID: guid}, options.Find().SetLimit(maxGUIDMatches))
+	if err != nil {
+		return nil, errDeviceDatabase.Wrap("GetByGUID", "Find", err)
+	}
+	defer cur.Close(ctx)
+
+	deviceMatches := make([]entity.Device, 0, maxGUIDMatches)
+	if err := cur.All(ctx, &deviceMatches); err != nil {
+		return nil, errDeviceDatabase.Wrap("GetByGUID", "Cursor.All", err)
+	}
+
+	switch len(deviceMatches) {
+	case 0:
+		return nil, nil
+	case 1:
+		return &deviceMatches[0], nil
+	default:
+		return nil, errDeviceNotUnique.Wrap("multiple devices found for guid")
+	}
 }
 
 func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]string, error) {
@@ -198,26 +257,29 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 	}
 
 	// Explicit field list mirrors sqldb/device.go:Update so a new field must be wired in intentionally.
-	res, err := r.col.UpdateOne(ctx,
-		bson.M{fieldGUID: d.GUID, fieldTenantID: d.TenantID},
-		bson.M{opSet: bson.M{
-			fieldGUID:          d.GUID,
-			"hostname":         d.Hostname,
-			fieldTags:          d.Tags,
-			"mpsinstance":      d.MPSInstance,
-			"connectionstatus": d.ConnectionStatus,
-			"mpsusername":      d.MPSUsername,
-			fieldTenantID:      d.TenantID,
-			"friendlyname":     d.FriendlyName,
-			"dnssuffix":        d.DNSSuffix,
-			"deviceinfo":       d.DeviceInfo,
-			"username":         d.Username,
-			"password":         d.Password,
-			"mpspassword":      d.MPSPassword,
-			"mebxpassword":     d.MEBXPassword,
-			"usetls":           d.UseTLS,
-			"allowselfsigned":  d.AllowSelfSigned,
-			"certhash":         d.CertHash,
+	res, err := r.col.UpdateOne(
+		ctx,
+		deviceFilter{GUID: d.GUID, TenantID: d.TenantID},
+		deviceUpdateDocument{Set: deviceUpdateFields{
+			GUID:             d.GUID,
+			Hostname:         d.Hostname,
+			Tags:             d.Tags,
+			MPSInstance:      d.MPSInstance,
+			ConnectionStatus: d.ConnectionStatus,
+			MPSUsername:      d.MPSUsername,
+			TenantID:         d.TenantID,
+			FriendlyName:     d.FriendlyName,
+			DNSSuffix:        d.DNSSuffix,
+			DeviceInfo:       d.DeviceInfo,
+			Username:         d.Username,
+			Password:         d.Password,
+			MPSPassword:      d.MPSPassword,
+			MEBXPassword:     d.MEBXPassword,
+			UseTLS:           d.UseTLS,
+			AllowSelfSigned:  d.AllowSelfSigned,
+			CertHash:         d.CertHash,
+			CurrentMode:      d.CurrentMode,
+			Discovered:       d.Discovered,
 		}},
 	)
 	if err != nil {
@@ -254,7 +316,8 @@ func (r *DeviceRepo) UpdateLastSeen(ctx context.Context, guid string) error {
 		return errDeviceDatabase.Wrap("UpdateLastSeen", "validate", nil)
 	}
 
-	_, err := r.col.UpdateOne(ctx,
+	_, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldGUID: guid},
 		bson.M{opSet: bson.M{"lastseen": time.Now()}},
 	)
@@ -310,6 +373,102 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 	devs := make([]entity.Device, 0)
 	if err := cur.All(ctx, &devs); err != nil {
 		return nil, errDeviceDatabase.Wrap("GetByColumn", "Cursor.All", err)
+	}
+
+	return devs, nil
+}
+
+// activatedFilter is retained as the internal/API predicate name for managed
+// devices: it matches everything not currently flagged as still-in-discovery
+// pre-provisioning, including legacy rows with no discovery or control-mode
+// information.
+func activatedFilter(tenantID string) bson.M {
+	return bson.M{
+		fieldTenantID: tenantID,
+		opNor:         bson.A{discoveredStateFilter()},
+	}
+}
+
+// discoveredStateFilter identifies a device still in pre-provisioning state
+// after RPC discovery. A later ACM/CCM sync moves it to the managed result set.
+func discoveredStateFilter() bson.M {
+	return bson.M{
+		fieldDiscovered: true,
+		opOr: bson.A{
+			bson.M{fieldCurrentMode: bson.M{opExists: false}},
+			bson.M{fieldCurrentMode: bson.M{opIn: bson.A{"", nil}}},
+			bson.M{fieldCurrentMode: bson.Regex{Pattern: "^not activated$", Options: "i"}},
+		},
+	}
+}
+
+// discoveredFilter applies discoveredStateFilter within a tenant.
+func discoveredFilter(tenantID string) bson.M {
+	filter := discoveredStateFilter()
+	filter[fieldTenantID] = tenantID
+
+	return filter
+}
+
+// GetActivated returns devices that have been provisioned into an AMT control mode.
+func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return []entity.Device{}, nil
+	}
+
+	return r.findFiltered(ctx, "GetActivated", activatedFilter(tenantID), top, skip)
+}
+
+// GetDiscovered returns devices that have not yet been activated (currentmode empty/null/missing).
+func (r *DeviceRepo) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return []entity.Device{}, nil
+	}
+
+	return r.findFiltered(ctx, "GetDiscovered", discoveredFilter(tenantID), top, skip)
+}
+
+// GetDeviceStateCounts returns the number of activated and discovered devices for a tenant.
+func (r *DeviceRepo) GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error) {
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return 0, 0, nil
+	}
+
+	activatedCount, err := r.col.CountDocuments(ctx, activatedFilter(tenantID))
+	if err != nil {
+		return 0, 0, errDeviceDatabase.Wrap("GetDeviceStateCounts", "CountDocuments", err)
+	}
+
+	discoveredCount, err := r.col.CountDocuments(ctx, discoveredFilter(tenantID))
+	if err != nil {
+		return 0, 0, errDeviceDatabase.Wrap("GetDeviceStateCounts", "CountDocuments", err)
+	}
+
+	return int(activatedCount), int(discoveredCount), nil
+}
+
+// findFiltered runs a paginated device query for an arbitrary filter (sorted by guid).
+func (r *DeviceRepo) findFiltered(ctx context.Context, op string, filter bson.M, top, skip int) ([]entity.Device, error) {
+	limit := int64(DefaultTop)
+	if top > 0 {
+		limit = int64(top)
+	}
+
+	offset := int64(0)
+	if skip > 0 {
+		offset = int64(skip)
+	}
+
+	cur, err := r.col.Find(ctx, filter,
+		options.Find().SetSort(bson.D{{Key: fieldGUID, Value: 1}}).SetLimit(limit).SetSkip(offset))
+	if err != nil {
+		return nil, errDeviceDatabase.Wrap(op, "Find", err)
+	}
+	defer cur.Close(ctx)
+
+	devs := make([]entity.Device, 0)
+	if err := cur.All(ctx, &devs); err != nil {
+		return nil, errDeviceDatabase.Wrap(op, "Cursor.All", err)
 	}
 
 	return devs, nil

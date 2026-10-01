@@ -3,13 +3,19 @@ package config
 import (
 	"errors"
 	"flag"
+	"fmt"
+	"log"
 	"net"
 	"os"
 	"path/filepath"
+	"runtime"
+	"strconv"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"gopkg.in/yaml.v2"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 )
 
 var ConsoleConfig *Config
@@ -17,7 +23,28 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
+var (
+	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
+	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
+	ErrAllowedOriginsEmpty             = errors.New("config: http.allowed_origins must list at least one origin (e.g. https://localhost:8181) — an empty list disables CORS outright and aborts startup")
+	ErrMaxTokenTTLInvalid              = errors.New("config: package.max_token_ttl must be at least 1 minute (e.g. 24h), or 0 to use the default")
+	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
+	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
+)
+
 const defaultHost = "localhost"
+
+// DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
+const DefaultSessionCookieName = "console_session"
+
+// File modes for the config directory and file (owner-only for the file since
+// it can carry sensitive settings).
+const (
+	configFilePerm os.FileMode = 0o600
+	configDirPerm  os.FileMode = 0o700
+
+	goosWindows = "windows"
+)
 
 type (
 	// Config -.
@@ -30,7 +57,7 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
-		Redfish `yaml:"redfish"`
+		Package `yaml:"package"`
 	}
 
 	// App -.
@@ -46,12 +73,13 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Host           string   `yaml:"host" env:"HTTP_HOST"`
-		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
-		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
-		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
-		WSCompression  bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
-		TLS            TLS      `yaml:"tls"`
+		Host             string   `yaml:"host" env:"HTTP_HOST"`
+		Port             string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
+		AllowedOrigins   []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
+		AllowedHeaders   []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		AllowCredentials bool     `yaml:"allow_credentials" env:"HTTP_ALLOW_CREDENTIALS"`
+		WSCompression    bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
+		TLS              TLS      `yaml:"tls"`
 	}
 
 	// TLS -.
@@ -91,16 +119,25 @@ type (
 	}
 
 	// Auth -.
+	//
+	// The Cookie* fields govern the HttpOnly session cookie the browser uses in
+	// place of Web Storage. Additive only: /authorize still returns the token in
+	// the body and the Authorization header still wins, so REST clients are
+	// unaffected.
 	Auth struct {
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
 		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
 		TLSSkipVerify            bool          `yaml:"tlsSkipVerify" env:"AUTH_TLS_SKIP_VERIFY"`
+		CookieEnabled            bool          `yaml:"cookieEnabled" env:"AUTH_COOKIE_ENABLED"`
+		CookieName               string        `yaml:"cookieName" env:"AUTH_COOKIE_NAME"`
+		CookieSecure             bool          `yaml:"cookieSecure" env:"AUTH_COOKIE_SECURE"`
+		CookieSameSite           string        `yaml:"cookieSameSite" env:"AUTH_COOKIE_SAME_SITE"`
 		UI                       UIAuthConfig  `yaml:"ui"`
 	}
 
@@ -119,11 +156,23 @@ type (
 	UI struct {
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
 	}
-	// Redfish -.
-	Redfish struct {
-		EnvironmentUUID string `yaml:"environment_uuid" env:"REDFISH_ENV_UUID"`
+
+	// Package -. Settings for the Download RPC packaging endpoints.
+	Package struct {
+		RPCRepo  string `yaml:"rpc_repo" env:"RPC_REPO"`
+		LocalDir string `yaml:"local_dir" env:"RPC_LOCAL_DIR"`
+		// DisableFetch serves rpc-go builds from LocalDir only, never contacting GitHub.
+		DisableFetch bool `yaml:"disable_fetch" env:"RPC_DISABLE_FETCH"`
+		// MaxTokenTTL caps the auth-token lifetime a package request may ask for.
+		MaxTokenTTL time.Duration `yaml:"max_token_ttl" env:"RPC_MAX_TOKEN_TTL"`
 	}
 )
+
+// CookieAuthEnabled reports whether the HttpOnly session cookie is in use. Off
+// under OIDC, where the IdP owns the token. Read by the middleware and the spec.
+func (a Auth) CookieAuthEnabled() bool {
+	return a.CookieEnabled && a.ClientID == ""
+}
 
 // getPreferredIPAddress detects the most likely candidate IP address for this machine.
 // It prefers non-loopback IPv4 addresses and excludes link-local addresses.
@@ -160,11 +209,35 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:           "",
-			Port:           "8181",
-			AllowedOrigins: []string{"*"},
-			AllowedHeaders: []string{"*"},
-			WSCompression:  true,
+			Host: "",
+			Port: "8181",
+			AllowedOrigins: []string{
+				"http://localhost:8181",
+				"http://localhost:4200",
+				"http://127.0.0.1:8181",
+				"http://127.0.0.1:4200",
+				"https://localhost:8181",
+				"https://localhost:4200",
+				"https://127.0.0.1:8181",
+				"https://127.0.0.1:4200",
+				"http://localhost:5173",
+			},
+			// Explicit rather than "*": Access-Control-Allow-Headers: * is taken
+			// literally by browsers once credentials are in play, and never
+			// covers Authorization even without them.
+			AllowedHeaders: []string{
+				"Origin",
+				"Accept",
+				"Content-Type",
+				"Content-Length",
+				"Authorization",
+				"If-Match",
+			},
+			// Safe alongside the explicit AllowedOrigins above: setupHTTPHandler
+			// forces this off whenever the allowlist contains "*", so cookie
+			// auth is only ever granted to enumerated origins.
+			AllowCredentials: true,
+			WSCompression:    true,
 			TLS: TLS{
 				Enabled:  true,
 				CertFile: "",
@@ -192,9 +265,13 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
+			CookieEnabled:            true,
+			CookieName:               DefaultSessionCookieName,
+			CookieSecure:             true,
+			CookieSameSite:           "strict",
 			// OAUTH CONFIG, if provided will not use basic auth
 			ClientID: "",
 			Issuer:   "",
@@ -211,8 +288,9 @@ func defaultConfig() *Config {
 		UI: UI{
 			ExternalURL: "",
 		},
-		Redfish: Redfish{
-			EnvironmentUUID: "",
+		Package: Package{
+			RPCRepo:     "device-management-toolkit/rpc-go",
+			MaxTokenTTL: 24 * time.Hour,
 		},
 	}
 }
@@ -223,6 +301,34 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		return configPathFlag, nil
 	}
 
+	if TrayMode {
+		if perUser, err := perUserConfigPath(); err == nil {
+			return perUser, nil
+		}
+	}
+
+	machine, err := machineConfigPath()
+	if err != nil {
+		return "", err
+	}
+
+	if _, statErr := os.Stat(machine); statErr == nil {
+		return machine, nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+func perUserConfigPath() (string, error) {
+	dir, err := os.UserConfigDir()
+	if err != nil {
+		return "", err
+	}
+
+	return filepath.Join(dir, "device-management-toolkit", "config", "config.yml"), nil
+}
+
+func besideBinaryConfigPath() (string, error) {
 	ex, err := os.Executable()
 	if err != nil {
 		return "", err
@@ -235,9 +341,45 @@ func resolveConfigPath(configPathFlag string) (string, error) {
 		ex = resolved
 	}
 
-	exPath := filepath.Dir(ex)
+	return filepath.Join(filepath.Dir(ex), "config", "config.yml"), nil
+}
 
-	return filepath.Join(exPath, "config", "config.yml"), nil
+func machineConfigPath() (string, error) {
+	switch runtime.GOOS {
+	case goosWindows:
+		if dir := os.Getenv("ProgramData"); dir != "" {
+			return filepath.Join(dir, "device-management-toolkit", "config.yml"), nil
+		}
+	case "darwin":
+		return "/Library/Application Support/device-management-toolkit/config.yml", nil
+	case "linux":
+		return "/etc/dmt-console/config/config.yml", nil
+	}
+
+	return besideBinaryConfigPath()
+}
+
+func seedConfig(src, dst string) error {
+	_, err := os.Stat(dst)
+	if err == nil {
+		return nil
+	}
+
+	if !os.IsNotExist(err) {
+		return err
+	}
+
+	data, err := os.ReadFile(src)
+	if err != nil {
+		return nil //nolint:nilerr // no installer config to migrate (e.g. dev run); init proceeds normally
+	}
+
+	if mkErr := os.MkdirAll(filepath.Dir(dst), configDirPerm); mkErr != nil {
+		return mkErr
+	}
+
+	// #nosec G703 -- dst derives from resolveConfigPath, not external input.
+	return os.WriteFile(dst, data, configFilePerm)
 }
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
@@ -258,15 +400,20 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
 func writeConfig(configPath string, cfg *Config) error {
 	configDir := filepath.Dir(configPath)
-	if mkErr := os.MkdirAll(configDir, os.ModePerm); mkErr != nil {
+	if mkErr := os.MkdirAll(configDir, configDirPerm); mkErr != nil {
 		return mkErr
 	}
 
-	file, err := os.Create(configPath)
+	file, err := os.OpenFile(configPath, os.O_CREATE|os.O_WRONLY|os.O_TRUNC, configFilePerm)
 	if err != nil {
 		return err
 	}
 	defer file.Close()
+
+	// Tighten pre-existing files too; OpenFile's mode only applies at creation.
+	if err := os.Chmod(configPath, configFilePerm); err != nil {
+		return err
+	}
 
 	encoder := yaml.NewEncoder(file)
 	defer encoder.Close()
@@ -289,6 +436,11 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
+	return updateConfigFile(configPath, func(c *Config) { c.AdminPassword = adminPassword })
+}
+
+// updateConfigFile applies mutate to the file's own contents, never to the env-overlaid Config.
+func updateConfigFile(configPath string, mutate func(*Config)) error {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -299,9 +451,86 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
-	fileCfg.AdminPassword = adminPassword
+	mutate(fileCfg)
 
 	return writeConfig(configPath, fileCfg)
+}
+
+// ensureJWTKey mirrors the admin-password flow: a key from config or env is
+// used as-is, disabled auth needs none, and otherwise a random key is generated
+// and persisted so every restart signs tokens with the same secret.
+func ensureJWTKey(configPath string, cfg *Config) error {
+	if cfg.Disabled || cfg.JWTKey != "" {
+		return nil
+	}
+
+	key := security.Crypto{}.GenerateKey()
+
+	if err := updateConfigFile(configPath, func(c *Config) { c.JWTKey = key }); err != nil {
+		return fmt.Errorf("config: persisting generated auth.jwtKey to %s (set AUTH_JWT_KEY to provide one instead): %w", configPath, err)
+	}
+
+	cfg.JWTKey = key
+
+	log.Printf(
+		"WARNING: no auth.jwtKey was configured, so a random one was generated and saved to %s. "+
+			"Local basic auth is meant for single-user deployments; for production, configure your own "+
+			"OAuth2/OIDC provider via auth.clientId and auth.issuer instead.",
+		configPath,
+	)
+
+	return nil
+}
+
+// loadConfig layers the file (created with defaults on first run) and the
+// environment onto cfg, then generates auth.jwtKey when nothing supplied one.
+func loadConfig(configPath string, cfg *Config) error {
+	if err := readOrInitConfig(configPath, cfg); err != nil {
+		return err
+	}
+
+	if err := cleanenv.ReadEnv(cfg); err != nil {
+		return err
+	}
+
+	if err := ensureJWTKey(configPath, cfg); err != nil {
+		return err
+	}
+
+	return cfg.validate()
+}
+
+// validate checks that all Config values are sane.
+// It returns an error for any setting that would cause a runtime failure or
+// deny all service to legitimate users (e.g. zero/negative JWT expiration).
+func (c *Config) validate() error {
+	if c.JWTExpiration < time.Minute {
+		return ErrJWTExpirationInvalid
+	}
+
+	if c.RedirectionJWTExpiration < time.Minute {
+		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	if c.MaxTokenTTL != 0 && c.MaxTokenTTL < time.Minute {
+		return ErrMaxTokenTTLInvalid
+	}
+
+	if c.DisableFetch && c.LocalDir == "" {
+		return ErrLocalDirRequired
+	}
+
+	if !c.Disabled && c.JWTKey == "" {
+		return ErrJWTKeyMissing
+	}
+
+	// Caught here rather than left to gin-contrib/cors, which panics with an
+	// opaque "conflict settings: all origins disabled" on an empty list.
+	if len(c.AllowedOrigins) == 0 {
+		return ErrAllowedOriginsEmpty
+	}
+
+	return nil
 }
 
 // NewConfig returns app config.
@@ -326,16 +555,67 @@ func NewConfig() (*Config, error) {
 	// Determine the config path
 	configPath, err := resolveConfigPath(configPathFlag)
 	if err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
-	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
+	if TrayMode && configPathFlag == "" {
+		if src, srcErr := machineConfigPath(); srcErr == nil {
+			if seedErr := seedConfig(src, configPath); seedErr != nil {
+				return nil, seedErr
+			}
+		}
+	}
+
+	if err := loadConfig(configPath, ConsoleConfig); err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
-	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
+	if err := validatePort(ConsoleConfig.Port); err != nil {
+		return nil, err
+	}
+
+	if err := validateAndSetEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
 		return nil, err
 	}
 
 	return ConsoleConfig, nil
+}
+
+// Sentinel errors for port validation.
+var (
+	ErrPortNotNumeric = errors.New("HTTP port (HTTP_PORT) must be a decimal integer")
+	ErrPortOutOfRange = errors.New("HTTP port (HTTP_PORT) must be in range 1-65535")
+)
+
+// validatePort returns an error if port is not a decimal integer in the range 1–65535.
+func validatePort(port string) error {
+	n, err := strconv.Atoi(port)
+	if err != nil {
+		return ErrPortNotNumeric
+	}
+
+	if n < 1 || n > 65535 {
+		return ErrPortOutOfRange
+	}
+
+	return nil
+}
+
+func validateAndSetEncryptionKey(encryptionKey string) error {
+	if encryptionKey != "" {
+		if err := ValidateEncryptionKey(encryptionKey); err != nil {
+			return fmt.Errorf(
+				"invalid APP_ENCRYPTION_KEY (app.encryption_key in config.yml): %w.\n"+
+					"Generate one with `openssl rand -base64 24` (32 characters), "+
+					"or leave it unset and let Console generate and store a key for you",
+				err,
+			)
+		}
+	}
+
+	return nil
 }

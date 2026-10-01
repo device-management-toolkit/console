@@ -34,7 +34,7 @@ func TestKVMDisplaysEndpoints(t *testing.T) {
 		handler := engine.Group("/api/v1")
 		NewAmtRoutes(handler, deviceManagement, amtExplorerMock, exporterMock, log)
 
-		deviceManagement.EXPECT().GetKVMScreenSettings(context.Background(), "guid1").Return(dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{{DisplayIndex: 0, IsActive: true}}}, nil)
+		deviceManagement.EXPECT().GetKVMScreenSettings(context.Background(), "guid1", "").Return(dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{{DisplayIndex: 0, IsActive: true}}}, nil)
 
 		req := httptest.NewRequest(http.MethodGet, "/api/v1/amt/kvm/displays/guid1", http.NoBody)
 		rr := httptest.NewRecorder()
@@ -57,7 +57,7 @@ func TestKVMDisplaysEndpoints(t *testing.T) {
 		NewAmtRoutes(handler, deviceManagement, amtExplorerMock, exporterMock, log)
 
 		payload := dto.KVMScreenSettingsRequest{DisplayIndex: 1}
-		deviceManagement.EXPECT().SetKVMScreenSettings(context.Background(), "guid2", gomock.Any()).Return(dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{{DisplayIndex: 0, IsActive: true}}}, nil)
+		deviceManagement.EXPECT().SetKVMScreenSettings(context.Background(), "guid2", "", gomock.Any()).Return(dto.KVMScreenSettings{Displays: []dto.KVMScreenDisplay{{DisplayIndex: 0, IsActive: true}}}, nil)
 
 		b, _ := json.Marshal(payload)
 		req := httptest.NewRequest(http.MethodPut, "/api/v1/amt/kvm/displays/guid2", bytes.NewReader(b))

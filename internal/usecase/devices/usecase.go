@@ -35,6 +35,9 @@ const (
 
 	// MinAMTVersion - minimum AMT version required for certain features in power capabilities.
 	MinAMTVersion = 9
+
+	deviceInfoFieldKey    = "deviceinfo"
+	deviceInfoFieldPrefix = deviceInfoFieldKey + "."
 )
 
 // UseCase -.
@@ -75,6 +78,8 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 
 	tags := strings.Join(d.Tags, ",")
 
+	syncDiscoveryState(d.DeviceInfo)
+
 	deviceInfo, err := marshalDeviceInfo(d.DeviceInfo)
 	if err != nil {
 		return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "marshalDeviceInfo", err)
@@ -98,6 +103,12 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		Password:         d.Password,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+	}
+
+	// Sync the queryable mirror columns from the deviceinfo blob (source of truth).
+	if d.DeviceInfo != nil {
+		d1.CurrentMode = d.DeviceInfo.CurrentMode
+		d1.Discovered = d.DeviceInfo.Discovered
 	}
 
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
@@ -156,14 +167,139 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"usetls":           func(dst, src *dto.Device) { dst.UseTLS = src.UseTLS },
 	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
 	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
-	"deviceinfo":       func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+	deviceInfoFieldKey: func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+}
+
+var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
+	"fwversion":            func(dst, src *dto.DeviceInfo) { dst.FWVersion = src.FWVersion },
+	"fwbuild":              func(dst, src *dto.DeviceInfo) { dst.FWBuild = src.FWBuild },
+	"fwsku":                func(dst, src *dto.DeviceInfo) { dst.FWSku = src.FWSku },
+	"discovered":           setDiscoveredOnce,
+	"firstdiscovered":      setFirstDiscoveredOnce,
+	"currentmode":          func(dst, src *dto.DeviceInfo) { dst.CurrentMode = src.CurrentMode },
+	"features":             func(dst, src *dto.DeviceInfo) { dst.Features = src.Features },
+	"ipaddress":            func(dst, src *dto.DeviceInfo) { dst.IPAddress = src.IPAddress },
+	"lastupdated":          func(dst, src *dto.DeviceInfo) { dst.LastSynced = src.LastSynced }, // legacy alias for lastsynced
+	"lastsynced":           func(dst, src *dto.DeviceInfo) { dst.LastSynced = src.LastSynced },
+	"tlsmode":              func(dst, src *dto.DeviceInfo) { dst.TLSMode = src.TLSMode },
+	"upid":                 func(dst, src *dto.DeviceInfo) { dst.UPID = src.UPID },
+	"amtenabledinbios":     func(dst, src *dto.DeviceInfo) { dst.AMTEnabledInBIOS = src.AMTEnabledInBIOS },
+	"meinterfaceversion":   func(dst, src *dto.DeviceInfo) { dst.MEInterfaceVersion = src.MEInterfaceVersion },
+	"dhcpenabled":          func(dst, src *dto.DeviceInfo) { dst.DHCPEnabled = src.DHCPEnabled },
+	"certhashes":           func(dst, src *dto.DeviceInfo) { dst.CertHashes = src.CertHashes },
+	"lmsinstalled":         func(dst, src *dto.DeviceInfo) { dst.LMSInstalled = src.LMSInstalled },
+	"lmsversion":           func(dst, src *dto.DeviceInfo) { dst.LMSVersion = src.LMSVersion },
+	"osname":               func(dst, src *dto.DeviceInfo) { dst.OSName = src.OSName },
+	"osversion":            func(dst, src *dto.DeviceInfo) { dst.OSVersion = src.OSVersion },
+	"osdistro":             func(dst, src *dto.DeviceInfo) { dst.OSDistro = src.OSDistro },
+	"dnssuffixos":          func(dst, src *dto.DeviceInfo) { dst.DNSSuffixOS = src.DNSSuffixOS },
+	"cpumodel":             func(dst, src *dto.DeviceInfo) { dst.CPUModel = src.CPUModel },
+	"osipaddress":          func(dst, src *dto.DeviceInfo) { dst.OSIPAddress = src.OSIPAddress },
+	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
+	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
+	"ieee8021xenabled":     func(dst, src *dto.DeviceInfo) { dst.IEEE8021XEnabled = src.IEEE8021XEnabled },
+	"menetwork":            func(dst, src *dto.DeviceInfo) { dst.MENetwork = src.MENetwork },
+	"osnetwork":            func(dst, src *dto.DeviceInfo) { dst.OSNetwork = src.OSNetwork },
+	"platformadapters":     func(dst, src *dto.DeviceInfo) { dst.PlatformAdapters = src.PlatformAdapters },
+}
+
+// firstDiscovered and discovered are set once at initial discovery and are immutable
+// thereafter: dst is the stored record, so keep its existing value if already present.
+func setFirstDiscoveredOnce(dst, src *dto.DeviceInfo) {
+	if dst.FirstDiscovered == nil {
+		dst.FirstDiscovered = src.FirstDiscovered
+	}
+}
+
+func setDiscoveredOnce(dst, src *dto.DeviceInfo) {
+	if dst.Discovered == nil {
+		dst.Discovered = src.Discovered
+	}
+}
+
+// syncDiscoveryState only fills in a default Discovered value when the caller
+// didn't explicitly provide one; an explicit value (e.g. from a later info
+// sync) is preserved as-is rather than re-derived from CurrentMode.
+func syncDiscoveryState(info *dto.DeviceInfo) {
+	if info == nil || info.Discovered != nil {
+		return
+	}
+
+	switch strings.ToLower(strings.TrimSpace(info.CurrentMode)) {
+	case "not activated":
+		discovered := true
+		info.Discovered = &discovered
+	case "admin", "admin control mode", "client", "client control mode":
+		discovered := false
+		info.Discovered = &discovered
+	}
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
 	for key := range fields {
+		if key == deviceInfoFieldKey || strings.HasPrefix(key, deviceInfoFieldPrefix) {
+			continue
+		}
+
 		if apply, ok := deviceFieldSetters[key]; ok {
 			apply(dst, src)
 		}
+	}
+
+	if fields[deviceInfoFieldKey] {
+		mergeDeviceInfo(dst, src, fields)
+	}
+}
+
+func mergeDeviceInfo(dst, src *dto.Device, fields map[string]bool) {
+	if src.DeviceInfo == nil {
+		dst.DeviceInfo = nil
+
+		return
+	}
+
+	hasNestedFields := false
+
+	if dst.DeviceInfo == nil {
+		dst.DeviceInfo = &dto.DeviceInfo{}
+	}
+
+	for key := range fields {
+		if !strings.HasPrefix(key, deviceInfoFieldPrefix) {
+			continue
+		}
+
+		hasNestedFields = true
+
+		subfield := strings.TrimPrefix(key, deviceInfoFieldPrefix)
+		if apply, ok := deviceInfoFieldSetters[subfield]; ok {
+			apply(dst.DeviceInfo, src.DeviceInfo)
+		}
+	}
+
+	if !hasNestedFields {
+		// Backward compatibility for callers that only send a top-level "deviceinfo"
+		// key: replace wholesale, but keep the stored write-once fields.
+		replaceDeviceInfoPreservingImmutable(dst, src.DeviceInfo)
+	}
+}
+
+// replaceDeviceInfoPreservingImmutable replaces dst.DeviceInfo with src, keeping the
+// stored write-once fields (firstDiscovered/discovered) so they stay immutable.
+func replaceDeviceInfoPreservingImmutable(dst *dto.Device, src *dto.DeviceInfo) {
+	stored := dst.DeviceInfo
+	dst.DeviceInfo = src
+
+	if stored == nil {
+		return
+	}
+
+	if stored.FirstDiscovered != nil {
+		dst.DeviceInfo.FirstDiscovered = stored.FirstDiscovered
+	}
+
+	if stored.Discovered != nil {
+		dst.DeviceInfo.Discovered = stored.Discovered
 	}
 }
 

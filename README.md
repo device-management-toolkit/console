@@ -6,6 +6,8 @@
 # Console
 
 > Disclaimer: Production viable releases are tagged and listed under 'Releases'. Console is under development. **The current available tags for download are Alpha version code and should not be used in production.** For these Alpha tags, certain features may not function yet, visual look and feel may change, or bugs/errors may occur. Follow along our [Feature Backlog for future releases and feature updates](https://github.com/orgs/device-management-toolkit/projects/10).
+>
+> **Redfish (Tech Preview):** Console's DMTF Redfish API (`/redfish/v1`) is available as a **tech preview** in prerelease builds tagged `-redfish-preview` (for example, `v1.46.0-redfish-preview.1`) under [Releases](https://github.com/device-management-toolkit/console/releases). Tech-preview features are not production ready, and their API and behavior may change without notice.
 
 ## Overview
 
@@ -75,7 +77,7 @@ Local development can be done on **Linux**, **macOS**, and **Windows**. On Windo
 ### Prerequisites
 
 Before you begin, ensure you have:
-- [Go 1.24+](https://go.dev/dl/)
+- [Go 1.27+](https://go.dev/dl/)
 - [Git](https://git-scm.com/downloads)
 - [Node.js & npm](https://nodejs.org/) (for the Web UI)
 - [Docker & Docker Compose](https://docs.docker.com/get-docker/) (optional, for PostgreSQL)

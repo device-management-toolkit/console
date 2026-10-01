@@ -5,13 +5,15 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 func (r *deviceManagementRoutes) getPowerState(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	state, err := r.d.GetPowerState(c.Request.Context(), guid)
+	state, err := r.d.GetPowerState(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getPowerState")
 		ErrorResponse(c, err)
@@ -24,8 +26,9 @@ func (r *deviceManagementRoutes) getPowerState(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getPowerCapabilities(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	power, err := r.d.GetPowerCapabilities(c.Request.Context(), guid)
+	power, err := r.d.GetPowerCapabilities(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getPowerCapabilities")
 		ErrorResponse(c, err)
@@ -46,7 +49,9 @@ func (r *deviceManagementRoutes) powerAction(c *gin.Context) {
 		return
 	}
 
-	response, err := r.d.SendPowerAction(c.Request.Context(), guid, powerAction.Action)
+	tenantID := middleware.TenantID(c)
+
+	response, err := r.d.SendPowerAction(c.Request.Context(), guid, tenantID, powerAction.Action)
 	if err != nil {
 		r.l.Error(err, "http - v1 - powerAction")
 		ErrorResponse(c, err)
@@ -67,7 +72,9 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 		return
 	}
 
-	features, err := r.d.SetBootOptions(c.Request.Context(), guid, bootSetting)
+	tenantID := middleware.TenantID(c)
+
+	features, err := r.d.SetBootOptions(c.Request.Context(), guid, tenantID, bootSetting)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setBootOptions")
 		ErrorResponse(c, err)
@@ -80,8 +87,9 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 
 func (r *deviceManagementRoutes) getBootSources(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	sources, err := r.d.GetBootSourceSetting(c.Request.Context(), guid)
+	sources, err := r.d.GetBootSourceSetting(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getBootSources")
 		ErrorResponse(c, err)

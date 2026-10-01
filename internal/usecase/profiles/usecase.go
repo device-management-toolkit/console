@@ -33,6 +33,7 @@ type UseCase struct {
 	log               logger.Interface
 	domains           domains.Feature
 	safeRequirements  security.Cryptor
+	disableCIRA       bool
 }
 
 var (
@@ -43,7 +44,10 @@ var (
 
 	ErrAMTPasswordRequired  = errors.New("amtPassword is required when generateRandomPassword is false")
 	ErrMEBXPasswordRequired = errors.New("mebxPassword is required when activation is acmactivate and generateRandomMEBxPassword is false")
+	ErrCIRADisabled         = errors.New("CIRA is disabled on this instance")
 )
+
+const CIRADisabledHint = "Re-enable CIRA on this instance, or change the connection mode on this profile."
 
 // validateProfileCreate enforces password-required invariants that only apply on
 // POST: PATCH may omit either password to leave the stored value untouched.
@@ -60,7 +64,7 @@ func validateProfileCreate(d *dto.Profile) error {
 }
 
 // New -.
-func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor) *UseCase {
+func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor, disableCIRA bool) *UseCase {
 	return &UseCase{
 		repo:              r,
 		wifiConfig:        wifiConfig,
@@ -70,6 +74,7 @@ func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.F
 		log:               log,
 		domains:           d,
 		safeRequirements:  safeRequirements,
+		disableCIRA:       disableCIRA,
 	}
 }
 
@@ -412,6 +417,10 @@ func (uc *UseCase) Export(ctx context.Context, profileName, domainName, tenantID
 		return "", "", ErrNotFound
 	}
 
+	if err := uc.validateCIRAConfig(data.CIRAConfigName); err != nil {
+		return "", "", err
+	}
+
 	err = uc.DecryptPasswords(data)
 	if err != nil {
 		return "", "", err
@@ -503,7 +512,23 @@ func (uc *UseCase) isWifiProfileExists(ctx context.Context, d *dto.Profile, acti
 	return nil
 }
 
-func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, _ map[string]bool) (*dto.Profile, error) {
+// fields == nil writes d as a full replace; non-nil merges those keys
+// onto the existing record. profileName and tenantId identify the row
+// and are not patchable (silently skipped if listed in fields).
+func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string]bool) (*dto.Profile, error) {
+	if fields != nil {
+		merged, err := uc.applyPATCHMerge(ctx, d, fields)
+		if err != nil {
+			return nil, err
+		}
+
+		d = merged
+	}
+
+	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {
+		return nil, err
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
@@ -511,6 +536,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, _ map[string]bool
 
 	err = uc.isWifiProfileExists(ctx, d, "update")
 	if err != nil {
+		return nil, err
+	}
+
+	if err := uc.validateIEEE8021xProfile(ctx, d1, "update"); err != nil {
 		return nil, err
 	}
 
@@ -522,26 +551,9 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, _ map[string]bool
 	if !updated {
 		return nil, ErrNotFound
 	}
-	// remove all wifi configs associated with the profile
-	err = uc.profileWifiConfig.DeleteByProfileName(ctx, d.ProfileName, d.TenantID)
-	if err != nil {
-		return nil, ErrDatabase.Wrap("Delete", "uc.wifiRepo.DeleteByProfileName", err)
-	}
 
-	if d.DHCPEnabled {
-		// insert new wifi configs
-		if len(d.WiFiConfigs) > 0 {
-			for _, wifiConfig := range d.WiFiConfigs {
-				wifiConfig.ProfileName = d1.ProfileName
-
-				tmpWifiConfig := wifiConfig // create a new variable to avoid memory aliasing
-
-				err = uc.profileWifiConfig.Insert(ctx, &tmpWifiConfig)
-				if err != nil {
-					return nil, err
-				}
-			}
-		}
+	if err := uc.replaceProfileWifiConfigs(ctx, d); err != nil {
+		return nil, err
 	}
 
 	updatedProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
@@ -560,6 +572,10 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 		return nil, ErrNotValid.Wrap("Insert", "validateProfileCreate", err)
 	}
 
+	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {
+		return nil, err
+	}
+
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err
@@ -569,7 +585,7 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 		return nil, err
 	}
 
-	if err := uc.validateIEEE8021xProfile(ctx, d1); err != nil {
+	if err := uc.validateIEEE8021xProfile(ctx, d1, "insert"); err != nil {
 		return nil, err
 	}
 
@@ -584,27 +600,42 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 	return uc.createdProfile(ctx, d)
 }
 
-func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Profile) error {
+func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Profile, action string) error {
 	if d1.IEEE8021xProfileName == nil || *d1.IEEE8021xProfileName == "" {
 		return nil
 	}
 
-	return uc.checkIEEE8021xProfile(ctx, *d1.IEEE8021xProfileName, d1.TenantID)
+	return uc.checkIEEE8021xProfile(ctx, *d1.IEEE8021xProfileName, d1.TenantID, action)
 }
 
-func (uc *UseCase) checkIEEE8021xProfile(ctx context.Context, profileName, tenantID string) error {
+// validateCIRAConfig rejects a profile that references a CIRA configuration when
+// CIRA is disabled on this instance (APP_DISABLE_CIRA=true). Such a profile's CIRA
+// management connection can never be established, so it must not be created,
+// updated, or exported for activation — fail loudly instead of provisioning a
+// device that silently cannot connect. This mirrors the ciradisabled HTTP guard
+// for non-UI callers (scripts, partner tooling) that bypass the CIRA endpoints.
+// The controller maps ErrCIRADisabled to a 400 with its message.
+func (uc *UseCase) validateCIRAConfig(ciraConfigName *string) error {
+	if uc.disableCIRA && ciraConfigName != nil && *ciraConfigName != "" {
+		return ErrCIRADisabled
+	}
+
+	return nil
+}
+
+func (uc *UseCase) checkIEEE8021xProfile(ctx context.Context, profileName, tenantID, action string) error {
 	res, err := uc.ieee.GetByName(ctx, profileName, tenantID)
 	if err != nil {
 		var nfErr repoerrors.NotFoundError
 		if errors.As(err, &nfErr) {
-			return ErrNotValid.Wrap("Insert", "uc.ieee.GetByName", consoleerrors.CreateConsoleError("IEEE profile is not found in the database"))
+			return ErrNotValid.Wrap(action, "uc.ieee.GetByName", consoleerrors.CreateConsoleError("IEEE profile is not found in the database"))
 		}
 
 		return err
 	}
 
 	if !res.WiredInterface {
-		return ErrNotValid.Wrap("Insert", "uc.ieee.GetByName", consoleerrors.CreateConsoleError("Wired interface is required"))
+		return ErrNotValid.Wrap(action, "uc.ieee.GetByName", consoleerrors.CreateConsoleError("Wired interface is required"))
 	}
 
 	return nil
@@ -632,6 +663,19 @@ func (uc *UseCase) insertProfileWifiConfigs(ctx context.Context, d *dto.Profile)
 	return nil
 }
 
+// Always delete; wifi configs are only valid on DHCP profiles.
+func (uc *UseCase) replaceProfileWifiConfigs(ctx context.Context, d *dto.Profile) error {
+	if err := uc.profileWifiConfig.DeleteByProfileName(ctx, d.ProfileName, d.TenantID); err != nil {
+		return ErrDatabase.Wrap("replaceProfileWifiConfigs", "uc.profileWifiConfig.DeleteByProfileName", err)
+	}
+
+	if !d.DHCPEnabled {
+		return nil
+	}
+
+	return uc.insertProfileWifiConfigs(ctx, d)
+}
+
 func (uc *UseCase) createdProfile(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
 	newProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
@@ -642,6 +686,77 @@ func (uc *UseCase) createdProfile(ctx context.Context, d *dto.Profile) (*dto.Pro
 	d2.WiFiConfigs = d.WiFiConfigs
 
 	return d2, nil
+}
+
+func (uc *UseCase) applyPATCHMerge(ctx context.Context, d *dto.Profile, fields map[string]bool) (*dto.Profile, error) {
+	existing, err := uc.getProfileWithSecrets(ctx, d.ProfileName, d.TenantID)
+	if err != nil {
+		return nil, err
+	}
+
+	mergeProfileFields(existing, d, fields)
+
+	return existing, nil
+}
+
+func (uc *UseCase) getProfileWithSecrets(ctx context.Context, profileName, tenantID string) (*dto.Profile, error) {
+	data, err := uc.repo.GetByName(ctx, profileName, tenantID)
+	if err != nil {
+		return nil, ErrDatabase.Wrap("getProfileWithSecrets", "uc.repo.GetByName", err)
+	}
+
+	if data == nil {
+		return nil, ErrNotFound
+	}
+
+	if err := uc.DecryptPasswords(data); err != nil {
+		return nil, ErrProfilesUseCase.Wrap("getProfileWithSecrets", "DecryptPasswords", err)
+	}
+
+	d2 := uc.entityToDTO(data)
+	d2.AMTPassword = data.AMTPassword
+	d2.MEBXPassword = data.MEBXPassword
+
+	wifiConfigs, err := uc.profileWifiConfig.GetByProfileName(ctx, profileName, tenantID)
+	if err != nil && !errors.Is(err, profilewificonfigs.ErrNotFound) {
+		return nil, err
+	}
+
+	d2.WiFiConfigs = wifiConfigs
+
+	return d2, nil
+}
+
+// Keys are lowercased to match encoding/json's case-insensitive field matching.
+var profileFieldSetters = map[string]func(dst, src *dto.Profile){
+	"amtpassword":                func(dst, src *dto.Profile) { dst.AMTPassword = src.AMTPassword },
+	"generaterandompassword":     func(dst, src *dto.Profile) { dst.GenerateRandomPassword = src.GenerateRandomPassword },
+	"ciraconfigname":             func(dst, src *dto.Profile) { dst.CIRAConfigName = src.CIRAConfigName },
+	"activation":                 func(dst, src *dto.Profile) { dst.Activation = src.Activation },
+	"mebxpassword":               func(dst, src *dto.Profile) { dst.MEBXPassword = src.MEBXPassword },
+	"generaterandommebxpassword": func(dst, src *dto.Profile) { dst.GenerateRandomMEBxPassword = src.GenerateRandomMEBxPassword },
+	"tags":                       func(dst, src *dto.Profile) { dst.Tags = src.Tags },
+	"dhcpenabled":                func(dst, src *dto.Profile) { dst.DHCPEnabled = src.DHCPEnabled },
+	"ipsyncenabled":              func(dst, src *dto.Profile) { dst.IPSyncEnabled = src.IPSyncEnabled },
+	"localwifisyncenabled":       func(dst, src *dto.Profile) { dst.LocalWiFiSyncEnabled = src.LocalWiFiSyncEnabled },
+	"wificonfigs":                func(dst, src *dto.Profile) { dst.WiFiConfigs = src.WiFiConfigs },
+	"tlsmode":                    func(dst, src *dto.Profile) { dst.TLSMode = src.TLSMode },
+	"tlssigningauthority":        func(dst, src *dto.Profile) { dst.TLSSigningAuthority = src.TLSSigningAuthority },
+	"userconsent":                func(dst, src *dto.Profile) { dst.UserConsent = src.UserConsent },
+	"iderenabled":                func(dst, src *dto.Profile) { dst.IDEREnabled = src.IDEREnabled },
+	"kvmenabled":                 func(dst, src *dto.Profile) { dst.KVMEnabled = src.KVMEnabled },
+	"solenabled":                 func(dst, src *dto.Profile) { dst.SOLEnabled = src.SOLEnabled },
+	"ieee8021xprofilename":       func(dst, src *dto.Profile) { dst.IEEE8021xProfileName = src.IEEE8021xProfileName },
+	"version":                    func(dst, src *dto.Profile) { dst.Version = src.Version },
+	"uefiwifisyncenabled":        func(dst, src *dto.Profile) { dst.UEFIWiFiSyncEnabled = src.UEFIWiFiSyncEnabled },
+}
+
+func mergeProfileFields(dst, src *dto.Profile, fields map[string]bool) {
+	for key := range fields {
+		if apply, ok := profileFieldSetters[key]; ok {
+			apply(dst, src)
+		}
+	}
 }
 
 // convert dto.Profile to entity.Profile.

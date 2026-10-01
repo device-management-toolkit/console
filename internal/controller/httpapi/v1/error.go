@@ -12,66 +12,166 @@ import (
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/internal/usecase/domains"
+	"github.com/device-management-toolkit/console/internal/usecase/packaging"
+	"github.com/device-management-toolkit/console/internal/usecase/profiles"
 	"github.com/device-management-toolkit/console/internal/usecase/sqldb"
 )
 
 // errorKey is the JSON field name used for error messages in gin.H responses.
-const errorKey = "error"
+// messageKey is the JSON field name used for human-readable messages in gin.H responses.
+// tokenKey is the JSON field name used for issued tokens in gin.H responses.
+// errTokenCreation is returned when a JWT cannot be signed.
+const (
+	errorKey         = "error"
+	messageKey       = "message"
+	tokenKey         = "token"
+	errTokenCreation = "could not create token"
+)
 
 type response struct {
 	Error   string `json:"error,omitempty" example:"message"`
 	Message string `json:"message,omitempty" example:"message"`
 }
 
-func ErrorResponse(c *gin.Context, err error) {
+// handleValidationErrors handles all validation-related errors.
+func handleValidationErrors(c *gin.Context, err error) bool {
 	var (
-		validatorErr    validator.ValidationErrors
-		cancelledError  dto.CanceledError
-		nfErr           repoerrors.NotFoundError
-		notValidErr     dto.NotValidError
-		dbErr           repoerrors.DatabaseError
-		notUniqueErr    repoerrors.NotUniqueError
-		amtErr          devices.AMTError
-		notSupportedErr devices.NotSupportedError
-		validationErr   devices.ValidationError
+		odataValidationErr *ValidationError
+		validatorErr       validator.ValidationErrors
+		notValidErr        dto.NotValidError
+		validationErr      devices.ValidationError
+	)
+
+	switch {
+	case errors.As(err, &odataValidationErr) || errors.Is(err, ErrInvalidInteger) ||
+		errors.Is(err, ErrExceedsMaxRange) || errors.Is(err, ErrNegativeValue) || errors.Is(err, ErrInvalidBoolean):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &validatorErr):
+		validatorErrorHandle(c, validatorErr)
+
+		return true
+	case errors.As(err, &notValidErr):
+		notValidErrorHandle(c, notValidErr)
+
+		return true
+	case errors.As(err, &validationErr):
+		msg := validationErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	}
+
+	return false
+}
+
+// handleDomainErrors handles domain-specific errors.
+func handleDomainErrors(c *gin.Context, err error) bool {
+	var (
 		certExpErr      domains.CertExpirationError
 		certPasswordErr domains.CertPasswordError
-		netErr          net.Error
+		notSupportedErr devices.NotSupportedError
+	)
+
+	switch {
+	case errors.As(err, &certExpErr):
+		msg := certExpErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &certPasswordErr):
+		msg := certPasswordErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &notSupportedErr):
+		msg := notSupportedErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusNotImplemented, response{Error: msg, Message: msg})
+
+		return true
+	}
+
+	return false
+}
+
+// handleTypedErrors handles remaining typed errors.
+func handleTypedErrors(c *gin.Context, err error) {
+	var (
+		netErr       net.Error
+		cancelledErr dto.CanceledError
+		nfErr        repoerrors.NotFoundError
+		dbErr        repoerrors.DatabaseError
+		notUniqueErr repoerrors.NotUniqueError
+		amtErr       devices.AMTError
 	)
 
 	switch {
 	case errors.As(err, &netErr):
 		netErrorHandle(c, netErr)
-	case errors.As(err, &cancelledError):
-		cancelledErrorHandle(c, cancelledError)
-	case errors.As(err, &notValidErr):
-		notValidErrorHandle(c, notValidErr)
-	case errors.As(err, &validatorErr):
-		validatorErrorHandle(c, validatorErr)
+	case errors.As(err, &cancelledErr):
+		cancelledErrorHandle(c, cancelledErr)
 	case errors.As(err, &nfErr):
 		notFoundErrorHandle(c, nfErr)
-	case errors.As(err, &notUniqueErr):
-		notUniqueErrorHandle(c, notUniqueErr)
 	case errors.As(err, &dbErr):
 		dbErrorHandle(c, dbErr)
+	case errors.As(err, &notUniqueErr):
+		notUniqueErrorHandle(c, notUniqueErr)
 	case errors.As(err, &amtErr):
 		amtErrorHandle(c, amtErr)
-	case errors.As(err, &validationErr):
-		msg := validationErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-	case errors.As(err, &notSupportedErr):
-		msg := notSupportedErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusNotImplemented, response{Error: msg, Message: msg})
-	case errors.As(err, &certExpErr):
-		msg := certExpErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
-	case errors.As(err, &certPasswordErr):
-		msg := certPasswordErr.Console.FriendlyMessage()
-		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 	default:
 		c.AbortWithStatusJSON(http.StatusInternalServerError, response{Error: "general error", Message: "general error"})
 	}
+}
+
+// handleSentinelErrors handles well-known sentinel errors that are checked with
+// errors.Is before the typed-error switch. Returns true if the error was handled.
+func handleSentinelErrors(c *gin.Context, err error) bool {
+	switch {
+	case errors.Is(err, profiles.ErrCIRADisabled):
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{
+			Error:   profiles.ErrCIRADisabled.Error(),
+			Message: profiles.CIRADisabledHint,
+		})
+
+		return true
+	case errors.Is(err, wsmanAPI.ErrCIRADeviceNotConnected):
+		msg := wsmanAPI.ErrCIRADeviceNotConnected.Error()
+		c.AbortWithStatusJSON(http.StatusServiceUnavailable, response{Error: msg, Message: msg})
+
+		return true
+	case errors.Is(err, packaging.ErrAssetNotFound):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusNotFound, response{Error: msg, Message: msg})
+
+		return true
+	case errors.Is(err, packaging.ErrUnsafeVersion):
+		msg := err.Error()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	}
+
+	return false
+}
+
+func ErrorResponse(c *gin.Context, err error) {
+	if handleSentinelErrors(c, err) {
+		return
+	}
+
+	if handleValidationErrors(c, err) {
+		return
+	}
+
+	if handleDomainErrors(c, err) {
+		return
+	}
+
+	handleTypedErrors(c, err)
 }
 
 func netErrorHandle(c *gin.Context, netErr net.Error) {

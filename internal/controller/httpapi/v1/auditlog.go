@@ -9,7 +9,12 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/auditlog"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+)
+
+const (
+	eventLogBatchSize = 100
 )
 
 func (r *deviceManagementRoutes) getAuditLog(c *gin.Context) {
@@ -25,7 +30,9 @@ func (r *deviceManagementRoutes) getAuditLog(c *gin.Context) {
 		return
 	}
 
-	auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIdx, guid)
+	tenantID := middleware.TenantID(c)
+
+	auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIdx, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getAuditLog")
 		ErrorResponse(c, err)
@@ -43,8 +50,9 @@ func (r *deviceManagementRoutes) downloadAuditLog(c *gin.Context) {
 
 	startIndex := 1
 
+	tenantID := middleware.TenantID(c)
 	for {
-		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid)
+		auditLogs, err := r.d.GetAuditLog(c.Request.Context(), startIndex, guid, tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getAuditLog")
 			ErrorResponse(c, err)
@@ -85,14 +93,16 @@ func (r *deviceManagementRoutes) getEventLog(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var odata OData
-	if err := c.ShouldBindQuery(&odata); err != nil {
-		validationErr := ErrValidationProfile.Wrap("get", "ShouldBindQuery", err)
+	if err := odata.BindAndValidate(c); err != nil {
+		validationErr := ErrValidationProfile.Wrap("get", "BindAndValidate", err)
 		ErrorResponse(c, validationErr)
 
 		return
 	}
 
-	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid)
+	tenantID := middleware.TenantID(c)
+
+	eventLogs, err := r.d.GetEventLog(c.Request.Context(), odata.Skip, odata.Top, guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getEventLog")
 		ErrorResponse(c, err)
@@ -110,9 +120,10 @@ func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
 
 	startIndex := 0
 
-	// Keep fetching logs until NoMoreRecords is true
+	tenantID := middleware.TenantID(c)
+	// Keep fetching logs until there are no more records.
 	for {
-		eventLogs, err := r.d.GetEventLog(c.Request.Context(), 0, 0, guid)
+		eventLogs, err := r.d.GetEventLog(c.Request.Context(), startIndex, eventLogBatchSize, guid, tenantID)
 		if err != nil {
 			r.l.Error(err, "http - v1 - getEventLog")
 			ErrorResponse(c, err)
@@ -123,8 +134,8 @@ func (r *deviceManagementRoutes) downloadEventLog(c *gin.Context) {
 		// Append the current batch of logs
 		allEventLogs = append(allEventLogs, eventLogs.Records...)
 
-		// Break if no more records
-		if eventLogs.HasMoreRecords {
+		// Break when no more records are available from AMT.
+		if !eventLogs.HasMoreRecords {
 			break
 		}
 

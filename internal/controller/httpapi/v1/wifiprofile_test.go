@@ -54,7 +54,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodGet,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid").Return(expectedProfiles, nil)
+				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid", "").Return(expectedProfiles, nil)
 			},
 			response:     expectedProfiles,
 			expectedCode: http.StatusOK,
@@ -64,7 +64,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodGet,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid").Return(nil, ErrGeneral)
+				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid", "").Return(nil, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -74,7 +74,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", request).Return(nil)
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -91,7 +91,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", request).Return(ErrGeneral)
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -101,7 +101,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", request).Return(wsman.ErrNoWiFiPort)
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(wsman.ErrNoWiFiPort)
 			},
 			expectedCode: http.StatusNotFound,
 		},
@@ -111,7 +111,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", request).Return(nil)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", request).Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -121,7 +121,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: config.WirelessProfile{ProfileName: "guest", SSID: "CorpNet", Priority: 1, AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP", Password: "password123"},
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", config.WirelessProfile{ProfileName: "guest", SSID: "CorpNet", Priority: 1, AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP", Password: "password123"}).Return(nil)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", config.WirelessProfile{ProfileName: "guest", SSID: "CorpNet", Priority: 1, AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP", Password: "password123"}).Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -138,7 +138,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", request).Return(ErrGeneral)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", request).Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -148,7 +148,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", request).Return(wsman.ErrNoWiFiPort)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", request).Return(wsman.ErrNoWiFiPort)
 			},
 			expectedCode: http.StatusNotFound,
 		},
@@ -157,7 +157,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodDelete,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid/office",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office").Return(nil)
+				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office", "").Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -166,7 +166,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodDelete,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid/office",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office").Return(ErrGeneral)
+				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office", "").Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
