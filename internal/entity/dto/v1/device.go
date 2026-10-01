@@ -31,12 +31,22 @@ type Device struct {
 	LastDisconnected *time.Time  `json:"lastDisconnected,omitempty"`
 	DeviceInfo       *DeviceInfo `json:"deviceInfo,omitempty"`
 	Username         string      `json:"username" binding:"max=16"`
-	Password         string      `json:"password"`
-	MPSPassword      string      `json:"mpspassword"`
-	MEBXPassword     string      `json:"mebxpassword"`
+	Password         string      `json:"password,omitempty"`
+	MPSPassword      string      `json:"mpspassword,omitempty"`
+	MEBXPassword     string      `json:"mebxpassword,omitempty"`
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+}
+
+// MarshalJSON leaves the password properties out of the JSON output.
+func (d Device) MarshalJSON() ([]byte, error) {
+	type plain Device
+
+	p := plain(d)
+	p.Password, p.MPSPassword, p.MEBXPassword = "", "", ""
+
+	return json.Marshal(p)
 }
 
 type DeviceInfo struct {
