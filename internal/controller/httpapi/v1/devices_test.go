@@ -89,13 +89,20 @@ var (
 		"lastdisconnected": true,
 		"username":         true,
 		"password":         true,
-		"mpspassword":      true,
-		"mebxpassword":     true,
 		"usetls":           true,
 		"allowselfsigned":  true,
 		"certhash":         true,
 	}
 )
+
+// deviceRequestBody encodes d with its password properties, which Device.MarshalJSON omits.
+func deviceRequestBody(d dto.Device) []byte {
+	type withPasswords dto.Device
+
+	body, _ := json.Marshal(withPasswords(d))
+
+	return body
+}
 
 func TestDevicesRoutes(t *testing.T) {
 	t.Parallel()
@@ -403,8 +410,7 @@ func TestDevicesRoutes(t *testing.T) {
 			var err error
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch {
-				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(deviceRequestBody(tc.requestBody)))
 			} else {
 				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
@@ -584,6 +590,60 @@ func TestDevicesInsertRejectsInvalidJSON(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestDevicesUpdateEchoedListResponseOmitsPasswordProperties(t *testing.T) {
+	t.Parallel()
+
+	stored := dto.Device{
+		GUID:         testDeviceGUID,
+		Hostname:     "test-device",
+		Tags:         []string{"lab"},
+		Username:     "admin",
+		MPSPassword:  "encrypted-mps",
+		MEBXPassword: "encrypted-mebx",
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Get(context.Background(), 25, 0, "").
+		Return([]dto.Device{stored}, nil)
+
+	listReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/devices", http.NoBody)
+	require.NoError(t, err)
+
+	listResp := httptest.NewRecorder()
+	engine.ServeHTTP(listResp, listReq)
+	require.Equal(t, http.StatusOK, listResp.Code)
+
+	var listed []map[string]any
+	require.NoError(t, json.Unmarshal(listResp.Body.Bytes(), &listed))
+	require.Len(t, listed, 1)
+
+	listed[0]["tags"] = []string{"lab", "floor-2"}
+
+	body, err := json.Marshal(listed[0])
+	require.NoError(t, err)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error) {
+			require.True(t, fields["tags"])
+			require.NotContains(t, fields, "password")
+			require.NotContains(t, fields, "mpspassword")
+			require.NotContains(t, fields, "mebxpassword")
+
+			return d, nil
+		})
+
+	patchReq, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	patchResp := httptest.NewRecorder()
+	engine.ServeHTTP(patchResp, patchReq)
+
+	require.Equal(t, http.StatusOK, patchResp.Code)
 }
 
 // encoding/json unmarshals case-insensitively; the merge must see the field as

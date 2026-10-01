@@ -2001,7 +2001,12 @@
 									"pm.test(\"Status code is 200\", function () {\r",
 									"    pm.response.to.have.status(200);\r",
 									"});\r",
-									""
+									"pm.test(\"Device omits password properties\",function(){\r",
+									"    var raw = pm.response.text();\r",
+									"    pm.expect(raw).to.not.include('mpspassword');\r",
+									"    pm.expect(raw).to.not.include('mebxpassword');\r",
+									"    pm.expect(raw).to.not.include('\\\"password\\\"');\r",
+									"});"
 								],
 								"type": "text/javascript"
 							}
@@ -2626,6 +2631,12 @@
 									"   var jsonData = pm.response.json();\r",
 									"   pm.expect(jsonData.data.length).to.eql(2);\r",
 									"   pm.expect(jsonData.totalCount).to.eql(2);\r",
+									"});\r",
+									"pm.test(\"Device list omits password properties\",function(){\r",
+									"    var raw = pm.response.text();\r",
+									"    pm.expect(raw).to.not.include('mpspassword');\r",
+									"    pm.expect(raw).to.not.include('mebxpassword');\r",
+									"    pm.expect(raw).to.not.include('\\\"password\\\"');\r",
 									"});"
 								],
 								"type": "text/javascript"
