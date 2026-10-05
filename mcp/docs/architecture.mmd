@@ -12,12 +12,12 @@ flowchart LR
     subgraph Binary["Console binary - single executable when built with -tags mcp"]
         subgraph Server["MCP server (embedded, or run standalone via cmd/mcp)"]
             SSE["SSE + /message endpoints"]
-            Tools["Tool handlers<br/>list_devices, send_power_action,<br/>get_hardware_info, capture_kvm_frame, ..."]
+            Tools["Tool handlers<br/>list_devices, send_power_action (power + One-Click Recovery boot),<br/>get_hardware_info, capture_kvm_frame, ..."]
             Rest["Console REST client<br/>JWT bearer auth"]
         end
 
         subgraph Console["Console backend - Go / Gin (existing)"]
-            API["REST API<br/>/api/v1/devices, /amt/power, /amt/kvm/frame"]
+            API["REST API<br/>/api/v1/devices, /amt/power (+ bootOptions: PBA / WinRE / HTTPS),<br/>/amt/kvm/frame"]
             Auth["/api/v1/authorize<br/>(JWT)"]
             Redir["Redirection + interceptor<br/>AMT digest auth injection"]
         end
@@ -30,6 +30,7 @@ flowchart LR
     LLM -. "images / diffs" .-> VLM
     LLM -. "discover & call tools" .-> Client
     Client -. "MCP JSON-RPC over SSE" .-> SSE
+    SSE -. "tool results, incl. raw KVM RGB332 frame" .-> Client
 
     %% Concrete API / operation interfaces (solid)
     SSE --> Tools --> Rest
@@ -37,7 +38,7 @@ flowchart LR
     Rest -->|"login"| Auth
     API --> Redir
     API -->|"WSMAN (power, HW info, settings)"| Devices
-    Redir -->|"AMT redirection (KVM RFB frames)"| Devices
+    Redir -->|"AMT redirection: device KVM RFB frames"| Devices
 
     classDef ai fill:#eef5ff,stroke:#5b8def,stroke-dasharray:4 3;
     classDef svr fill:#f3fbf0,stroke:#5aab5a;
