@@ -43,7 +43,7 @@ func (r *deviceManagementRoutes) powerAction(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var powerAction dto.PowerAction
-	if err := c.ShouldBindJSON(&powerAction); err != nil {
+	if err := BindJSON(c, &powerAction); err != nil {
 		ErrorResponse(c, err)
 
 		return
@@ -66,7 +66,7 @@ func (r *deviceManagementRoutes) setBootOptions(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var bootSetting dto.BootSetting
-	if err := c.ShouldBindJSON(&bootSetting); err != nil {
+	if err := BindJSON(c, &bootSetting); err != nil {
 		ErrorResponse(c, err)
 
 		return

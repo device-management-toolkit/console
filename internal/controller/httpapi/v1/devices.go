@@ -346,14 +346,14 @@ func collectNestedJSONFields(prefix string, raw json.RawMessage, fields map[stri
 func (dr *deviceRoutes) update(c *gin.Context) {
 	body, err := readJSONBody(c)
 	if err != nil {
-		ErrorResponse(c, err)
+		ErrorResponse(c, wrapRequestBindingError(err))
 
 		return
 	}
 
 	var device dto.Device
 	if err := json.Unmarshal(body, &device); err != nil {
-		ErrorResponse(c, err)
+		ErrorResponse(c, wrapRequestBindingError(err))
 
 		return
 	}
@@ -362,7 +362,7 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 
 	fields, err := providedJSONFieldsFromBody(body)
 	if err != nil {
-		ErrorResponse(c, err)
+		ErrorResponse(c, wrapRequestBindingError(err))
 
 		return
 	}
@@ -451,7 +451,7 @@ func (dr *deviceRoutes) getDeviceCertificate(c *gin.Context) {
 
 func (dr *deviceRoutes) pinDeviceCertificate(c *gin.Context) {
 	var certToPin dto.PinCertificate
-	if err := c.ShouldBindBodyWithJSON(&certToPin); err != nil {
+	if err := BindBodyJSON(c, &certToPin); err != nil {
 		ErrorResponse(c, err)
 
 		return

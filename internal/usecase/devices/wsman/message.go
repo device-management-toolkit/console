@@ -4,6 +4,7 @@ import (
 	"context"
 	gotls "crypto/tls"
 	"errors"
+	"fmt"
 	"net"
 	"sync"
 	"time"
@@ -69,6 +70,11 @@ import (
 const (
 	deviceCallBuffer = 100
 	maxReadRecords   = 390
+
+	// The queued closure is sub-millisecond now that the authentication wait
+	// runs on the caller's goroutine, so logging every one of them would bury
+	// the case worth seeing: the Worker being held after all.
+	workerStallThreshold = 20 * time.Millisecond
 )
 
 var (
@@ -133,7 +139,17 @@ func (g GoWSMANMessages) Worker() {
 	for {
 		select {
 		case request := <-requestQueue:
+			start := time.Now()
+
 			request()
+
+			// The closure must never block: anything slow (the authentication
+			// wait) is handed back to the caller instead. Only report a request
+			// that held the Worker anyway, or that left work queued behind it.
+			if held := time.Since(start); held >= workerStallThreshold || len(requestQueue) > 0 {
+				g.log.Debug(fmt.Sprintf("WSMAN_QUEUE: request held the worker for %s, %d still queued", held, len(requestQueue)))
+			}
+
 			time.Sleep(queueTickTime)
 		case <-shutdownSignal:
 			return
@@ -141,8 +157,16 @@ func (g GoWSMANMessages) Worker() {
 	}
 }
 
+// setupResult carries the connection entry off the Worker goroutine. awaitAuth
+// is non-nil when the entry still has to finish authenticating; the caller runs
+// it on its own goroutine so the Worker is free for the next device.
+type setupResult struct {
+	entry     *ConnectionEntry
+	awaitAuth func(context.Context) (*ConnectionEntry, error)
+}
+
 func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logAMTMessages bool) (Management, error) {
-	resultChan := make(chan *ConnectionEntry, 1)
+	resultChan := make(chan setupResult, 1)
 	errChan := make(chan error, 1)
 	// Queue the request
 	requestQueue <- func() {
@@ -182,23 +206,35 @@ func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Dev
 			}
 
 			connection.WsmanMessages = wsman.NewMessages(cp)
-			resultChan <- connection
-		} else {
-			resultChan <- g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
+			resultChan <- setupResult{entry: connection}
+
+			return
 		}
+
+		entry, awaitAuth := g.setupWsmanClientInternal(device, isRedirection, logAMTMessages)
+		resultChan <- setupResult{entry: entry, awaitAuth: awaitAuth}
 	}
 
 	select {
 	case err := <-errChan:
 		return nil, err
 	case result := <-resultChan:
-		return result, nil
+		if result.awaitAuth != nil {
+			entry, err := result.awaitAuth(ctx)
+			if err != nil {
+				return nil, err
+			}
+
+			return entry, nil
+		}
+
+		return result.entry, nil
 	case <-ctx.Done():
 		return nil, ErrCancelled.Wrap("SetupWsmanClient", "ctx.Done", ctx.Err())
 	}
 }
 
-func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) *ConnectionEntry {
+func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) (conn *ConnectionEntry, awaitAuth func(context.Context) (*ConnectionEntry, error)) {
 	clientParams := client.Parameters{
 		Target:                    device.Hostname,
 		Username:                  device.Username,
@@ -226,34 +262,25 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 				RemoveConnection(device.GUID)
 			})
 
-			return entry
+			return entry, nil
 		} else if entry.IsCIRA {
 			entry.WsmanMessages = wsman.NewMessages(clientParams)
 
-			return entry
+			return entry, nil
 		}
 
-		ticker := time.NewTicker(waitForAuthTickTime)
+		// Hand the wait back to the caller instead of running it here. Capture
+		// the client now, on the Worker goroutine: entry.WsmanMessages is
+		// assigned without a lock elsewhere, so the caller must not re-read it.
+		pending := entry.WsmanMessages.Client
 
-		defer ticker.Stop()
+		// The one line that evidences the handoff: paired with WSMAN_QUEUE
+		// reporting a sub-millisecond hold, it shows the device is being waited
+		// on without the Worker being held for it.
+		g.log.Debug("WSMAN_SETUP: cached connection not authenticated yet, deferring the wait to the caller for guid " + device.GUID)
 
-		timeout := time.After(waitForAuth)
-
-		for {
-			select {
-			case <-ticker.C:
-				if entry.WsmanMessages.Client.IsAuthenticated() {
-					return entry
-				}
-			case <-timeout:
-				newEntry := &ConnectionEntry{
-					WsmanMessages: wsman.NewMessages(clientParams),
-					Timer:         timer,
-				}
-				SetConnectionEntry(device.GUID, newEntry)
-
-				return newEntry
-			}
+		return entry, func(ctx context.Context) (*ConnectionEntry, error) {
+			return waitForAuthentication(ctx, device.GUID, entry, pending, clientParams, timer)
 		}
 	}
 
@@ -266,7 +293,51 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	newEntry.WsmanMessages.Client.IsAuthenticated()
 	SetConnectionEntry(device.GUID, newEntry)
 
-	return newEntry
+	return newEntry, nil
+}
+
+// waitForAuthentication polls until an in-flight request finishes the device
+// handshake, falling back to a fresh client if it never does. It runs on the
+// caller's goroutine rather than inside the queued closure, so a device that is
+// slow to authenticate no longer delays every other device's setup (#1247).
+func waitForAuthentication(ctx context.Context, guid string, entry *ConnectionEntry, pending client.WSMan, clientParams client.Parameters, timer *time.Timer) (*ConnectionEntry, error) {
+	ticker := time.NewTicker(waitForAuthTickTime)
+
+	defer ticker.Stop()
+
+	timeout := time.After(waitForAuth)
+
+	for {
+		select {
+		case <-ticker.C:
+			if pending.IsAuthenticated() {
+				// The cached entry keeps its own expiry timer; ours is surplus.
+				timer.Stop()
+
+				return entry, nil
+			}
+		case <-timeout:
+			newEntry := &ConnectionEntry{
+				WsmanMessages: wsman.NewMessages(clientParams),
+				Timer:         timer,
+			}
+
+			cached := replaceConnectionEntry(guid, entry, newEntry)
+			if cached != newEntry {
+				// Another waiter replaced the entry first; drop ours so its
+				// expiry timer cannot evict the entry that is now cached.
+				timer.Stop()
+			}
+
+			return cached, nil
+		case <-ctx.Done():
+			// Nothing takes ownership of the timer on this path; left armed it
+			// would evict whatever is cached for the device 90s from now.
+			timer.Stop()
+
+			return nil, ErrCancelled.Wrap("SetupWsmanClient", "ctx.Done", ctx.Err())
+		}
+	}
 }
 
 // RemoveConnection safely deletes a connection entry from the global map.
@@ -291,6 +362,24 @@ func SetConnectionEntry(guid string, entry *ConnectionEntry) {
 	defer connectionsMu.Unlock()
 
 	connections[guid] = entry
+}
+
+// replaceConnectionEntry swaps stale for replacement under the map lock and
+// returns the entry that is actually cached. Waiters on the same unauthenticated
+// device all time out together; the first one installs its entry and the rest
+// get it back, so a burst of requests shares one client instead of each caching
+// its own.
+func replaceConnectionEntry(guid string, stale, replacement *ConnectionEntry) *ConnectionEntry {
+	connectionsMu.Lock()
+	defer connectionsMu.Unlock()
+
+	if current, ok := connections[guid]; ok && current != stale {
+		return current
+	}
+
+	connections[guid] = replacement
+
+	return replacement
 }
 
 // HasConnections safely checks whether any connections exist.

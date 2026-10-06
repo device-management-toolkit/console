@@ -4,6 +4,7 @@ import (
 	"context"
 	"crypto/x509"
 	"encoding/base64"
+	"errors"
 	"fmt"
 	"time"
 
@@ -52,6 +53,7 @@ var (
 	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
 	ErrDatabase       = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
 	ErrNotFound       = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
+	ErrCertFormat     = CertFormatError{Console: ErrDomainsUseCase}
 	ErrCertPassword   = CertPasswordError{Console: ErrDomainsUseCase}
 	ErrCertExpiration = CertExpirationError{Console: ErrDomainsUseCase}
 	ErrCertStore      = CertStoreError{Console: ErrDomainsUseCase}
@@ -327,13 +329,17 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 	// Decode the base64 encoded PFX certificate
 	pfxData, err := base64.StdEncoding.DecodeString(domain.ProvisioningCert)
 	if err != nil {
-		return nil, err
+		return nil, ErrCertFormat.Wrap("DecryptAndCheckCertExpiration", "base64.StdEncoding.DecodeString", err)
 	}
 
 	// Convert the PFX data to x509 cert
 	_, cert, err := pkcs12.Decode(pfxData, domain.ProvisioningCertPassword)
 	if err != nil && cert == nil {
-		return nil, ErrCertPassword.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
+		if errors.Is(err, pkcs12.ErrIncorrectPassword) {
+			return nil, ErrCertPassword.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
+		}
+
+		return nil, ErrCertFormat.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
 	}
 
 	// Check the expiration date of the certificate

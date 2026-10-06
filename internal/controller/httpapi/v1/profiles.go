@@ -123,7 +123,7 @@ func (r *profileRoutes) export(c *gin.Context) {
 
 func (r *profileRoutes) insert(c *gin.Context) {
 	var profile dto.Profile
-	if err := c.ShouldBindJSON(&profile); err != nil {
+	if err := BindJSON(c, &profile); err != nil {
 		validationErr := ErrValidationProfile.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 

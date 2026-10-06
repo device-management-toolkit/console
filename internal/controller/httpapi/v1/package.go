@@ -47,7 +47,7 @@ func (r *packageRoutes) versions(c *gin.Context) {
 
 func (r *packageRoutes) build(c *gin.Context) {
 	var req dto.PackageRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		validationErr := errValidationPackage.Wrap("build", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
