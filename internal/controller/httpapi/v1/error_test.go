@@ -44,6 +44,14 @@ func TestErrorResponse_CIRADisabled(t *testing.T) {
 	assert.Equal(t, http.StatusBadRequest, w.Code)
 }
 
+func TestErrorResponse_CertDomainSuffix(t *testing.T) {
+	t.Parallel()
+
+	w := runErrorResponse(t, domains.ErrCertDomainSuffix.Wrap("Insert", "CheckCertDomainSuffix", nil))
+	assert.Equal(t, http.StatusBadRequest, w.Code)
+	assert.Contains(t, w.Body.String(), "FQDN not associated with provisioning certificate")
+}
+
 func TestErrorResponse_CIRADeviceNotConnected(t *testing.T) {
 	t.Parallel()
 

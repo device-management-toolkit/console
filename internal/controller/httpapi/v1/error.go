@@ -148,10 +148,11 @@ func handleJSONBindingErrors(c *gin.Context, err error) bool {
 // handleDomainErrors handles domain-specific errors.
 func handleDomainErrors(c *gin.Context, err error) bool {
 	var (
-		certExpErr      domains.CertExpirationError
-		certFormatErr   domains.CertFormatError
-		certPasswordErr domains.CertPasswordError
-		notSupportedErr devices.NotSupportedError
+		certExpErr       domains.CertExpirationError
+		certFormatErr    domains.CertFormatError
+		certPasswordErr  domains.CertPasswordError
+		certDomainSuffix domains.CertDomainSuffixError
+		notSupportedErr  devices.NotSupportedError
 	)
 
 	switch {
@@ -162,6 +163,11 @@ func handleDomainErrors(c *gin.Context, err error) bool {
 		return true
 	case errors.As(err, &certFormatErr):
 		msg := certFormatErr.Console.FriendlyMessage()
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
+
+		return true
+	case errors.As(err, &certDomainSuffix):
+		msg := certDomainSuffix.Console.FriendlyMessage()
 		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: msg, Message: msg})
 
 		return true
