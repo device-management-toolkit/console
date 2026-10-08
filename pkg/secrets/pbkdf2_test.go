@@ -90,11 +90,11 @@ func TestIsPBKDF2Hash(t *testing.T) {
 		value    string
 		expected bool
 	}{
-		{"Valid PBKDF2 hash", "$pbkdf2$100000$abcd$efgh", true},
+		{"Valid PBKDF2 hash", "$pbkdf2$100000$abcd$efgh", false},
 		{"Bcrypt hash", "$2a$10$xyz", false},
 		{"Empty string", "", false},
 		{"Plain text", "password", false},
-		{"PBKDF2 prefix only", "$pbkdf2$", true},
+		{"PBKDF2 prefix only", "$pbkdf2$", false},
 	}
 
 	for _, tc := range tests {
@@ -114,7 +114,7 @@ func TestPBKDF2HashFormat(t *testing.T) {
 
 	// Verify hash format: $pbkdf2$<iterations>$<hex(salt)>$<hex(hash)>
 	assert.True(t, IsPBKDF2Hash(hash))
-	assert.Contains(t, hash, "$pbkdf2$100000$")
+	assert.Contains(t, hash, "$pbkdf2$600000$")
 }
 
 func TestPBKDF2Consistency(t *testing.T) {
@@ -205,8 +205,8 @@ func TestVerifyPBKDF2Hash_SaltExtraction(t *testing.T) {
 	require.NoError(t, err2)
 
 	// Extract salts from both hashes - they should be different
-	parts1 := strings.Split(strings.TrimPrefix(hash1, "$pbkdf2$100000$"), "$")
-	parts2 := strings.Split(strings.TrimPrefix(hash2, "$pbkdf2$100000$"), "$")
+	parts1 := strings.Split(strings.TrimPrefix(hash1, "$pbkdf2$600000$"), "$")
+	parts2 := strings.Split(strings.TrimPrefix(hash2, "$pbkdf2$600000$"), "$")
 
 	assert.NotEqual(t, parts1[0], parts2[0], "salts should be different")
 }
@@ -219,13 +219,13 @@ func TestIsPBKDF2Hash_EdgeCases(t *testing.T) {
 		value    string
 		expected bool
 	}{
-		{"Exact prefix", "$pbkdf2$", true},
-		{"Prefix with content", "$pbkdf2$abc123", true},
+		{"Exact prefix", "$pbkdf2$", false},
+		{"Prefix with content", "$pbkdf2$abc123", false},
 		{"Similar but wrong prefix", "$pbkdf2", false},
 		{"Similar but wrong prefix 2", "pbkdf2$", false},
 		{"Case sensitive", "$PBKDF2$", false},
 		{"With whitespace", " $pbkdf2$", false},
-		{"Multiple prefixes", "$pbkdf2$$pbkdf2$", true},
+		{"Multiple prefixes", "$pbkdf2$$pbkdf2$", false},
 	}
 
 	for _, tc := range tests {

@@ -2964,6 +2964,59 @@
 			"name": "Session",
 			"item": [
 				{
+					"name": "Authorize issues a token",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response has a token field\", function () {\r",
+									"    var json = pm.response.json();\r",
+									"    pm.expect(json).to.have.property(\"token\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"username\": \"{{adminUsername}}\",\n    \"password\": \"{{adminPassword}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/authorize",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"authorize"
+							]
+						},
+						"description": "Authenticates and returns an access token.\n\nThe token is returned in the body for Authorization: Bearer clients, and also set as an HttpOnly session cookie so browsers need not store it. When auth.disabled is true (as in this test environment), any credentials are accepted and token is an empty string.\n\nWith auth enabled: returns 401 Unauthorized for invalid credentials, and 429 Too Many Requests once a client IP has exceeded the configured number of failed attempts within the rate-limit window, until the window elapses."
+					},
+					"response": []
+				},
+				{
 					"name": "Logout clears session cookies",
 					"event": [
 						{

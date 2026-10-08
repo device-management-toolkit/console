@@ -84,7 +84,7 @@ func selectedAdminCommand(args []string) string {
 	selected := 0
 	command := ""
 
-	if hasArg(args, "--clean") {
+	if hasArg(args, "--clean") || hasArg(args, "-clean") {
 		selected++
 		command = "clean"
 	}
@@ -124,11 +124,11 @@ func handleCleanCLI(keyringStore credentialStore, configPath string, out io.Writ
 		return fmt.Errorf("failed to remove admin JWT key from keystore: %w", err)
 	}
 
-	if err := config.ClearAdminCredentialsAndJWTKeyForPath(configPath); err != nil {
-		fmt.Fprintf(out, "Warning: failed to clear admin credentials from config.yml: %v\n", err)
-	}
-
 	fmt.Fprintln(out, "Admin credentials and JWT key removed from keystore.")
+
+	if err := config.ClearAdminCredentialsAndJWTKeyForPath(configPath); err != nil {
+		return fmt.Errorf("failed to clear admin credentials from config.yml: %w", err)
+	}
 
 	return nil
 }
@@ -149,7 +149,7 @@ func resolveAdminCredentials(reader *bufio.Reader, isFirstRun bool, username, pa
 	var promptedForUsername, promptedForPassword bool
 
 	if isFirstRun {
-		username, password, jwtKey = bootstrapAdminCredentials(reader)
+		username, password, jwtKey = bootstrapAdminCredentials(reader, jwtKey)
 		promptedForUsername = true
 		promptedForPassword = true
 	} else {
@@ -184,6 +184,13 @@ func handleAdminCredentials(cfg *config.Config) {
 		return
 	}
 
+	// Captured before resolution overwrites these fields below: a non-empty
+	// value here means config.yml itself holds a plaintext credential that
+	// must be cleared after it's persisted elsewhere. Resolving everything
+	// from the keyring/env instead must not force a (possibly read-only)
+	// config.yml rewrite that has nothing to clean up.
+	configFileHadCredentials := cfg.AdminUsername != "" || cfg.AdminPassword != "" || cfg.JWTKey != ""
+
 	dotEnvValues := readDotEnvFile(dotEnvFile)
 	keyringStore := newKeyringStorageFunc()
 
@@ -202,9 +209,13 @@ func handleAdminCredentials(cfg *config.Config) {
 		return
 	}
 
-	hashedPassword, _, err := normalizeAdminPasswordHash(password)
+	hashedPassword, converted, err := normalizeAdminPasswordHash(password)
 	if err != nil {
 		log.Fatalf("failed to hash admin password: %v", err)
+	}
+
+	if converted {
+		warnIfWeakAdminPassword(password)
 	}
 
 	cfg.AdminUsername = username
@@ -213,6 +224,13 @@ func handleAdminCredentials(cfg *config.Config) {
 
 	persistedToKeyring, usernameSaveErr, passwordSaveErr, jwtKeySaveErr := saveAdminCredentialsToKeyring(keyringStore, cfg.AdminUsername, cfg.AdminPassword, cfg.JWTKey)
 	if persistedToKeyring {
+		// First-run bootstrap always rewrites config.yml, even though the
+		// freshly generated credentials never touched it, so the file records
+		// the blanked admin fields rather than omitting them entirely.
+		if !isFirstRun && !configFileHadCredentials {
+			return
+		}
+
 		if err := config.ClearAdminCredentials(); err != nil {
 			log.Fatalf("failed to clear admin credentials from config.yml after keyring storage: %v", err)
 		}
@@ -221,7 +239,43 @@ func handleAdminCredentials(cfg *config.Config) {
 	}
 
 	logKeyringSaveAndRollbackWarnings(keyringStore, usernameSaveErr, passwordSaveErr, jwtKeySaveErr)
-	log.Fatal("unable to store admin credentials in the OS keyring; unlock or configure the keyring and retry")
+
+	// Credentials freshly generated this run (first-run bootstrap) exist only
+	// in memory, so failing to persist them means they're lost on restart —
+	// that must be fatal. Credentials sourced from the keyring/env/config are
+	// still usable for this process and still on disk, so a keyring outage
+	// shouldn't block startup.
+	if isFirstRun {
+		log.Fatal("unable to store newly generated admin credentials in the OS keyring; unlock or configure the keyring and retry")
+	}
+
+	log.Print("Warning: unable to store admin credentials in the OS keyring; continuing with the resolved credentials for this process")
+}
+
+const (
+	minAdminPasswordLength        = 8
+	minAdminPasswordDistinctChars = 4
+)
+
+// warnIfWeakAdminPassword logs a warning for a plaintext admin password that
+// is short or has very little variety, mirroring the pre-PBKDF2 behavior.
+// PBKDF2's work factor slows down guessing but does not compensate for a
+// low-entropy password.
+func warnIfWeakAdminPassword(password string) {
+	if len(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+		return
+	}
+
+	log.Print("Warning: configured admin password is weak (short or low character variety); consider using a longer, more varied password")
+}
+
+func distinctCharCount(s string) int {
+	seen := make(map[rune]struct{})
+	for _, r := range s {
+		seen[r] = struct{}{}
+	}
+
+	return len(seen)
 }
 
 func saveAdminCredentialsToKeyring(keyringStore credentialStore, username, passwordHash, jwtKey string) (persisted bool, usernameErr, passwordErr, jwtKeyErr error) {
@@ -292,7 +346,7 @@ func resolveAdminCredentialsFromSources(cfg *config.Config, keyringStore credent
 	}
 
 	if password == "" {
-		password = strings.TrimSpace(firstNonEmpty(dotEnvValues[authAdminSecretEnv], os.Getenv(authAdminSecretEnv)))
+		password = firstNonEmpty(dotEnvValues[authAdminSecretEnv], os.Getenv(authAdminSecretEnv))
 	}
 
 	if jwtKey == "" {
@@ -303,8 +357,8 @@ func resolveAdminCredentialsFromSources(cfg *config.Config, keyringStore credent
 		username = strings.TrimSpace(cfg.AdminUsername)
 	}
 
-	if password == "" {
-		password = strings.TrimSpace(cfg.AdminPassword)
+	if password == "" && strings.TrimSpace(cfg.AdminPassword) != "" {
+		password = cfg.AdminPassword
 	}
 
 	if jwtKey == "" {
@@ -485,29 +539,35 @@ func normalizeAdminPasswordHash(password string) (hash string, converted bool, e
 	return pbkdf2Hash, true, nil
 }
 
-func bootstrapAdminCredentials(reader *bufio.Reader) (username, password, jwtKey string) {
+func bootstrapAdminCredentials(reader *bufio.Reader, suppliedJWTKey string) (username, password, jwtKey string) {
 	generatedPassword, err := generateRandomPassword(adminPasswordLength)
 	if err != nil {
 		log.Fatalf("Failed to generate random password: %v", err)
 	}
 
 	password = generatedPassword
-	jwtKey = generateRandomAdminJWTKey()
 
-	fmt.Fprintln(os.Stdout, "")
-	fmt.Fprintln(os.Stdout, "\033[31m===============================================\033[0m")
-	fmt.Fprintln(os.Stdout, "\033[31mCONSOLE ADMIN CREDENTIALS - FIRST-RUN BOOTSTRAP\033[0m")
-	fmt.Fprintln(os.Stdout, "\033[31m===============================================\033[0m")
-	fmt.Fprintln(os.Stdout, "\033[31mRecord these values now; they will NOT be shown again.\033[0m")
-	fmt.Fprintln(os.Stdout, "")
-	fmt.Fprintf(os.Stdout, "  Admin Username: %s\n", "standalone")
-	fmt.Fprintf(os.Stdout, "  Admin Password: %s\n", password)
-	fmt.Fprintln(os.Stdout, "")
-	fmt.Fprintf(os.Stdout, "  JWT Signing Key: %s\n", jwtKey)
-	fmt.Fprintln(os.Stdout, "")
-	fmt.Fprintln(os.Stdout, "\033[31mThese will be stored in the OS keyring for security.\033[0m")
-	fmt.Fprintln(os.Stdout, "\033[31m===============================================\033[0m")
-	fmt.Fprintln(os.Stdout, "")
+	jwtKey = suppliedJWTKey
+	if jwtKey == "" {
+		jwtKey = generateRandomAdminJWTKey()
+	}
+
+	// Security: Log to stderr (not stdout) to prevent accidental credential exposure in stdout captures.
+	// Credentials should only be logged once during initial bootstrap for user visibility.
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "\033[31m===============================================\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31mCONSOLE ADMIN CREDENTIALS - FIRST-RUN BOOTSTRAP\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31m===============================================\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31mRecord these values now; they will NOT be shown again.\033[0m")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "  Admin Username: %s\n", "standalone")
+	fmt.Fprintf(os.Stderr, "  Admin Password: %s\n", password)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "  JWT Signing Key: %s\n", jwtKey)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "\033[31mThese will be stored in the OS keyring for security.\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31m===============================================\033[0m")
+	fmt.Fprintln(os.Stderr, "")
 
 	fmt.Fprint(os.Stdout, "Press Enter to continue: ")
 

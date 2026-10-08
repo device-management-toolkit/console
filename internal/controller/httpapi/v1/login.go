@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -30,7 +31,76 @@ const (
 var (
 	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
 	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+
+	// Rate limiting for PBKDF2 login attempts (DoS protection). Each entry
+	// tracks failures within a rolling window; entries are reset lazily when
+	// their window has elapsed and swept periodically by janitorOnce below so
+	// low-failure-count clients don't accumulate in the map forever.
+	loginAttempts = make(map[string]*loginAttemptEntry)
+	loginMutex    sync.Mutex
+	janitorOnce   sync.Once
+
+	// Configuration: allow 5 failed attempts per 15 minutes per IP.
+	maxFailedLoginAttempts = 5
+	rateLimitWindow        = 15 * time.Minute
 )
+
+type loginAttemptEntry struct {
+	count       int
+	windowStart time.Time
+}
+
+// reserveLoginAttempt reports whether clientIP is still allowed to attempt a
+// login, and if so atomically reserves (counts) this attempt before the
+// caller runs the expensive PBKDF2 verification. Reserving under the same
+// lock as the check prevents concurrent requests from the same client all
+// observing a count below the threshold and proceeding together.
+func reserveLoginAttempt(clientIP string) bool {
+	loginMutex.Lock()
+	defer loginMutex.Unlock()
+
+	now := time.Now()
+
+	entry := loginAttempts[clientIP]
+	if entry == nil || now.Sub(entry.windowStart) > rateLimitWindow {
+		entry = &loginAttemptEntry{windowStart: now}
+		loginAttempts[clientIP] = entry
+	}
+
+	if entry.count >= maxFailedLoginAttempts {
+		return false
+	}
+
+	entry.count++
+
+	return true
+}
+
+// startLoginAttemptJanitor periodically sweeps rate-limit entries whose
+// window has elapsed, bounding map growth from clients that fail only a few
+// times and never reach the threshold (which previously never expired).
+func startLoginAttemptJanitor() {
+	janitorOnce.Do(func() {
+		go func() {
+			ticker := time.NewTicker(rateLimitWindow)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				now := time.Now()
+
+				loginMutex.Lock()
+
+				for ip, entry := range loginAttempts {
+					if now.Sub(entry.windowStart) > rateLimitWindow {
+						delete(loginAttempts, ip)
+					}
+				}
+
+				loginMutex.Unlock()
+			}
+		}()
+	})
+}
 
 type LoginRoute struct {
 	Config   *config.Config
@@ -39,6 +109,8 @@ type LoginRoute struct {
 
 // NewVersionRoute creates a new version route
 func NewLoginRoute(configData *config.Config) *LoginRoute {
+	startLoginAttemptJanitor()
+
 	lr := &LoginRoute{
 		Config: configData,
 	}
@@ -93,11 +165,30 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
+	// Rate limiting: PBKDF2 requires significant CPU. Unauthenticated clients
+	// attempting concurrent failed logins could saturate resources, so an
+	// attempt is reserved atomically (check-and-increment under one lock)
+	// before the expensive hash runs, rather than only incrementing after a
+	// failure is known — otherwise many concurrent requests could all pass
+	// the check before any of them records an attempt.
+	clientIP := c.ClientIP()
+
+	if !reserveLoginAttempt(clientIP) {
+		c.JSON(http.StatusTooManyRequests, gin.H{errorKey: "rate_limited", messageKey: "Too many failed login attempts. Please try again later."})
+
+		return
+	}
+
 	if !secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password) || creds.Username != lr.Config.AdminUsername {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
 
 		return
 	}
+
+	// Successful auth, reset rate limit counter
+	loginMutex.Lock()
+	delete(loginAttempts, clientIP)
+	loginMutex.Unlock()
 
 	// Create JWT token
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)

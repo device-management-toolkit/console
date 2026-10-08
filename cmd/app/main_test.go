@@ -310,7 +310,10 @@ func TestHandleAdminCLI_Clean(t *testing.T) {
 	}}
 	buf := &bytes.Buffer{}
 
-	handled, err := handleAdminCLIWithInput([]string{"--clean"}, store, buf, strings.NewReader("y\n"))
+	configPath := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, os.WriteFile(configPath, []byte("auth:\n  jwtExpiration: 24h\n"), 0o600))
+
+	handled, err := handleAdminCLIWithInput([]string{"--clean", "--config", configPath}, store, buf, strings.NewReader("y\n"))
 	require.NoError(t, err)
 	assert.True(t, handled)
 	assert.Contains(t, store.deletedKeys, keyringAdminUsername)
@@ -383,9 +386,8 @@ func TestLogKeyringSaveAndRollbackWarnings_LogsEachFailure(t *testing.T) {
 	assert.Contains(t, out.String(), "admin JWT key")
 }
 
+//nolint:paralleltest // mutates global config and flag state
 func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testing.T) {
-	t.Parallel()
-
 	configFile := filepath.Join(t.TempDir(), "config.yml")
 	require.NoError(t, os.WriteFile(configFile, []byte("auth:\n  jwtExpiration: 24h\n"), 0o600))
 
