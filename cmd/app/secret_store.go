@@ -238,7 +238,7 @@ func handleAdminCredentials(cfg *config.Config) {
 		return
 	}
 
-	logKeyringSaveAndRollbackWarnings(keyringStore, usernameSaveErr, passwordSaveErr, jwtKeySaveErr)
+	logKeyringSaveAndRollbackWarnings(usernameSaveErr, passwordSaveErr, jwtKeySaveErr)
 
 	// Credentials freshly generated this run (first-run bootstrap) exist only
 	// in memory, so failing to persist them means they're lost on restart —
@@ -279,6 +279,12 @@ func distinctCharCount(s string) int {
 }
 
 func saveAdminCredentialsToKeyring(keyringStore credentialStore, username, passwordHash, jwtKey string) (persisted bool, usernameErr, passwordErr, jwtKeyErr error) {
+	// Captured before the writes below so a partial failure can restore
+	// whatever was already in the keyring instead of deleting it outright.
+	previousUsername, hadUsername := getPreviousKeyringValue(keyringStore, keyringAdminUsername)
+	previousPassword, hadPassword := getPreviousKeyringValue(keyringStore, keyringAdminPassword)
+	previousJWTKey, hadJWTKey := getPreviousKeyringValue(keyringStore, keyringAdminJWTKey)
+
 	usernameErr = keyringStore.SetKeyValue(keyringAdminUsername, username)
 	passwordErr = keyringStore.SetKeyValue(keyringAdminPassword, passwordHash)
 	jwtKeyErr = keyringStore.SetKeyValue(keyringAdminJWTKey, jwtKey)
@@ -288,40 +294,60 @@ func saveAdminCredentialsToKeyring(keyringStore credentialStore, username, passw
 	}
 
 	if usernameErr == nil {
-		rollbackKeyringEntry(keyringStore, keyringAdminUsername)
+		restoreKeyringEntry(keyringStore, keyringAdminUsername, previousUsername, hadUsername)
 	}
 
 	if passwordErr == nil {
-		rollbackKeyringEntry(keyringStore, keyringAdminPassword)
+		restoreKeyringEntry(keyringStore, keyringAdminPassword, previousPassword, hadPassword)
 	}
 
 	if jwtKeyErr == nil {
-		rollbackKeyringEntry(keyringStore, keyringAdminJWTKey)
+		restoreKeyringEntry(keyringStore, keyringAdminJWTKey, previousJWTKey, hadJWTKey)
 	}
 
 	return false, usernameErr, passwordErr, jwtKeyErr
 }
 
-func logKeyringSaveAndRollbackWarnings(keyringStore credentialStore, usernameSaveErr, passwordSaveErr, jwtKeySaveErr error) {
+func logKeyringSaveAndRollbackWarnings(usernameSaveErr, passwordSaveErr, jwtKeySaveErr error) {
 	if usernameSaveErr != nil {
 		log.Printf("Warning: failed to save admin username to keyring: %v", usernameSaveErr)
 	}
 
 	if passwordSaveErr != nil {
-		if usernameSaveErr == nil {
-			rollbackKeyringEntry(keyringStore, keyringAdminUsername)
-		}
-
 		log.Printf("Warning: failed to save admin password to keyring: %v", passwordSaveErr)
 	}
 
 	if jwtKeySaveErr != nil {
-		if usernameSaveErr == nil && passwordSaveErr == nil {
-			rollbackKeyringEntry(keyringStore, keyringAdminUsername)
-			rollbackKeyringEntry(keyringStore, keyringAdminPassword)
-		}
-
 		log.Printf("Warning: failed to save admin JWT key to keyring: %v", jwtKeySaveErr)
+	}
+}
+
+// getPreviousKeyringValue reads a key's current value before it gets
+// overwritten. The second return is false when the key didn't previously
+// exist (including on any read error), which tells restoreKeyringEntry
+// there's nothing to restore to.
+func getPreviousKeyringValue(keyringStore credentialStore, key string) (string, bool) {
+	value, err := keyringStore.GetKeyValue(key)
+	if err != nil {
+		return "", false
+	}
+
+	return value, true
+}
+
+// restoreKeyringEntry undoes a successful SetKeyValue after a sibling key's
+// save failed. A key that already held a value gets that value back; a key
+// that didn't exist before this attempt (first-run bootstrap) is deleted
+// rather than left with the new, now-unpersisted value.
+func restoreKeyringEntry(keyringStore credentialStore, key, previousValue string, hadPreviousValue bool) {
+	if !hadPreviousValue {
+		rollbackKeyringEntry(keyringStore, key)
+
+		return
+	}
+
+	if err := keyringStore.SetKeyValue(key, previousValue); err != nil {
+		log.Printf("Warning: failed to restore previous value for %s in keyring: %v", key, err)
 	}
 }
 

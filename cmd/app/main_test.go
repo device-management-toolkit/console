@@ -43,6 +43,10 @@ func (m *mockCredentialStore) GetKeyValue(key string) (string, error) {
 }
 
 func (m *mockCredentialStore) SetKeyValue(key, value string) error {
+	if err, ok := m.errMap[key+":set"]; ok {
+		return err
+	}
+
 	if m.values == nil {
 		m.values = map[string]string{}
 	}
@@ -362,15 +366,7 @@ func TestReadDotEnvFile_ParsesQuotedValuesAndIgnoresComments(t *testing.T) {
 	assert.Equal(t, "jwt-key", values[authAdminJWTKeyEnv])
 }
 
-func TestLogKeyringSaveAndRollbackWarnings_LogsEachFailure(t *testing.T) {
-	t.Parallel()
-
-	store := &mockCredentialStore{errMap: map[string]error{
-		keyringAdminUsername: errors.New("user failed"),
-		keyringAdminPassword: errors.New("password failed"),
-		keyringAdminJWTKey:   errors.New("jwt failed"),
-	}}
-
+func TestLogKeyringSaveAndRollbackWarnings_LogsEachFailure(t *testing.T) { //nolint:paralleltest // rebinds the shared log output
 	var out bytes.Buffer
 
 	oldWriter := log.Writer()
@@ -379,7 +375,7 @@ func TestLogKeyringSaveAndRollbackWarnings_LogsEachFailure(t *testing.T) {
 
 	defer log.SetOutput(oldWriter)
 
-	logKeyringSaveAndRollbackWarnings(store, errors.New("user save failed"), errors.New("password save failed"), errors.New("jwt save failed"))
+	logKeyringSaveAndRollbackWarnings(errors.New("user save failed"), errors.New("password save failed"), errors.New("jwt save failed"))
 
 	assert.Contains(t, out.String(), "admin username")
 	assert.Contains(t, out.String(), "admin password")
@@ -442,9 +438,8 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	assert.Contains(t, string(configData), "jwtKey: \"\"")
 }
 
+//nolint:paralleltest // mutates the global newKeyringStorageFunc
 func TestHandleAdminCredentials_OAuthConfiguredSkipsBootstrap(t *testing.T) {
-	t.Parallel()
-
 	cfg := &config.Config{
 		Auth: config.Auth{
 			ClientID: "oauth-client-id",
@@ -484,6 +479,68 @@ func TestSaveAdminCredentialsToKeyring_StoresAllThreeValues(t *testing.T) {
 	assert.Equal(t, "admin", store.values[keyringAdminUsername])
 	assert.Equal(t, "hashed-password", store.values[keyringAdminPassword])
 	assert.Equal(t, "jwt-key", store.values[keyringAdminJWTKey])
+}
+
+// TestSaveAdminCredentialsToKeyring_PartialFailureRestoresPreviousValues covers
+// the keyring-rollback bug: a sibling key's save failure must not wipe out an
+// already-stored credential on the keys that did succeed — it must put back
+// what was there before this attempt.
+func TestSaveAdminCredentialsToKeyring_PartialFailureRestoresPreviousValues(t *testing.T) {
+	t.Parallel()
+
+	store := &mockCredentialStore{
+		values: map[string]string{
+			keyringAdminUsername: "old-user",
+			keyringAdminPassword: "old-pass-hash",
+		},
+		errMap: map[string]error{
+			keyringAdminJWTKey + ":set": errors.New("jwt save failed"),
+		},
+	}
+
+	persisted, usernameErr, passwordErr, jwtKeyErr := saveAdminCredentialsToKeyring(
+		store,
+		"new-user",
+		"new-pass-hash",
+		"new-jwt-key",
+	)
+
+	assert.False(t, persisted)
+	assert.NoError(t, usernameErr)
+	assert.NoError(t, passwordErr)
+	assert.Error(t, jwtKeyErr)
+	assert.Equal(t, "old-user", store.values[keyringAdminUsername], "username should be restored to its previous value, not left as the new one")
+	assert.Equal(t, "old-pass-hash", store.values[keyringAdminPassword], "password should be restored to its previous value, not left as the new one")
+	assert.Empty(t, store.deletedKeys, "a key with a previous value must be restored, not deleted")
+}
+
+// TestSaveAdminCredentialsToKeyring_PartialFailureDeletesFirstRunKeys covers the
+// complementary case: a key that had no previous value (first-run bootstrap)
+// should still be deleted on rollback, since there's nothing to restore it to.
+func TestSaveAdminCredentialsToKeyring_PartialFailureDeletesFirstRunKeys(t *testing.T) {
+	t.Parallel()
+
+	store := &mockCredentialStore{
+		values: map[string]string{},
+		errMap: map[string]error{
+			keyringAdminJWTKey + ":set": errors.New("jwt save failed"),
+		},
+	}
+
+	persisted, usernameErr, passwordErr, jwtKeyErr := saveAdminCredentialsToKeyring(
+		store,
+		"new-user",
+		"new-pass-hash",
+		"new-jwt-key",
+	)
+
+	assert.False(t, persisted)
+	assert.NoError(t, usernameErr)
+	assert.NoError(t, passwordErr)
+	assert.Error(t, jwtKeyErr)
+	assert.NotContains(t, store.values, keyringAdminUsername)
+	assert.NotContains(t, store.values, keyringAdminPassword)
+	assert.ElementsMatch(t, []string{keyringAdminUsername, keyringAdminPassword}, store.deletedKeys)
 }
 
 func TestResolveAdminCredentials_FirstRunBootstrap(t *testing.T) {
