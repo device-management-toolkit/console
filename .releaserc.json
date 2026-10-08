@@ -63,8 +63,36 @@
             "label": "Third-Party Licenses"
           },
           {
-              "path": "*.sigstore.json",
-              "label": "Cosign Signature Bundles"
+            "path": "console_linux_x64.tar.gz.cosign.bundle.json",
+            "label": "Linux x64 Console Signature Bundle"
+          },
+          {
+            "path": "console_linux_x64_headless.tar.gz.cosign.bundle.json",
+            "label": "Linux x64 Headless Console Signature Bundle"
+          },
+          {
+            "path": "console_linux_arm64.tar.gz.cosign.bundle.json",
+            "label": "Linux ARM64 Console Signature Bundle"
+          },
+          {
+            "path": "console_linux_arm64_headless.tar.gz.cosign.bundle.json",
+            "label": "Linux ARM64 Headless Console Signature Bundle"
+          },
+          {
+            "path": "dist%2Fwindows%2Fconsole_windows_x64.exe.cosign.bundle.json",
+            "label": "Windows x64 Console Signature Bundle"
+          },
+          {
+            "path": "dist%2Fwindows%2Fconsole_windows_x64_headless.exe.cosign.bundle.json",
+            "label": "Windows x64 Headless Console Signature Bundle"
+          },
+          {
+            "path": "console_mac_arm64.tar.gz.cosign.bundle.json",
+            "label": "macOS ARM64 Console Signature Bundle"
+          },
+          {
+            "path": "console_mac_arm64_headless.tar.gz.cosign.bundle.json",
+            "label": "macOS ARM64 Headless Console Signature Bundle"
           }
         ]
       }
