@@ -642,7 +642,7 @@ func TestEnsureJWTKey(t *testing.T) {
 		key           string
 		wantGenerated bool
 	}{
-		{"generates and persists when auth is enabled and no key is set", false, "", true},
+		{"generates when auth is enabled and no key is set", false, "", true},
 		{"keeps a configured key and never writes it to disk", false, "from-env", false},
 		{"skips generation when auth is disabled", true, "", false},
 	}
@@ -660,7 +660,7 @@ func TestEnsureJWTKey(t *testing.T) {
 			cfg.Disabled = tc.disabled
 			cfg.JWTKey = tc.key
 
-			require.NoError(t, ensureJWTKey(path, cfg))
+			require.NoError(t, ensureJWTKey(cfg))
 
 			if !tc.wantGenerated {
 				assert.Equal(t, tc.key, cfg.JWTKey)
@@ -669,13 +669,8 @@ func TestEnsureJWTKey(t *testing.T) {
 				return
 			}
 
-			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
-			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
-
-			// A restart must reuse the persisted key rather than rotate it.
-			again := readConfigFile(t, path)
-			require.NoError(t, ensureJWTKey(path, again))
-			assert.Equal(t, cfg.JWTKey, again.JWTKey)
+			assert.NotEmpty(t, cfg.JWTKey)
+			assert.Empty(t, readConfigFile(t, path).JWTKey)
 		})
 	}
 }
@@ -691,7 +686,7 @@ func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:parallelt
 	path := filepath.Join(t.TempDir(), "config.yml")
 	require.NoError(t, writeConfig(path, defaultConfig()))
 
-	require.NoError(t, ensureJWTKey(path, defaultConfig()))
+	require.NoError(t, ensureJWTKey(defaultConfig()))
 	assert.Contains(t, buf.String(), "OAuth2")
 }
 
@@ -701,4 +696,38 @@ func TestReadEnv_EmptyJWTKeyIsNotRejected(t *testing.T) {
 	t.Parallel()
 
 	require.NoError(t, cleanenv.ReadEnv(defaultConfig()))
+}
+
+func TestDefaultConfig_JWTKeyEmptyByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	assert.Empty(t, cfg.JWTKey)
+}
+
+func TestEnsureRuntimeJWTKey_GeneratesWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	require.Empty(t, cfg.JWTKey)
+
+	err := ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.NotEmpty(t, cfg.JWTKey)
+
+	firstKey := cfg.JWTKey
+	err = ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, firstKey, cfg.JWTKey)
+}
+
+func TestEnsureRuntimeJWTKey_PreservesConfiguredValue(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "configured-jwt-key"
+
+	err := ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "configured-jwt-key", cfg.JWTKey)
 }

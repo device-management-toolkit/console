@@ -7,9 +7,7 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"regexp"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -34,15 +32,6 @@ const adminPasswordLength = 16
 // adminPasswordMinLength is the floor, in runes, for the warning and the generator.
 // No ceiling: this password is only compared against the login request in httpapi/v1.
 const adminPasswordMinLength = 8
-
-// RE2 has no lookahead, so complexity is one regex per required class. The last is
-// "not a letter or digit", broader than the !@#$%^&* AMT profiles require.
-var adminPasswordComplexity = []*regexp.Regexp{
-	regexp.MustCompile(`[a-z]`),
-	regexp.MustCompile(`[A-Z]`),
-	regexp.MustCompile(`\d`),
-	regexp.MustCompile(`[^a-zA-Z0-9]`),
-}
 
 // Classes used to generate a password. Only @ and * survive being pasted verbatim:
 // $ ! expand in sh, # truncates in make (-include .env), % ^ & break cmd.exe's set.
@@ -75,6 +64,15 @@ func main() {
 		runHealthCheck()
 	}
 
+	handled, err := handleAdminCLI(os.Args[1:], newKeyringStorageFunc(), os.Stdout)
+	if err != nil {
+		log.Fatalf("Admin command error: %v", err)
+	}
+
+	if handled {
+		return
+	}
+
 	cfg, err := initializeConfigFunc()
 	if err != nil {
 		log.Fatalf("Config error: %s", err)
@@ -97,7 +95,10 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-	handleAdminPassword(cfg)
+
+	if cfg.ClientID == "" {
+		handleAdminCredentials(cfg)
+	}
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
@@ -355,7 +356,7 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 }
 
 // generateRandomPassword returns a cryptographically secure password of exactly
-// length characters that satisfies isStrongAdminPassword.
+// length characters.
 func generateRandomPassword(length int) (string, error) {
 	if length < adminPasswordMinLength {
 		return "", ErrPasswordLengthTooShort
@@ -411,71 +412,4 @@ func shufflePassword(password []byte) error {
 	}
 
 	return nil
-}
-
-// handleAdminPassword ensures cfg.AdminPassword is set, generating one and
-// persisting it to config.yml on first run if nothing was provided via config
-// or environment. When auth is disabled, LoginRoute.credentialsAccepted lets
-// any credentials through, so there is no admin credential to generate.
-func handleAdminPassword(cfg *config.Config) {
-	if cfg.Disabled {
-		return
-	}
-
-	if cfg.AdminPassword != "" {
-		warnOnWeakAdminPassword(cfg.AdminPassword)
-
-		return
-	}
-
-	password, err := generateRandomPassword(adminPasswordLength)
-	if err != nil {
-		log.Fatalf("Failed to generate admin password: %v", err)
-	}
-
-	cfg.AdminPassword = password
-
-	if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
-		log.Fatalf(
-			"Generated admin password but failed to persist it to config (%v).\n"+
-				"Refusing to start with an unsaved credential that would vanish on restart.\n"+
-				"Set AUTH_ADMIN_PASSWORD in the environment (or auth.adminPassword in config) "+
-				"to provide the admin password directly.",
-			err,
-		)
-	}
-
-	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
-}
-
-// warnOnWeakAdminPassword warns but does not stop startup: migrated MPS/RPS
-// credentials predate this policy, and refusing to boot would lock operators out.
-func warnOnWeakAdminPassword(password string) {
-	if isStrongAdminPassword(password) {
-		return
-	}
-
-	log.Printf(
-		"WARNING: the configured admin password is weak. It should be at least %d characters and "+
-			"contain a lowercase letter, an uppercase letter, a digit, and a symbol; longer is better. "+
-			"Console is starting anyway, but set a stronger password in auth.adminPassword in "+
-			"config.yml, or via AUTH_ADMIN_PASSWORD in the environment. In .env, single-quote the "+
-			"value so docker compose does not expand $, and avoid # altogether: make reads .env too, "+
-			"and it cuts the value at # regardless of quoting.",
-		adminPasswordMinLength,
-	)
-}
-
-func isStrongAdminPassword(password string) bool {
-	if utf8.RuneCountInString(password) < adminPasswordMinLength {
-		return false
-	}
-
-	for _, rule := range adminPasswordComplexity {
-		if !rule.MatchString(password) {
-			return false
-		}
-	}
-
-	return true
 }
