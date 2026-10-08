@@ -18,6 +18,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	pwdhash "github.com/device-management-toolkit/console/pkg/secrets"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
 
@@ -413,17 +414,33 @@ func shufflePassword(password []byte) error {
 	return nil
 }
 
-// handleAdminPassword ensures cfg.AdminPassword is set, generating one and
-// persisting it to config.yml on first run if nothing was provided via config
-// or environment. When auth is disabled, LoginRoute.credentialsAccepted lets
-// any credentials through, so there is no admin credential to generate.
+// handleAdminPassword ensures cfg.AdminPassword is set to a PBKDF2 hash,
+// generating one and persisting it to config.yml on first run if nothing was
+// provided via config or environment. When auth is disabled,
+// LoginRoute.credentialsAccepted lets any credentials through, so there is no
+// admin credential to generate. A password already configured in plaintext
+// (from a config.yml predating PBKDF2 support, or set directly via config/env)
+// is hashed in memory so logins verify correctly for this run; config.yml
+// itself is left untouched so an operator-managed value is never silently
+// rewritten.
 func handleAdminPassword(cfg *config.Config) {
 	if cfg.Disabled {
 		return
 	}
 
 	if cfg.AdminPassword != "" {
+		if pwdhash.IsPBKDF2Hash(cfg.AdminPassword) {
+			return
+		}
+
 		warnOnWeakAdminPassword(cfg.AdminPassword)
+
+		hashed, err := pwdhash.GeneratePBKDF2Hash(cfg.AdminPassword)
+		if err != nil {
+			log.Fatalf("Failed to hash configured admin password: %v", err)
+		}
+
+		cfg.AdminPassword = hashed
 
 		return
 	}
@@ -433,7 +450,12 @@ func handleAdminPassword(cfg *config.Config) {
 		log.Fatalf("Failed to generate admin password: %v", err)
 	}
 
-	cfg.AdminPassword = password
+	hashed, err := pwdhash.GeneratePBKDF2Hash(password)
+	if err != nil {
+		log.Fatalf("Failed to hash generated admin password: %v", err)
+	}
+
+	cfg.AdminPassword = hashed
 
 	if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
 		log.Fatalf(
@@ -445,7 +467,7 @@ func handleAdminPassword(cfg *config.Config) {
 		)
 	}
 
-	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
+	log.Printf("Generated new admin password and persisted its hash to config; see auth.adminPassword in config.yml.")
 }
 
 // warnOnWeakAdminPassword warns but does not stop startup: migrated MPS/RPS
