@@ -16,6 +16,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/secrets"
 )
 
 const (
@@ -142,7 +143,7 @@ func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
 		return false
 	}
 
-	return creds.Username == lr.Config.AdminUsername && creds.Password == lr.Config.AdminPassword
+	return creds.Username == lr.Config.AdminUsername && secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can
