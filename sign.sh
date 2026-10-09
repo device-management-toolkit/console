@@ -2,8 +2,8 @@
 
 # Sign release artifacts with Cosign keyless (Fulcio/OIDC) signing.
 # The calling CI workflow must grant `id-token: write` and install cosign.
-# For each artifact this emits a Sigstore bundle (.sigstore.json) in the
-# repository root.
+# For each artifact this emits a path-qualified Cosign bundle in the repository
+# root, plus a basename alias for legacy verification when aliases are unique.
 
 set -euo pipefail
 
@@ -22,14 +22,29 @@ artifacts=(
   console_mac_arm64_headless.tar.gz
 )
 
+compatibility_aliases_enabled=1
+declare -A compatibility_bundle_sources=()
+for artifact in "${artifacts[@]}"; do
+  base_name="$(basename "$artifact")"
+  if [[ -n "${compatibility_bundle_sources[$base_name]:-}" ]]; then
+    printf 'Basename aliases disabled: %s and %s share basename %s; verify path-qualified bundles instead\n' \
+      "${compatibility_bundle_sources[$base_name]}" "$artifact" "$base_name" >&2
+    compatibility_aliases_enabled=0
+  else
+    compatibility_bundle_sources[$base_name]="$artifact"
+  fi
+done
+
 for artifact in "${artifacts[@]}"; do
   if [ ! -f "$artifact" ]; then
     echo "Artifact not found, cannot sign: $artifact"
     exit 1
   fi
 
-  base_name="$(basename "$artifact")"
-  bundle_file="${base_name}.sigstore.json"
+  bundle_name="${artifact//%/%25}"
+  bundle_name="${bundle_name//\//%2F}"
+  bundle_file="${bundle_name}.cosign.bundle.json"
+  compatibility_bundle_file="$(basename "$artifact").cosign.bundle.json"
 
   echo "Signing artifact: $artifact"
 
@@ -37,6 +52,10 @@ for artifact in "${artifacts[@]}"; do
     --yes \
     --bundle "$bundle_file" \
     "$artifact"
+
+  if [[ "$compatibility_aliases_enabled" == 1 && "$bundle_file" != "$compatibility_bundle_file" ]]; then
+    cp "$bundle_file" "$compatibility_bundle_file"
+  fi
 
   if [ "${COSIGN_SKIP_VERIFY:-0}" = "1" ]; then
     echo "Skipping verification for $artifact (COSIGN_SKIP_VERIFY=1)"
@@ -52,4 +71,4 @@ for artifact in "${artifacts[@]}"; do
 done
 
 echo "Cosign outputs:"
-ls -lh ./*.sigstore.json || true
+ls -lh ./*.cosign.bundle.json || true
