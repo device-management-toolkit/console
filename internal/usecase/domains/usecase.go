@@ -2,10 +2,12 @@ package domains
 
 import (
 	"context"
+	"crypto"
 	"crypto/x509"
 	"encoding/base64"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"software.sslmate.com/src/go-pkcs12"
@@ -50,13 +52,14 @@ func New(r Repository, log logger.Interface, safeRequirements security.Cryptor, 
 }
 
 var (
-	ErrDomainsUseCase = consoleerrors.CreateConsoleError("DomainsUseCase")
-	ErrDatabase       = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
-	ErrNotFound       = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
-	ErrCertFormat     = CertFormatError{Console: ErrDomainsUseCase}
-	ErrCertPassword   = CertPasswordError{Console: ErrDomainsUseCase}
-	ErrCertExpiration = CertExpirationError{Console: ErrDomainsUseCase}
-	ErrCertStore      = CertStoreError{Console: ErrDomainsUseCase}
+	ErrDomainsUseCase   = consoleerrors.CreateConsoleError("DomainsUseCase")
+	ErrDatabase         = repoerrors.DatabaseError{Console: ErrDomainsUseCase}
+	ErrNotFound         = repoerrors.NotFoundError{Console: ErrDomainsUseCase}
+	ErrCertFormat       = CertFormatError{Console: ErrDomainsUseCase}
+	ErrCertPassword     = CertPasswordError{Console: ErrDomainsUseCase}
+	ErrCertExpiration   = CertExpirationError{Console: ErrDomainsUseCase}
+	ErrCertDomainSuffix = CertDomainSuffixError{Console: ErrDomainsUseCase}
+	ErrCertStore        = CertStoreError{Console: ErrDomainsUseCase}
 )
 
 // domainCertKey generates the key path for storing domain certificates in Vault.
@@ -196,17 +199,14 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 	d1.ProvisioningCert = oldDomain.ProvisioningCert
 	d1.ProvisioningCertPassword = oldDomain.ProvisioningCertPassword
 
-	if d.ProvisioningCert != "" {
-		cert, err := DecryptAndCheckCertExpiration(*d)
-		if err != nil {
+	if d.ProvisioningCert == "" && normalizeDNSName(d.DomainSuffix) != normalizeDNSName(oldDomain.DomainSuffix) {
+		if err := uc.checkStoredCertSuffix(oldDomain, d.DomainSuffix); err != nil {
 			return nil, err
 		}
+	}
 
-		d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
-		d1.ProvisioningCert = d.ProvisioningCert
-		d1.ProvisioningCertPassword = encryptedNewPassword
-
-		if err := uc.storeCertInVault("Update", d, d1); err != nil {
+	if d.ProvisioningCert != "" {
+		if err := uc.applyCertUpdate(d, d1, encryptedNewPassword); err != nil {
 			return nil, err
 		}
 	} else if uc.certStore != nil {
@@ -241,6 +241,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, error) {
 	cert, err := DecryptAndCheckCertExpiration(*d)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := CheckCertDomainSuffix(cert, d.DomainSuffix); err != nil {
 		return nil, err
 	}
 
@@ -294,6 +298,48 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Domain) (*dto.Domain, erro
 	return d2, nil
 }
 
+// applyCertUpdate validates the replacement certificate against the request,
+// copies it (and its freshly encrypted password) onto the entity, and stores it
+// in Vault when object storage is configured.
+func (uc *UseCase) applyCertUpdate(d *dto.Domain, d1 *entity.Domain, encryptedPassword string) error {
+	cert, err := DecryptAndCheckCertExpiration(*d)
+	if err != nil {
+		return err
+	}
+
+	if err := CheckCertDomainSuffix(cert, d.DomainSuffix); err != nil {
+		return err
+	}
+
+	d1.ExpirationDate = cert.NotAfter.Format(time.RFC3339)
+	d1.ProvisioningCert = d.ProvisioningCert
+	d1.ProvisioningCertPassword = encryptedPassword
+
+	return uc.storeCertInVault("Update", d, d1)
+}
+
+func (uc *UseCase) checkStoredCertSuffix(stored *entity.Domain, domainSuffix string) error {
+	if stored.ProvisioningCert == "" {
+		return ErrCertDomainSuffix.Wrap("Update", "checkStoredCertSuffix", nil)
+	}
+
+	// Database rows hold an encrypted password; Vault holds it in plain text.
+	password, err := uc.safeRequirements.Decrypt(stored.ProvisioningCertPassword)
+	if err != nil {
+		password = stored.ProvisioningCertPassword
+	}
+
+	cert, err := DecryptAndCheckCertExpiration(dto.Domain{
+		ProvisioningCert:         stored.ProvisioningCert,
+		ProvisioningCertPassword: password,
+	})
+	if err != nil {
+		return err
+	}
+
+	return CheckCertDomainSuffix(cert, domainSuffix)
+}
+
 // storeCertInVault writes the domain certificate to Vault object storage and clears
 // the cert fields on d1 so the certificate is not duplicated in the database.
 // It is a no-op when no cert store or no ObjectStorager is configured.
@@ -333,13 +379,19 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 	}
 
 	// Convert the PFX data to x509 cert
-	_, cert, err := pkcs12.Decode(pfxData, domain.ProvisioningCertPassword)
-	if err != nil && cert == nil {
+	key, first, caCerts, err := pkcs12.DecodeChain(pfxData, domain.ProvisioningCertPassword)
+	if err != nil {
 		if errors.Is(err, pkcs12.ErrIncorrectPassword) {
-			return nil, ErrCertPassword.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
+			return nil, ErrCertPassword.Wrap("DecryptAndCheckCertExpiration", "pkcs12.DecodeChain", err)
 		}
 
-		return nil, ErrCertFormat.Wrap("DecryptAndCheckCertExpiration", "pkcs12.Decode", err)
+		return nil, ErrCertFormat.Wrap("DecryptAndCheckCertExpiration", "pkcs12.DecodeChain", err)
+	}
+
+	// The leaf is not necessarily the first bag, so match it to the private key.
+	cert := leafCert(key, append([]*x509.Certificate{first}, caCerts...))
+	if cert == nil {
+		return nil, ErrCertFormat.Wrap("DecryptAndCheckCertExpiration", "leafCert", nil)
 	}
 
 	// Check the expiration date of the certificate
@@ -348,6 +400,69 @@ func DecryptAndCheckCertExpiration(domain dto.Domain) (*x509.Certificate, error)
 	}
 
 	return cert, nil
+}
+
+func leafCert(key any, certs []*x509.Certificate) *x509.Certificate {
+	signer, ok := key.(crypto.Signer)
+	if !ok {
+		return nil
+	}
+
+	for _, c := range certs {
+		if pub, ok := c.PublicKey.(interface{ Equal(x crypto.PublicKey) bool }); ok && pub.Equal(signer.Public()) {
+			return c
+		}
+	}
+
+	return nil
+}
+
+// CheckCertDomainSuffix verifies that domainSuffix matches the provisioning
+// certificate CN per Intel's remote configuration rules.
+func CheckCertDomainSuffix(cert *x509.Certificate, domainSuffix string) error {
+	if cert == nil || cert.Subject.CommonName == "" {
+		return ErrCertDomainSuffix.Wrap("CheckCertDomainSuffix", "cert.Subject.CommonName", nil)
+	}
+
+	cn := normalizeDNSName(cert.Subject.CommonName)
+	suffix := normalizeDNSName(domainSuffix)
+
+	if suffix == "" || !certCoversSuffix(cn, suffix) {
+		return ErrCertDomainSuffix.Wrap("CheckCertDomainSuffix", "certCoversSuffix", nil)
+	}
+
+	return nil
+}
+
+// certCoversSuffix reports whether a certificate with Common Name cn covers the
+// DNS suffix. Both arguments must already be normalized.
+func certCoversSuffix(cn, suffix string) bool {
+	if base, isWildcard := strings.CutPrefix(cn, "*."); isWildcard {
+		// "*.com" must not cover the whole TLD.
+		if !strings.Contains(base, ".") {
+			return false
+		}
+
+		return suffix == base ||
+			strings.HasSuffix(suffix, "."+base) ||
+			(strings.Contains(suffix, ".") && strings.HasSuffix(base, "."+suffix))
+	}
+
+	if suffix == cn {
+		return true
+	}
+
+	_, domain, hasHost := strings.Cut(cn, ".")
+
+	// The remainder must still be a domain ("vprodemo.com"), never a bare TLD.
+	return hasHost && strings.Contains(domain, ".") && suffix == domain
+}
+
+// normalizeDNSName lower-cases a DNS name and strips surrounding whitespace so
+// comparisons are purely structural. A trailing root dot is kept: it would be
+// stored verbatim and never match the suffix a device reports at activation.
+func normalizeDNSName(name string) string {
+	return strings.ToLower(strings.TrimSpace(name))
 }
 
 // convert dto.Domain to entity.Domain.
