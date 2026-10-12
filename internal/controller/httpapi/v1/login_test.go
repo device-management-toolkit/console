@@ -9,6 +9,7 @@ import (
 	"time"
 
 	"github.com/gin-gonic/gin"
+	"github.com/golang-jwt/jwt/v5"
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
@@ -22,6 +23,7 @@ const (
 	testProtectedURL = "/api/v1/devices"
 	testAuthorizeURL = "/api/v1/authorize"
 	testLogoutURL    = "/api/v1/authorize/logout"
+	testSessionURL   = "/api/v1/authorize/session"
 )
 
 // cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
@@ -55,6 +57,7 @@ func newAuthTestEngine(t *testing.T, cfg *config.Config) *gin.Engine {
 	engine := gin.New()
 	engine.POST(testAuthorizeURL, route.Login)
 	engine.POST(testLogoutURL, route.Logout)
+	engine.GET(testSessionURL, route.Session)
 	engine.GET(testProtectedURL, route.JWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	return engine
@@ -406,4 +409,119 @@ func TestLogin_EmptyConfiguredPasswordRejected(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+// sessionStatus calls the public session route and returns the body flag.
+func sessionStatus(t *testing.T, engine *gin.Engine, mutators ...func(*http.Request)) (*httptest.ResponseRecorder, bool) {
+	t.Helper()
+
+	req, err := http.NewRequest(http.MethodGet, testSessionURL, http.NoBody)
+	require.NoError(t, err)
+
+	for _, mutate := range mutators {
+		mutate(req)
+	}
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	var body map[string]bool
+
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &body))
+
+	authenticated, ok := body[authenticatedKey]
+	require.True(t, ok, "response must carry the %q flag", authenticatedKey)
+
+	return w, authenticated
+}
+
+// TestSessionStatus pins the contract the UI relies on: the route is public,
+// always 200, and reports the same verdict the JWT middleware would reach.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestSessionStatus(t *testing.T) {
+	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+
+	token, cookies := login(t, engine)
+	session := cookies[config.DefaultSessionCookieName]
+
+	t.Run("no credentials is 200 and unauthenticated", func(t *testing.T) {
+		w, authenticated := sessionStatus(t, engine)
+		require.Equal(t, http.StatusOK, w.Code, "the probe must never 401")
+		require.False(t, authenticated)
+		require.Equal(t, "no-cache, no-store, must-revalidate", w.Header().Get("Cache-Control"))
+	})
+
+	t.Run("session cookie is authenticated", func(t *testing.T) {
+		w, authenticated := sessionStatus(t, engine, withCookie(session))
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, authenticated)
+	})
+
+	t.Run("bearer token is authenticated", func(t *testing.T) {
+		w, authenticated := sessionStatus(t, engine, withBearer(token))
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, authenticated)
+	})
+
+	t.Run("bad bearer beside a valid cookie is unauthenticated, as the header wins", func(t *testing.T) {
+		w, authenticated := sessionStatus(t, engine, withBearer("not-a-token"), withCookie(session))
+		require.Equal(t, http.StatusOK, w.Code)
+		require.False(t, authenticated, "the probe must reach the same verdict as the middleware")
+	})
+
+	t.Run("tampered cookie is 200 and unauthenticated", func(t *testing.T) {
+		forged := &http.Cookie{Name: session.Name, Value: session.Value + "x"}
+		w, authenticated := sessionStatus(t, engine, withCookie(forged))
+		require.Equal(t, http.StatusOK, w.Code, "a bad token must not 401 on the probe")
+		require.False(t, authenticated)
+	})
+
+	t.Run("expired token is 200 and unauthenticated", func(t *testing.T) {
+		expired := jwt.NewWithClaims(jwt.SigningMethodHS256, jwt.MapClaims{
+			"exp": time.Now().Add(-time.Minute).Unix(),
+		})
+
+		signed, err := expired.SignedString([]byte(testJWTKey))
+		require.NoError(t, err)
+
+		w, authenticated := sessionStatus(t, engine, withBearer(signed))
+		require.Equal(t, http.StatusOK, w.Code)
+		require.False(t, authenticated)
+	})
+}
+
+// TestSessionStatus_CookieAuthDisabled: with cookies off the middleware ignores
+// the cookie, so the probe must too, while the bearer header still counts.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestSessionStatus_CookieAuthDisabled(t *testing.T) {
+	cfg := cookieAuthTestConfig()
+	cfg.CookieEnabled = false
+	engine := newAuthTestEngine(t, cfg)
+
+	token, _ := login(t, engine)
+	asCookie := &http.Cookie{Name: config.DefaultSessionCookieName, Value: token}
+
+	w, authenticated := sessionStatus(t, engine, withCookie(asCookie))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.False(t, authenticated)
+
+	w, authenticated = sessionStatus(t, engine, withBearer(token))
+	require.Equal(t, http.StatusOK, w.Code)
+	require.True(t, authenticated)
+}
+
+// TestSessionStatus_AuthDisabled: with auth off the middleware is not mounted,
+// so the UI must be told every session is good.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestSessionStatus_AuthDisabled(t *testing.T) {
+	cfg := cookieAuthTestConfig()
+	cfg.Disabled = true
+	engine := newAuthTestEngine(t, cfg)
+
+	w, authenticated := sessionStatus(t, engine)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.True(t, authenticated)
 }

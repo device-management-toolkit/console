@@ -3274,6 +3274,96 @@
 						"description": "Expires the HttpOnly session cookie.\n\nPOST /api/v1/authorize returns the token in the body (for Authorization: Bearer clients) and also sets it as an HttpOnly cookie, so browsers need not store it. The Authorization header takes precedence when both are present. When auth.disabled is true, token is an empty string and no cookie is set."
 					},
 					"response": []
+				},
+				{
+					"name": "Session status with collection credentials",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Body carries a boolean authenticated flag\", function () {\r",
+									"    var body = pm.response.json();\r",
+									"    pm.expect(body).to.have.property(\"authenticated\");\r",
+									"    pm.expect(body.authenticated).to.be.a(\"boolean\");\r",
+									"});\r",
+									"\r",
+									"// The collection token (or auth.disabled) makes this a live session.\r",
+									"pm.test(\"Session is authenticated\", function () {\r",
+									"    pm.expect(pm.response.json().authenticated).to.eql(true);\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/authorize/session",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"authorize",
+								"session"
+							]
+						},
+						"description": "Reports whether the request carries a valid session.\n\nPublic and always 200. Accepts the same credentials as protected routes (Authorization: Bearer header or the HttpOnly session cookie). authenticated is false for a missing, expired or tampered token, never a 401, so the UI can probe a remembered session on startup without tripping its logout path. When auth.disabled is true, authenticated is always true."
+					},
+					"response": []
+				},
+				{
+					"name": "Session status without credentials never 401s",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 200\", function () {\r",
+									"    pm.response.to.have.status(200);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Body carries a boolean authenticated flag\", function () {\r",
+									"    var body = pm.response.json();\r",
+									"    pm.expect(body).to.have.property(\"authenticated\");\r",
+									"    pm.expect(body.authenticated).to.be.a(\"boolean\");\r",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "noauth"
+						},
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/authorize/session",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"authorize",
+								"session"
+							]
+						},
+						"description": "Same route with no credentials at all. Must still be 200 with authenticated=false (or true when auth.disabled is on)."
+					},
+					"response": []
 				}
 			]
 		},

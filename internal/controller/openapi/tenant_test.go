@@ -74,6 +74,7 @@ func TestProtectedRoutesDeclareTenantHeader(t *testing.T) {
 	public := map[string]bool{
 		"post /api/v1/authorize":        true,
 		"post /api/v1/authorize/logout": true,
+		"get /api/v1/authorize/session": true,
 	}
 
 	for operation, hasHeader := range declared {

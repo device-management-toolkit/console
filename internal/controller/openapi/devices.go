@@ -59,6 +59,21 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 	)
 
 	fuego.Get(
+		f.server, "/api/v1/authorize/session", f.session,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Session Status"),
+		fuego.OptionDescription("Report whether the request carries a valid session.\n\n"+
+			"Public and always `200`: the browser cannot read the HttpOnly session cookie, "+
+			"so the UI calls this on startup to learn whether a remembered session is still "+
+			"valid before it makes any protected request. Accepts the same credentials as "+
+			"protected routes (`Authorization: Bearer` header or the session cookie). "+
+			"`authenticated` is `false` for a missing, expired or tampered token, never a "+
+			"`401`.\n\n"+
+			"When `auth.disabled` is true, `authenticated` is always `true`."),
+		optionalAuthRouteOptions(),
+	)
+
+	fuego.Get(
 		f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize Redirection"),
@@ -195,6 +210,15 @@ func (f *FuegoAdapter) login(c fuego.ContextWithBody[dto.Credentials]) (Authoriz
 
 func (f *FuegoAdapter) loginRedirection(_ fuego.ContextNoBody) (AuthorizeRedirectionResponse, error) {
 	return AuthorizeRedirectionResponse{Token: "example-token"}, nil
+}
+
+// SessionResponse reports whether the caller holds a valid session.
+type SessionResponse struct {
+	Authenticated bool `json:"authenticated" example:"true"`
+}
+
+func (f *FuegoAdapter) session(_ fuego.ContextNoBody) (SessionResponse, error) {
+	return SessionResponse{Authenticated: true}, nil
 }
 
 // LogoutResponse acknowledges that the session cookie was expired.

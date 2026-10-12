@@ -51,6 +51,22 @@ func protectedRouteOptions() fuego.RouteOption {
 	)
 }
 
+// optionalAuthRouteOptions documents a public route that still reads the
+// bearer header or the session cookie when one is sent. The empty requirement
+// is what makes the credentials optional in the spec.
+func optionalAuthRouteOptions() fuego.RouteOption {
+	security := []openapi3.SecurityRequirement{
+		{},
+		{bearerAuthScheme: []string{}},
+	}
+
+	if specCookieAuthEnabled() {
+		security = append(security, openapi3.SecurityRequirement{cookieAuthScheme: []string{}})
+	}
+
+	return fuego.OptionSecurity(security...)
+}
+
 // tenantHeaderOption documents the optional tenant scope. Omitting the header
 // selects the default tenant, which is where single-tenant data lives.
 func tenantHeaderOption() fuego.RouteOption {

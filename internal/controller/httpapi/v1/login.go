@@ -149,11 +149,42 @@ func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
 // still clear its own. Not revocation: the JWT stays valid until it expires.
 func (lr LoginRoute) Logout(c *gin.Context) {
 	clearSessionCookies(c)
+	setNoCacheHeaders(c)
+
+	c.JSON(http.StatusOK, gin.H{messageKey: "logged out"})
+}
+
+// Session reports whether the request carries a valid session. Public and
+// always 200: the browser cannot read the HttpOnly cookie, so this is how it
+// learns on startup whether a remembered session is still good before it
+// fires any protected request. A 401 here would trip the UI's logout path,
+// which is exactly the symptom this route exists to avoid.
+func (lr LoginRoute) Session(c *gin.Context) {
+	setNoCacheHeaders(c)
+
+	c.JSON(http.StatusOK, gin.H{authenticatedKey: lr.sessionAuthenticated(c)})
+}
+
+// setNoCacheHeaders stops browsers and proxies from replaying a session verdict.
+func setNoCacheHeaders(c *gin.Context) {
 	c.Header("Cache-Control", "no-cache, no-store, must-revalidate")
 	c.Header("Pragma", "no-cache")
 	c.Header("Expires", "0")
+}
 
-	c.JSON(http.StatusOK, gin.H{messageKey: "logged out"})
+// sessionAuthenticated mirrors JWTAuthMiddleware without aborting. With auth
+// disabled the middleware is not mounted, so every session is good.
+func (lr LoginRoute) sessionAuthenticated(c *gin.Context) bool {
+	if lr.Config.Disabled {
+		return true
+	}
+
+	tokenString := resolveToken(c)
+	if tokenString == "" {
+		return false
+	}
+
+	return lr.verifyToken(c, tokenString)
 }
 
 // JWTAuthMiddleware accepts either the Authorization header (REST clients) or
