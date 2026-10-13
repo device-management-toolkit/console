@@ -27,7 +27,7 @@ require (
 	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.12.1
 	github.com/zsais/go-gin-prometheus v1.0.3
-	go.mongodb.org/mongo-driver/v2 v2.9.1
+	go.mongodb.org/mongo-driver/v2 v2.9.2
 	go.uber.org/mock v0.6.0
 	golang.org/x/mod v0.42.0
 	golang.org/x/sys v0.48.0
