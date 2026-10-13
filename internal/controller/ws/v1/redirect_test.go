@@ -116,11 +116,26 @@ func TestWebSocketHandlerRedirectErrorClosesWebSocket(t *testing.T) {
 
 	config.ConsoleConfig.Disabled = true
 
+	// The handshake response is already flushed by the time Redirect runs, but
+	// httptest.Server.Close() does not wait for goroutines still serving a
+	// hijacked (upgraded) connection, so without this the handler goroutine can
+	// outlive the test and race the next test's config.NewConfig() write.
+	var handlerWG sync.WaitGroup
+
+	t.Cleanup(handlerWG.Wait)
+	handlerWG.Add(1)
+
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 	mockLogger := mocks.NewMockLogger(ctrl)
 	mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 	mockLogger.EXPECT().Info("Websocket connection opened")
-	mockFeature.EXPECT().Redirect(gomock.Any(), gomock.Any(), "someHost", "someMode").Return(ErrRedirect)
+	mockFeature.EXPECT().
+		Redirect(gomock.Any(), gomock.Any(), "someHost", "someMode").
+		DoAndReturn(func(_ *gin.Context, _ *websocket.Conn, _, _ string) error {
+			defer handlerWG.Done()
+
+			return ErrRedirect
+		})
 	mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "someMode")
 	mockLogger.EXPECT().Error(ErrRedirect, "http - devices - v1 - redirect")
 
@@ -307,12 +322,22 @@ func TestWebSocketHandlerRealUpgrader(t *testing.T) { //nolint:paralleltest // s
 	mockLogger.EXPECT().Debug(gomock.Any(), gomock.Any()).AnyTimes()
 	mockLogger.EXPECT().Info(gomock.Any(), gomock.Any()).AnyTimes()
 
+	// httptest.Server.Close() (via t.Cleanup below) does not wait for goroutines
+	// still serving a hijacked (upgraded) connection, so without this the
+	// handler goroutine for the last dial can outlive the test and race the
+	// next test's config.NewConfig() write to the shared config.ConsoleConfig.
+	var handlerWG sync.WaitGroup
+
+	t.Cleanup(handlerWG.Wait)
+
 	// The handshake response is already flushed by the time Redirect runs, so
 	// closing here just releases the hijacked connection.
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 	mockFeature.EXPECT().
 		Redirect(gomock.Any(), gomock.Any(), gomock.Any(), gomock.Any()).
 		DoAndReturn(func(_ *gin.Context, conn *websocket.Conn, _, _ string) error {
+			defer handlerWG.Done()
+
 			return conn.Close()
 		}).
 		AnyTimes()
@@ -335,11 +360,16 @@ func TestWebSocketHandlerRealUpgrader(t *testing.T) { //nolint:paralleltest // s
 	// dial performs a real handshake as deviceID does, returning the subprotocol
 	// the server negotiated and the token the client offered.
 	dial := func(deviceID string) (negotiated, offered string, err error) {
+		handlerWG.Add(1)
+
 		offered = tokenFor(deviceID)
 		dialer := &websocket.Dialer{Subprotocols: []string{offered}}
 
 		conn, resp, err := dialer.Dial(wsURL+"/relay/webrelay.ashx?host="+deviceID+"&mode=kvm", nil)
 		if err != nil {
+			// No upgrade means Redirect, and hence its handlerWG.Done(), never runs.
+			handlerWG.Done()
+
 			return "", offered, err
 		}
 

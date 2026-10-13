@@ -1,0 +1,614 @@
+package main
+
+import (
+	"bufio"
+	"crypto/rand"
+	"encoding/base64"
+	"errors"
+	"fmt"
+	"io"
+	"log"
+	"os"
+	"strings"
+
+	"golang.org/x/term"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
+	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/pkg/secrets"
+)
+
+const (
+	keyringServiceName   = "dmt-console"
+	keyringAdminUsername = "admin-username"
+	keyringAdminPassword = "admin-password-hash"
+	keyringAdminJWTKey   = "jwt-signing-key"
+	dotEnvFile           = ".env"
+	authAdminUsernameEnv = "AUTH_ADMIN_USERNAME"
+	authAdminSecretEnv   = "AUTH_ADMIN_PASSWORD" // #nosec G101 -- environment variable name, not a credential value
+	authAdminJWTKeyEnv   = "AUTH_JWT_KEY"
+	dotEnvSplitParts     = 2
+	jwtKeyByteSize       = 32
+)
+
+var (
+	errAdminCLIExclusiveFlags = errors.New("use only --clean")
+	errKeystoreUnavailable    = errors.New("keystore is unavailable")
+)
+
+// credentialStore is intentionally narrow so alternate secret backends can be
+// plugged in later without changing startup or CLI behavior.
+type credentialStore interface {
+	GetKeyValue(key string) (string, error)
+	SetKeyValue(key, value string) error
+	DeleteKeyValue(key string) error
+}
+
+// newKeyringStorageFunc is injectable for tests and can be replaced with other
+// secret-store factories in future integrations.
+var newKeyringStorageFunc = func() credentialStore { return security.NewKeyRingStorage(keyringServiceName) }
+
+func handleAdminCLI(args []string, keyringStore credentialStore, out io.Writer) (bool, error) {
+	return handleAdminCLIWithInput(args, keyringStore, out, os.Stdin)
+}
+
+func handleAdminCLIWithInput(args []string, keyringStore credentialStore, out io.Writer, input io.Reader) (bool, error) {
+	command := selectedAdminCommand(args)
+	if command == "" {
+		return false, nil
+	}
+
+	if command == "conflict" {
+		return true, errAdminCLIExclusiveFlags
+	}
+
+	configPath, err := config.ResolveConfigPathFromArgs(args)
+	if err != nil {
+		return true, err
+	}
+
+	if keyringStore == nil {
+		return true, errKeystoreUnavailable
+	}
+
+	switch command {
+	case "clean":
+		return true, handleCleanCLI(keyringStore, configPath, out, input)
+	default:
+		return true, errAdminCLIExclusiveFlags
+	}
+}
+
+func selectedAdminCommand(args []string) string {
+	selected := 0
+	command := ""
+
+	if hasArg(args, "--clean") || hasArg(args, "-clean") {
+		selected++
+		command = "clean"
+	}
+
+	if selected == 0 {
+		return ""
+	}
+
+	if selected > 1 {
+		return "conflict"
+	}
+
+	return command
+}
+
+func handleCleanCLI(keyringStore credentialStore, configPath string, out io.Writer, input io.Reader) error {
+	fmt.Fprint(out, "Remove all standalone admin credentials and JWT key? [y/N]: ")
+
+	reader := bufio.NewReader(input)
+
+	response, err := reader.ReadString('\n')
+	if err != nil || !strings.EqualFold(strings.TrimSpace(response), "y") {
+		fmt.Fprintln(out, "Credential cleanup canceled.")
+
+		return nil
+	}
+
+	if err := keyringStore.DeleteKeyValue(keyringAdminUsername); err != nil && !errors.Is(err, security.ErrKeyNotFound) {
+		return fmt.Errorf("failed to remove admin username from keystore: %w", err)
+	}
+
+	if err := keyringStore.DeleteKeyValue(keyringAdminPassword); err != nil && !errors.Is(err, security.ErrKeyNotFound) {
+		return fmt.Errorf("failed to remove admin password from keystore: %w", err)
+	}
+
+	if err := keyringStore.DeleteKeyValue(keyringAdminJWTKey); err != nil && !errors.Is(err, security.ErrKeyNotFound) {
+		return fmt.Errorf("failed to remove admin JWT key from keystore: %w", err)
+	}
+
+	fmt.Fprintln(out, "Admin credentials and JWT key removed from keystore.")
+
+	if err := config.ClearAdminCredentialsAndJWTKeyForPath(configPath); err != nil {
+		return fmt.Errorf("failed to clear admin credentials from config.yml: %w", err)
+	}
+
+	return nil
+}
+
+func hasArg(args []string, target string) bool {
+	for _, arg := range args {
+		if arg == target {
+			return true
+		}
+	}
+
+	return false
+}
+
+func resolveAdminCredentials(reader *bufio.Reader, isFirstRun bool, username, password, jwtKey string) (
+	resolvedUsername, resolvedPassword, resolvedJWTKey string, promptedUsername, promptedPassword bool,
+) {
+	var promptedForUsername, promptedForPassword bool
+
+	if isFirstRun {
+		username, password, jwtKey = bootstrapAdminCredentials(reader, jwtKey)
+		promptedForUsername = true
+		promptedForPassword = true
+	} else {
+		if username == "" {
+			promptedForUsername = true
+			username = promptForCredential(reader, "Enter Console admin username: ")
+		}
+
+		if password == "" {
+			promptedForPassword = true
+			password = promptForSecret(reader, "Enter Console admin password: ")
+		}
+
+		if jwtKey == "" {
+			jwtKey = generateRandomAdminJWTKey()
+		}
+	}
+
+	return username, password, jwtKey, promptedForUsername, promptedForPassword
+}
+
+func handleAdminCredentials(cfg *config.Config) {
+	if cfg.Disabled {
+		log.Print("Auth is disabled; skipping admin credential resolution.")
+
+		return
+	}
+
+	if cfg.ClientID != "" {
+		log.Print("OAuth2/OIDC is configured; skipping standalone admin credential resolution.")
+
+		return
+	}
+
+	// Captured before resolution overwrites these fields below: a non-empty
+	// value here means config.yml itself holds a plaintext credential that
+	// must be cleared after it's persisted elsewhere. Resolving everything
+	// from the keyring/env instead must not force a (possibly read-only)
+	// config.yml rewrite that has nothing to clean up.
+	configFileHadCredentials := cfg.AdminUsername != "" || cfg.AdminPassword != "" || cfg.JWTKey != ""
+
+	dotEnvValues := readDotEnvFile(dotEnvFile)
+	keyringStore := newKeyringStorageFunc()
+
+	username, password, jwtKey := resolveAdminCredentialsFromSources(cfg, keyringStore, dotEnvValues)
+
+	reader := bufio.NewReader(os.Stdin)
+	isFirstRun := username == "" && password == ""
+
+	username, password, jwtKey, _, _ = resolveAdminCredentials(
+		reader, isFirstRun, username, password, jwtKey,
+	)
+
+	if isFirstRun && username == "" {
+		log.Print("Admin credential bootstrap canceled.")
+
+		return
+	}
+
+	hashedPassword, converted, err := normalizeAdminPasswordHash(password)
+	if err != nil {
+		log.Fatalf("failed to hash admin password: %v", err)
+	}
+
+	if converted {
+		warnIfWeakAdminPassword(password)
+	}
+
+	cfg.AdminUsername = username
+	cfg.AdminPassword = hashedPassword
+	cfg.JWTKey = jwtKey
+
+	persistedToKeyring, usernameSaveErr, passwordSaveErr, jwtKeySaveErr := saveAdminCredentialsToKeyring(keyringStore, cfg.AdminUsername, cfg.AdminPassword, cfg.JWTKey)
+	if persistedToKeyring {
+		// First-run bootstrap always rewrites config.yml, even though the
+		// freshly generated credentials never touched it, so the file records
+		// the blanked admin fields rather than omitting them entirely.
+		if !isFirstRun && !configFileHadCredentials {
+			return
+		}
+
+		if err := config.ClearAdminCredentials(); err != nil {
+			log.Fatalf("failed to clear admin credentials from config.yml after keyring storage: %v", err)
+		}
+
+		return
+	}
+
+	logKeyringSaveAndRollbackWarnings(usernameSaveErr, passwordSaveErr, jwtKeySaveErr)
+
+	// Credentials freshly generated this run (first-run bootstrap) exist only
+	// in memory, so failing to persist them means they're lost on restart —
+	// that must be fatal. Credentials sourced from the keyring/env/config are
+	// still usable for this process and still on disk, so a keyring outage
+	// shouldn't block startup.
+	if isFirstRun {
+		log.Fatal("unable to store newly generated admin credentials in the OS keyring; unlock or configure the keyring and retry")
+	}
+
+	log.Print("Warning: unable to store admin credentials in the OS keyring; continuing with the resolved credentials for this process")
+}
+
+const (
+	minAdminPasswordLength        = 8
+	minAdminPasswordDistinctChars = 4
+)
+
+// warnIfWeakAdminPassword logs a warning for a plaintext admin password that
+// is short or has very little variety, mirroring the pre-PBKDF2 behavior.
+// PBKDF2's work factor slows down guessing but does not compensate for a
+// low-entropy password.
+func warnIfWeakAdminPassword(password string) {
+	if len(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+		return
+	}
+
+	log.Print("Warning: configured admin password is weak (short or low character variety); consider using a longer, more varied password")
+}
+
+func distinctCharCount(s string) int {
+	seen := make(map[rune]struct{})
+	for _, r := range s {
+		seen[r] = struct{}{}
+	}
+
+	return len(seen)
+}
+
+func saveAdminCredentialsToKeyring(keyringStore credentialStore, username, passwordHash, jwtKey string) (persisted bool, usernameErr, passwordErr, jwtKeyErr error) {
+	// Captured before the writes below so a partial failure can restore
+	// whatever was already in the keyring instead of deleting it outright.
+	previousUsername, hadUsername := getPreviousKeyringValue(keyringStore, keyringAdminUsername)
+	previousPassword, hadPassword := getPreviousKeyringValue(keyringStore, keyringAdminPassword)
+	previousJWTKey, hadJWTKey := getPreviousKeyringValue(keyringStore, keyringAdminJWTKey)
+
+	usernameErr = keyringStore.SetKeyValue(keyringAdminUsername, username)
+	passwordErr = keyringStore.SetKeyValue(keyringAdminPassword, passwordHash)
+	jwtKeyErr = keyringStore.SetKeyValue(keyringAdminJWTKey, jwtKey)
+
+	if usernameErr == nil && passwordErr == nil && jwtKeyErr == nil {
+		return true, nil, nil, nil
+	}
+
+	if usernameErr == nil {
+		restoreKeyringEntry(keyringStore, keyringAdminUsername, previousUsername, hadUsername)
+	}
+
+	if passwordErr == nil {
+		restoreKeyringEntry(keyringStore, keyringAdminPassword, previousPassword, hadPassword)
+	}
+
+	if jwtKeyErr == nil {
+		restoreKeyringEntry(keyringStore, keyringAdminJWTKey, previousJWTKey, hadJWTKey)
+	}
+
+	return false, usernameErr, passwordErr, jwtKeyErr
+}
+
+func logKeyringSaveAndRollbackWarnings(usernameSaveErr, passwordSaveErr, jwtKeySaveErr error) {
+	if usernameSaveErr != nil {
+		log.Printf("Warning: failed to save admin username to keyring: %v", usernameSaveErr)
+	}
+
+	if passwordSaveErr != nil {
+		log.Printf("Warning: failed to save admin password to keyring: %v", passwordSaveErr)
+	}
+
+	if jwtKeySaveErr != nil {
+		log.Printf("Warning: failed to save admin JWT key to keyring: %v", jwtKeySaveErr)
+	}
+}
+
+// getPreviousKeyringValue reads a key's current value before it gets
+// overwritten. The second return is false when the key didn't previously
+// exist (including on any read error), which tells restoreKeyringEntry
+// there's nothing to restore to.
+func getPreviousKeyringValue(keyringStore credentialStore, key string) (string, bool) {
+	value, err := keyringStore.GetKeyValue(key)
+	if err != nil {
+		return "", false
+	}
+
+	return value, true
+}
+
+// restoreKeyringEntry undoes a successful SetKeyValue after a sibling key's
+// save failed. A key that already held a value gets that value back; a key
+// that didn't exist before this attempt (first-run bootstrap) is deleted
+// rather than left with the new, now-unpersisted value.
+func restoreKeyringEntry(keyringStore credentialStore, key, previousValue string, hadPreviousValue bool) {
+	if !hadPreviousValue {
+		rollbackKeyringEntry(keyringStore, key)
+
+		return
+	}
+
+	if err := keyringStore.SetKeyValue(key, previousValue); err != nil {
+		log.Printf("Warning: failed to restore previous value for %s in keyring: %v", key, err)
+	}
+}
+
+func rollbackKeyringEntry(keyringStore credentialStore, key string) {
+	if rollbackErr := keyringStore.DeleteKeyValue(key); rollbackErr != nil && !errors.Is(rollbackErr, security.ErrKeyNotFound) {
+		log.Printf("Warning: failed to rollback %s from keyring: %v", key, rollbackErr)
+	}
+}
+
+// resolveAdminCredentialsFromSources resolves username/password and the JWT
+// key independently, each through keyring > .env/env > config.yml. They are
+// resolved separately (rather than requiring all three from the same source)
+// so installs upgrading from a keyring that only ever stored username+password
+// keep using those values instead of falling all the way back to config.yml
+// just because no JWT key has been stored yet.
+func resolveAdminCredentialsFromSources(cfg *config.Config, keyringStore credentialStore, dotEnvValues map[string]string) (username, password, jwtKey string) {
+	username, password = readAdminUsernamePasswordFromKeyring(keyringStore)
+	jwtKey = readAdminJWTKeyFromKeyring(keyringStore)
+
+	if username == "" {
+		username = strings.TrimSpace(firstNonEmpty(dotEnvValues[authAdminUsernameEnv], os.Getenv(authAdminUsernameEnv)))
+	}
+
+	if password == "" {
+		password = firstNonEmpty(dotEnvValues[authAdminSecretEnv], os.Getenv(authAdminSecretEnv))
+	}
+
+	if jwtKey == "" {
+		jwtKey = strings.TrimSpace(firstNonEmpty(dotEnvValues[authAdminJWTKeyEnv], os.Getenv(authAdminJWTKeyEnv)))
+	}
+
+	if username == "" {
+		username = strings.TrimSpace(cfg.AdminUsername)
+	}
+
+	if password == "" && strings.TrimSpace(cfg.AdminPassword) != "" {
+		password = cfg.AdminPassword
+	}
+
+	if jwtKey == "" {
+		jwtKey = strings.TrimSpace(cfg.JWTKey)
+	}
+
+	return username, password, jwtKey
+}
+
+func readAdminUsernamePasswordFromKeyring(keyringStore credentialStore) (username, password string) {
+	if keyringStore == nil {
+		return "", ""
+	}
+
+	usernameVal, usernameErr := keyringStore.GetKeyValue(keyringAdminUsername)
+	passwordVal, passwordErr := keyringStore.GetKeyValue(keyringAdminPassword)
+
+	if usernameErr != nil && !errors.Is(usernameErr, security.ErrKeyNotFound) {
+		log.Printf("Warning: failed to read admin username from keyring: %v", usernameErr)
+	}
+
+	if passwordErr != nil && !errors.Is(passwordErr, security.ErrKeyNotFound) {
+		log.Printf("Warning: failed to read admin password from keyring: %v", passwordErr)
+	}
+
+	if usernameErr != nil || passwordErr != nil {
+		if usernameErr == nil || passwordErr == nil {
+			log.Print("Warning: partial admin username/password found in keyring; falling back to next source.")
+		}
+
+		return "", ""
+	}
+
+	username = strings.TrimSpace(usernameVal)
+	password = strings.TrimSpace(passwordVal)
+
+	if username == "" || password == "" {
+		log.Print("Warning: incomplete admin username/password in keyring; falling back to next source.")
+
+		return "", ""
+	}
+
+	return username, password
+}
+
+func readAdminJWTKeyFromKeyring(keyringStore credentialStore) string {
+	if keyringStore == nil {
+		return ""
+	}
+
+	jwtKeyVal, err := keyringStore.GetKeyValue(keyringAdminJWTKey)
+	if err != nil {
+		if !errors.Is(err, security.ErrKeyNotFound) {
+			log.Printf("Warning: failed to read admin JWT key from keyring: %v", err)
+		}
+
+		return ""
+	}
+
+	return strings.TrimSpace(jwtKeyVal)
+}
+
+func promptForCredential(reader *bufio.Reader, prompt string) string {
+	for {
+		fmt.Fprint(os.Stdout, prompt)
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				log.Fatal("failed to read credential from console: EOF (non-interactive startup). Set AUTH_ADMIN_USERNAME and AUTH_ADMIN_PASSWORD, or enable AUTH_DISABLED=true.")
+			}
+
+			log.Fatalf("failed to read credential from console: %v", err)
+		}
+
+		value := strings.TrimSpace(input)
+		if value != "" {
+			return value
+		}
+
+		log.Println("Value cannot be empty.")
+	}
+}
+
+func promptForSecret(reader *bufio.Reader, prompt string) string {
+	for {
+		fmt.Fprint(os.Stdout, prompt)
+
+		if term.IsTerminal(int(os.Stdin.Fd())) {
+			input, err := term.ReadPassword(int(os.Stdin.Fd()))
+
+			fmt.Fprintln(os.Stdout)
+
+			if err != nil {
+				log.Fatalf("failed to read credential from console: %v", err)
+			}
+
+			value := strings.TrimSpace(string(input))
+			if value != "" {
+				return value
+			}
+
+			log.Println("Value cannot be empty.")
+
+			continue
+		}
+
+		input, err := reader.ReadString('\n')
+		if err != nil {
+			if errors.Is(err, io.EOF) {
+				log.Fatal("failed to read credential from console: EOF (non-interactive startup). Set AUTH_ADMIN_USERNAME and AUTH_ADMIN_PASSWORD, or enable AUTH_DISABLED=true.")
+			}
+
+			log.Fatalf("failed to read credential from console: %v", err)
+		}
+
+		value := strings.TrimSpace(input)
+		if value != "" {
+			return value
+		}
+
+		log.Println("Value cannot be empty.")
+	}
+}
+
+func readDotEnvFile(path string) map[string]string {
+	values := map[string]string{}
+
+	data, err := os.ReadFile(path)
+	if err != nil {
+		return values
+	}
+
+	lines := strings.Split(string(data), "\n")
+	for _, line := range lines {
+		trimmed := strings.TrimSpace(line)
+		if trimmed == "" || strings.HasPrefix(trimmed, "#") {
+			continue
+		}
+
+		parts := strings.SplitN(trimmed, "=", dotEnvSplitParts)
+		if len(parts) != dotEnvSplitParts {
+			continue
+		}
+
+		key := strings.TrimSpace(parts[0])
+		value := strings.TrimSpace(parts[1])
+		value = strings.Trim(value, "\"'")
+
+		if key != "" {
+			values[key] = value
+		}
+	}
+
+	return values
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, v := range values {
+		if strings.TrimSpace(v) != "" {
+			return v
+		}
+	}
+
+	return ""
+}
+
+func normalizeAdminPasswordHash(password string) (hash string, converted bool, err error) {
+	if secrets.IsPBKDF2Hash(password) {
+		return password, false, nil
+	}
+
+	pbkdf2Hash, err := secrets.GeneratePBKDF2Hash(password)
+	if err != nil {
+		return "", false, err
+	}
+
+	return pbkdf2Hash, true, nil
+}
+
+func bootstrapAdminCredentials(reader *bufio.Reader, suppliedJWTKey string) (username, password, jwtKey string) {
+	generatedPassword, err := generateRandomPassword(adminPasswordLength)
+	if err != nil {
+		log.Fatalf("Failed to generate random password: %v", err)
+	}
+
+	password = generatedPassword
+
+	jwtKey = suppliedJWTKey
+	if jwtKey == "" {
+		jwtKey = generateRandomAdminJWTKey()
+	}
+
+	// Security: Log to stderr (not stdout) to prevent accidental credential exposure in stdout captures.
+	// Credentials should only be logged once during initial bootstrap for user visibility.
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "\033[31m===============================================\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31mCONSOLE ADMIN CREDENTIALS - FIRST-RUN BOOTSTRAP\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31m===============================================\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31mRecord these values now; they will NOT be shown again.\033[0m")
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "  Admin Username: %s\n", "standalone")
+	fmt.Fprintf(os.Stderr, "  Admin Password: %s\n", password)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintf(os.Stderr, "  JWT Signing Key: %s\n", jwtKey)
+	fmt.Fprintln(os.Stderr, "")
+	fmt.Fprintln(os.Stderr, "\033[31mThese will be stored in the OS keyring for security.\033[0m")
+	fmt.Fprintln(os.Stderr, "\033[31m===============================================\033[0m")
+	fmt.Fprintln(os.Stderr, "")
+
+	fmt.Fprint(os.Stdout, "Press Enter to continue: ")
+
+	_, _ = reader.ReadString('\n')
+
+	return "standalone", password, jwtKey
+}
+
+func generateRandomAdminJWTKey() string {
+	keyBytes := make([]byte, jwtKeyByteSize)
+
+	_, err := rand.Read(keyBytes)
+	if err != nil {
+		log.Fatalf("Failed to generate JWT key: %v", err)
+	}
+
+	return base64.RawURLEncoding.EncodeToString(keyBytes)
+}
