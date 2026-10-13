@@ -250,6 +250,8 @@ func exampleDeviceExportRecord() dto.DeviceExportRecord {
 	lmsInstalled := true
 	monitorConnected := true
 	ieee8021xEnabled := false
+	isElevated := true
+	heciAvailable := true
 	ethernetAdapterCount := 2
 
 	return dto.DeviceExportRecord{
@@ -277,6 +279,7 @@ func exampleDeviceExportRecord() dto.DeviceExportRecord {
 					"oemId":             json.RawMessage(`""`),
 					"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
 				},
+				HECIAvailable: &heciAvailable,
 				Network: &dto.ExportMENetwork{
 					Wired: &dto.ExportMEInterface{IPAddress: "10.0.0.12", DHCPEnabled: &dhcpEnabled},
 				},
@@ -290,6 +293,7 @@ func exampleDeviceExportRecord() dto.DeviceExportRecord {
 				MEInterfaceVersion: "16.1.25.2124",
 				MonitorConnected:   &monitorConnected,
 				IEEE8021XEnabled:   &ieee8021xEnabled,
+				IsElevated:         &isElevated,
 				Network: &dto.ExportOSNetwork{
 					Wired: []dto.ExportOSInterface{{IPAddress: "10.49.76.163"}},
 				},
@@ -377,6 +381,8 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 	ethernetAdapterCount := 2
 	monitorConnected := true
 	ieee8021xEnabled := false
+	isElevated := true
+	heciAvailable := true
 
 	return &dto.DeviceInfo{
 		FWVersion:            "16.1.30",
@@ -403,6 +409,8 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 		EthernetAdapterCount: &ethernetAdapterCount,
 		MonitorConnected:     &monitorConnected,
 		IEEE8021XEnabled:     &ieee8021xEnabled,
+		IsElevated:           &isElevated,
+		HECIAvailable:        &heciAvailable,
 	}
 }
 

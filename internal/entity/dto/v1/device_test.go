@@ -58,6 +58,8 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	ethernetAdapterCount := 2
 	monitorConnected := true
 	ieee8021xEnabled := false
+	isElevated := false
+	heciAvailable := false
 	firstDiscovered := time.Date(2026, 5, 20, 0, 0, 0, 0, time.UTC)
 	lastSynced := time.Date(2026, 5, 21, 0, 0, 0, 0, time.UTC)
 
@@ -91,6 +93,8 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 		EthernetAdapterCount: &ethernetAdapterCount,
 		MonitorConnected:     &monitorConnected,
 		IEEE8021XEnabled:     &ieee8021xEnabled,
+		IsElevated:           &isElevated,
+		HECIAvailable:        &heciAvailable,
 	}
 
 	encoded, err := json.Marshal(info)
@@ -111,6 +115,10 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	require.Equal(t, *info.FirstDiscovered, *decoded.FirstDiscovered)
 	require.NotNil(t, decoded.LastSynced)
 	require.Equal(t, *info.LastSynced, *decoded.LastSynced)
+	require.NotNil(t, decoded.IsElevated)
+	require.Equal(t, *info.IsElevated, *decoded.IsElevated)
+	require.NotNil(t, decoded.HECIAvailable)
+	require.Equal(t, *info.HECIAvailable, *decoded.HECIAvailable)
 }
 
 func TestDeviceInfoJSONLegacyLastUpdatedMapsToLastSynced(t *testing.T) {

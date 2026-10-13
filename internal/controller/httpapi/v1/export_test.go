@@ -210,6 +210,20 @@ func TestBuildExportME_MENetworkOnlyStillReturnsME(t *testing.T) {
 	require.Equal(t, "90:49:fa:0a:26:a3", me.Network.Wired.MACAddress)
 }
 
+func TestBuildExportME_HECIUnavailableFalseStillReturnsME(t *testing.T) {
+	t.Parallel()
+
+	heciAvailable := false
+	device := &dto.Device{}
+	info := &dto.DeviceInfo{HECIAvailable: &heciAvailable}
+
+	me := buildExportME(device, info)
+
+	require.NotNil(t, me)
+	require.NotNil(t, me.HECIAvailable)
+	require.False(t, *me.HECIAvailable)
+}
+
 func TestBuildExportME_EmptyMEInterfaceOnlyReturnsNil(t *testing.T) {
 	t.Parallel()
 
@@ -238,6 +252,19 @@ func TestBuildExportOS_EmptyOSNetworkFallsBackToLegacyIPAddress(t *testing.T) {
 	require.NotNil(t, os.Network)
 	require.Len(t, os.Network.Wired, 1)
 	require.Equal(t, "10.49.76.163", os.Network.Wired[0].IPAddress)
+}
+
+func TestBuildExportOS_IsElevatedFalseStillReturnsOS(t *testing.T) {
+	t.Parallel()
+
+	isElevated := false
+	info := &dto.DeviceInfo{IsElevated: &isElevated}
+
+	os := buildExportOS(info)
+
+	require.NotNil(t, os)
+	require.NotNil(t, os.IsElevated)
+	require.False(t, *os.IsElevated)
 }
 
 func TestBuildExportOS_DNSSuffixOnlyStillReturnsOS(t *testing.T) {
