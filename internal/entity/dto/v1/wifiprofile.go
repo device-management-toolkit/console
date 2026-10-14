@@ -8,6 +8,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/wifi"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/ips/ieee8021x"
 )
 
 const (
@@ -140,5 +141,12 @@ func hasValidIEEE8021xCredentials(profile config.WirelessProfile) bool {
 		return false
 	}
 
-	return profile.IEEE8021x.AuthenticationProtocol == 0 || profile.IEEE8021x.AuthenticationProtocol == 2
+	switch profile.IEEE8021x.AuthenticationProtocol {
+	case ieee8021x.AuthenticationProtocolEAPTLS:
+		return true
+	case ieee8021x.AuthenticationProtocolPEAPv0_EAPMSCHAPv2:
+		return profile.IEEE8021x.Username != "" && profile.IEEE8021x.Password != ""
+	default:
+		return false
+	}
 }
