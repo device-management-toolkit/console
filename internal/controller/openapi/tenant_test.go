@@ -70,10 +70,11 @@ func TestProtectedRoutesDeclareTenantHeader(t *testing.T) {
 	declared := tenantHeaderNames(t, spec)
 	require.NotEmpty(t, declared)
 
-	// Only the public authorize endpoints are unscoped.
+	// Only public endpoints are unscoped.
 	public := map[string]bool{
 		"post /api/v1/authorize":        true,
 		"post /api/v1/authorize/logout": true,
+		"get /api/v1/server/features":   true,
 	}
 
 	for operation, hasHeader := range declared {

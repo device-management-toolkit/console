@@ -6,6 +6,7 @@ type (
 	// New flags should be added here as additional fields rather than via a new
 	// endpoint.
 	ServerFeatures struct {
-		CIRAEnabled bool `json:"ciraEnabled" example:"true"`
+		CIRAEnabled  bool `json:"ciraEnabled" example:"true"`
+		AuthDisabled bool `json:"authDisabled" example:"false"`
 	}
 )

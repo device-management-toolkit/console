@@ -25,6 +25,12 @@
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData).to.have.property(\"ciraEnabled\");\r",
 									"    pm.expect(jsonData.ciraEnabled).to.be.a(\"boolean\");\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Response contains authDisabled boolean\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData).to.have.property(\"authDisabled\");\r",
+									"    pm.expect(jsonData.authDisabled).to.be.a(\"boolean\");\r",
 									"});"
 								],
 								"type": "text/javascript"
@@ -32,6 +38,9 @@
 						}
 					],
 					"request": {
+						"auth": {
+							"type": "noauth"
+						},
 						"method": "GET",
 						"header": [],
 						"url": {

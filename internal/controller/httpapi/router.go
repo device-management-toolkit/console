@@ -42,8 +42,12 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Public routes
 	login := v1.NewLoginRoute(cfg)
 	handler.POST("/api/v1/authorize", login.Login)
+
 	// Public so an expired session can still clear its cookies.
 	handler.POST("/api/v1/authorize/logout", login.Logout)
+
+	// Public so the UI can learn the auth mode before login.
+	v1.NewServerRoutes(handler.Group("/api/v1"), cfg)
 
 	// Setup UI routes (no-op in noui builds)
 	setupUIRoutes(handler, l, cfg)
@@ -76,7 +80,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 		v1.NewDeviceRoutes(h2, t.Devices, l)
 		v1.NewAmtRoutes(h2, t.Devices, t.AMTExplorer, t.Exporter, l)
 		v1.NewCIRACertRoutes(h2, l, cfg)
-		v1.NewServerRoutes(h2, cfg)
 	}
 
 	h := protected.Group("/v1/admin")

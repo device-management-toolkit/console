@@ -27,6 +27,7 @@ func NewServerRoutes(handler *gin.RouterGroup, cfg *config.Config) {
 // getFeatures returns the server-level feature flags.
 func (r *serverRoutes) getFeatures(c *gin.Context) {
 	c.JSON(http.StatusOK, dto.ServerFeatures{
-		CIRAEnabled: !r.config.DisableCIRA,
+		CIRAEnabled:  !r.config.DisableCIRA,
+		AuthDisabled: r.config.Disabled,
 	})
 }

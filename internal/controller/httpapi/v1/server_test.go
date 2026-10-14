@@ -14,10 +14,13 @@ import (
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
-func serverTestEngine(t *testing.T, disableCIRA bool) *gin.Engine {
+func serverTestEngine(t *testing.T, disableCIRA, disableAuth bool) *gin.Engine {
 	t.Helper()
 
-	cfg := &config.Config{App: config.App{DisableCIRA: disableCIRA}}
+	cfg := &config.Config{
+		App:  config.App{DisableCIRA: disableCIRA},
+		Auth: config.Auth{Disabled: disableAuth},
+	}
 
 	engine := gin.New()
 	group := engine.Group("/api/v1")
@@ -31,9 +34,11 @@ func TestServerFeatures(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
-		name            string
-		disableCIRA     bool
-		wantCIRAEnabled bool
+		name             string
+		disableCIRA      bool
+		disableAuth      bool
+		wantCIRAEnabled  bool
+		wantAuthDisabled bool
 	}{
 		{
 			name:            "CIRA enabled when not disabled",
@@ -45,6 +50,18 @@ func TestServerFeatures(t *testing.T) {
 			disableCIRA:     true,
 			wantCIRAEnabled: false,
 		},
+		{
+			name:             "auth enabled",
+			disableAuth:      false,
+			wantCIRAEnabled:  true,
+			wantAuthDisabled: false,
+		},
+		{
+			name:             "auth disabled",
+			disableAuth:      true,
+			wantCIRAEnabled:  true,
+			wantAuthDisabled: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -53,7 +70,7 @@ func TestServerFeatures(t *testing.T) {
 		t.Run(tt.name, func(t *testing.T) {
 			t.Parallel()
 
-			engine := serverTestEngine(t, tt.disableCIRA)
+			engine := serverTestEngine(t, tt.disableCIRA, tt.disableAuth)
 
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/server/features", http.NoBody)
 			require.NoError(t, err)
@@ -66,6 +83,7 @@ func TestServerFeatures(t *testing.T) {
 			var features dto.ServerFeatures
 			require.NoError(t, json.Unmarshal(w.Body.Bytes(), &features))
 			require.Equal(t, tt.wantCIRAEnabled, features.CIRAEnabled)
+			require.Equal(t, tt.wantAuthDisabled, features.AuthDisabled)
 		})
 	}
 }
