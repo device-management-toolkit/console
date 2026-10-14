@@ -1530,6 +1530,163 @@
 					"response": []
 				},
 				{
+					"name": "Add Wireless Profile - PEAP",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"Device should not be found\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.error).to.eq(\"Error not found\")\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"profileName\": \"HomeEAP\",\r\n    \"ssid\": \"HomeSSID\",\r\n    \"priority\": 2,\r\n    \"authenticationMethod\": \"WPA2IEEE8021x\",\r\n    \"encryptionMethod\": \"CCMP\",\r\n    \"ieee8021x\": {\r\n        \"authenticationProtocol\": 2,\r\n        \"username\": \"user\",\r\n        \"password\": \"password123\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wireless/profile/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wireless",
+								"profile",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Add Wireless Profile - PEAP Missing Username",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"PEAP profile without username is rejected by validation\", function () {\r",
+									"    pm.expect(pm.response.json().error).to.include(\"wirelessprofile\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"profileName\": \"HomeEAP\",\r\n    \"ssid\": \"HomeSSID\",\r\n    \"priority\": 2,\r\n    \"authenticationMethod\": \"WPA2IEEE8021x\",\r\n    \"encryptionMethod\": \"CCMP\",\r\n    \"ieee8021x\": {\r\n        \"authenticationProtocol\": 2,\r\n        \"password\": \"password123\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wireless/profile/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wireless",
+								"profile",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Update Wireless Profile - PEAP Missing Username",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"\r",
+									"pm.test(\"PEAP profile without username is rejected by validation\", function () {\r",
+									"    pm.expect(pm.response.json().error).to.include(\"wirelessprofile\");\r",
+									"});\r",
+									""
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "PATCH",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"profileName\": \"HomeEAP\",\r\n    \"ssid\": \"HomeSSID\",\r\n    \"priority\": 2,\r\n    \"authenticationMethod\": \"WPA2IEEE8021x\",\r\n    \"encryptionMethod\": \"CCMP\",\r\n    \"ieee8021x\": {\r\n        \"authenticationProtocol\": 2,\r\n        \"password\": \"password123\"\r\n    }\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wireless/profile/{{deviceId}}",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"amt",
+								"networkSettings",
+								"wireless",
+								"profile",
+								"{{deviceId}}"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Delete Wireless Profile",
 					"event": [
 						{
