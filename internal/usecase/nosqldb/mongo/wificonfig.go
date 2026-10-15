@@ -179,7 +179,8 @@ func (r *WirelessRepo) Update(ctx context.Context, w *entity.WirelessConfig) (bo
 		return false, errWiFiDatabase.Wrap("Update", "validate", nil)
 	}
 
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldProfileName: w.ProfileName, fieldTenantID: w.TenantID},
 		bson.M{opSet: bson.M{
 			"authenticationmethod":    w.AuthenticationMethod,

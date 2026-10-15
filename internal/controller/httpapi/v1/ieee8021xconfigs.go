@@ -97,7 +97,7 @@ func (r *ieee8021xConfigRoutes) getByName(c *gin.Context) {
 
 func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 	var config dto.IEEE8021xConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	if err := BindJSON(c, &config); err != nil {
 		validationErr := ErrValidation8021xConfig.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
@@ -119,7 +119,7 @@ func (r *ieee8021xConfigRoutes) insert(c *gin.Context) {
 
 func (r *ieee8021xConfigRoutes) update(c *gin.Context) {
 	var config dto.IEEE8021xConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	if err := BindJSON(c, &config); err != nil {
 		validationErr := ErrValidation8021xConfig.Wrap("update", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 

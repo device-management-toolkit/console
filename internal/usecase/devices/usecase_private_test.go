@@ -50,6 +50,41 @@ func TestDtoToEntity_DeviceInfoSerialization(t *testing.T) {
 	})
 }
 
+func TestDtoToEntity_PreservesDiscoveryState(t *testing.T) {
+	t.Parallel()
+
+	uc := &UseCase{log: logger.New("error"), safeRequirements: crypto.MockCrypto{}}
+	discovered := true
+	managed := false
+
+	tests := []struct {
+		name        string
+		currentMode string
+		discovered  *bool
+	}{
+		{name: "RPC discovery remains discovered while pre-provisioning", currentMode: "not activated", discovered: &discovered},
+		{name: "RPC activation is managed", currentMode: "admin control mode", discovered: &managed},
+		{name: "synced ACM device retains its discovery flag", currentMode: "admin control mode", discovered: &discovered},
+		{name: "synced CCM device retains its discovery flag", currentMode: "client control mode", discovered: &discovered},
+	}
+
+	for _, test := range tests {
+		t.Run(test.name, func(t *testing.T) {
+			t.Parallel()
+
+			entityDevice, err := uc.dtoToEntity(&dto.Device{
+				GUID:       "g1",
+				TenantID:   "t1",
+				DeviceInfo: &dto.DeviceInfo{CurrentMode: test.currentMode, Discovered: test.discovered},
+			})
+			require.NoError(t, err)
+			require.NotNil(t, entityDevice.Discovered)
+			require.Equal(t, *test.discovered, *entityDevice.Discovered)
+			require.Contains(t, entityDevice.DeviceInfo, `"discovered":`)
+		})
+	}
+}
+
 func TestEntityToDTO_DeviceInfoDeserialization(t *testing.T) {
 	t.Parallel()
 

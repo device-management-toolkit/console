@@ -59,7 +59,7 @@ func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var features dto.Features
-	if err := c.ShouldBindJSON(&features); err != nil {
+	if err := BindJSON(c, &features); err != nil {
 		ErrorResponse(c, err)
 
 		return

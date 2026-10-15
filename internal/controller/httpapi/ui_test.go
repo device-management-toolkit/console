@@ -3,13 +3,89 @@
 package httpapi
 
 import (
+	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
+	"testing/fstest"
 
+	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
 )
+
+const testUIShell = "<app-root></app-root>"
+
+// newUITestEngine serves a stand-in UI build through the media and SPA fallback routes.
+func newUITestEngine(t *testing.T) *gin.Engine {
+	t.Helper()
+
+	staticFiles := fstest.MapFS{
+		"index.html":              {Data: []byte(testUIShell)},
+		"media/dmt-logo_dark.svg": {Data: []byte("<svg/>")},
+		"media/font.woff2":        {Data: []byte("font")},
+	}
+
+	engine := gin.New()
+	require.NoError(t, serveMedia(engine, staticFiles))
+	engine.NoRoute(spaFallback(staticFiles))
+
+	return engine
+}
+
+func TestUIServesFiles(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+		want string
+	}{
+		{name: "media file is served", path: "/media/dmt-logo_dark.svg", want: "<svg/>"},
+		{name: "every media file is served, not a fixed list", path: "/media/font.woff2", want: "font"},
+		{name: "client-side route gets the HTML shell", path: "/devices", want: testUIShell},
+	}
+
+	engine := newUITestEngine(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, httptest.NewRequest(http.MethodGet, tt.path, http.NoBody))
+
+			require.Equal(t, http.StatusOK, w.Code)
+			require.Equal(t, tt.want, w.Body.String())
+		})
+	}
+}
+
+func TestUIMissingStaticFileIsNotFound(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		path string
+	}{
+		{name: "missing media file", path: "/media/missing.svg"},
+		{name: "missing asset", path: "/assets/missing.png"},
+	}
+
+	engine := newUITestEngine(t)
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, httptest.NewRequest(http.MethodGet, tt.path, http.NoBody))
+
+			require.Equal(t, http.StatusNotFound, w.Code)
+		})
+	}
+}
 
 func TestConsoleServerAPIBase(t *testing.T) {
 	t.Parallel()

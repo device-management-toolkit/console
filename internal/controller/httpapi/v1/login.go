@@ -73,6 +73,8 @@ func NewLoginRoute(configData *config.Config) *LoginRoute {
 func (lr LoginRoute) Login(c *gin.Context) {
 	var creds dto.Credentials
 
+	// Not BindJSON: the error is deliberately discarded so login never reports
+	// why the body was rejected.
 	if err := c.ShouldBindJSON(&creds); err != nil {
 		c.JSON(http.StatusBadRequest, gin.H{errorKey: "invalid request"})
 

@@ -8,6 +8,46 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestDeviceJSONOmitsPasswordProperties(t *testing.T) {
+	t.Parallel()
+
+	device := Device{
+		GUID:         "4c4c4544-0046-3510-8050-c2c04f365033",
+		Username:     "admin",
+		Password:     "AmtP@ss123",
+		MPSPassword:  "P@ssw0rd!",
+		MEBXPassword: "mebxsecret",
+	}
+
+	for name, encode := range map[string]func() ([]byte, error){
+		"value":   func() ([]byte, error) { return json.Marshal(device) },
+		"pointer": func() ([]byte, error) { return json.Marshal(&device) },
+		"nested":  func() ([]byte, error) { return json.Marshal(DeviceCountResponse{Count: 1, Data: []Device{device}}) },
+	} {
+		encoded, err := encode()
+		require.NoError(t, err, name)
+		require.Contains(t, string(encoded), `"username":"admin"`, name)
+		require.NotContains(t, string(encoded), "password", name)
+		require.NotContains(t, string(encoded), "AmtP@ss123", name)
+		require.NotContains(t, string(encoded), "P@ssw0rd!", name)
+		require.NotContains(t, string(encoded), "mebxsecret", name)
+	}
+
+	require.Equal(t, "AmtP@ss123", device.Password)
+}
+
+func TestDeviceJSONDecodesPasswordProperties(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{"guid":"4c4c4544-0046-3510-8050-c2c04f365033","password":"AmtP@ss123","mpspassword":"P@ssw0rd!","mebxpassword":"mebxsecret"}`)
+
+	var decoded Device
+	require.NoError(t, json.Unmarshal(payload, &decoded))
+	require.Equal(t, "AmtP@ss123", decoded.Password)
+	require.Equal(t, "P@ssw0rd!", decoded.MPSPassword)
+	require.Equal(t, "mebxsecret", decoded.MEBXPassword)
+}
+
 func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	t.Parallel()
 

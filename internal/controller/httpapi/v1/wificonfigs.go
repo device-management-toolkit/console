@@ -97,7 +97,7 @@ func (r *WirelessConfigRoutes) getByName(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 	var config dto.WirelessConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	if err := BindJSON(c, &config); err != nil {
 		validationErr := ErrValidationWifiConfig.Wrap("insert", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
@@ -120,7 +120,7 @@ func (r *WirelessConfigRoutes) insert(c *gin.Context) {
 
 func (r *WirelessConfigRoutes) update(c *gin.Context) {
 	var config dto.WirelessConfig
-	if err := c.ShouldBindJSON(&config); err != nil {
+	if err := BindJSON(c, &config); err != nil {
 		validationErr := ErrValidationWifiConfig.Wrap("update", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 

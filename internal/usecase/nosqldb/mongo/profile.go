@@ -182,7 +182,8 @@ func (r *ProfileRepo) Update(ctx context.Context, p *entity.Profile) (bool, erro
 		"uefiwifisyncenabled":        p.UEFIWiFiSyncEnabled,
 	}
 
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldProfileName: p.ProfileName, fieldTenantID: p.TenantID},
 		bson.M{opSet: set},
 	)

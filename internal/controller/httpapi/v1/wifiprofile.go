@@ -33,7 +33,7 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.WirelessProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		validationErr := errValidationWirelessProfile.Wrap("addWirelessProfile", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 
@@ -82,7 +82,7 @@ func (r *deviceManagementRoutes) updateWirelessProfile(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.WirelessProfileRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		validationErr := errValidationWirelessProfile.Wrap("updateWirelessProfile", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 

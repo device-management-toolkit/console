@@ -97,7 +97,8 @@ func (r *IEEE8021xRepo) Get(_ context.Context, top, skip int, tenantID string) (
 	}
 
 	sqlQuery, _, err := r.Builder.
-		Select("profile_name",
+		Select(
+			"profile_name",
 			"auth_Protocol",
 			"pxe_timeout",
 			"wired_interface",
@@ -142,7 +143,8 @@ func (r *IEEE8021xRepo) Get(_ context.Context, top, skip int, tenantID string) (
 // GetByName -.
 func (r *IEEE8021xRepo) GetByName(_ context.Context, profileName, tenantID string) (*entity.IEEE8021xConfig, error) {
 	sqlQuery, _, err := r.Builder.
-		Select("profile_name",
+		Select(
+			"profile_name",
 			"auth_Protocol",
 			"pxe_timeout",
 			"wired_interface",

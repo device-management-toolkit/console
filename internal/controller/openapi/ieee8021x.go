@@ -9,7 +9,8 @@ import (
 )
 
 func (f *FuegoAdapter) RegisterIEEE8021xConfigRoutes() {
-	fuego.Get(f.server, "/api/v1/admin/ieee8021xconfigs", f.getIEEE8021xConfigs,
+	fuego.Get(
+		f.server, "/api/v1/admin/ieee8021xconfigs", f.getIEEE8021xConfigs,
 		fuego.OptionTags("IEEE 802.1x"),
 		fuego.OptionSummary("List IEEE 802.1x Configurations"),
 		fuego.OptionDescription("Retrieve all IEEE 802.1x configurations with optional pagination"),
@@ -19,7 +20,8 @@ func (f *FuegoAdapter) RegisterIEEE8021xConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/admin/ieee8021xconfigs", f.createIEEE8021xConfig,
+	fuego.Post(
+		f.server, "/api/v1/admin/ieee8021xconfigs", f.createIEEE8021xConfig,
 		fuego.OptionTags("IEEE 802.1x"),
 		fuego.OptionSummary("Create IEEE 802.1x Configuration"),
 		fuego.OptionDescription("Create a new IEEE 802.1x configuration"),
@@ -27,7 +29,8 @@ func (f *FuegoAdapter) RegisterIEEE8021xConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/admin/ieee8021xconfigs/{profileName}", f.getIEEE8021xConfigByName,
+	fuego.Get(
+		f.server, "/api/v1/admin/ieee8021xconfigs/{profileName}", f.getIEEE8021xConfigByName,
 		fuego.OptionTags("IEEE 802.1x"),
 		fuego.OptionSummary("Get IEEE 802.1x Configuration by Name"),
 		fuego.OptionDescription("Retrieve a specific IEEE 802.1x configuration by name"),
@@ -35,14 +38,16 @@ func (f *FuegoAdapter) RegisterIEEE8021xConfigRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/admin/ieee8021xconfigs", f.updateIEEE8021xConfig,
+	fuego.Patch(
+		f.server, "/api/v1/admin/ieee8021xconfigs", f.updateIEEE8021xConfig,
 		fuego.OptionTags("IEEE 802.1x"),
 		fuego.OptionSummary("Update IEEE 802.1x Configuration"),
 		fuego.OptionDescription("Update an existing IEEE 802.1x configuration"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/admin/ieee8021xconfigs/{profileName}", f.deleteIEEE8021xConfig,
+	fuego.Delete(
+		f.server, "/api/v1/admin/ieee8021xconfigs/{profileName}", f.deleteIEEE8021xConfig,
 		fuego.OptionTags("IEEE 802.1x"),
 		fuego.OptionSummary("Delete IEEE 802.1x Configuration"),
 		fuego.OptionDescription("Delete an IEEE 802.1x configuration by name"),

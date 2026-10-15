@@ -24,7 +24,7 @@ func (r *deviceManagementRoutes) requestWirelessStateChange(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.WirelessStateChangeRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		validationErr := errValidationWiFiState.Wrap("requestWirelessStateChange", "ShouldBindJSON", err)
 		ErrorResponse(c, validationErr)
 

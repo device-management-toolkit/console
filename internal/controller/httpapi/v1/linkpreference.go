@@ -16,7 +16,7 @@ func (r *deviceManagementRoutes) setLinkPreference(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.LinkPreferenceRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		ErrorResponse(c, err)
 
 		return

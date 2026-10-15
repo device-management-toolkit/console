@@ -114,7 +114,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.getWiredNetworkSettings,
+	fuego.Get(
+		f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.getWiredNetworkSettings,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Wired Network Settings"),
 		fuego.OptionDescription("Retrieve the wired network settings for a device"),
@@ -122,7 +123,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.patchWiredNetworkSettings,
+	fuego.Patch(
+		f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.patchWiredNetworkSettings,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Update Wired Network Settings"),
 		fuego.OptionDescription("Update the wired IPv4 configuration (DHCP or static IP) for a device"),
@@ -242,7 +244,6 @@ func (f *FuegoAdapter) registerWirelessProfileSyncRoutes() {
 		fuego.OptionSummary("Set Wireless Profile Sync"),
 		fuego.OptionDescription("Enable or disable local and/or UEFI WiFi profile synchronization. Requesting UEFI sync on an unsupported device rejects the entire request with 409 Conflict"),
 		fuego.OptionPath("guid", "Device GUID"),
-		errorResponseOption(http.StatusBadRequest, "Bad Request"),
 		errorResponseOption(http.StatusConflict, "Conflict"),
 		protectedRouteOptions(),
 	)
@@ -334,7 +335,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
+	fuego.Get(
+		f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Remote Erase Capabilities"),
 		fuego.OptionDescription("Retrieve Remote Platform Erase capabilities for a device"),
@@ -342,7 +344,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.setRemoteEraseOptions,
+	fuego.Post(
+		f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.setRemoteEraseOptions,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Remote Erase Options"),
 		fuego.OptionDescription("Trigger Remote Platform Erase on a device; at least one erase option must be selected"),

@@ -41,7 +41,7 @@ func (r *deviceManagementRoutes) addCertificate(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var certInfo dto.CertInfo
-	if err := c.ShouldBindJSON(&certInfo); err != nil {
+	if err := BindJSON(c, &certInfo); err != nil {
 		ErrorResponse(c, err)
 
 		return

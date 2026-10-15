@@ -28,7 +28,7 @@ func (r *deviceManagementRoutes) createAlarmOccurrences(c *gin.Context) {
 	guid := c.Param("guid")
 
 	alarm := &dto.AlarmClockOccurrenceInput{}
-	if err := c.ShouldBindJSON(alarm); err != nil {
+	if err := BindJSON(c, alarm); err != nil {
 		ErrorResponse(c, err)
 
 		return
@@ -51,7 +51,7 @@ func (r *deviceManagementRoutes) deleteAlarmOccurrences(c *gin.Context) {
 	guid := c.Param("guid")
 
 	alarm := dto.DeleteAlarmOccurrenceRequest{}
-	if err := c.ShouldBindJSON(&alarm); err != nil {
+	if err := BindJSON(c, &alarm); err != nil {
 		ErrorResponse(c, err)
 
 		return

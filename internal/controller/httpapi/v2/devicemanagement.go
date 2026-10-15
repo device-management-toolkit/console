@@ -63,7 +63,7 @@ func (r *deviceManagementRoutes) setFeatures(c *gin.Context) {
 
 	var features dto.Features
 
-	if err := c.ShouldBindJSON(&features); err != nil {
+	if err := v1.BindJSON(c, &features); err != nil {
 		r.l.Error(err, "http - v2 - setFeatures")
 		v1.ErrorResponse(c, err)
 

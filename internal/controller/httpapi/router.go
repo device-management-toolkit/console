@@ -17,6 +17,7 @@ import (
 	openapi "github.com/device-management-toolkit/console/internal/controller/openapi"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase"
+	"github.com/device-management-toolkit/console/internal/usecase/packaging"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -91,6 +92,8 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v2.NewAmtRoutes(h3, t.Devices, l)
 	}
+
+	v1.NewPackageRoutes(protected, packaging.New(cfg, l), l)
 }
 
 func registerCustomValidators(l logger.Interface) {

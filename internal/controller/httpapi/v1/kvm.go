@@ -30,7 +30,7 @@ func (r *deviceManagementRoutes) setKVMDisplays(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.KVMScreenSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		ErrorResponse(c, err)
 
 		return
