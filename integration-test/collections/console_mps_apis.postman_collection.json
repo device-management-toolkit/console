@@ -1419,9 +1419,55 @@
 								"profile",
 								"{{deviceId}}"
 							]
-						}
+						},
+						"description": "Adds a wireless profile to an AMT device.\n\nThe test script expects 404 because the integration test run has no device.\n\nOther responses:\n- 204 No Content: the profile was added.\n- 409 Conflict: a profile with the same name or priority already exists, or the device already stores the maximum of 8 wireless profiles. To reproduce the limit case, add 8 profiles with different names and priorities to the device first, then send a 9th. AMT \"User Settings\" entries do not count toward the limit. See the saved example \"409 Conflict - maximum of 8 wireless profiles reached\"."
 					},
-					"response": []
+					"response": [
+						{
+							"name": "409 Conflict - maximum of 8 wireless profiles reached",
+							"originalRequest": {
+								"method": "POST",
+								"header": [],
+								"body": {
+									"mode": "raw",
+									"raw": "{\r\n    \"profileName\": \"Profile9\",\r\n    \"ssid\": \"Profile9SSID\",\r\n    \"priority\": 9,\r\n    \"authenticationMethod\": \"WPA2PSK\",\r\n    \"encryptionMethod\": \"CCMP\",\r\n    \"password\": \"password123\"\r\n}",
+									"options": {
+										"raw": {
+											"language": "json"
+										}
+									}
+								},
+								"url": {
+									"raw": "{{protocol}}://{{host}}/api/v1/amt/networkSettings/wireless/profile/123e4567-e89b-12d3-a456-426614174000",
+									"protocol": "{{protocol}}",
+									"host": [
+										"{{host}}"
+									],
+									"path": [
+										"api",
+										"v1",
+										"amt",
+										"networkSettings",
+										"wireless",
+										"profile",
+										"123e4567-e89b-12d3-a456-426614174000"
+									]
+								},
+								"description": "Prerequisite: the device already stores 8 wireless profiles (profiles 1 to 8, with priorities other than 9). This request adds a 9th."
+							},
+							"status": "Conflict",
+							"code": 409,
+							"_postman_previewlanguage": "json",
+							"header": [
+								{
+									"key": "Content-Type",
+									"value": "application/json; charset=utf-8"
+								}
+							],
+							"cookie": [],
+							"body": "{\n    \"error\": \"Add Wireless Profile failed for guid: 123e4567-e89b-12d3-a456-426614174000. - device already has the maximum of 8 wireless profiles; delete a profile before adding a new one\"\n}"
+						}
+					]
 				},
 				{
 					"name": "Add Duplicate Wireless Profile",
