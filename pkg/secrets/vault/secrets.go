@@ -127,7 +127,7 @@ func (c *Client) DeleteKeyValue(key string) error {
 		// Path-based storage: permanently delete the secret at {basePath}/{key}
 		// For KV v2, we need to delete metadata to permanently remove (not just soft delete)
 		// Convert secret/data/console/... to secret/metadata/console/...
-		metadataPath := strings.Replace(c.path, "/data/", "/metadata/", 1) + "/" + key
+		metadataPath := strings.Replace(c.path+"/", "/data/", "/metadata/", 1) + key
 		_, err := c.client.Logical().DeleteWithContext(ctx, metadataPath)
 
 		return err

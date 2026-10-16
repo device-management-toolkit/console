@@ -1,6 +1,9 @@
 package secrets
 
 import (
+	"net/http"
+	"net/http/httptest"
+	"sync"
 	"testing"
 
 	"github.com/hashicorp/vault/api"
@@ -65,6 +68,51 @@ func TestNewClient_ConfigWithPath(t *testing.T) {
 	assert.NoError(t, err)
 	assert.NotNil(t, client)
 	assert.Equal(t, "secret/data/myapp", client.path)
+}
+
+func TestNewClient_TrimsTrailingSlash(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Secrets{
+		Address: "http://localhost:8200",
+		Token:   "test-token",
+		Path:    "secret/data/",
+	}
+
+	client, err := NewClient(cfg)
+
+	assert.NoError(t, err)
+	assert.Equal(t, "secret/data", client.path)
+}
+
+func TestSecretPaths_NoDoubleSlash(t *testing.T) {
+	t.Parallel()
+
+	var (
+		mu    sync.Mutex
+		paths []string
+	)
+
+	srv := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		mu.Lock()
+
+		paths = append(paths, r.Method+" "+r.URL.Path)
+
+		mu.Unlock()
+		w.WriteHeader(http.StatusNoContent)
+	}))
+	defer srv.Close()
+
+	client, err := NewClient(&config.Secrets{Address: srv.URL, Token: "t", Path: "secret/data/"})
+	assert.NoError(t, err)
+
+	assert.NoError(t, client.SetObject("profiles/p1", map[string]string{"AMT_PASSWORD": "x"}))
+	assert.NoError(t, client.DeleteKeyValue("profiles/p1"))
+
+	assert.Equal(t, []string{
+		"PUT /v1/secret/data/profiles/p1",
+		"DELETE /v1/secret/metadata/profiles/p1",
+	}, paths)
 }
 
 func TestNewClient_EmptyToken(t *testing.T) {
