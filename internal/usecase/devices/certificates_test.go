@@ -2,9 +2,17 @@ package devices_test
 
 import (
 	"context"
+	"crypto/ecdsa"
+	"crypto/elliptic"
+	"crypto/rand"
+	"crypto/x509"
+	"encoding/base64"
+	"encoding/pem"
 	"encoding/xml"
 	"errors"
+	"math/big"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
@@ -235,6 +243,25 @@ func TestGetCertificates(t *testing.T) {
 	}
 }
 
+// encodedCert returns a base64-encoded PEM block of the given type holding a self-signed certificate that expires at notAfter.
+func encodedCert(t *testing.T, blockType string, notAfter time.Time) string {
+	t.Helper()
+
+	key, err := ecdsa.GenerateKey(elliptic.P256(), rand.Reader)
+	require.NoError(t, err)
+
+	tmpl := &x509.Certificate{
+		SerialNumber: big.NewInt(1),
+		NotBefore:    notAfter.Add(-48 * time.Hour),
+		NotAfter:     notAfter,
+	}
+
+	der, err := x509.CreateCertificate(rand.Reader, tmpl, tmpl, &key.PublicKey, key)
+	require.NoError(t, err)
+
+	return base64.StdEncoding.EncodeToString(pem.EncodeToMemory(&pem.Block{Type: blockType, Bytes: der}))
+}
+
 func TestAddCertificate(t *testing.T) {
 	t.Parallel()
 
@@ -306,6 +333,36 @@ func TestAddCertificate(t *testing.T) {
 			},
 			expected: "",
 			err:      ErrCertificate,
+		},
+		{
+			name: "expired certificate is rejected without contacting the device",
+			certInfo: dto.CertInfo{
+				Cert:      encodedCert(t, "CERTIFICATE", time.Now().Add(-24*time.Hour)),
+				IsTrusted: true,
+			},
+			mock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, device.TenantID).
+					Return(device, nil)
+			},
+			expected: "",
+			err:      nil,
+		},
+		{
+			name: "non-certificate PEM block is rejected without contacting the device",
+			certInfo: dto.CertInfo{
+				Cert:      encodedCert(t, "PRIVATE KEY", time.Now().Add(24*time.Hour)),
+				IsTrusted: false,
+			},
+			mock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
+			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
+				repo.EXPECT().
+					GetByID(context.Background(), device.GUID, device.TenantID).
+					Return(device, nil)
+			},
+			expected: "",
+			err:      nil,
 		},
 	}
 
