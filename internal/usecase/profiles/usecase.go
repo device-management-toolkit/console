@@ -34,6 +34,27 @@ type UseCase struct {
 	domains           domains.Feature
 	safeRequirements  security.Cryptor
 	disableCIRA       bool
+	secrets           SecretStore
+}
+
+// Option configures optional UseCase dependencies.
+type Option func(*UseCase)
+
+// WithSecretStore mirrors profile passwords to profiles/{name}, the Vault path and keys RPS reads.
+func WithSecretStore(s SecretStore) Option {
+	return func(uc *UseCase) {
+		uc.secrets = s
+	}
+}
+
+const (
+	secretKeyAMTPassword  = "AMT_PASSWORD"
+	secretKeyMEBXPassword = "MEBX_PASSWORD"
+)
+
+// Not tenant scoped: RPS reads profiles/{name} with no tenant.
+func profileSecretKey(profileName string) string {
+	return "profiles/" + profileName
 }
 
 var (
@@ -64,8 +85,8 @@ func validateProfileCreate(d *dto.Profile) error {
 }
 
 // New -.
-func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor, disableCIRA bool) *UseCase {
-	return &UseCase{
+func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.Feature, i ieee8021xconfigs.Feature, log logger.Interface, d domains.Feature, c ciraconfigs.Repository, safeRequirements security.Cryptor, disableCIRA bool, opts ...Option) *UseCase {
+	uc := &UseCase{
 		repo:              r,
 		wifiConfig:        wifiConfig,
 		cira:              c,
@@ -76,6 +97,12 @@ func New(r Repository, wifiConfig wificonfigs.Repository, w profilewificonfigs.F
 		safeRequirements:  safeRequirements,
 		disableCIRA:       disableCIRA,
 	}
+
+	for _, opt := range opts {
+		opt(uc)
+	}
+
+	return uc
 }
 
 type (
@@ -485,6 +512,13 @@ func (uc *UseCase) Delete(ctx context.Context, profileName, tenantID string) err
 		return ErrNotFound
 	}
 
+	if uc.secrets != nil {
+		// The row is gone, so a leftover secret is only stale; don't fail the delete for it.
+		if err := uc.secrets.DeleteKeyValue(profileSecretKey(profileName)); err != nil {
+			uc.log.Warn("failed to delete profile secrets from Vault for %s: %v", profileName, err)
+		}
+	}
+
 	return nil
 }
 
@@ -556,6 +590,10 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 		return nil, err
 	}
 
+	if err := uc.storeSecrets(d); err != nil {
+		return nil, ErrProfilesUseCase.Wrap("Update", "uc.storeSecrets", err)
+	}
+
 	updatedProfile, err := uc.repo.GetByName(ctx, d.ProfileName, d.TenantID)
 	if err != nil {
 		return nil, err
@@ -597,7 +635,56 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, er
 		return nil, err
 	}
 
+	// Written after the row exists so a duplicate name cannot overwrite another profile's secret.
+	if err := uc.storeSecrets(d); err != nil {
+		if rbErr := uc.rollbackInsert(ctx, d); rbErr != nil {
+			uc.log.Error("failed to roll back profile %s after Vault write failure: %v", d.ProfileName, rbErr)
+		}
+
+		return nil, ErrProfilesUseCase.Wrap("Insert", "uc.storeSecrets", err)
+	}
+
 	return uc.createdProfile(ctx, d)
+}
+
+// storeSecrets writes the passwords RPS reads, with the same keys and blanking RPS's own create uses.
+func (uc *UseCase) storeSecrets(d *dto.Profile) error {
+	if uc.secrets == nil {
+		return nil
+	}
+
+	key := profileSecretKey(d.ProfileName)
+
+	if d.GenerateRandomPassword && d.GenerateRandomMEBxPassword {
+		// Nothing static to hand to RPS; drop any secret left from an earlier version of the profile.
+		if err := uc.secrets.DeleteKeyValue(key); err != nil {
+			uc.log.Warn("failed to delete profile secrets from Vault for %s: %v", d.ProfileName, err)
+		}
+
+		return nil
+	}
+
+	data := map[string]string{secretKeyAMTPassword: "", secretKeyMEBXPassword: ""}
+
+	if !d.GenerateRandomPassword {
+		data[secretKeyAMTPassword] = d.AMTPassword
+	}
+
+	if !d.GenerateRandomMEBxPassword {
+		data[secretKeyMEBXPassword] = d.MEBXPassword
+	}
+
+	return uc.secrets.SetObject(key, data)
+}
+
+func (uc *UseCase) rollbackInsert(ctx context.Context, d *dto.Profile) error {
+	if err := uc.profileWifiConfig.DeleteByProfileName(ctx, d.ProfileName, d.TenantID); err != nil {
+		return err
+	}
+
+	_, err := uc.repo.Delete(ctx, d.ProfileName, d.TenantID)
+
+	return err
 }
 
 func (uc *UseCase) validateIEEE8021xProfile(ctx context.Context, d1 *entity.Profile, action string) error {
