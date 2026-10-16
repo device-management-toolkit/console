@@ -150,7 +150,7 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.addWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Create Wireless Profile"),
-		fuego.OptionDescription("Create a wireless profile on a device"),
+		fuego.OptionDescription("Create a wireless profile on a device. "+wirelessProfileRequestRules),
 		fuego.OptionPath("guid", "Device GUID"),
 		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
@@ -160,7 +160,7 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.updateWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Update Wireless Profile"),
-		fuego.OptionDescription("Update a wireless profile on a device"),
+		fuego.OptionDescription("Update a wireless profile on a device. "+wirelessProfileRequestRules),
 		fuego.OptionPath("guid", "Device GUID"),
 		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
@@ -227,6 +227,14 @@ func (f *FuegoAdapter) registerWirelessStateRoutes() {
 		protectedRouteOptions(),
 	)
 }
+
+// wirelessProfileRequestRules documents the request validation in dto.ValidateWirelessProfile,
+// which the config.WirelessProfile body schema cannot express.
+const wirelessProfileRequestRules = "WPA/WPA2 PSK profiles require password and no ieee8021x. " +
+	"WPA/WPA2 IEEE 802.1x profiles require ieee8021x and no password; " +
+	"ieee8021x.authenticationProtocol must be 0 (EAP-TLS) or 2 (PEAPv0/EAP-MSCHAPv2), " +
+	"and PEAPv0/EAP-MSCHAPv2 also requires ieee8021x.username. " +
+	"A profile that breaks these rules is rejected with 400 Bad Request"
 
 func (f *FuegoAdapter) registerWirelessProfileSyncRoutes() {
 	fuego.Get(
