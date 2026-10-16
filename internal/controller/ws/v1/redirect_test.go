@@ -323,7 +323,17 @@ func TestWebSocketHandlerRealUpgrader(t *testing.T) { //nolint:paralleltest // s
 	r := gin.New()
 	RegisterRoutes(r, mockLogger, mockFeature, upgrader)
 
-	srv := httptest.NewUnstartedServer(r)
+	// srv.Close does not wait for hijacked connections, so track handlers until they return.
+	var inFlight sync.WaitGroup
+
+	t.Cleanup(inFlight.Wait)
+
+	srv := httptest.NewUnstartedServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		inFlight.Add(1)
+		defer inFlight.Done()
+
+		r.ServeHTTP(w, req)
+	}))
 	// Writing the gin response onto a hijacked connection is expected and noisy.
 	srv.Config.ErrorLog = log.New(io.Discard, "", 0)
 	srv.Start()
