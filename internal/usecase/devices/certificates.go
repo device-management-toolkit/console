@@ -327,20 +327,10 @@ func populateCertificateDTO(cert *x509.Certificate) dto.Certificate {
 	}
 }
 
-func (uc *UseCase) AddCertificate(c context.Context, guid, tenantID string, certInfo dto.CertInfo) (handle string, err error) {
-	var certData []byte
-
-	item, err := uc.repo.GetByID(c, guid, tenantID)
-	if err != nil {
-		return "", err
-	}
-
-	if item == nil || item.GUID == "" {
-		return "", ErrNotFound
-	}
-
+// normalizeCertificate decodes a base64 DER or PEM certificate and returns it as single-line base64 DER.
+func normalizeCertificate(encoded string) (string, error) {
 	// Decode base64 certificate
-	certData, err = base64.StdEncoding.DecodeString(certInfo.Cert)
+	certData, err := base64.StdEncoding.DecodeString(encoded)
 	if err != nil {
 		return "", err
 	}
@@ -375,6 +365,25 @@ func (uc *UseCase) AddCertificate(c context.Context, guid, tenantID string, cert
 	}
 
 	cleanedCert := strings.ReplaceAll(base64.StdEncoding.EncodeToString(block.Bytes), "\r\n", "")
+
+	return cleanedCert, nil
+}
+
+func (uc *UseCase) AddCertificate(c context.Context, guid, tenantID string, certInfo dto.CertInfo) (handle string, err error) {
+	item, err := uc.repo.GetByID(c, guid, tenantID)
+	if err != nil {
+		return "", err
+	}
+
+	if item == nil || item.GUID == "" {
+		return "", ErrNotFound
+	}
+
+	cleanedCert, err := normalizeCertificate(certInfo.Cert)
+	if err != nil || cleanedCert == "" {
+		// An empty result means the certificate was rejected without an error, so the device is not contacted.
+		return "", err
+	}
 
 	device, err := uc.device.SetupWsmanClient(c, *item, false, true)
 	if err != nil {
