@@ -14,6 +14,7 @@ import (
 
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
 
@@ -104,6 +105,16 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(wsman.ErrNoWiFiPort)
 			},
 			expectedCode: http.StatusNotFound,
+		},
+		{
+			name:        "add wireless profile - profile limit reached",
+			method:      http.MethodPost,
+			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
+			requestBody: request,
+			mock: func(feature *mocks.MockDeviceManagementFeature) {
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(devices.ErrWirelessProfileLimitReached)
+			},
+			expectedCode: http.StatusConflict,
 		},
 		{
 			name:        "update wireless profile",
