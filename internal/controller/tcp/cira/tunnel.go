@@ -38,10 +38,11 @@ type Server struct {
 	notify       chan error
 	listener     net.Listener
 	devices      devices.Feature
+	secrets      SecretReader
 	log          logger.Interface
 }
 
-func NewServer(certFile, keyFile string, d devices.Feature, l logger.Interface) (*Server, error) {
+func NewServer(certFile, keyFile string, d devices.Feature, l logger.Interface, secrets ...SecretReader) (*Server, error) {
 	cert, err := tls.LoadX509KeyPair(certFile, keyFile)
 	if err != nil {
 		return nil, err
@@ -52,6 +53,9 @@ func NewServer(certFile, keyFile string, d devices.Feature, l logger.Interface) 
 		notify:       make(chan error, 1),
 		devices:      d,
 		log:          l,
+	}
+	if len(secrets) > 0 {
+		s.secrets = secrets[0]
 	}
 
 	s.start()
@@ -140,7 +144,7 @@ func (s *Server) handleConnection(conn net.Conn) {
 	ctx := &connectionContext{
 		conn:    conn,
 		tlsConn: tlsConn,
-		handler: NewAPFHandler(s.devices, s.log),
+		handler: NewAPFHandler(s.devices, s.log, s.secrets),
 		devices: s.devices,
 		session: &apf.Session{
 			Timer: time.NewTimer(apfSessionTimeout),

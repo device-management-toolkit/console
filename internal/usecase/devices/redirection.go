@@ -13,22 +13,37 @@ import (
 
 type Redirector struct {
 	SafeRequirements security.Cryptor
+	creds            *wsmanAPI.CredentialResolver
 }
 
-func (g *Redirector) SetupWsmanClient(_ context.Context, device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, error) {
+// SetCredentialResolver wires the Vault resolver shared with RPS.
+func (g *Redirector) SetCredentialResolver(creds *wsmanAPI.CredentialResolver) {
+	g.creds = creds
+}
+
+func (g *Redirector) SetupWsmanClient(_ context.Context, device entity.Device, isRedirection, logAMTMessages bool) (wsman.Messages, entity.Device, error) {
+	decryptedPassword, err := wsmanAPI.DecryptStoredPassword(g.SafeRequirements, device.Password)
+	if err != nil {
+		return wsman.Messages{}, device, err
+	}
+
+	device.Password = decryptedPassword
+	device = g.creds.ApplyAMT(device)
+
 	// CIRA device: route redirection through the APF tunnel
 	if isRedirection && device.MPSUsername != "" {
 		connection := wsmanAPI.GetConnectionEntry(device.GUID)
 		if connection == nil {
-			return wsman.Messages{}, wsmanAPI.ErrCIRADeviceNotConnected
+			return wsman.Messages{}, device, wsmanAPI.ErrCIRADeviceNotConnected
 		}
 
-		return wsman.NewCIRARedirectionMessages(connection), nil
+		return wsman.NewCIRARedirectionMessages(connection), device, nil
 	}
 
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
+		Password:          device.Password,
 		UseDigest:         true,
 		UseTLS:            device.UseTLS,
 		SelfSignedAllowed: device.AllowSelfSigned,
@@ -40,14 +55,7 @@ func (g *Redirector) SetupWsmanClient(_ context.Context, device entity.Device, i
 		clientParams.PinnedCert = *device.CertHash
 	}
 
-	decryptedPassword, err := g.SafeRequirements.Decrypt(device.Password)
-	if err != nil {
-		return wsman.Messages{}, err
-	}
-
-	clientParams.Password = decryptedPassword
-
-	return wsman.NewMessages(clientParams), nil
+	return wsman.NewMessages(clientParams), device, nil
 }
 
 func NewRedirector(safeRequirements security.Cryptor) *Redirector {
