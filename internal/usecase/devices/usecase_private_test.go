@@ -115,3 +115,36 @@ func TestMergeDeviceFields_NewSetters(t *testing.T) {
 	mergeDeviceFields(dst, src, map[string]bool{"deviceinfo": true})
 	require.Equal(t, info, dst.DeviceInfo)
 }
+
+func TestMergeDeviceFields_ElevationAndHECI(t *testing.T) {
+	t.Parallel()
+
+	elevated := false
+	heci := false
+
+	src := &dto.Device{
+		DeviceInfo: &dto.DeviceInfo{
+			IsElevated:    &elevated,
+			HECIAvailable: &heci,
+		},
+	}
+	dst := &dto.Device{
+		DeviceInfo: &dto.DeviceInfo{
+			FWVersion: "16.1.25",
+		},
+	}
+
+	fields := map[string]bool{
+		"deviceinfo":               true,
+		"deviceinfo.iselevated":    true,
+		"deviceinfo.heciavailable": true,
+	}
+
+	mergeDeviceFields(dst, src, fields)
+
+	require.Equal(t, "16.1.25", dst.DeviceInfo.FWVersion)
+	require.NotNil(t, dst.DeviceInfo.IsElevated)
+	require.False(t, *dst.DeviceInfo.IsElevated)
+	require.NotNil(t, dst.DeviceInfo.HECIAvailable)
+	require.False(t, *dst.DeviceInfo.HECIAvailable)
+}
