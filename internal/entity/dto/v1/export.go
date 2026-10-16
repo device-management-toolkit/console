@@ -61,6 +61,7 @@ type ExportME struct {
 	DHCPEnabled       *bool                      `json:"dhcpEnabled"`
 	CertHashes        []string                   `json:"certHashes"`
 	UPID              map[string]json.RawMessage `json:"upid"`
+	HECIAvailable     *bool                      `json:"heciAvailable"`
 	Network           *ExportMENetwork           `json:"network"`
 }
 
@@ -90,6 +91,7 @@ type ExportOS struct {
 	MEInterfaceVersion string           `json:"meInterfaceVersion"`
 	MonitorConnected   *bool            `json:"monitorConnected"`
 	IEEE8021XEnabled   *bool            `json:"ieee8021xEnabled"`
+	IsElevated         *bool            `json:"isElevated"`
 	Network            *ExportOSNetwork `json:"network"`
 }
 

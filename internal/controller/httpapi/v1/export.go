@@ -126,7 +126,8 @@ func buildExportME(d *dto.Device, info *dto.DeviceInfo) *dto.ExportME {
 	network := buildExportMENetwork(info.MENetwork)
 
 	hasME := info.FWVersion != "" || info.FWSku != "" || info.CurrentMode != "" ||
-		(info.AMTEnabledInBIOS != nil && *info.AMTEnabledInBIOS) || network != nil
+		(info.AMTEnabledInBIOS != nil && *info.AMTEnabledInBIOS) ||
+		info.HECIAvailable != nil || network != nil
 	if !hasME {
 		return nil
 	}
@@ -143,6 +144,7 @@ func buildExportME(d *dto.Device, info *dto.DeviceInfo) *dto.ExportME {
 		DHCPEnabled:       info.DHCPEnabled,
 		CertHashes:        info.CertHashes,
 		UPID:              info.UPID,
+		HECIAvailable:     info.HECIAvailable,
 	}
 
 	if network != nil {
@@ -197,7 +199,7 @@ func buildExportOS(info *dto.DeviceInfo) *dto.ExportOS {
 	hasOS := info.OSName != "" || info.OSVersion != "" || info.OSDistro != "" ||
 		info.OSIPAddress != "" || info.LMSInstalled != nil || info.LMSVersion != "" ||
 		info.MEInterfaceVersion != "" || info.MonitorConnected != nil || info.IEEE8021XEnabled != nil ||
-		info.DNSSuffixOS != "" || network != nil
+		info.IsElevated != nil || info.DNSSuffixOS != "" || network != nil
 	if !hasOS {
 		return nil
 	}
@@ -212,6 +214,7 @@ func buildExportOS(info *dto.DeviceInfo) *dto.ExportOS {
 		MEInterfaceVersion: info.MEInterfaceVersion,
 		MonitorConnected:   info.MonitorConnected,
 		IEEE8021XEnabled:   info.IEEE8021XEnabled,
+		IsElevated:         info.IsElevated,
 	}
 
 	if network != nil {

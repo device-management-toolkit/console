@@ -76,6 +76,8 @@ type DeviceInfo struct {
 	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
 	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
 	IEEE8021XEnabled     *bool                      `json:"ieee8021xEnabled,omitempty"`
+	IsElevated           *bool                      `json:"isElevated,omitempty"`
+	HECIAvailable        *bool                      `json:"heciAvailable,omitempty"`
 	MENetwork            *MENetworkInfo             `json:"meNetwork,omitempty"`
 	OSNetwork            *OSNetworkInfo             `json:"osNetwork,omitempty"`
 	PlatformAdapters     *PlatformAdaptersInfo      `json:"platformAdapters,omitempty"`
