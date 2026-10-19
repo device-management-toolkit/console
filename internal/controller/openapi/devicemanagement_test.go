@@ -6,6 +6,7 @@ import (
 
 	"github.com/stretchr/testify/require"
 
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -14,6 +15,41 @@ func newTestAdapter() *FuegoAdapter {
 	log := logger.New("error")
 
 	return NewFuegoAdapter(usecase.Usecases{}, log)
+}
+
+func TestSetRemoteEraseOptions_ReturnsEmptyResponse(t *testing.T) {
+	t.Parallel()
+
+	f := newTestAdapter()
+
+	resp, err := f.setRemoteEraseOptions(nil)
+	require.NoError(t, err)
+	require.Equal(t, NoContentResponse{}, resp)
+}
+
+func TestGetRemoteEraseStatus_ReturnsEmptyResponse(t *testing.T) {
+	t.Parallel()
+
+	f := newTestAdapter()
+
+	resp, err := f.getRemoteEraseStatus(nil)
+	require.NoError(t, err)
+	require.Equal(t, dtov2.RemoteEraseStatus{}, resp)
+}
+
+func TestGetAlarmOccurrences_ReturnsEmptyArray(t *testing.T) {
+	t.Parallel()
+
+	f := newTestAdapter()
+
+	resp, err := f.getAlarmOccurrences(nil)
+	require.NoError(t, err)
+	require.NotNil(t, resp)
+	require.Empty(t, resp)
+
+	body, err := json.Marshal(resp)
+	require.NoError(t, err)
+	require.JSONEq(t, "[]", string(body))
 }
 
 func TestRegisterPowerRoutes_IncludesBootEndpoints(t *testing.T) {

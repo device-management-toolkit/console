@@ -91,5 +91,5 @@ type Management interface {
 	SetIPSKVMRedirectionSettingData(data *kvmredirection.KVMRedirectionSettingsRequest) (kvmredirection.Response, error)
 	DeleteCertificate(instanceID string) error
 	SetLinkPreference(linkPreference, timeout uint32) (int, error)
-	SetRemoteEraseOptions(eraseMask int, ssdPassword string) error
+	SetRemoteEraseOptions(eraseMask int, ssdPassword, psid string) error
 }

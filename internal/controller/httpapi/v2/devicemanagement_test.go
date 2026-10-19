@@ -68,6 +68,27 @@ func TestDeviceManagement(t *testing.T) {
 		response     interface{}
 	}{
 		{
+			name:   "getRemoteEraseStatus - BIOS authentication failure",
+			url:    "/api/v2/amt/boot/remoteErase/valid-guid/status",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetRemoteEraseStatus(context.Background(), "valid-guid", "").
+					Return(dtov2.RemoteEraseStatus{Status: "failed", Message: "Drive password/authentication failure"}, nil)
+			},
+			expectedCode: http.StatusOK,
+			response:     dtov2.RemoteEraseStatus{Status: "failed", Message: "Drive password/authentication failure"},
+		},
+		{
+			name:   "getRemoteEraseStatus - unavailable",
+			url:    "/api/v2/amt/boot/remoteErase/valid-guid/status",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetRemoteEraseStatus(context.Background(), "valid-guid", "").
+					Return(dtov2.RemoteEraseStatus{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+		},
+		{
 			name:   "getVersion - successful retrieval",
 			url:    "/api/v2/amt/version/valid-guid",
 			method: http.MethodGet,
@@ -79,6 +100,17 @@ func TestDeviceManagement(t *testing.T) {
 			response:     dtov2.Version{},
 		},
 		{
+			name:   "getVersion - retrieval failure",
+			url:    "/api/v2/amt/version/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetVersion(context.Background(), "valid-guid", "").
+					Return(dto.Version{}, dtov2.Version{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     gin.H{"error": "general error", "message": "general error"},
+		},
+		{
 			name:   "getFeatures - successful retrieval",
 			url:    "/api/v2/amt/features/valid-guid",
 			method: http.MethodGet,
@@ -88,6 +120,41 @@ func TestDeviceManagement(t *testing.T) {
 			},
 			expectedCode: http.StatusOK,
 			response:     dtov2.Features{},
+		},
+		{
+			name:   "getFeatures - retrieval failure",
+			url:    "/api/v2/amt/features/valid-guid",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetFeatures(context.Background(), "valid-guid", "").
+					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			response:     gin.H{"error": "general error", "message": "general error"},
+		},
+		{
+			name:         "setFeatures - invalid request body",
+			url:          "/api/v2/amt/features/valid-guid",
+			method:       http.MethodPost,
+			mock:         func(_ *mocks.MockDeviceManagementFeature) {},
+			expectedCode: http.StatusBadRequest,
+			requestBody:  []string{"invalid"},
+			response: gin.H{
+				"error":   "json: cannot unmarshal array into Go value of type dto.Features",
+				"message": "json: cannot unmarshal array into Go value of type dto.Features",
+			},
+		},
+		{
+			name:   "setFeatures - update failure",
+			url:    "/api/v2/amt/features/valid-guid",
+			method: http.MethodPost,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().SetFeatures(context.Background(), "valid-guid", "", featuresInput).
+					Return(dto.Features{}, dtov2.Features{}, ErrGeneral)
+			},
+			expectedCode: http.StatusInternalServerError,
+			requestBody:  featuresInput,
+			response:     gin.H{"error": "general error", "message": "general error"},
 		},
 		{
 			name:   "setFeatures - successful post",
@@ -134,7 +201,7 @@ func TestDeviceManagement(t *testing.T) {
 
 			require.Equal(t, tc.expectedCode, w.Code)
 
-			if tc.expectedCode == http.StatusOK || tc.expectedCode == http.StatusCreated {
+			if tc.response != nil {
 				jsonBytes, _ := json.Marshal(tc.response)
 				require.Equal(t, string(jsonBytes), w.Body.String())
 			}

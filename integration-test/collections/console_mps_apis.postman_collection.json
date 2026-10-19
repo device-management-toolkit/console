@@ -1618,7 +1618,23 @@
 					"response": []
 				},
 				{
+					"name": "Get Last BIOS Erase Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"description": "Last BIOS boot result, not operation-specific. Observe pending after submission before accepting succeeded or failed. Password/authentication failures are reported as failed; unknown or unreachable does not mean success.",
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v2/amt/boot/remoteErase/{{deviceId}}/status",
+							"protocol": "{{protocol}}",
+							"host": ["{{host}}"],
+							"path": ["api", "v2", "amt", "boot", "remoteErase", "{{deviceId}}", "status"]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Set Remote Erase Options",
+					"description": "SSD master passwords are limited to 64 UTF-8 bytes with no separate character limit; PSID remains limited to 64 bytes.",
 					"event": [
 						{
 							"listen": "test",
@@ -1644,7 +1660,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"secureEraseAllSSDs\": true,\r\n    \"tpmClear\": false,\r\n    \"restoreBIOSToEOM\": false,\r\n    \"unconfigureCSME\": false,\r\n    \"ssdPassword\": \"\"\r\n}",
+							"raw": "{\r\n    \"secureEraseAllSSDs\": true,\r\n    \"tpmClear\": false,\r\n    \"restoreBIOSToEOM\": false,\r\n    \"unconfigureCSME\": false,\r\n    \"ssdPassword\": \"\",\r\n    \"psid\": \"\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
