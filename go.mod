@@ -33,7 +33,7 @@ require (
 	golang.org/x/sys v0.49.0
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.60.1
-	software.sslmate.com/src/go-pkcs12 v0.7.3
+	software.sslmate.com/src/go-pkcs12 v0.7.4
 )
 
 require (
