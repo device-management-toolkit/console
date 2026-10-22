@@ -150,7 +150,9 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.addWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Create Wireless Profile"),
-		fuego.OptionDescription("Create a wireless profile on a device"),
+		fuego.OptionDescription("Create a wireless profile on a device. "+
+			"A device stores at most 8 wireless profiles; adding one more, or a profile whose name or priority "+
+			"already exists, is rejected with 409 Conflict"),
 		fuego.OptionPath("guid", "Device GUID"),
 		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
