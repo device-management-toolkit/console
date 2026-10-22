@@ -85,6 +85,29 @@ func TestSetupHTTPHandlerSetsNoSniffAheadOfCORS(t *testing.T) {
 	}
 }
 
+//nolint:paralleltest // setupHTTPHandler mutates global gin mode and reads GIN_MODE, which TestRun writes
+func TestSetupHTTPHandlerGatewayEnforcedSkipsJWTMiddleware(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.AllowedOrigins = []string{"https://allowed.example"}
+	cfg.AllowedHeaders = []string{"Content-Type"}
+	cfg.GatewayEnforced = true
+
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = cfg
+
+	handler := setupHTTPHandler(cfg, logger.New("error"), &usecase.Usecases{})
+
+	// NewRouter reads APIVerifiesJWT() at registration, so a public route proves this.
+	req := httptest.NewRequest(http.MethodGet, "/healthz", http.NoBody)
+	w := httptest.NewRecorder()
+	handler.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
+
 func TestNewOriginChecker(t *testing.T) {
 	t.Parallel()
 

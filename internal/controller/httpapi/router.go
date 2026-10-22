@@ -60,10 +60,14 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	// Protected routes using JWT middleware
 	var protected *gin.RouterGroup
-	if cfg.Disabled {
-		protected = handler.Group("/api")
-	} else {
+	if cfg.APIVerifiesJWT() {
 		protected = handler.Group("/api", login.JWTAuthMiddleware())
+	} else {
+		if cfg.GatewayEnforced {
+			l.Warn("auth.gatewayEnforced: /api JWT verification is delegated to the gateway; the HTTP port must not be reachable directly")
+		}
+
+		protected = handler.Group("/api")
 	}
 
 	protected.Use(middleware.ResolveTenant(l))
