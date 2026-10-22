@@ -8,6 +8,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 )
 
 func (f *FuegoAdapter) RegisterDeviceManagementRoutes() {
@@ -348,7 +349,16 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.setRemoteEraseOptions,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Remote Erase Options"),
-		fuego.OptionDescription("Trigger Remote Platform Erase on a device; at least one erase option must be selected"),
+		fuego.OptionDescription("Submit Remote Platform Erase; a successful response confirms submission, not BIOS erase completion. At least one erase option must be selected. Optional ssdPassword (SSD master password) is limited to 64 UTF-8 bytes with no separate character limit; optional psid (Pyrite drive revert/clear) is limited to 64 bytes."),
+		fuego.OptionPath("guid", "Device GUID"),
+		protectedRouteOptions(),
+	)
+
+	fuego.Get(
+		f.server, "/api/v2/amt/boot/remoteErase/{guid}/status", f.getRemoteEraseStatus,
+		fuego.OptionTags("Device Management"),
+		fuego.OptionSummary("Get Last BIOS Erase Status"),
+		fuego.OptionDescription("Read BIOSLastStatus: pending, succeeded, failed, or unknown, with a diagnostic message. This is the last boot result, not an operation-specific result. Observe pending after submission before attributing a terminal result to that request. Missing or unrecognized status is unknown; connectivity errors do not imply success."),
 		fuego.OptionPath("guid", "Device GUID"),
 		protectedRouteOptions(),
 	)
@@ -661,6 +671,10 @@ func (f *FuegoAdapter) getRemoteEraseCapabilities(_ fuego.ContextNoBody) (dto.Bo
 
 func (f *FuegoAdapter) setRemoteEraseOptions(_ fuego.ContextWithBody[dto.RemoteEraseRequest]) (NoContentResponse, error) {
 	return NoContentResponse{}, nil
+}
+
+func (f *FuegoAdapter) getRemoteEraseStatus(_ fuego.ContextNoBody) (dtov2.RemoteEraseStatus, error) {
+	return dtov2.RemoteEraseStatus{}, nil
 }
 
 func (f *FuegoAdapter) getAlarmOccurrences(_ fuego.ContextNoBody) ([]dto.AlarmClockOccurrence, error) {
