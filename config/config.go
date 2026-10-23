@@ -132,6 +132,7 @@ type (
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
+		Audiences                []string      `yaml:"audiences" env:"AUTH_AUDIENCES"`
 		Issuer                   string        `yaml:"issuer" env:"AUTH_ISSUER"`
 		TLSSkipVerify            bool          `yaml:"tlsSkipVerify" env:"AUTH_TLS_SKIP_VERIFY"`
 		CookieEnabled            bool          `yaml:"cookieEnabled" env:"AUTH_COOKIE_ENABLED"`
@@ -272,8 +273,9 @@ func defaultConfig() *Config {
 			CookieSecure:             true,
 			CookieSameSite:           "strict",
 			// OAUTH CONFIG, if provided will not use basic auth
-			ClientID: "",
-			Issuer:   "",
+			ClientID:  "",
+			Issuer:    "",
+			Audiences: []string{},
 			UI: UIAuthConfig{
 				ClientID:                          "",
 				Issuer:                            "",

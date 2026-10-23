@@ -64,6 +64,9 @@ auth:
   redirectionJWTExpiration: 5m0s
   clientId: ""
   issuer: ""
+  # Access-token audiences accepted besides clientId, e.g. an API identifier
+  # or machine-to-machine client IDs. Tokens without aud match on client_id.
+  audiences: []
   ui: 
     clientId: ""
     issuer: ""

@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"slices"
 	"strings"
 	"time"
 
@@ -61,8 +62,10 @@ func NewLoginRoute(configData *config.Config) *LoginRoute {
 			return nil
 		}
 
+		// The audience is checked in verifyToken against auth.clientId and
+		// auth.audiences, so go-oidc only checks issuer, signature and expiry.
 		lr.Verifier = provider.Verifier(&oidc.Config{
-			ClientID: config.ConsoleConfig.ClientID,
+			SkipClientIDCheck: true,
 		})
 	}
 
@@ -202,9 +205,12 @@ func resolveToken(c *gin.Context) string {
 func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
 	// if clientID is set, use the oidc verifier
 	if config.ConsoleConfig.ClientID != "" {
-		_, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
+		idToken, err := lr.Verifier.Verify(c.Request.Context(), tokenString)
+		if err != nil {
+			return false
+		}
 
-		return err == nil
+		return audienceAllowed(idToken, allowedAudiences(config.ConsoleConfig.Auth))
 	}
 
 	claims := &jwt.MapClaims{}
@@ -218,6 +224,38 @@ func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
 	})
 
 	return err == nil && token.Valid
+}
+
+// allowedAudiences is auth.clientId plus auth.audiences, trimmed, without empties.
+func allowedAudiences(auth config.Auth) map[string]bool {
+	allowed := map[string]bool{}
+
+	for _, audience := range append([]string{auth.ClientID}, auth.Audiences...) {
+		if audience = strings.TrimSpace(audience); audience != "" {
+			allowed[audience] = true
+		}
+	}
+
+	return allowed
+}
+
+// audienceAllowed accepts a token whose aud names an allowed audience. Only a
+// token without aud falls back to its RFC 9068 client_id claim, which is how
+// Amazon Cognito access tokens identify their app client.
+func audienceAllowed(idToken *oidc.IDToken, allowed map[string]bool) bool {
+	if len(idToken.Audience) > 0 {
+		return slices.ContainsFunc(idToken.Audience, func(audience string) bool { return allowed[audience] })
+	}
+
+	var claims struct {
+		ClientID string `json:"client_id"`
+	}
+
+	if err := idToken.Claims(&claims); err != nil {
+		return false
+	}
+
+	return allowed[claims.ClientID]
 }
 
 // cookieAuthEnabled reports whether session cookies are in use. An unconfigured

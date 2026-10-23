@@ -79,6 +79,7 @@ func TestNewConfig_EnvVars(t *testing.T) {
 	os.Setenv("DB_URL", "postgres://user:password@localhost:5432/testdb")
 	os.Setenv("HTTP_TLS_ENABLED", "false")
 	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-env-testing")
+	t.Setenv("AUTH_AUDIENCES", "https://api.example.com,m2m-client")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -93,6 +94,7 @@ func TestNewConfig_EnvVars(t *testing.T) {
 	assert.Equal(t, 10, cfg.PoolMax)
 	assert.Equal(t, "postgres://user:password@localhost:5432/testdb", cfg.DB.URL)
 	assert.Equal(t, false, cfg.TLS.Enabled)
+	assert.Equal(t, []string{"https://api.example.com", "m2m-client"}, cfg.Audiences)
 }
 
 func TestResolveConfigPath_FlagWins(t *testing.T) { //nolint:paralleltest // mutates package-global TrayMode
