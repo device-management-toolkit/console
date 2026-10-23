@@ -10,6 +10,8 @@ import (
 
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
+
+	"github.com/device-management-toolkit/console/config"
 )
 
 const testUIShell = "<app-root></app-root>"
@@ -152,5 +154,77 @@ func TestConsoleServerAPIBase(t *testing.T) {
 			got := consoleServerAPIBase(tt.protocol, tt.host, tt.port)
 			require.Equal(t, tt.want, got)
 		})
+	}
+}
+
+func TestOAuthUIReplacements(t *testing.T) {
+	t.Parallel()
+
+	t.Run("basic auth injects no OAuth values", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Config{}
+		cfg.Auth.UI.ClientID = "spa-client"
+		cfg.Auth.UI.Audience = "https://api.example.com"
+
+		require.Empty(t, oauthUIReplacements(cfg))
+	})
+
+	t.Run("OAuth injects the UI values including the audience", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Config{}
+		cfg.ClientID = "api-client"
+		cfg.Auth.UI.ClientID = "spa-client"
+		cfg.Auth.UI.Issuer = "https://idp.example.com"
+		cfg.Auth.UI.Scope = "openid profile"
+		cfg.Auth.UI.RedirectURI = "https://console.example.com/"
+		cfg.Auth.UI.Audience = "https://api.example.com"
+
+		got := oauthUIReplacements(cfg)
+
+		require.Equal(t, ",useOAuth:!0,", got[",useOAuth:!1,"])
+		require.Equal(t, "spa-client", got["##CLIENTID##"])
+		require.Equal(t, "https://idp.example.com", got["##ISSUER##"])
+		require.Equal(t, "openid profile", got["##SCOPE##"])
+		require.Equal(t, "https://console.example.com/", got["##REDIRECTURI##"])
+		require.Equal(t, "https://api.example.com", got["##AUDIENCE##"])
+	})
+
+	t.Run("OAuth without an audience replaces the placeholder with empty", func(t *testing.T) {
+		t.Parallel()
+
+		cfg := &config.Config{}
+		cfg.ClientID = "api-client"
+
+		got := oauthUIReplacements(cfg)
+
+		value, ok := got["##AUDIENCE##"]
+		require.True(t, ok)
+		require.Empty(t, value)
+	})
+}
+
+func TestOAuthUIReplacementsFlags(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		requireHTTPS, strictDiscovery bool
+		wantHTTPS, wantStrict         string
+	}{
+		{true, true, ",requireHttps:!0", ",strictDiscoveryDocumentValidation:!0"},
+		{false, false, ",requireHttps:!1", ",strictDiscoveryDocumentValidation:!1"},
+	}
+
+	for _, tc := range tests {
+		cfg := &config.Config{}
+		cfg.ClientID = "api-client"
+		cfg.Auth.UI.RequireHTTPS = tc.requireHTTPS
+		cfg.Auth.UI.StrictDiscoveryDocumentValidation = tc.strictDiscovery
+
+		got := oauthUIReplacements(cfg)
+
+		require.Equal(t, tc.wantHTTPS, got[",requireHttps:!0"])
+		require.Equal(t, tc.wantStrict, got[",strictDiscoveryDocumentValidation:!0"])
 	}
 }

@@ -148,6 +148,7 @@ type (
 		Issuer                            string `yaml:"issuer" env:"AUTH_UI_ISSUER"`
 		RedirectURI                       string `yaml:"redirectUri" env:"AUTH_UI_REDIRECT_URI"`
 		Scope                             string `yaml:"scope" env:"AUTH_UI_SCOPE"`
+		Audience                          string `yaml:"audience" env:"AUTH_UI_AUDIENCE"`
 		ResponseType                      string `yaml:"responseType" env:"AUTH_UI_RESPONSE_TYPE"`
 		RequireHTTPS                      bool   `yaml:"requireHttps" env:"AUTH_UI_REQUIRE_HTTPS"`
 		StrictDiscoveryDocumentValidation bool   `yaml:"strictDiscoveryDocumentValidation" env:"AUTH_UI_STRICT_DISCOVERY"`
@@ -281,6 +282,7 @@ func defaultConfig() *Config {
 				Issuer:                            "",
 				RedirectURI:                       "",
 				Scope:                             "",
+				Audience:                          "",
 				ResponseType:                      "",
 				RequireHTTPS:                      false,
 				StrictDiscoveryDocumentValidation: true,

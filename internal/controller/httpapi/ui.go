@@ -116,33 +116,11 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 
 	protocol := protocolHTTP
 
-	requireHTTPSReplacement := ",requireHttps:!1"
-	if cfg.Auth.UI.RequireHTTPS {
-		requireHTTPSReplacement = ",requireHttps:!0"
+	if cfg.Auth.UI.RequireHTTPS || cfg.TLS.Enabled {
 		protocol = protocolHTTPS
 	}
 
-	if cfg.TLS.Enabled {
-		protocol = protocolHTTPS
-	}
-
-	// if there is a clientID, we assume oauth will be configured, so inject UI config values from YAML
-	if cfg.ClientID != "" {
-		strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
-		if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
-			strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
-		}
-
-		data = injectPlaceholders(data, map[string]string{
-			",useOAuth:!1,":                         ",useOAuth:!0,",
-			",requireHttps:!0":                      requireHTTPSReplacement,
-			",strictDiscoveryDocumentValidation:!0": strictDiscoveryReplacement,
-			"##CLIENTID##":                          cfg.Auth.UI.ClientID,
-			"##ISSUER##":                            cfg.Auth.UI.Issuer,
-			"##SCOPE##":                             cfg.Auth.UI.Scope,
-			"##REDIRECTURI##":                       cfg.Auth.UI.RedirectURI,
-		})
-	}
+	data = injectPlaceholders(data, oauthUIReplacements(cfg))
 
 	data = injectPlaceholders(data, map[string]string{
 		"##CONSOLE_SERVER_API##": consoleServerAPIBase(protocol, cfg.Host, cfg.Port),
@@ -158,6 +136,36 @@ func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {
 	}
 
 	return tempFile
+}
+
+// oauthUIReplacements returns the main.js replacements that switch the UI to
+// OAuth with the auth.ui values. A clientID means OAuth is configured; without
+// one nothing is replaced and the UI keeps basic auth.
+func oauthUIReplacements(cfg *config.Config) map[string]string {
+	if cfg.ClientID == "" {
+		return map[string]string{}
+	}
+
+	requireHTTPSReplacement := ",requireHttps:!1"
+	if cfg.Auth.UI.RequireHTTPS {
+		requireHTTPSReplacement = ",requireHttps:!0"
+	}
+
+	strictDiscoveryReplacement := ",strictDiscoveryDocumentValidation:!1"
+	if cfg.Auth.UI.StrictDiscoveryDocumentValidation {
+		strictDiscoveryReplacement = ",strictDiscoveryDocumentValidation:!0"
+	}
+
+	return map[string]string{
+		",useOAuth:!1,":                         ",useOAuth:!0,",
+		",requireHttps:!0":                      requireHTTPSReplacement,
+		",strictDiscoveryDocumentValidation:!0": strictDiscoveryReplacement,
+		"##CLIENTID##":                          cfg.Auth.UI.ClientID,
+		"##ISSUER##":                            cfg.Auth.UI.Issuer,
+		"##SCOPE##":                             cfg.Auth.UI.Scope,
+		"##REDIRECTURI##":                       cfg.Auth.UI.RedirectURI,
+		"##AUDIENCE##":                          cfg.Auth.UI.Audience,
+	}
 }
 
 // Returns "" on wildcard hosts so the UI uses same-origin requests matching the user's URL/SNI.

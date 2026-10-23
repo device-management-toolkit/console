@@ -72,6 +72,9 @@ auth:
     issuer: ""
     scope: ""
     redirectUri: ""
+    # Audience the UI requests at sign-in (Auth0 "audience"), also accepted on
+    # the API; empty for most providers
+    audience: ""
     responseType: "code"
     requireHttps: false
     strictDiscoveryDocumentValidation: true

@@ -226,11 +226,12 @@ func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
 	return err == nil && token.Valid
 }
 
-// allowedAudiences is auth.clientId plus auth.audiences, trimmed, without empties.
+// allowedAudiences is auth.clientId, auth.audiences and the audience the UI
+// requests at sign-in (auth.ui.audience), trimmed, without empties.
 func allowedAudiences(auth config.Auth) map[string]bool {
 	allowed := map[string]bool{}
 
-	for _, audience := range append([]string{auth.ClientID}, auth.Audiences...) {
+	for _, audience := range append([]string{auth.ClientID, auth.UI.Audience}, auth.Audiences...) {
 		if audience = strings.TrimSpace(audience); audience != "" {
 			allowed[audience] = true
 		}

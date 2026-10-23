@@ -148,3 +148,23 @@ func TestOIDCAudiences(t *testing.T) {
 		require.Equal(t, http.StatusUnauthorized, w.Code)
 	})
 }
+
+// TestOIDCAcceptsTheUIAudience pins that the audience the UI asks the IdP for
+// is accepted without also listing it in auth.audiences.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestOIDCAcceptsTheUIAudience(t *testing.T) {
+	issuer, sign := oidcSigningServer(t)
+
+	engine := newOIDCTestEngine(t, issuer, nil)
+	config.ConsoleConfig.Auth.UI.Audience = "https://api.example.com"
+
+	w := get(t, engine, withBearer(sign(jwt.MapClaims{
+		"iss": issuer,
+		"sub": "user-1",
+		"aud": "https://api.example.com",
+		"exp": time.Now().Add(time.Hour).Unix(),
+	})))
+
+	require.Equal(t, http.StatusOK, w.Code)
+}
