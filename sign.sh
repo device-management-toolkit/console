@@ -21,6 +21,7 @@ artifacts=(
   console_mac_arm64.tar.gz
   console_mac_arm64_headless.tar.gz
 )
+bundle_files=()
 
 compatibility_aliases_enabled=1
 declare -A compatibility_bundle_sources=()
@@ -52,6 +53,7 @@ for artifact in "${artifacts[@]}"; do
     --yes \
     --bundle "$bundle_file" \
     "$artifact"
+  bundle_files+=("$bundle_file")
 
   if [[ "$compatibility_aliases_enabled" == 1 && "$bundle_file" != "$compatibility_bundle_file" ]]; then
     cp "$bundle_file" "$compatibility_bundle_file"
@@ -70,5 +72,8 @@ for artifact in "${artifacts[@]}"; do
     "$artifact"
 done
 
-echo "Cosign outputs:"
-ls -lh ./*.cosign.bundle.json || true
+rm -f cosign-signatures.zip
+zip -q cosign-signatures.zip "${bundle_files[@]}"
+
+echo "Cosign signature archive:"
+ls -lh cosign-signatures.zip
