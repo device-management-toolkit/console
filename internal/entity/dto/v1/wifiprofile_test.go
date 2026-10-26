@@ -174,6 +174,52 @@ func TestValidateWirelessProfile(t *testing.T) {
 			},
 			wantErr: true,
 		},
+		{
+			name: "ieee8021x peap missing username",
+			profile: config.WirelessProfile{
+				ProfileName:          "OfficeEAP",
+				SSID:                 "CorpNet",
+				Priority:             1,
+				AuthenticationMethod: "WPA2IEEE8021x",
+				EncryptionMethod:     "CCMP",
+				IEEE8021x: &config.IEEE8021x{
+					AuthenticationProtocol: 2,
+					Password:               "password123",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "ieee8021x peap missing password",
+			profile: config.WirelessProfile{
+				ProfileName:          "OfficeEAP",
+				SSID:                 "CorpNet",
+				Priority:             1,
+				AuthenticationMethod: "WPA2IEEE8021x",
+				EncryptionMethod:     "CCMP",
+				IEEE8021x: &config.IEEE8021x{
+					AuthenticationProtocol: 2,
+					Username:               "user",
+				},
+			},
+			wantErr: true,
+		},
+		{
+			name: "valid ieee8021x peap profile",
+			profile: config.WirelessProfile{
+				ProfileName:          "OfficeEAP",
+				SSID:                 "CorpNet",
+				Priority:             1,
+				AuthenticationMethod: "WPA2IEEE8021x",
+				EncryptionMethod:     "CCMP",
+				IEEE8021x: &config.IEEE8021x{
+					AuthenticationProtocol: 2,
+					Username:               "user",
+					Password:               "password123",
+				},
+			},
+			wantErr: false,
+		},
 	}
 
 	for _, tc := range tests {
