@@ -121,7 +121,7 @@ jobs:
         with:
           persist-credentials: false
       - name: Install Dev Container CLI
-        run: npm install -g @devcontainers/cli@0.67.0
+        run: npm install -g @devcontainers/cli@0.89.0
       - name: Build dev container definition
         run: devcontainer build --workspace-folder .
       - name: Start dev container
