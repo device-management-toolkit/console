@@ -6,6 +6,7 @@ type RemoteEraseRequest struct {
 	RestoreBIOSToEOM   bool   `json:"restoreBIOSToEOM"`
 	UnconfigureCSME    bool   `json:"unconfigureCSME"`
 	SSDPassword        string `json:"ssdPassword,omitempty"`
+	PSID               string `json:"psid,omitempty"`
 }
 
 type BootCapabilities struct {
