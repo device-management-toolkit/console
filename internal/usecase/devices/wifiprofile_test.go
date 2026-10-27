@@ -536,6 +536,105 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 	}
 }
 
+// wirelessProfileSettings returns count user-defined profiles with priorities
+// starting at 2, so they do not clash with a request that uses priority 1.
+func wirelessProfileSettings(count int) []wifi.WiFiEndpointSettingsResponse {
+	settings := make([]wifi.WiFiEndpointSettingsResponse, 0, count)
+
+	for i := 0; i < count; i++ {
+		name := fmt.Sprintf("Profile%d", i)
+		settings = append(settings, wifi.WiFiEndpointSettingsResponse{
+			InstanceID:  "Intel(r) AMT:WiFi Endpoint Settings " + name,
+			ElementName: name,
+			Priority:    i + 2,
+		})
+	}
+
+	return settings
+}
+
+func TestAddWirelessProfileLimit(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "device-guid-123"}
+	profile := config.WirelessProfile{
+		ProfileName:          "Home",
+		SSID:                 "HomeSSID",
+		Priority:             1,
+		Password:             "password",
+		AuthenticationMethod: "WPA2PSK",
+		EncryptionMethod:     "CCMP",
+	}
+	userSettings := wifi.WiFiEndpointSettingsResponse{InstanceID: "Intel(r) AMT:WiFi Endpoint User Settings 1", ElementName: "User", Priority: 1}
+
+	tests := []struct {
+		name      string
+		profile   config.WirelessProfile
+		settings  []wifi.WiFiEndpointSettingsResponse
+		expectAdd bool
+		wantErrIs error
+	}{
+		{
+			name:      "one below the limit is added",
+			profile:   profile,
+			settings:  wirelessProfileSettings(devices.MaxWirelessProfiles - 1),
+			expectAdd: true,
+		},
+		{
+			name:      "user settings entries do not count toward the limit",
+			profile:   config.WirelessProfile{ProfileName: "Home", SSID: "HomeSSID", Priority: 20, Password: "password", AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP"},
+			settings:  append(wirelessProfileSettings(devices.MaxWirelessProfiles-1), userSettings),
+			expectAdd: true,
+		},
+		{
+			name:      "at the limit is rejected",
+			profile:   profile,
+			settings:  wirelessProfileSettings(devices.MaxWirelessProfiles),
+			wantErrIs: devices.ErrWirelessProfileLimitReached,
+		},
+		{
+			name: "at the limit is rejected before 802.1x certificates are added",
+			profile: config.WirelessProfile{
+				ProfileName:          "Corp",
+				SSID:                 "CorpSSID",
+				Priority:             1,
+				AuthenticationMethod: "WPA2IEEE8021x",
+				EncryptionMethod:     "CCMP",
+				IEEE8021x:            &config.IEEE8021x{PrivateKey: "new-private"},
+			},
+			settings:  wirelessProfileSettings(devices.MaxWirelessProfiles),
+			wantErrIs: devices.ErrWirelessProfileLimitReached,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initWiFiProfileTest(t)
+
+			repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
+			wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+			expectWiFiPortPresent(management)
+			management.EXPECT().GetWiFiSettings().Return(tc.settings, nil)
+
+			if tc.expectAdd {
+				management.EXPECT().AddWiFiSettings(expectedWiFiRequest(tc.profile), models.IEEE8021xSettings{}, testWiFiEndpoint, "", "").Return(wifiportconfiguration.Response{}, nil)
+			}
+
+			err := useCase.AddWirelessProfile(context.Background(), device.GUID, device.TenantID, tc.profile)
+			if tc.wantErrIs != nil {
+				require.ErrorIs(t, err, tc.wantErrIs)
+
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
 func TestDeleteWirelessProfile(t *testing.T) {
 	t.Parallel()
 
