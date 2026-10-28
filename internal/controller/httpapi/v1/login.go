@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -16,20 +17,92 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/secrets"
 )
 
 const (
 	// sessionCookiePath covers both the UI (/) and the API (/api).
 	sessionCookiePath = "/"
 
-	authorizationHeader = "Authorization"
-	bearerPrefix        = "Bearer "
+	authorizationHeader         = "Authorization"
+	bearerPrefix                = "Bearer "
+	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
+	loginFailureError           = "invalid credentials"
 )
 
 var (
 	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
 	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+
+	// Rate limiting for PBKDF2 login attempts (DoS protection). Each entry
+	// tracks failures within a rolling window; entries are reset lazily when
+	// their window has elapsed and swept periodically by janitorOnce below so
+	// low-failure-count clients don't accumulate in the map forever.
+	loginAttempts = make(map[string]*loginAttemptEntry)
+	loginMutex    sync.Mutex
+	janitorOnce   sync.Once
+
+	// Configuration: allow 5 failed attempts per 15 minutes per IP.
+	maxFailedLoginAttempts = 5
+	rateLimitWindow        = 15 * time.Minute
 )
+
+type loginAttemptEntry struct {
+	count       int
+	windowStart time.Time
+}
+
+// reserveLoginAttempt reports whether clientIP is still allowed to attempt a
+// login, and if so atomically reserves (counts) this attempt before the
+// caller runs the expensive PBKDF2 verification. Reserving under the same
+// lock as the check prevents concurrent requests from the same client all
+// observing a count below the threshold and proceeding together.
+func reserveLoginAttempt(clientIP string) bool {
+	loginMutex.Lock()
+	defer loginMutex.Unlock()
+
+	now := time.Now()
+
+	entry := loginAttempts[clientIP]
+	if entry == nil || now.Sub(entry.windowStart) > rateLimitWindow {
+		entry = &loginAttemptEntry{windowStart: now}
+		loginAttempts[clientIP] = entry
+	}
+
+	if entry.count >= maxFailedLoginAttempts {
+		return false
+	}
+
+	entry.count++
+
+	return true
+}
+
+// startLoginAttemptJanitor periodically sweeps rate-limit entries whose
+// window has elapsed, bounding map growth from clients that fail only a few
+// times and never reach the threshold (which previously never expired).
+func startLoginAttemptJanitor() {
+	janitorOnce.Do(func() {
+		go func() {
+			ticker := time.NewTicker(rateLimitWindow)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				now := time.Now()
+
+				loginMutex.Lock()
+
+				for ip, entry := range loginAttempts {
+					if now.Sub(entry.windowStart) > rateLimitWindow {
+						delete(loginAttempts, ip)
+					}
+				}
+
+				loginMutex.Unlock()
+			}
+		}()
+	})
+}
 
 type LoginRoute struct {
 	Config   *config.Config
@@ -38,6 +111,8 @@ type LoginRoute struct {
 
 // NewVersionRoute creates a new version route
 func NewLoginRoute(configData *config.Config) *LoginRoute {
+	startLoginAttemptJanitor()
+
 	lr := &LoginRoute{
 		Config: configData,
 	}
@@ -85,8 +160,8 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
-	if !lr.credentialsAccepted(creds) {
-		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
+	if lr.Config.ClientID != "" {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
 	}
@@ -97,6 +172,42 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 		return
 	}
+
+	// Rate limiting: PBKDF2 requires significant CPU. Unauthenticated clients
+	// attempting concurrent failed logins could saturate resources, so an
+	// attempt is reserved atomically (check-and-increment under one lock)
+	// before the expensive hash runs, rather than only incrementing after a
+	// failure is known — otherwise many concurrent requests could all pass
+	// the check before any of them records an attempt.
+	clientIP := c.ClientIP()
+
+	if !reserveLoginAttempt(clientIP) {
+		c.JSON(http.StatusTooManyRequests, gin.H{errorKey: "rate_limited", messageKey: "Too many failed login attempts. Please try again later."})
+
+		return
+	}
+
+	if lr.Config.AdminPassword == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	passwordMatches := creds.Password == lr.Config.AdminPassword
+	if secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
+		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
+	}
+
+	if !passwordMatches || creds.Username != lr.Config.AdminUsername {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	// Successful auth, reset rate limit counter
+	loginMutex.Lock()
+	delete(loginAttempts, clientIP)
+	loginMutex.Unlock()
 
 	// Create JWT token
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
@@ -122,27 +233,6 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	// Token stays in the body for bearer clients, which ignore Set-Cookie.
 	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
-}
-
-// credentialsAccepted decides whether creds may be issued a token.
-//
-// With auth disabled there is nothing to authenticate against: the JWT
-// middleware is not mounted (see router.go) and validateRedirectionToken
-// short-circuits, so every route is already open. The UI still renders a login
-// form in that mode, so anything it posts is accepted.
-//
-// With auth enabled an empty configured password never matches, otherwise a
-// blank auth.adminPassword would let any caller in with an empty password.
-func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
-	if lr.Config.Disabled {
-		return true
-	}
-
-	if lr.Config.AdminPassword == "" {
-		return false
-	}
-
-	return creds.Username == lr.Config.AdminUsername && creds.Password == lr.Config.AdminPassword
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can
