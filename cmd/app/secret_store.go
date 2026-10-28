@@ -35,12 +35,7 @@ var (
 	errAdminPasswordWhitespace = errors.New("administrator password must not have leading or trailing whitespace")
 )
 
-const (
-	minAdminPasswordLength        = 8
-	minAdminPasswordDistinctChars = 4
-	maxPasswordAttempts           = 3
-)
-
+const maxPasswordAttempts = 3
 const maxPasswordConfirmationAttempts = 3
 
 type credentialStore interface {
@@ -186,7 +181,7 @@ func promptForAdminPassword(reader *bufio.Reader) (string, error) {
 		switch {
 		case strings.TrimSpace(password) != password:
 			validationErr = errAdminPasswordWhitespace
-		case utf8.RuneCountInString(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars:
+		case secrets.IsAdminPasswordStrong(password):
 			return password, nil
 		default:
 			validationErr = errWeakAdminPassword
@@ -244,15 +239,6 @@ func warnIfWeakAdminPassword(password string) {
 			"and it cuts the value at # regardless of quoting.",
 		adminPasswordMinLength,
 	)
-}
-
-func distinctCharCount(s string) int {
-	seen := make(map[rune]struct{})
-	for _, r := range s {
-		seen[r] = struct{}{}
-	}
-
-	return len(seen)
 }
 
 func promptForCredential(reader *bufio.Reader, prompt string) string {

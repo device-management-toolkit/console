@@ -87,6 +87,28 @@ func TestUIMissingStaticFileIsNotFound(t *testing.T) {
 	}
 }
 
+func TestPasswordChangePageContainsRequiredFields(t *testing.T) {
+	t.Parallel()
+
+	engine := gin.New()
+	engine.GET("/account/password", servePasswordChangePage)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/account/password", http.NoBody))
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Contains(t, w.Header().Get("Content-Type"), "text/html")
+
+	for _, expected := range []string{
+		`name="currentPassword"`,
+		`name="newPassword"`,
+		`name="confirmPassword"`,
+		`fetch("/api/v1/authorize/password"`,
+	} {
+		require.True(t, strings.Contains(w.Body.String(), expected), "password page should contain %q", expected)
+	}
+}
+
 func TestConsoleServerAPIBase(t *testing.T) {
 	t.Parallel()
 
