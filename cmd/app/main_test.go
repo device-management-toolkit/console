@@ -279,6 +279,76 @@ func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
 	assert.Equal(t, "config-password", cfg.AdminPassword)
 }
 
+//nolint:paralleltest // temporarily replaces process stdin and stdout
+func TestBootstrapKeyringAdminCredentialsRejectsPasswordMismatch(t *testing.T) {
+	oldStdin := os.Stdin
+	stdinReader, stdinWriter, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = stdinWriter.WriteString("admin\nfirst-password\nsecond-password\n")
+	require.NoError(t, err)
+	require.NoError(t, stdinWriter.Close())
+
+	os.Stdin = stdinReader
+
+	oldStdout := os.Stdout
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stdout = stdoutWriter
+
+	t.Cleanup(func() {
+		os.Stdin = oldStdin
+		os.Stdout = oldStdout
+		_ = stdinReader.Close()
+		_ = stdoutReader.Close()
+		_ = stdoutWriter.Close()
+	})
+
+	cfg := &config.Config{}
+	store := &mockCredentialStore{values: map[string]string{}}
+
+	err = bootstrapKeyringAdminCredentials(cfg, store)
+	require.ErrorIs(t, err, errPasswordConfirmation)
+	assert.Empty(t, store.values, "mismatched input must not write credentials")
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
+}
+
+//nolint:paralleltest // temporarily replaces process stdin and stdout
+func TestBootstrapKeyringAdminCredentialsRejectsWeakPassword(t *testing.T) {
+	oldStdin := os.Stdin
+	stdinReader, stdinWriter, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = stdinWriter.WriteString("admin\nweak\nweak\n")
+	require.NoError(t, err)
+	require.NoError(t, stdinWriter.Close())
+
+	os.Stdin = stdinReader
+
+	oldStdout := os.Stdout
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stdout = stdoutWriter
+
+	t.Cleanup(func() {
+		os.Stdin = oldStdin
+		os.Stdout = oldStdout
+		_ = stdinReader.Close()
+		_ = stdoutReader.Close()
+		_ = stdoutWriter.Close()
+	})
+
+	cfg := &config.Config{}
+	store := &mockCredentialStore{values: map[string]string{}}
+
+	err = bootstrapKeyringAdminCredentials(cfg, store)
+	require.ErrorIs(t, err, errWeakAdminPassword)
+	assert.Empty(t, store.values, "weak input must not write credentials")
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
+}
+
 //nolint:paralleltest // mutates global config and flag state
 func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testing.T) {
 	configFile := filepath.Join(t.TempDir(), "config.yml")
