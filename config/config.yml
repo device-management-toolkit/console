@@ -57,8 +57,11 @@ ea:
   password: ""
 auth:
   disabled: false
+  # config (default) uses auth.adminUsername/auth.adminPassword and the
+  # corresponding AUTH_ADMIN_* environment variables. keyring is opt-in.
+  secretBackend: config
   adminUsername: standalone
-  adminPassword: 
+  adminPassword: ""
   jwtKey: ""
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
@@ -82,4 +85,3 @@ ui:
 package:
   rpc_repo: device-management-toolkit/rpc-go
   local_dir: ""
-
