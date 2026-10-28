@@ -21,6 +21,8 @@ type (
 		GetCount(ctx context.Context, tenantID string) (int, error)
 		Get(ctx context.Context, top, skip int, tenantID string) ([]dto.Profile, error)
 		GetByName(ctx context.Context, profileName, tenantID string) (*dto.Profile, error)
+		// GetSecretsByName is for the service-token-gated RPS route only, never the general profile read.
+		GetSecretsByName(ctx context.Context, profileName, tenantID string) (*dto.ProfileSecrets, error)
 		Delete(ctx context.Context, profileName, tenantID string) error
 		Update(ctx context.Context, p *dto.Profile, fields map[string]bool) (*dto.Profile, error)
 		Insert(ctx context.Context, p *dto.Profile) (*dto.Profile, error)

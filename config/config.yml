@@ -58,6 +58,7 @@ ea:
 auth:
   disabled: false
   gatewayEnforced: false
+  serviceToken: ""
   adminUsername: standalone
   adminPassword: 
   jwtKey: ""

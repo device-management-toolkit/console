@@ -87,7 +87,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	{
 		v1.NewDomainRoutes(h, t.Domains, l)
 		v1.NewCIRAConfigRoutes(h, t.CIRAConfigs, l, cfg)
-		v1.NewProfileRoutes(h, t.Profiles, l)
+		v1.NewProfileRoutes(h, t.Profiles, l, cfg)
 		v1.NewWirelessConfigRoutes(h, t.WirelessProfiles, l)
 		v1.NewIEEE8021xConfigRoutes(h, t.IEEE8021xProfiles, l)
 	}

@@ -231,6 +231,21 @@ func (mr *MockProfilesFeatureMockRecorder) GetCount(ctx, tenantID any) *gomock.C
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetCount", reflect.TypeOf((*MockProfilesFeature)(nil).GetCount), ctx, tenantID)
 }
 
+// GetSecretsByName mocks base method.
+func (m *MockProfilesFeature) GetSecretsByName(ctx context.Context, profileName, tenantID string) (*dto.ProfileSecrets, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetSecretsByName", ctx, profileName, tenantID)
+	ret0, _ := ret[0].(*dto.ProfileSecrets)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetSecretsByName indicates an expected call of GetSecretsByName.
+func (mr *MockProfilesFeatureMockRecorder) GetSecretsByName(ctx, profileName, tenantID any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetSecretsByName", reflect.TypeOf((*MockProfilesFeature)(nil).GetSecretsByName), ctx, profileName, tenantID)
+}
+
 // Insert mocks base method.
 func (m *MockProfilesFeature) Insert(ctx context.Context, p *dto.Profile) (*dto.Profile, error) {
 	m.ctrl.T.Helper()

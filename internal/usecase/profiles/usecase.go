@@ -699,6 +699,28 @@ func (uc *UseCase) applyPATCHMerge(ctx context.Context, d *dto.Profile, fields m
 	return existing, nil
 }
 
+// GetSecretsByName returns only the password fields, for the service-token-gated RPS route.
+func (uc *UseCase) GetSecretsByName(ctx context.Context, profileName, tenantID string) (*dto.ProfileSecrets, error) {
+	data, err := uc.repo.GetByName(ctx, profileName, tenantID)
+	if err != nil {
+		return nil, ErrDatabase.Wrap("GetSecretsByName", "uc.repo.GetByName", err)
+	}
+
+	if data == nil {
+		return nil, ErrNotFound
+	}
+
+	if err := uc.DecryptPasswords(data); err != nil {
+		return nil, ErrProfilesUseCase.Wrap("GetSecretsByName", "DecryptPasswords", err)
+	}
+
+	return &dto.ProfileSecrets{
+		ProfileName:  data.ProfileName,
+		AMTPassword:  data.AMTPassword,
+		MEBXPassword: data.MEBXPassword,
+	}, nil
+}
+
 func (uc *UseCase) getProfileWithSecrets(ctx context.Context, profileName, tenantID string) (*dto.Profile, error) {
 	data, err := uc.repo.GetByName(ctx, profileName, tenantID)
 	if err != nil {

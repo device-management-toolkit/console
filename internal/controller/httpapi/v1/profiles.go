@@ -8,6 +8,7 @@ import (
 	"github.com/gin-gonic/gin/binding"
 	"github.com/go-playground/validator/v10"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
@@ -22,7 +23,7 @@ type profileRoutes struct {
 	l logger.Interface
 }
 
-func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Interface) {
+func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Interface, cfg *config.Config) {
 	r := &profileRoutes{t, l}
 
 	if binding.Validator != nil {
@@ -43,6 +44,8 @@ func NewProfileRoutes(handler *gin.RouterGroup, t profiles.Feature, l logger.Int
 		h.PATCH("", r.update)
 		h.DELETE(":name", r.delete)
 		h.GET("export/:name", r.export)
+		// RPS-only route returning amtPassword/mebxPassword, gated by the service token.
+		h.GET(":name/secrets", middleware.RequireServiceToken(cfg.Auth.ServiceToken, l), r.getSecrets)
 	}
 }
 
@@ -90,6 +93,22 @@ func (r *profileRoutes) getByName(c *gin.Context) {
 	item, err := r.t.GetByName(c.Request.Context(), name, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getByName")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, item)
+}
+
+// getSecrets is the RPS activation lookup, gated by the service token (see NewProfileRoutes).
+func (r *profileRoutes) getSecrets(c *gin.Context) {
+	name := c.Param("name")
+	tenantID := middleware.TenantID(c)
+
+	item, err := r.t.GetSecretsByName(c.Request.Context(), name, tenantID)
+	if err != nil {
+		r.l.Error(err, "http - v1 - getSecrets")
 		ErrorResponse(c, err)
 
 		return
