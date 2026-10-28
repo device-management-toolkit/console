@@ -29,6 +29,12 @@ var (
 	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete Console's administrator credentials from the OS keyring and restart Console")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both device-management-toolkit entries and restart")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
+	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain at least 4 distinct characters; restart Console to try again")
+)
+
+const (
+	minAdminPasswordLength        = 8
+	minAdminPasswordDistinctChars = 4
 )
 
 const maxPasswordConfirmationAttempts = 3
@@ -122,6 +128,10 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 	username := promptForCredential(reader, "Enter Console admin username: ")
 	password := promptForSecret(reader, "Enter Console admin password: ")
 
+	if len(password) < minAdminPasswordLength || distinctCharCount(password) < minAdminPasswordDistinctChars {
+		return errWeakAdminPassword
+	}
+
 	confirmed := false
 
 	for attempt := 0; attempt < maxPasswordConfirmationAttempts; attempt++ {
@@ -178,6 +188,15 @@ func warnIfWeakAdminPassword(password string) {
 			"and it cuts the value at # regardless of quoting.",
 		adminPasswordMinLength,
 	)
+}
+
+func distinctCharCount(s string) int {
+	seen := make(map[rune]struct{})
+	for _, r := range s {
+		seen[r] = struct{}{}
+	}
+
+	return len(seen)
 }
 
 func promptForCredential(reader *bufio.Reader, prompt string) string {
