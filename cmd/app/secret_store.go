@@ -24,7 +24,7 @@ const (
 )
 
 var (
-	errKeystoreUnavailable     = errors.New("keystore is unavailable")
+	errKeystoreUnavailable     = errors.New("OS keyring is unavailable; ensure a supported keyring is installed, unlocked, and accessible to this user before restarting Console")
 	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete both device-management-toolkit entries and restart")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both device-management-toolkit entries and restart")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
@@ -99,9 +99,9 @@ func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) erro
 
 	switch {
 	case usernameErr != nil && !usernameMissing:
-		return fmt.Errorf("reading administrator username: %w", usernameErr)
+		return fmt.Errorf("reading administrator username from OS keyring; ensure the keyring is available and unlocked: %w", usernameErr)
 	case passwordErr != nil && !passwordMissing:
-		return fmt.Errorf("reading administrator password hash: %w", passwordErr)
+		return fmt.Errorf("reading administrator password hash from OS keyring; ensure the keyring is available and unlocked: %w", passwordErr)
 	case usernameMissing && passwordMissing:
 		return bootstrapKeyringAdminCredentials(cfg, store)
 	case usernameMissing || passwordMissing:

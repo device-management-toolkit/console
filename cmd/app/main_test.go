@@ -5,6 +5,7 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"flag"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -207,6 +208,14 @@ func TestLoadKeyringAdminCredentialsUsesOnlyKeyring(t *testing.T) {
 	assert.Equal(t, hash, cfg.AdminPassword)
 }
 
+func TestLoadKeyringAdminCredentialsUnavailableStoreHasRecoveryGuidance(t *testing.T) {
+	t.Parallel()
+
+	err := loadKeyringAdminCredentials(&config.Config{}, nil)
+	require.ErrorIs(t, err, errKeystoreUnavailable)
+	assert.Contains(t, err.Error(), "installed, unlocked, and accessible")
+}
+
 func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
 	t.Parallel()
 
@@ -249,13 +258,36 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	oldStdin := os.Stdin
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = writer.WriteString(" admin \n\n secret \nwrong\n secret \n")
+
+	const plaintextPassword = " secret "
+
+	_, err = writer.WriteString(" admin \n\n" + plaintextPassword + "\nwrong\n" + plaintextPassword + "\n")
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 
 	os.Stdin = reader
 
 	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	oldStdout := os.Stdout
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stdout = stdoutWriter
+
+	t.Cleanup(func() {
+		os.Stdout = oldStdout
+		_ = stdoutReader.Close()
+		_ = stdoutWriter.Close()
+	})
+
+	var logOutput bytes.Buffer
+
+	oldLogOutput := log.Writer()
+
+	log.SetOutput(&logOutput)
+
+	t.Cleanup(func() { log.SetOutput(oldLogOutput) })
 
 	store := &mockCredentialStore{values: map[string]string{}}
 	origFunc := newKeyringStorageFunc
@@ -266,15 +298,25 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	cfg := &config.Config{Auth: config.Auth{SecretBackend: "keyring"}}
 	handleAdminCredentials(cfg)
 
+	require.NoError(t, stdoutWriter.Close())
+
+	os.Stdout = oldStdout
+	stdout, err := io.ReadAll(stdoutReader)
+	require.NoError(t, err)
+	require.NoError(t, stdoutReader.Close())
+
 	assert.Equal(t, " admin ", cfg.AdminUsername)
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, " secret "))
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, plaintextPassword))
 	assert.Equal(t, " admin ", store.values[keyringAdminUsername])
 	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
+	assert.NotEqual(t, plaintextPassword, store.values[keyringAdminPassword])
 	assert.Len(t, store.values, 2)
+	assert.NotContains(t, string(stdout)+logOutput.String(), plaintextPassword)
 
 	configData, err := os.ReadFile(configFile)
 	require.NoError(t, err)
 	assert.Equal(t, initialConfig, configData, "keyring setup must not modify config.yml")
+	assert.NotContains(t, string(configData), plaintextPassword)
 }
 
 //nolint:paralleltest // mutates os.Stdin
