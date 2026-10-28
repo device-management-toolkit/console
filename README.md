@@ -13,6 +13,9 @@ Console is an application that provides a 1:1, direct connection for AMT devices
 
 ## Quick Start for Users
 
+For standalone administrator password changes and forgotten-keyring-password
+recovery, see [Standalone administrator password management](docs/standalone-authentication.md).
+
 ### 1. Download Console
 
 1. Visit the [latest release page](https://github.com/device-management-toolkit/console/releases/latest)

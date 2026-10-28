@@ -14,6 +14,8 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -28,6 +30,9 @@ const (
 	bearerPrefix                = "Bearer "
 	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
 	loginFailureError           = "invalid credentials"
+	keyringServiceName          = "dmt-console"
+	keyringAdminPassword        = "admin-password-hash"
+	secretBackendKeyring        = "keyring"
 )
 
 var (
@@ -105,16 +110,27 @@ func startLoginAttemptJanitor() {
 }
 
 type LoginRoute struct {
-	Config   *config.Config
-	Verifier *oidc.IDTokenVerifier
+	Config            *config.Config
+	Verifier          *oidc.IDTokenVerifier
+	SaveAdminPassword func(string) error
 }
 
 // NewVersionRoute creates a new version route
 func NewLoginRoute(configData *config.Config) *LoginRoute {
 	startLoginAttemptJanitor()
 
+	saveAdminPassword := config.SaveAdminPassword
+
+	if configData.SecretBackend == secretBackendKeyring {
+		store := security.NewKeyRingStorage(keyringServiceName)
+		saveAdminPassword = func(passwordHash string) error {
+			return store.SetKeyValue(keyringAdminPassword, passwordHash)
+		}
+	}
+
 	lr := &LoginRoute{
-		Config: configData,
+		Config:            configData,
+		SaveAdminPassword: saveAdminPassword,
 	}
 
 	if config.ConsoleConfig.ClientID != "" {
@@ -142,6 +158,93 @@ func NewLoginRoute(configData *config.Config) *LoginRoute {
 	}
 
 	return lr
+}
+
+type passwordChangeRequest struct {
+	CurrentPassword string `json:"currentPassword"`
+	NewPassword     string `json:"newPassword"`
+	ConfirmPassword string `json:"confirmPassword"`
+}
+
+// ChangePassword updates standalone credentials after verifying the current password.
+func (lr LoginRoute) ChangePassword(c *gin.Context) {
+	var request passwordChangeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "invalid request"})
+
+		return
+	}
+
+	if request.CurrentPassword == "" || request.NewPassword == "" || request.ConfirmPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "current password, new password, and confirmation are required"})
+
+		return
+	}
+
+	if request.NewPassword != request.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "password confirmation does not match"})
+
+		return
+	}
+
+	if !secrets.IsAdminPasswordStrong(request.NewPassword) {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "new password must be at least 8 characters and contain at least 4 distinct characters"})
+
+		return
+	}
+
+	clientIP := c.ClientIP()
+	if !reserveLoginAttempt(clientIP) {
+		c.JSON(http.StatusTooManyRequests, gin.H{errorKey: "rate_limited", messageKey: "Too many failed login attempts. Please try again later."})
+
+		return
+	}
+
+	passwordMatches := request.CurrentPassword == lr.Config.AdminPassword
+	if secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
+		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, request.CurrentPassword)
+	}
+
+	if !passwordMatches {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	var storedPassword string
+
+	if lr.Config.SecretBackend == secretBackendKeyring {
+		hash, err := secrets.GeneratePBKDF2Hash(request.NewPassword)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not hash new password"})
+
+			return
+		}
+
+		storedPassword = hash
+	} else {
+		storedPassword = request.NewPassword
+	}
+
+	if lr.SaveAdminPassword == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "password storage is unavailable"})
+
+		return
+	}
+
+	if err := lr.SaveAdminPassword(storedPassword); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not save new password"})
+
+		return
+	}
+
+	lr.Config.AdminPassword = storedPassword
+
+	loginMutex.Lock()
+	delete(loginAttempts, clientIP)
+	loginMutex.Unlock()
+
+	c.JSON(http.StatusOK, gin.H{messageKey: "password changed"})
 }
 
 // Login checks configured credentials and returns a JWT token for basic auth
