@@ -58,6 +58,13 @@ var ValidateProfileName validator.Func = func(fl validator.FieldLevel) bool {
 	return !strings.ContainsAny(fl.Field().String(), profileNameDisallowedChars)
 }
 
+// ProfileSecrets is the minimal, service-token-gated response for the RPS activation password lookup.
+type ProfileSecrets struct {
+	ProfileName  string `json:"profileName"`
+	AMTPassword  string `json:"amtPassword,omitempty"`
+	MEBXPassword string `json:"mebxPassword,omitempty"`
+}
+
 // ValidateAMTPasswordComplexity enforces RPS's password rules: allowed char class plus lower+upper+digit+special.
 var ValidateAMTPasswordComplexity validator.Func = func(fl validator.FieldLevel) bool {
 	password := fl.Field().String()

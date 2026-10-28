@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
@@ -32,7 +33,7 @@ func profilesTest(t *testing.T) (*mocks.MockProfilesFeature, *gin.Engine) {
 	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1/admin")
 
-	NewProfileRoutes(handler, mockProfiles, log)
+	NewProfileRoutes(handler, mockProfiles, log, &config.Config{})
 
 	return mockProfiles, engine
 }
