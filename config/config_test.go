@@ -68,6 +68,62 @@ func TestNewConfig_Defaults(t *testing.T) {
 	assert.Equal(t, "info", cfg.Level)
 
 	assert.Equal(t, 2, cfg.PoolMax)
+	assert.Equal(t, "config", cfg.SecretBackend)
+	assert.Equal(t, "standalone", cfg.AdminUsername)
+}
+
+func TestLoadConfig_KeyringIgnoresConfigAndEnvironmentCredentials(t *testing.T) {
+	t.Setenv("AUTH_SECRET_BACKEND", "keyring")
+	t.Setenv("AUTH_ADMIN_USERNAME", "environment-user")
+	t.Setenv("AUTH_ADMIN_PASSWORD", "environment-password")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: config\n  adminUsername: file-user\n  adminPassword: file-password\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Equal(t, "keyring", cfg.SecretBackend)
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
+
+	after := readConfigFile(t, path)
+	assert.Equal(t, "file-user", after.AdminUsername)
+	assert.Equal(t, "file-password", after.AdminPassword)
+}
+
+func TestLoadConfig_ConfigBackendKeepsExistingCredentialSources(t *testing.T) {
+	t.Setenv("AUTH_ADMIN_USERNAME", "environment-user")
+	t.Setenv("AUTH_ADMIN_PASSWORD", "environment-password")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: config\n  adminUsername: file-user\n  adminPassword: file-password\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Equal(t, "config", cfg.SecretBackend)
+	assert.Equal(t, "environment-user", cfg.AdminUsername)
+	assert.Equal(t, "environment-password", cfg.AdminPassword)
+}
+
+func TestLoadConfig_OIDCOverridesStandaloneCredentialBackend(t *testing.T) {
+	t.Setenv("AUTH_SECRET_BACKEND", "unsupported")
+	t.Setenv("AUTH_ADMIN_USERNAME", "environment-user")
+	t.Setenv("AUTH_ADMIN_PASSWORD", "environment-password")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: unsupported\n  adminUsername: file-user\n  adminPassword: file-password\n  clientId: oidc-client\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Equal(t, "oidc-client", cfg.ClientID)
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
 }
 
 func TestNewConfig_EnvVars(t *testing.T) {
