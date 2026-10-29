@@ -4,7 +4,9 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"flag"
+	"io"
 	"log"
 	"os"
 	"path/filepath"
@@ -206,6 +208,59 @@ func TestLoadKeyringAdminCredentialsUsesOnlyKeyring(t *testing.T) {
 	assert.Equal(t, hash, cfg.AdminPassword)
 }
 
+func TestLoadKeyringAdminCredentialsUnavailableStoreHasRecoveryGuidance(t *testing.T) {
+	t.Parallel()
+
+	err := loadKeyringAdminCredentials(&config.Config{}, nil)
+	require.ErrorIs(t, err, errKeystoreUnavailable)
+	assert.Contains(t, err.Error(), "installed, unlocked, and accessible")
+}
+
+func TestLoadKeyringAdminCredentialsReadErrorHasRecoveryGuidance(t *testing.T) {
+	t.Parallel()
+
+	const lockedError = "keyring locked"
+
+	tests := []struct {
+		name        string
+		key         string
+		wantMessage string
+	}{
+		{
+			name:        "username",
+			key:         keyringAdminUsername,
+			wantMessage: "reading administrator username from OS keyring",
+		},
+		{
+			name:        "password hash",
+			key:         keyringAdminPassword,
+			wantMessage: "reading administrator password hash from OS keyring",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := &mockCredentialStore{
+				values: map[string]string{
+					keyringAdminUsername: "keyring-user",
+					keyringAdminPassword: "$pbkdf2$test",
+				},
+				errMap: map[string]error{
+					tt.key: errors.New(lockedError),
+				},
+			}
+
+			err := loadKeyringAdminCredentials(&config.Config{}, store)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantMessage)
+			assert.Contains(t, err.Error(), "available and unlocked")
+			assert.ErrorContains(t, err, lockedError)
+		})
+	}
+}
+
 func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
 	t.Parallel()
 
@@ -248,13 +303,36 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	oldStdin := os.Stdin
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = writer.WriteString("admin\npassword\npassword\n")
+
+	const plaintextPassword = "keyring-secret-1354"
+
+	_, err = writer.WriteString("admin\n" + plaintextPassword + "\n" + plaintextPassword + "\n")
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 
 	os.Stdin = reader
 
 	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	oldStdout := os.Stdout
+	stdoutReader, stdoutWriter, err := os.Pipe()
+	require.NoError(t, err)
+
+	os.Stdout = stdoutWriter
+
+	t.Cleanup(func() {
+		os.Stdout = oldStdout
+		_ = stdoutReader.Close()
+		_ = stdoutWriter.Close()
+	})
+
+	var logOutput bytes.Buffer
+
+	oldLogOutput := log.Writer()
+
+	log.SetOutput(&logOutput)
+
+	t.Cleanup(func() { log.SetOutput(oldLogOutput) })
 
 	store := &mockCredentialStore{values: map[string]string{}}
 	origFunc := newKeyringStorageFunc
@@ -265,15 +343,25 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	cfg := &config.Config{Auth: config.Auth{SecretBackend: "keyring"}}
 	handleAdminCredentials(cfg)
 
+	require.NoError(t, stdoutWriter.Close())
+
+	os.Stdout = oldStdout
+	stdout, err := io.ReadAll(stdoutReader)
+	require.NoError(t, err)
+	require.NoError(t, stdoutReader.Close())
+
 	assert.Equal(t, "admin", cfg.AdminUsername)
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "password"))
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, plaintextPassword))
 	assert.Equal(t, "admin", store.values[keyringAdminUsername])
 	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
+	assert.NotEqual(t, plaintextPassword, store.values[keyringAdminPassword])
 	assert.Len(t, store.values, 2)
+	assert.NotContains(t, string(stdout)+logOutput.String(), plaintextPassword)
 
 	configData, err := os.ReadFile(configFile)
 	require.NoError(t, err)
 	assert.Equal(t, initialConfig, configData, "keyring setup must not modify config.yml")
+	assert.NotContains(t, string(configData), plaintextPassword)
 }
 
 //nolint:paralleltest // mutates the global newKeyringStorageFunc
