@@ -52,6 +52,7 @@ func rateLimitTestEngine(t *testing.T) *gin.Engine {
 	cfg := &config.Config{}
 	cfg.AdminUsername = testAdminUser
 	cfg.AdminPassword = hash
+	cfg.SecretBackend = "keyring"
 	cfg.JWTKey = testJWTKey
 	cfg.JWTExpiration = time.Hour
 

@@ -160,15 +160,15 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
-	if lr.Config.ClientID != "" {
-		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
+	if lr.Config.Disabled {
+		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
 
 		return
 	}
 
-	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
-	if lr.Config.Disabled {
-		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
+	if lr.Config.ClientID != "" {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
 	}
@@ -194,7 +194,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	}
 
 	passwordMatches := creds.Password == lr.Config.AdminPassword
-	if secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
+	if lr.Config.SecretBackend == "keyring" && secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
 		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
 	}
 

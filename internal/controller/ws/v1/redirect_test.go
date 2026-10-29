@@ -122,26 +122,25 @@ func TestWebSocketHandlerRedirectErrorClosesWebSocket(t *testing.T) {
 	// outlive the test and race the next test's config.NewConfig() write.
 	var handlerWG sync.WaitGroup
 
-	t.Cleanup(handlerWG.Wait)
-	handlerWG.Add(1)
-
 	mockFeature := mocks.NewMockDeviceManagementFeature(ctrl)
 	mockLogger := mocks.NewMockLogger(ctrl)
 	mockLogger.EXPECT().Debug("KVM_TIMING: WebSocket upgrade", "duration_ms", gomock.Any())
 	mockLogger.EXPECT().Info("Websocket connection opened")
 	mockFeature.EXPECT().
 		Redirect(gomock.Any(), gomock.Any(), "someHost", "someMode").
-		DoAndReturn(func(_ *gin.Context, _ *websocket.Conn, _, _ string) error {
-			defer handlerWG.Done()
-
-			return ErrRedirect
-		})
+		Return(ErrRedirect)
 	mockLogger.EXPECT().Debug("KVM_TIMING: Total connection time", "duration_ms", gomock.Any(), "mode", "someMode")
 	mockLogger.EXPECT().Error(ErrRedirect, "http - devices - v1 - redirect")
 
 	r := gin.Default()
 	RegisterRoutes(r, mockLogger, mockFeature, &websocket.Upgrader{})
-	server := httptest.NewServer(r)
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
+		handlerWG.Add(1)
+		defer handlerWG.Done()
+
+		r.ServeHTTP(w, req)
+	}))
+	t.Cleanup(handlerWG.Wait)
 	t.Cleanup(server.Close)
 
 	connection, response, err := websocket.DefaultDialer.Dial(

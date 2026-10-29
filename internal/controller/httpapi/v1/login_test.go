@@ -35,6 +35,7 @@ func cookieAuthTestConfig(t *testing.T) *config.Config {
 	cfg := &config.Config{}
 	cfg.AdminUsername = testAdminUser
 	cfg.AdminPassword = hash
+	cfg.SecretBackend = "keyring"
 	cfg.JWTKey = testJWTKey
 	cfg.JWTExpiration = time.Hour
 	cfg.CookieEnabled = true
@@ -281,7 +282,7 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.NoError(t, err)
 
 	engine := gin.New()
-	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: hash}}}
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: hash, SecretBackend: "keyring"}}}
 	engine.POST("/api/v1/authorize", route.Login)
 
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))
@@ -297,6 +298,28 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 	require.Equal(t, "invalid credentials", got["error"])
 	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
+}
+
+func TestLogin_ConfigBackendAcceptsPBKDF2LookingLiteralPassword(t *testing.T) {
+	t.Parallel()
+
+	literalPassword, err := secrets.GeneratePBKDF2Hash("password-preimage")
+	require.NoError(t, err)
+
+	cfg := cookieAuthTestConfig(t)
+	cfg.SecretBackend = "config"
+	cfg.AdminPassword = literalPassword
+
+	engine := newAuthTestEngine(t, cfg)
+	body, err := json.Marshal(map[string]string{"username": testAdminUser, "password": literalPassword})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
 }
 
 // oidcDiscoveryServer spins up a TLS test server that serves the minimum
@@ -380,6 +403,7 @@ func TestNewLoginRoute(t *testing.T) {
 func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
 	cfg := cookieAuthTestConfig(t)
 	cfg.Disabled = true
+	cfg.ClientID = "configured-oidc-client"
 	cfg.AdminUsername = "standalone"
 	cfg.AdminPassword = ""
 
