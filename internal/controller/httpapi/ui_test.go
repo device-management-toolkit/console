@@ -5,7 +5,6 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
-	"strings"
 	"testing"
 	"testing/fstest"
 
@@ -43,6 +42,7 @@ func TestUIServesFiles(t *testing.T) {
 		{name: "media file is served", path: "/media/dmt-logo_dark.svg", want: "<svg/>"},
 		{name: "every media file is served, not a fixed list", path: "/media/font.woff2", want: "font"},
 		{name: "client-side route gets the HTML shell", path: "/devices", want: testUIShell},
+		{name: "password management route gets the HTML shell", path: "/account/password", want: testUIShell},
 	}
 
 	engine := newUITestEngine(t)
@@ -82,28 +82,6 @@ func TestUIMissingStaticFileIsNotFound(t *testing.T) {
 
 			require.Equal(t, http.StatusNotFound, w.Code)
 		})
-	}
-}
-
-func TestPasswordChangePageContainsRequiredFields(t *testing.T) {
-	t.Parallel()
-
-	engine := gin.New()
-	engine.GET("/account/password", servePasswordChangePage)
-
-	w := httptest.NewRecorder()
-	engine.ServeHTTP(w, httptest.NewRequest(http.MethodGet, "/account/password", http.NoBody))
-
-	require.Equal(t, http.StatusOK, w.Code)
-	require.Contains(t, w.Header().Get("Content-Type"), "text/html")
-
-	for _, expected := range []string{
-		`name="currentPassword"`,
-		`name="newPassword"`,
-		`name="confirmPassword"`,
-		`fetch("/api/v1/authorize/password"`,
-	} {
-		require.True(t, strings.Contains(w.Body.String(), expected), "password page should contain %q", expected)
 	}
 }
 
