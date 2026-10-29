@@ -28,8 +28,10 @@ type configFile struct {
 	JSON          bool   `yaml:"json"`
 	Verbose       bool   `yaml:"verbose"`
 	SkipCertCheck bool   `yaml:"skip-cert-check"`
-	LMSAddress    string `yaml:"lmsaddress"`
-	LMSPort       string `yaml:"lmsport"`
+	// SkipAMTCertCheck covers rpc-go's local AMT/LMS TLS connection, not Console.
+	SkipAMTCertCheck bool   `yaml:"skip-amt-cert-check"`
+	LMSAddress       string `yaml:"lmsaddress"`
+	LMSPort          string `yaml:"lmsport"`
 	// rpc-go resolves config keys by flag name: --tenantid and --password.
 	TenantID    string `yaml:"tenantid"`
 	AMTPassword string `yaml:"password"`
@@ -119,6 +121,7 @@ func renderConfig(req dto.PackageRequest, in configInputs) ([]byte, error) {
 	cfg.DevicesEndpoint = in.DevicesEndpoint
 	cfg.TenantID = in.TenantID
 	cfg.SkipCertCheck = in.SkipCertCheck
+	cfg.SkipAMTCertCheck = req.SkipAMTCertCheck
 
 	// Mode "none" writes no credentials; the operator supplies them on the device.
 	switch req.Auth.Mode {

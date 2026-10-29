@@ -25,14 +25,16 @@ type stubPackaging struct {
 	zip      []byte
 	err      error
 	tenantID string
+	req      dto.PackageRequest
 }
 
 func (s *stubPackaging) ListVersions(_ context.Context) ([]dto.RPCRelease, error) {
 	return s.releases, s.err
 }
 
-func (s *stubPackaging) BuildPackage(_ context.Context, _ dto.PackageRequest, tenantID string) (io.Reader, string, error) {
+func (s *stubPackaging) BuildPackage(_ context.Context, req dto.PackageRequest, tenantID string) (io.Reader, string, error) {
 	s.tenantID = tenantID
+	s.req = req
 
 	if s.err != nil {
 		return nil, "", s.err
@@ -77,6 +79,25 @@ func TestPackageRoutes(t *testing.T) {
 		wantJSON, err := json.Marshal(releases)
 		require.NoError(t, err)
 		require.Equal(t, string(wantJSON), w.Body.String())
+	})
+
+	t.Run("POST package passes skipAmtCertCheck to the usecase", func(t *testing.T) {
+		t.Parallel()
+
+		stub := &stubPackaging{zip: []byte("PK")}
+		engine := newPackageEngine(stub)
+
+		body := `{"command":"deactivate","version":"v3.0.0","os":"linux","arch":"x64","auth":{"mode":"none"},"skipAmtCertCheck":true}`
+
+		req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/package", bytes.NewBufferString(body))
+		require.NoError(t, err)
+		req.Header.Set("Content-Type", "application/json")
+
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		require.Equal(t, http.StatusOK, w.Code)
+		require.True(t, stub.req.SkipAMTCertCheck)
 	})
 
 	t.Run("POST package with invalid body returns 400", func(t *testing.T) {

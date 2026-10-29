@@ -21,6 +21,9 @@ type PackageRequest struct {
 	// ServerURL is the base URL rpc-go is pointed at, e.g.
 	// "https://console.example.com:8181". Empty falls back to the listen address.
 	ServerURL string `json:"serverUrl" binding:"omitempty,url"`
+	// SkipAMTCertCheck writes skip-amt-cert-check, so rpc-go accepts the
+	// self-signed cert AMT presents on its local TLS port. Omitted means false.
+	SkipAMTCertCheck bool `json:"skipAmtCertCheck"`
 }
 
 // RPCAsset is one downloadable build for a release.

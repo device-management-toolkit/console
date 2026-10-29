@@ -1,6 +1,7 @@
 package packaging
 
 import (
+	"fmt"
 	"strings"
 	"testing"
 
@@ -257,5 +258,39 @@ func TestRenderConfigEscapesProfileName(t *testing.T) {
 	got := activateSection(t, unmarshalConfig(t, out))["url"]
 	if want := "https://console.example.com/api/v1/admin/profiles/export/My%20Profile?domainName=corp"; got != want {
 		t.Errorf("activate url = %v, want %v", got, want)
+	}
+}
+
+// The AMT cert box on the download screen must reach config.yaml as
+// skip-amt-cert-check, the key rpc-go reads for its local AMT/LMS TLS check.
+func TestRenderConfigSkipAMTCertCheck(t *testing.T) {
+	t.Parallel()
+
+	for _, want := range []bool{true, false} {
+		want := want
+
+		t.Run(fmt.Sprintf("skipAmtCertCheck=%v", want), func(t *testing.T) {
+			t.Parallel()
+
+			req := dto.PackageRequest{
+				Command:          "deactivate",
+				Auth:             dto.PackageAuth{Mode: "none"},
+				SkipAMTCertCheck: want,
+			}
+
+			out, err := renderConfig(req, configInputs{})
+			if err != nil {
+				t.Fatal(err)
+			}
+
+			got, present := unmarshalConfig(t, out)["skip-amt-cert-check"]
+			if !present {
+				t.Fatalf("skip-amt-cert-check missing from config:\n%s", out)
+			}
+
+			if got != want {
+				t.Errorf("skip-amt-cert-check = %v, want %v", got, want)
+			}
+		})
 	}
 }
