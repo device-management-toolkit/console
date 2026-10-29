@@ -72,10 +72,6 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	if !cfg.Disabled && cfg.ClientID == "" {
 		protected.POST("/v1/authorize/password", login.ChangePassword)
-
-		if HasUI() {
-			handler.GET("/account/password", login.JWTAuthMiddleware(), servePasswordChangePage)
-		}
 	}
 
 	// Routers
