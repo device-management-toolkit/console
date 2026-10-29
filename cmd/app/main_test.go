@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"errors"
 	"flag"
 	"io"
 	"log"
@@ -213,6 +214,51 @@ func TestLoadKeyringAdminCredentialsUnavailableStoreHasRecoveryGuidance(t *testi
 	err := loadKeyringAdminCredentials(&config.Config{}, nil)
 	require.ErrorIs(t, err, errKeystoreUnavailable)
 	assert.Contains(t, err.Error(), "installed, unlocked, and accessible")
+}
+
+func TestLoadKeyringAdminCredentialsReadErrorHasRecoveryGuidance(t *testing.T) {
+	t.Parallel()
+
+	const lockedError = "keyring locked"
+
+	tests := []struct {
+		name        string
+		key         string
+		wantMessage string
+	}{
+		{
+			name:        "username",
+			key:         keyringAdminUsername,
+			wantMessage: "reading administrator username from OS keyring",
+		},
+		{
+			name:        "password hash",
+			key:         keyringAdminPassword,
+			wantMessage: "reading administrator password hash from OS keyring",
+		},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			store := &mockCredentialStore{
+				values: map[string]string{
+					keyringAdminUsername: "keyring-user",
+					keyringAdminPassword: "$pbkdf2$test",
+				},
+				errMap: map[string]error{
+					tt.key: errors.New(lockedError),
+				},
+			}
+
+			err := loadKeyringAdminCredentials(&config.Config{}, store)
+			require.Error(t, err)
+			assert.Contains(t, err.Error(), tt.wantMessage)
+			assert.Contains(t, err.Error(), "available and unlocked")
+			assert.ErrorContains(t, err, lockedError)
+		})
+	}
 }
 
 func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
