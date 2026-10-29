@@ -16,15 +16,16 @@ import (
 )
 
 const (
-	testJWTKey            = "test-jwt-key"
-	testAdminUser         = "admin"
-	testAdminPass         = "secret"
-	testCredsBody         = `{"username":"admin","password":"secret"}`
-	testProtectedURL      = "/api/v1/devices"
-	testAuthorizeURL      = "/api/v1/authorize"
-	testLogoutURL         = "/api/v1/authorize/logout"
-	testPasswordChangeURL = "/api/v1/authorize/password"
+	testJWTKey       = "test-jwt-key"
+	testAdminUser    = "admin"
+	testAdminPass    = "secret"
+	testCredsBody    = `{"username":"admin","password":"secret"}`
+	testProtectedURL = "/api/v1/devices"
+	testAuthorizeURL = "/api/v1/authorize"
+	testLogoutURL    = "/api/v1/authorize/logout"
 )
+
+const testPasswordChangeURL = "/api/v1/authorize/password"
 
 // cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
 func cookieAuthTestConfig(t *testing.T) *config.Config {
@@ -290,6 +291,7 @@ func TestChangePasswordStoresPBKDF2HashInKeyring(t *testing.T) {
 func TestChangePasswordPersistsConfigBackendPassword(t *testing.T) {
 	cfg := cookieAuthTestConfig(t)
 	cfg.SecretBackend = "config"
+	cfg.AdminPassword = testAdminPass
 	engine := newAuthTestEngine(t, cfg)
 
 	token, _ := login(t, engine)
