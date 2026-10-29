@@ -316,6 +316,7 @@ func TestLogin_ConfigBackendAcceptsPBKDF2LookingLiteralPassword(t *testing.T) {
 
 	req := httptest.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewReader(body))
 	req.Header.Set("Content-Type", "application/json")
+
 	w := httptest.NewRecorder()
 	engine.ServeHTTP(w, req)
 
