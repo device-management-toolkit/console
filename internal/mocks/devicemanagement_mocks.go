@@ -239,12 +239,13 @@ func (mr *MockRedirectionMockRecorder) RedirectSend(ctx, deviceConnection, messa
 }
 
 // SetupWsmanClient mocks base method.
-func (m *MockRedirection) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsman0.Messages, error) {
+func (m *MockRedirection) SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsman0.Messages, entity.Device, error) {
 	m.ctrl.T.Helper()
 	ret := m.ctrl.Call(m, "SetupWsmanClient", ctx, device, isRedirection, logMessages)
 	ret0, _ := ret[0].(wsman0.Messages)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
+	ret1, _ := ret[1].(entity.Device)
+	ret2, _ := ret[2].(error)
+	return ret0, ret1, ret2
 }
 
 // SetupWsmanClient indicates an expected call of SetupWsmanClient.

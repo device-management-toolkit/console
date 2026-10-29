@@ -13,7 +13,12 @@ import (
 const (
 	globalRequestThreshold = 4
 	authMethodPassword     = "password"
+	secretKeyMPSPassword   = "MPS_PASSWORD"
 )
+
+type SecretReader interface {
+	GetObject(key string) (map[string]string, error)
+}
 
 // APFHandler implements apf.Handler for the CIRA server.
 // It provides application-specific logic for authentication and device registration.
@@ -22,14 +27,20 @@ type APFHandler struct {
 	deviceID           string
 	globalRequestCount int
 	log                logger.Interface
+	secrets            SecretReader
 }
 
 // NewAPFHandler creates a new APF handler with access to the devices feature.
-func NewAPFHandler(d devices.Feature, l logger.Interface) *APFHandler {
-	return &APFHandler{
+func NewAPFHandler(d devices.Feature, l logger.Interface, secrets ...SecretReader) *APFHandler {
+	h := &APFHandler{
 		devices: d,
 		log:     l,
 	}
+	if len(secrets) > 0 {
+		h.secrets = secrets[0]
+	}
+
+	return h
 }
 
 // DeviceID returns the device ID extracted from the protocol version message.
@@ -110,8 +121,18 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 		return false
 	}
 
-	// Compare password
-	if device.MPSPassword != password {
+	// RPS keeps device CIRA passwords in Vault rather than sending them in its device POST.
+	storedPassword := device.MPSPassword
+	if storedPassword == "" && h.secrets != nil {
+		secret, err := h.secrets.GetObject("devices/" + h.deviceID)
+		if err != nil {
+			h.log.Warn("Failed to fetch CIRA credentials for device %s from Vault: %v", h.deviceID, err)
+		} else {
+			storedPassword = secret[secretKeyMPSPassword]
+		}
+	}
+
+	if storedPassword != password {
 		h.log.Debug("Password mismatch for device %s", h.deviceID)
 
 		return false

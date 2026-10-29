@@ -23,6 +23,7 @@ var (
 type GoWSMANMessages struct {
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	creds            *wsmanAPI.CredentialResolver
 }
 
 func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor) *GoWSMANMessages {
@@ -30,6 +31,11 @@ func NewGoWSMANMessages(log logger.Interface, safeRequirements security.Cryptor)
 		log:              log,
 		safeRequirements: safeRequirements,
 	}
+}
+
+// SetCredentialResolver wires the Vault resolver shared with RPS.
+func (g *GoWSMANMessages) SetCredentialResolver(creds *wsmanAPI.CredentialResolver) {
+	g.creds = creds
 }
 
 func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
@@ -43,10 +49,13 @@ func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
 }
 
 func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages bool) (AMTExplorer, error) {
-	decryptedPassword, err := g.safeRequirements.Decrypt(device.Password)
+	decrypted, err := wsmanAPI.DecryptStoredPassword(g.safeRequirements, device.Password)
 	if err != nil {
 		return nil, err
 	}
+
+	device.Password = decrypted
+	device = g.creds.ApplyAMT(device)
 
 	// CIRA device: route through the APF tunnel registered by the TCP CIRA handler.
 	if device.MPSUsername != "" {
@@ -59,7 +68,7 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 			Target:            device.GUID,
 			IsRedirection:     false,
 			Username:          device.Username,
-			Password:          decryptedPassword,
+			Password:          device.Password,
 			SelfSignedAllowed: true,
 			UseDigest:         true,
 			LogAMTMessages:    logAMTMessages,
@@ -80,7 +89,7 @@ func (g GoWSMANMessages) SetupWsmanClient(device entity.Device, logAMTMessages b
 	clientParams := client.Parameters{
 		Target:            device.Hostname,
 		Username:          device.Username,
-		Password:          decryptedPassword,
+		Password:          device.Password,
 		UseDigest:         true,
 		UseTLS:            device.UseTLS,
 		SelfSignedAllowed: device.AllowSelfSigned,

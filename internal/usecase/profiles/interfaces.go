@@ -28,4 +28,10 @@ type (
 		Insert(ctx context.Context, p *dto.Profile) (*dto.Profile, error)
 		Export(ctx context.Context, profileName, domainName, tenantID string) (string, string, error)
 	}
+
+	// SecretStore receives the profile passwords RPS reads from Vault at activation.
+	SecretStore interface {
+		SetObject(key string, data map[string]string) error
+		DeleteKeyValue(key string) error
+	}
 )

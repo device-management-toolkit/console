@@ -220,7 +220,9 @@ func setupCIRAServer(cfg *config.Config, log logger.Interface, closer io.Closer,
 	ciraCertFile := fmt.Sprintf("config/%s_cert.pem", cfg.CommonName)
 	ciraKeyFile := fmt.Sprintf("config/%s_key.pem", cfg.CommonName)
 
-	ciraServer, err := cira.NewServer(ciraCertFile, ciraKeyFile, usecases.Devices, log)
+	secretReader, _ := CertStore.(cira.SecretReader)
+
+	ciraServer, err := cira.NewServer(ciraCertFile, ciraKeyFile, usecases.Devices, log, secretReader)
 	if err != nil {
 		_ = closer.Close()
 

@@ -1,6 +1,8 @@
 package secrets
 
 import (
+	"strings"
+
 	"github.com/hashicorp/vault/api"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
@@ -81,6 +83,9 @@ func NewClient(cfg *config.Secrets, opts ...Option) (*Client, error) {
 	if cfg != nil && cfg.Path != "" && c.path == DefaultSecretPath {
 		c.path = cfg.Path
 	}
+
+	// Keys are joined with "/"; a trailing slash yields "//", which Vault answers with a 301 that writes do not follow.
+	c.path = strings.TrimRight(c.path, "/")
 
 	return c, nil
 }
