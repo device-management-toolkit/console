@@ -12,6 +12,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/pkg/secrets"
 )
 
 const (
@@ -25,10 +26,16 @@ const (
 )
 
 // cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
-func cookieAuthTestConfig() *config.Config {
+func cookieAuthTestConfig(t *testing.T) *config.Config {
+	t.Helper()
+
+	hash, err := secrets.GeneratePBKDF2Hash(testAdminPass)
+	require.NoError(t, err)
+
 	cfg := &config.Config{}
 	cfg.AdminUsername = testAdminUser
-	cfg.AdminPassword = testAdminPass
+	cfg.AdminPassword = hash
+	cfg.SecretBackend = "keyring"
 	cfg.JWTKey = testJWTKey
 	cfg.JWTExpiration = time.Hour
 	cfg.CookieEnabled = true
@@ -109,12 +116,28 @@ func withCookie(cookie *http.Cookie) func(*http.Request) {
 	return func(r *http.Request) { r.AddCookie(cookie) }
 }
 
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestOIDCRejectsStandaloneCredentials(t *testing.T) {
+	cfg := cookieAuthTestConfig(t)
+	cfg.ClientID = "oidc-client"
+	engine := newAuthTestEngine(t, cfg)
+
+	req, err := http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(testCredsBody))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
 // TestAuthorizeIssuesSessionCookies pins the shape REST clients rely on: the
 // token stays in the body and the cookies are purely additive.
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestAuthorizeIssuesSessionCookies(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	token, cookies := login(t, engine)
 	require.NotEmpty(t, token, "token must remain in the response body for bearer clients")
@@ -136,7 +159,7 @@ func TestAuthorizeIssuesSessionCookies(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestBearerAuthUnchanged(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	token, cookies := login(t, engine)
 
@@ -160,7 +183,7 @@ func TestBearerAuthUnchanged(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestCookieAuthAcceptsSessionCookie(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	_, cookies := login(t, engine)
 	session := cookies[config.DefaultSessionCookieName]
@@ -180,11 +203,11 @@ func TestCookieAuthAcceptsSessionCookie(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestCookieAuthDisabled(t *testing.T) {
-	enabled := newAuthTestEngine(t, cookieAuthTestConfig())
+	enabled := newAuthTestEngine(t, cookieAuthTestConfig(t))
 	_, cookies := login(t, enabled)
 	session := cookies[config.DefaultSessionCookieName]
 
-	cfg := cookieAuthTestConfig()
+	cfg := cookieAuthTestConfig(t)
 	cfg.CookieEnabled = false
 	disabled := newAuthTestEngine(t, cfg)
 
@@ -228,7 +251,7 @@ func TestLogoutWithoutConfig(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestLogoutExpiresSessionCookie(t *testing.T) {
-	engine := newAuthTestEngine(t, cookieAuthTestConfig())
+	engine := newAuthTestEngine(t, cookieAuthTestConfig(t))
 
 	req, err := http.NewRequest(http.MethodPost, testLogoutURL, http.NoBody)
 	require.NoError(t, err)
@@ -255,8 +278,11 @@ func TestLogoutExpiresSessionCookie(t *testing.T) {
 func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	t.Parallel()
 
+	hash, err := secrets.GeneratePBKDF2Hash("secret")
+	require.NoError(t, err)
+
 	engine := gin.New()
-	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: "secret"}}}
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{AdminUsername: "admin", AdminPassword: hash, SecretBackend: "keyring"}}}
 	engine.POST("/api/v1/authorize", route.Login)
 
 	req, err := http.NewRequest(http.MethodPost, "/api/v1/authorize", bytes.NewBufferString(`{"username":"admin","password":"wrong"}`))
@@ -272,6 +298,29 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &got))
 	require.Equal(t, "invalid credentials", got["error"])
 	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
+}
+
+func TestLogin_ConfigBackendAcceptsPBKDF2LookingLiteralPassword(t *testing.T) {
+	t.Parallel()
+
+	literalPassword, err := secrets.GeneratePBKDF2Hash("password-preimage")
+	require.NoError(t, err)
+
+	cfg := cookieAuthTestConfig(t)
+	cfg.SecretBackend = "config"
+	cfg.AdminPassword = literalPassword
+
+	engine := newAuthTestEngine(t, cfg)
+	body, err := json.Marshal(map[string]string{"username": testAdminUser, "password": literalPassword})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewReader(body))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
 }
 
 // oidcDiscoveryServer spins up a TLS test server that serves the minimum
@@ -353,8 +402,9 @@ func TestNewLoginRoute(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
-	cfg := cookieAuthTestConfig()
+	cfg := cookieAuthTestConfig(t)
 	cfg.Disabled = true
+	cfg.ClientID = "configured-oidc-client"
 	cfg.AdminUsername = "standalone"
 	cfg.AdminPassword = ""
 
@@ -392,7 +442,7 @@ func TestLogin_AuthDisabledAcceptsAnyCredentials(t *testing.T) {
 //
 //nolint:paralleltest // shared global config.ConsoleConfig
 func TestLogin_EmptyConfiguredPasswordRejected(t *testing.T) {
-	cfg := cookieAuthTestConfig()
+	cfg := cookieAuthTestConfig(t)
 	cfg.Disabled = false
 	cfg.AdminPassword = ""
 

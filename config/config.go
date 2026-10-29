@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -30,9 +31,13 @@ var (
 	ErrMaxTokenTTLInvalid              = errors.New("config: package.max_token_ttl must be at least 1 minute (e.g. 24h), or 0 to use the default")
 	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
+	ErrAuthSecretBackendInvalid        = errors.New("config: auth.secretBackend must be config or keyring")
+	ErrConfigFlagValueMissing          = errors.New("config: missing value for --config")
 )
 
 const defaultHost = "localhost"
+
+const secretBackendConfig = "config"
 
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
@@ -73,10 +78,19 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Host             string   `yaml:"host" env:"HTTP_HOST"`
-		Port             string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
-		AllowedOrigins   []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
-		AllowedHeaders   []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		Host           string   `yaml:"host" env:"HTTP_HOST"`
+		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
+		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
+		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		// TrustedProxies lists the reverse proxy/gateway IPs or CIDRs allowed to
+		// set X-Forwarded-For/X-Real-IP for c.ClientIP() (used by login rate
+		// limiting and audit logs). Empty (the default) trusts none, so
+		// ClientIP() always reads the direct connection's RemoteAddr — safe
+		// against header spoofing, but means every client behind an untrusted
+		// proxy is grouped under that proxy's single address. Deployments that
+		// sit behind a real reverse proxy should list it here to get accurate
+		// per-client addresses instead.
+		TrustedProxies   []string `yaml:"trusted_proxies" env:"HTTP_TRUSTED_PROXIES"`
 		AllowCredentials bool     `yaml:"allow_credentials" env:"HTTP_ALLOW_CREDENTIALS"`
 		WSCompression    bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
 		TLS              TLS      `yaml:"tls"`
@@ -126,8 +140,9 @@ type (
 	// unaffected.
 	Auth struct {
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
-		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
-		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
+		AdminUsername            string        `yaml:"adminUsername" env:"-"`
+		AdminPassword            string        `yaml:"adminPassword" env:"-"`
+		SecretBackend            string        `yaml:"secretBackend" env:"AUTH_SECRET_BACKEND"`
 		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
@@ -263,7 +278,8 @@ func defaultConfig() *Config {
 		},
 		Auth: Auth{
 			AdminUsername:            "standalone",
-			AdminPassword:            "", // Generated and stored in config on first run if not provided
+			AdminPassword:            "",
+			SecretBackend:            secretBackendConfig,
 			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
@@ -383,17 +399,108 @@ func seedConfig(src, dst string) error {
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
 func readOrInitConfig(configPath string, cfg *Config) error {
-	err := cleanenv.ReadConfig(configPath, cfg)
-	if err == nil {
-		return nil
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		var pathErr *os.PathError
+		if !errors.As(err, &pathErr) || !os.IsNotExist(err) {
+			return err
+		}
+
+		if err := writeConfig(configPath, cfg); err != nil {
+			return err
+		}
+
+		data, err = os.ReadFile(configPath)
+		if err != nil {
+			return err
+		}
 	}
 
-	var pathErr *os.PathError
-	if errors.As(err, &pathErr) {
-		return writeConfig(configPath, cfg)
+	var authMode struct {
+		Auth struct {
+			SecretBackend string `yaml:"secretBackend"`
+			ClientID      string `yaml:"clientId"`
+		} `yaml:"auth"`
+	}
+	if err := yaml.Unmarshal(data, &authMode); err != nil {
+		return err
 	}
 
-	return err
+	secretBackend := authMode.Auth.SecretBackend
+	if value, ok := os.LookupEnv("AUTH_SECRET_BACKEND"); ok {
+		secretBackend = value
+	}
+
+	clientID := authMode.Auth.ClientID
+	if value, ok := os.LookupEnv("AUTH_CLIENT_ID"); ok {
+		clientID = value
+	}
+
+	if strings.TrimSpace(clientID) == "" && secretBackend != "keyring" {
+		return cleanenv.ReadConfig(configPath, cfg)
+	}
+
+	sanitized, err := withoutStandaloneCredentials(data)
+	if err != nil {
+		return err
+	}
+
+	return readSanitizedConfig(sanitized, cfg)
+}
+
+func withoutStandaloneCredentials(data []byte) ([]byte, error) {
+	var configEntries yaml.MapSlice
+	if err := yaml.Unmarshal(data, &configEntries); err != nil {
+		return nil, err
+	}
+
+	for i := range configEntries {
+		if configEntries[i].Key != "auth" {
+			continue
+		}
+
+		authEntries, ok := configEntries[i].Value.(yaml.MapSlice)
+		if !ok {
+			break
+		}
+
+		filtered := make(yaml.MapSlice, 0, len(authEntries))
+		for _, entry := range authEntries {
+			if entry.Key == "adminUsername" || entry.Key == "adminPassword" {
+				continue
+			}
+
+			filtered = append(filtered, entry)
+		}
+
+		configEntries[i].Value = filtered
+
+		break
+	}
+
+	return yaml.Marshal(configEntries)
+}
+
+func readSanitizedConfig(data []byte, cfg *Config) error {
+	file, err := os.CreateTemp("", "dmt-console-config-*.yml")
+	if err != nil {
+		return err
+	}
+
+	path := file.Name()
+	defer os.Remove(path)
+
+	if _, err := file.Write(data); err != nil {
+		file.Close()
+
+		return err
+	}
+
+	if err := file.Close(); err != nil {
+		return err
+	}
+
+	return cleanenv.ReadConfig(path, cfg)
 }
 
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.
@@ -420,10 +527,34 @@ func writeConfig(configPath string, cfg *Config) error {
 	return encoder.Encode(cfg)
 }
 
-// SaveAdminPassword persists adminPassword to auth.adminPassword in config.yml
-// without touching any other field. It re-reads the file directly (bypassing the
-// env-var overlay applied by cleanenv) so env-only secrets like APP_ENCRYPTION_KEY,
-// SECRETS_TOKEN, DB_URL, EA_PASSWORD, and AUTH_JWT_KEY cannot leak to disk.
+func ResolveConfigPathFromArgs(args []string) (string, error) {
+	for i, arg := range args {
+		switch {
+		case arg == "--config" || arg == "-config":
+			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" {
+				return "", ErrConfigFlagValueMissing
+			}
+
+			return resolveConfigPath(args[i+1])
+		case strings.HasPrefix(arg, "--config="):
+			if value := strings.TrimPrefix(arg, "--config="); strings.TrimSpace(value) != "" {
+				return resolveConfigPath(value)
+			}
+
+			return "", ErrConfigFlagValueMissing
+		case strings.HasPrefix(arg, "-config="):
+			if value := strings.TrimPrefix(arg, "-config="); strings.TrimSpace(value) != "" {
+				return resolveConfigPath(value)
+			}
+
+			return "", ErrConfigFlagValueMissing
+		}
+	}
+
+	return resolveConfigPath("")
+}
+
+// SaveAdminPassword persists the config backend's generated password.
 func SaveAdminPassword(adminPassword string) error {
 	var configPathFlag string
 	if f := flag.Lookup("config"); f != nil {
@@ -435,7 +566,9 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
-	return updateConfigFile(configPath, func(c *Config) { c.AdminPassword = adminPassword })
+	return updateConfigFile(configPath, func(fileCfg *Config) {
+		fileCfg.AdminPassword = adminPassword
+	})
 }
 
 // updateConfigFile applies mutate to the file's own contents, never to the env-overlaid Config.
@@ -492,17 +625,34 @@ func loadConfig(configPath string, cfg *Config) error {
 		return err
 	}
 
+	if strings.TrimSpace(cfg.ClientID) == "" && cfg.SecretBackend == secretBackendConfig {
+		if value, ok := os.LookupEnv("AUTH_ADMIN_USERNAME"); ok {
+			cfg.AdminUsername = value
+		}
+
+		if value, ok := os.LookupEnv("AUTH_ADMIN_PASSWORD"); ok {
+			cfg.AdminPassword = value
+		}
+	} else {
+		cfg.AdminUsername = ""
+		cfg.AdminPassword = ""
+	}
+
 	if err := ensureJWTKey(configPath, cfg); err != nil {
 		return err
 	}
 
-	return cfg.validate()
+	return nil
 }
 
 // validate checks that all Config values are sane.
 // It returns an error for any setting that would cause a runtime failure or
 // deny all service to legitimate users (e.g. zero/negative JWT expiration).
 func (c *Config) validate() error {
+	if strings.TrimSpace(c.ClientID) == "" && c.SecretBackend != secretBackendConfig && c.SecretBackend != "keyring" {
+		return ErrAuthSecretBackendInvalid
+	}
+
 	if c.JWTExpiration < time.Minute {
 		return ErrJWTExpirationInvalid
 	}
@@ -578,6 +728,12 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := validateAndSetEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
+		return nil, err
+	}
+
+	if err := ConsoleConfig.validate(); err != nil {
+		ConsoleConfig = nil
+
 		return nil, err
 	}
 
