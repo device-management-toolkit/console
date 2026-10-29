@@ -134,12 +134,14 @@ func TestWebSocketHandlerRedirectErrorClosesWebSocket(t *testing.T) {
 
 	r := gin.Default()
 	RegisterRoutes(r, mockLogger, mockFeature, &websocket.Upgrader{})
+
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, req *http.Request) {
 		handlerWG.Add(1)
 		defer handlerWG.Done()
 
 		r.ServeHTTP(w, req)
 	}))
+
 	t.Cleanup(handlerWG.Wait)
 	t.Cleanup(server.Close)
 
