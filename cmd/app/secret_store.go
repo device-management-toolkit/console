@@ -28,6 +28,7 @@ var (
 	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete both dmt-console entries and restart")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both dmt-console entries and restart")
 	errPasswordConfirmation    = errors.New("password confirmation does not match; restart Console to try again")
+	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain at least 4 distinct characters; restart Console to try again")
 )
 
 type credentialStore interface {
@@ -126,6 +127,10 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 	confirmation := promptForSecret(reader, "Confirm Console admin password: ")
 	if password != confirmation {
 		return errPasswordConfirmation
+	}
+
+	if len(password) < minAdminPasswordLength || distinctCharCount(password) < minAdminPasswordDistinctChars {
+		return errWeakAdminPassword
 	}
 
 	hash, err := secrets.GeneratePBKDF2Hash(password)
