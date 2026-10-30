@@ -12,6 +12,10 @@ authenticated session and independently verifies the current password. In
 `dmt-console` keyring service. In `config` mode, it is saved to the configured
 Console config file.
 
+If `AUTH_ADMIN_PASSWORD` is set, the endpoint rejects changes with HTTP 409.
+Update the password in the deployment environment and restart Console instead;
+an API change to the config file would otherwise be overridden on restart.
+
 ## Forgotten keyring password
 
 Console does not provide an unauthenticated password-reset link or a reset

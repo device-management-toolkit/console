@@ -40,3 +40,35 @@ func TestExportDevices_ReturnsExampleRecord(t *testing.T) {
 	require.Len(t, resp.Data, 1)
 	require.Equal(t, exampleDeviceGUID, resp.Data[0].GUID)
 }
+
+func TestRegisterDeviceRoutes_PasswordChangeContract(t *testing.T) {
+	t.Parallel()
+
+	f := newTestAdapter()
+	f.RegisterDeviceRoutes()
+
+	specBytes, err := f.GetOpenAPISpec()
+	require.NoError(t, err)
+
+	var spec struct {
+		Paths map[string]map[string]struct {
+			Security    []map[string][]string      `json:"security"`
+			RequestBody json.RawMessage            `json:"requestBody"`
+			Responses   map[string]json.RawMessage `json:"responses"`
+		} `json:"paths"`
+	}
+
+	require.NoError(t, json.Unmarshal(specBytes, &spec))
+	require.Contains(t, spec.Paths, "/api/v1/authorize/password")
+	operation := spec.Paths["/api/v1/authorize/password"]["post"]
+	require.NotEmpty(t, operation.Security)
+	require.NotEmpty(t, operation.RequestBody)
+
+	for _, status := range []string{"200", "400", "401", "409", "429", "500"} {
+		require.Contains(t, operation.Responses, status)
+	}
+
+	require.Contains(t, string(specBytes), "currentPassword")
+	require.Contains(t, string(specBytes), "newPassword")
+	require.Contains(t, string(specBytes), "confirmPassword")
+}

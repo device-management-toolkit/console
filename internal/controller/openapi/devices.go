@@ -35,6 +35,23 @@ func (f *FuegoAdapter) registerDeviceExportRoutes() {
 
 func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 	fuego.Post(
+		f.server, "/api/v1/authorize/password", f.changePassword,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Change administrator password"),
+		fuego.OptionDescription("Change the standalone administrator password after authenticating and verifying "+
+			"the current password. Requires matching confirmation and at least eight characters with four distinct "+
+			"characters. Available only with standalone authentication enabled. Keyring passwords are hashed; "+
+			"config-backed passwords are saved to the configuration file. Environment-managed passwords must "+
+			"be changed in AUTH_ADMIN_PASSWORD and require a restart."),
+		protectedRouteOptions(),
+		fuego.OptionAddResponse(http.StatusBadRequest, "Invalid password or confirmation", fuego.Response{Type: ErrorResponse{}}),
+		fuego.OptionAddResponse(http.StatusUnauthorized, "Invalid session or current password", fuego.Response{Type: ErrorResponse{}}),
+		fuego.OptionAddResponse(http.StatusConflict, "Password is managed by AUTH_ADMIN_PASSWORD", fuego.Response{Type: ErrorResponse{}}),
+		fuego.OptionAddResponse(http.StatusTooManyRequests, "Too many failed attempts", fuego.Response{Type: ErrorResponse{}}),
+		fuego.OptionAddResponse(http.StatusInternalServerError, "Password storage failed", fuego.Response{Type: ErrorResponse{}}),
+	)
+
+	fuego.Post(
 		f.server, "/api/v1/authorize", f.login,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize"),
@@ -183,6 +200,14 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 
 type AuthorizeRedirectionResponse struct {
 	Token string `json:"token"`
+}
+
+func (f *FuegoAdapter) changePassword(c fuego.ContextWithBody[dto.PasswordChangeRequest]) (dto.PasswordChangeResponse, error) {
+	if _, err := c.Body(); err != nil {
+		return dto.PasswordChangeResponse{}, err
+	}
+
+	return dto.PasswordChangeResponse{Message: "password changed"}, nil
 }
 
 func (f *FuegoAdapter) login(c fuego.ContextWithBody[dto.Credentials]) (AuthorizeRedirectionResponse, error) {
