@@ -70,6 +70,10 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	registerCustomValidators(l)
 
+	if !cfg.Disabled && cfg.ClientID == "" {
+		protected.POST("/v1/authorize/password", login.ChangePassword)
+	}
+
 	// Routers
 	h2 := protected.Group("/v1")
 	{

@@ -3219,6 +3219,84 @@
 			"name": "Session",
 			"item": [
 				{
+					"name": "Change standalone administrator password (opt-in)",
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"if (pm.environment.get(\"enablePasswordChangeTests\") !== \"true\") {",
+									"    pm.request.body.update(\"{}\");",
+									"}"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"type": "text/javascript",
+								"exec": [
+									"pm.test(\"Password changed\", function () {",
+									"    if (pm.environment.get(\"enablePasswordChangeTests\") === \"true\") {",
+									"        pm.response.to.have.status(200);",
+									"        pm.expect(pm.response.json().message).to.eql(\"password changed\");",
+									"    } else {",
+									"        pm.expect([400, 401, 404]).to.include(pm.response.code);",
+									"    }",
+									"});",
+									"if (pm.response.code === 200) {",
+									"    pm.environment.set(\"adminPassword\", pm.environment.get(\"newAdminPassword\"));",
+									"}"
+								]
+							}
+						}
+					],
+					"request": {
+						"auth": {
+							"type": "bearer",
+							"bearer": [
+								{
+									"key": "token",
+									"value": "{{accessToken}}",
+									"type": "string"
+								}
+							]
+						},
+						"method": "POST",
+						"header": [
+							{
+								"key": "Content-Type",
+								"value": "application/json"
+							}
+						],
+						"body": {
+							"mode": "raw",
+							"raw": "{\n    \"currentPassword\": \"{{adminPassword}}\",\n    \"newPassword\": \"{{newAdminPassword}}\",\n    \"confirmPassword\": \"{{newAdminPassword}}\"\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/authorize/password",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"authorize",
+								"password"
+							]
+						},
+						"description": "Opt-in destructive test: enable standalone auth and set enablePasswordChangeTests=true, accessToken from /authorize, adminPassword, and newAdminPassword (at least eight characters with four distinct characters). Changes the real administrator password. By default sends an empty body and checks rejection without changing credentials, including in auth-disabled CI. Returns 400 for invalid input, 401 for invalid session/current password, 409 for AUTH_ADMIN_PASSWORD-managed credentials, 429 for rate limiting, or 500 for storage failure."
+					},
+					"response": []
+				},
+				{
 					"name": "Authorize issues a token",
 					"event": [
 						{

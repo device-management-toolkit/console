@@ -42,6 +42,7 @@ func TestUIServesFiles(t *testing.T) {
 		{name: "media file is served", path: "/media/dmt-logo_dark.svg", want: "<svg/>"},
 		{name: "every media file is served, not a fixed list", path: "/media/font.woff2", want: "font"},
 		{name: "client-side route gets the HTML shell", path: "/devices", want: testUIShell},
+		{name: "password management route gets the HTML shell", path: "/account/password", want: testUIShell},
 	}
 
 	engine := newUITestEngine(t)

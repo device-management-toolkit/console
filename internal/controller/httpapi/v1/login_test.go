@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"sync"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/secrets"
 )
 
@@ -24,6 +26,8 @@ const (
 	testAuthorizeURL = "/api/v1/authorize"
 	testLogoutURL    = "/api/v1/authorize/logout"
 )
+
+const testPasswordChangeURL = "/api/v1/authorize/password"
 
 // cookieAuthTestConfig is a basic-auth (non-OIDC) config with cookies enabled.
 func cookieAuthTestConfig(t *testing.T) *config.Config {
@@ -57,11 +61,19 @@ func newAuthTestEngine(t *testing.T, cfg *config.Config) *gin.Engine {
 
 	config.ConsoleConfig = cfg
 
-	route := LoginRoute{Config: cfg}
+	route := LoginRoute{
+		Config: cfg,
+		SaveAdminPassword: func(password string) error {
+			cfg.AdminPassword = password
+
+			return nil
+		},
+	}
 
 	engine := gin.New()
 	engine.POST(testAuthorizeURL, route.Login)
 	engine.POST(testLogoutURL, route.Logout)
+	engine.POST(testPasswordChangeURL, route.JWTAuthMiddleware(), route.ChangePassword)
 	engine.GET(testProtectedURL, route.JWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusOK) })
 
 	return engine
@@ -221,6 +233,257 @@ func TestCookieAuthDisabled(t *testing.T) {
 	require.Equal(t, http.StatusOK, get(t, disabled, withBearer(token)).Code)
 }
 
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestChangePasswordRequiresAuthenticationAndCurrentPassword(t *testing.T) {
+	cfg := cookieAuthTestConfig(t)
+	engine := newAuthTestEngine(t, cfg)
+
+	body := `{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`
+	req, err := http.NewRequest(http.MethodPost, testPasswordChangeURL, bytes.NewBufferString(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusUnauthorized, w.Code, "unauthenticated requests must not change credentials")
+
+	token, _ := login(t, engine)
+	body = `{"currentPassword":"wrong-password","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`
+
+	req, err = http.NewRequest(http.MethodPost, testPasswordChangeURL, bytes.NewBufferString(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(authorizationHeader, bearerPrefix+token)
+
+	w = httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+	require.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, testAdminPass), "wrong current password must not alter credentials")
+}
+
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestChangePasswordStoresPBKDF2HashInKeyring(t *testing.T) {
+	cfg := cookieAuthTestConfig(t)
+	cfg.SecretBackend = "keyring"
+	engine := newAuthTestEngine(t, cfg)
+
+	token, _ := login(t, engine)
+	body := `{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`
+	req, err := http.NewRequest(http.MethodPost, testPasswordChangeURL, bytes.NewBufferString(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(authorizationHeader, bearerPrefix+token)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code)
+	require.NotEqual(t, "new-secret-123", cfg.AdminPassword)
+	require.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "new-secret-123"))
+
+	req, err = http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(`{"username":"admin","password":"new-secret-123"}`))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w = httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, "the new keyring password must be accepted at login")
+}
+
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestChangePasswordPersistsConfigBackendPassword(t *testing.T) {
+	cfg := cookieAuthTestConfig(t)
+	cfg.SecretBackend = "config"
+	cfg.AdminPassword = testAdminPass
+	engine := newAuthTestEngine(t, cfg)
+
+	token, _ := login(t, engine)
+	body := `{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`
+	req, err := http.NewRequest(http.MethodPost, testPasswordChangeURL, bytes.NewBufferString(body))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+	req.Header.Set(authorizationHeader, bearerPrefix+token)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+	require.Equal(t, "new-secret-123", cfg.AdminPassword)
+
+	req, err = http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(`{"username":"admin","password":"new-secret-123"}`))
+	require.NoError(t, err)
+	req.Header.Set("Content-Type", "application/json")
+
+	w = httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+	require.Equal(t, http.StatusOK, w.Code, "the new config-backend password must be accepted at login")
+}
+
+func TestChangePasswordRejectsEnvironmentManagedPassword(t *testing.T) {
+	t.Setenv("AUTH_ADMIN_PASSWORD", testAdminPass)
+
+	cfg := &config.Config{Auth: config.Auth{SecretBackend: "config", AdminPassword: testAdminPass}}
+	saved := false
+	route := LoginRoute{
+		Config: cfg,
+		SaveAdminPassword: func(string) error {
+			saved = true
+
+			return nil
+		},
+	}
+	engine := gin.New()
+	engine.POST(testPasswordChangeURL, route.ChangePassword)
+	req := httptest.NewRequest(http.MethodPost, testPasswordChangeURL,
+		bytes.NewBufferString(`{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`))
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusConflict, w.Code)
+	require.Contains(t, w.Body.String(), "AUTH_ADMIN_PASSWORD")
+	require.False(t, saved)
+	require.Equal(t, testAdminPass, cfg.AdminPassword)
+}
+
+func TestChangePasswordConfigBackendPreservesLiteralHashPassword(t *testing.T) {
+	t.Parallel()
+
+	literalPassword, err := secrets.GeneratePBKDF2Hash("password-preimage")
+	require.NoError(t, err)
+
+	cfg := &config.Config{Auth: config.Auth{SecretBackend: "config", AdminPassword: literalPassword}}
+	route := LoginRoute{Config: cfg, SaveAdminPassword: func(string) error { return nil }}
+	engine := gin.New()
+	engine.POST(testPasswordChangeURL, route.ChangePassword)
+
+	for _, currentPassword := range []string{"password-preimage", literalPassword} {
+		body, err := json.Marshal(dto.PasswordChangeRequest{
+			CurrentPassword: currentPassword,
+			NewPassword:     "new-secret-123",
+			ConfirmPassword: "new-secret-123",
+		})
+		require.NoError(t, err)
+
+		req := httptest.NewRequest(http.MethodPost, testPasswordChangeURL, bytes.NewReader(body))
+		req.RemoteAddr = "192.0.2.35:1234"
+		w := httptest.NewRecorder()
+		engine.ServeHTTP(w, req)
+
+		if currentPassword == literalPassword {
+			require.Equal(t, http.StatusOK, w.Code)
+		} else {
+			require.Equal(t, http.StatusUnauthorized, w.Code)
+			require.Equal(t, literalPassword, cfg.AdminPassword)
+		}
+	}
+}
+
+func TestChangePasswordSerializesConcurrentChangesAndLogin(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Auth: config.Auth{
+		SecretBackend: "config",
+		AdminUsername: testAdminUser,
+		AdminPassword: testAdminPass,
+	}}
+	persistedPassword := testAdminPass
+	route := LoginRoute{
+		Config: cfg,
+		SaveAdminPassword: func(password string) error {
+			time.Sleep(time.Millisecond)
+
+			persistedPassword = password
+
+			return nil
+		},
+	}
+	engine := gin.New()
+	engine.POST(testPasswordChangeURL, route.ChangePassword)
+
+	start := make(chan struct{})
+	statuses := make(chan int, 2)
+
+	var workers sync.WaitGroup
+
+	for range 2 {
+		workers.Go(func() {
+			<-start
+
+			req := httptest.NewRequest(http.MethodPost, testPasswordChangeURL,
+				bytes.NewBufferString(`{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`))
+			req.RemoteAddr = "192.0.2.34:1234"
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			statuses <- w.Code
+		})
+	}
+
+	workers.Go(func() {
+		<-start
+
+		for range 20 {
+			route.credentialsAccepted(dto.Credentials{Username: testAdminUser, Password: testAdminPass})
+		}
+	})
+	close(start)
+	workers.Wait()
+	close(statuses)
+
+	var successes, failures int
+
+	for status := range statuses {
+		switch status {
+		case http.StatusOK:
+			successes++
+		case http.StatusUnauthorized:
+			failures++
+		default:
+			t.Errorf("unexpected status: %d", status)
+		}
+	}
+
+	require.Equal(t, 1, successes)
+	require.Equal(t, 1, failures)
+	require.Equal(t, "new-secret-123", persistedPassword)
+	require.Equal(t, persistedPassword, cfg.AdminPassword)
+}
+
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestChangePasswordRejectsMismatchedOrWeakPassword(t *testing.T) {
+	cfg := cookieAuthTestConfig(t)
+	engine := newAuthTestEngine(t, cfg)
+	token, _ := login(t, engine)
+
+	testCases := []struct {
+		name string
+		body string
+	}{
+		{
+			name: "mismatched confirmation",
+			body: `{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"different-secret-123"}`,
+		},
+		{
+			name: "weak new password",
+			body: `{"currentPassword":"secret","newPassword":"weak","confirmPassword":"weak"}`,
+		},
+	}
+
+	for _, testCase := range testCases {
+		t.Run(testCase.name, func(t *testing.T) {
+			req, err := http.NewRequest(http.MethodPost, testPasswordChangeURL, bytes.NewBufferString(testCase.body))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.Header.Set(authorizationHeader, bearerPrefix+token)
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, http.StatusBadRequest, w.Code)
+			require.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, testAdminPass))
+		})
+	}
+}
+
 // TestLogoutWithoutConfig: the public logout route must not panic when the
 // config singleton has not been populated yet.
 //
@@ -300,9 +563,8 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
 }
 
+//nolint:paralleltest // shared global config.ConsoleConfig
 func TestLogin_ConfigBackendAcceptsPBKDF2LookingLiteralPassword(t *testing.T) {
-	t.Parallel()
-
 	literalPassword, err := secrets.GeneratePBKDF2Hash("password-preimage")
 	require.NoError(t, err)
 

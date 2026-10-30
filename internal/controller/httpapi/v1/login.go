@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"sync"
 	"time"
@@ -13,6 +14,8 @@ import (
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -28,6 +31,9 @@ const (
 	bearerPrefix                = "Bearer "
 	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
 	loginFailureError           = "invalid credentials"
+	keyringServiceName          = "dmt-console"
+	keyringAdminPassword        = "admin-password-hash"
+	secretBackendKeyring        = "keyring"
 )
 
 var (
@@ -38,9 +44,10 @@ var (
 	// tracks failures within a rolling window; entries are reset lazily when
 	// their window has elapsed and swept periodically by janitorOnce below so
 	// low-failure-count clients don't accumulate in the map forever.
-	loginAttempts = make(map[string]*loginAttemptEntry)
-	loginMutex    sync.Mutex
-	janitorOnce   sync.Once
+	loginAttempts         = make(map[string]*loginAttemptEntry)
+	loginMutex            sync.Mutex
+	janitorOnce           sync.Once
+	adminCredentialsMutex sync.RWMutex
 
 	// Configuration: allow 5 failed attempts per 15 minutes per IP.
 	maxFailedLoginAttempts = 5
@@ -105,16 +112,27 @@ func startLoginAttemptJanitor() {
 }
 
 type LoginRoute struct {
-	Config   *config.Config
-	Verifier *oidc.IDTokenVerifier
+	Config            *config.Config
+	Verifier          *oidc.IDTokenVerifier
+	SaveAdminPassword func(string) error
 }
 
 // NewVersionRoute creates a new version route
 func NewLoginRoute(configData *config.Config) *LoginRoute {
 	startLoginAttemptJanitor()
 
+	saveAdminPassword := config.SaveAdminPassword
+
+	if configData.SecretBackend == secretBackendKeyring {
+		store := security.NewKeyRingStorage(keyringServiceName)
+		saveAdminPassword = func(passwordHash string) error {
+			return store.SetKeyValue(keyringAdminPassword, passwordHash)
+		}
+	}
+
 	lr := &LoginRoute{
-		Config: configData,
+		Config:            configData,
+		SaveAdminPassword: saveAdminPassword,
 	}
 
 	if config.ConsoleConfig.ClientID != "" {
@@ -142,6 +160,91 @@ func NewLoginRoute(configData *config.Config) *LoginRoute {
 	}
 
 	return lr
+}
+
+// ChangePassword updates standalone credentials after verifying the current password.
+func (lr LoginRoute) ChangePassword(c *gin.Context) {
+	var request dto.PasswordChangeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "invalid request"})
+
+		return
+	}
+
+	if request.CurrentPassword == "" || request.NewPassword == "" || request.ConfirmPassword == "" {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "current password, new password, and confirmation are required"})
+
+		return
+	}
+
+	if request.NewPassword != request.ConfirmPassword {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "password confirmation does not match"})
+
+		return
+	}
+
+	if !secrets.IsAdminPasswordStrong(request.NewPassword) {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "new password must be at least 8 characters and contain at least 4 distinct characters"})
+
+		return
+	}
+
+	if _, managed := os.LookupEnv("AUTH_ADMIN_PASSWORD"); managed && lr.Config.SecretBackend != secretBackendKeyring {
+		c.JSON(http.StatusConflict, gin.H{errorKey: "password is managed by AUTH_ADMIN_PASSWORD; update the deployment environment and restart Console"})
+
+		return
+	}
+
+	clientIP := c.ClientIP()
+	if !reserveLoginAttempt(clientIP) {
+		c.JSON(http.StatusTooManyRequests, gin.H{errorKey: "rate_limited", messageKey: "Too many failed login attempts. Please try again later."})
+
+		return
+	}
+
+	adminCredentialsMutex.Lock()
+	defer adminCredentialsMutex.Unlock()
+
+	if !lr.matchesAdminPassword(request.CurrentPassword) {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	var storedPassword string
+
+	if lr.Config.SecretBackend == secretBackendKeyring {
+		hash, err := secrets.GeneratePBKDF2Hash(request.NewPassword)
+		if err != nil {
+			c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not hash new password"})
+
+			return
+		}
+
+		storedPassword = hash
+	} else {
+		storedPassword = request.NewPassword
+	}
+
+	if lr.SaveAdminPassword == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "password storage is unavailable"})
+
+		return
+	}
+
+	if err := lr.SaveAdminPassword(storedPassword); err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "could not save new password"})
+
+		return
+	}
+
+	lr.Config.AdminPassword = storedPassword
+
+	loginMutex.Lock()
+	delete(loginAttempts, clientIP)
+	loginMutex.Unlock()
+
+	c.JSON(http.StatusOK, dto.PasswordChangeResponse{Message: "password changed"})
 }
 
 // Login checks configured credentials and returns a JWT token for basic auth
@@ -187,18 +290,7 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
-	if lr.Config.AdminPassword == "" {
-		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
-
-		return
-	}
-
-	passwordMatches := creds.Password == lr.Config.AdminPassword
-	if lr.Config.SecretBackend == "keyring" && secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
-		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
-	}
-
-	if !passwordMatches || creds.Username != lr.Config.AdminUsername {
+	if !lr.credentialsAccepted(creds) {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
@@ -233,6 +325,22 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	// Token stays in the body for bearer clients, which ignore Set-Cookie.
 	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
+}
+
+func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
+	adminCredentialsMutex.RLock()
+	defer adminCredentialsMutex.RUnlock()
+
+	return lr.matchesAdminPassword(creds.Password) && creds.Username == lr.Config.AdminUsername
+}
+
+// The caller must hold adminCredentialsMutex while reading the password.
+func (lr LoginRoute) matchesAdminPassword(password string) bool {
+	if lr.Config.SecretBackend == secretBackendKeyring && secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
+		return secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, password)
+	}
+
+	return lr.Config.AdminPassword != "" && password == lr.Config.AdminPassword
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can

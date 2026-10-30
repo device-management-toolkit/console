@@ -129,7 +129,7 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 		return errPasswordConfirmation
 	}
 
-	if len(password) < minAdminPasswordLength || distinctCharCount(password) < minAdminPasswordDistinctChars {
+	if !secrets.IsAdminPasswordStrong(password) {
 		return errWeakAdminPassword
 	}
 
@@ -158,26 +158,12 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 	return nil
 }
 
-const (
-	minAdminPasswordLength        = 8
-	minAdminPasswordDistinctChars = 4
-)
-
 func warnIfWeakAdminPassword(password string) {
-	if len(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+	if secrets.IsAdminPasswordStrong(password) {
 		return
 	}
 
 	log.Print("Warning: configured admin password is weak (short or low character variety); consider using a longer, more varied password")
-}
-
-func distinctCharCount(s string) int {
-	seen := make(map[rune]struct{})
-	for _, r := range s {
-		seen[r] = struct{}{}
-	}
-
-	return len(seen)
 }
 
 func promptForCredential(reader *bufio.Reader, prompt string) string {
