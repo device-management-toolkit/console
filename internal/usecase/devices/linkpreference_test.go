@@ -68,7 +68,7 @@ func TestSetLinkPreference(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{ReturnValue: 0},
@@ -90,7 +90,7 @@ func TestSetLinkPreference(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{ReturnValue: 0},
@@ -102,7 +102,7 @@ func TestSetLinkPreference(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.LinkPreferenceResponse{},
@@ -121,7 +121,7 @@ func TestSetLinkPreference(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{ReturnValue: -1},
@@ -140,7 +140,7 @@ func TestSetLinkPreference(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{ReturnValue: 5},
@@ -159,7 +159,7 @@ func TestSetLinkPreference(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{ReturnValue: 0},
@@ -174,7 +174,7 @@ func TestSetLinkPreference(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{},
@@ -189,7 +189,7 @@ func TestSetLinkPreference(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.LinkPreferenceResponse{},
@@ -210,7 +210,7 @@ func TestSetLinkPreference(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.SetLinkPreference(context.Background(), device.GUID, tc.request)
+			res, err := useCase.SetLinkPreference(context.Background(), device.GUID, device.TenantID, tc.request)
 
 			require.Equal(t, tc.res, res)
 

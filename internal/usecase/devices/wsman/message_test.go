@@ -2,6 +2,7 @@ package wsman
 
 import (
 	"context"
+	"sync"
 	"testing"
 	"time"
 
@@ -9,7 +10,10 @@ import (
 	"github.com/stretchr/testify/require"
 
 	gwmconfig "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
 
+	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -172,4 +176,104 @@ func TestDestroyWsmanClient_MissingEntryIsNoop(t *testing.T) {
 	g := NewGoWSMANMessages(logger.New("error"), passthroughCryptor{})
 	// Should not panic when the entry is absent.
 	g.DestroyWsmanClient(dto.Device{GUID: "destroy-missing-entry"})
+}
+
+// TestSetupWsmanClientSlowDeviceDoesNotDelayOthers is a regression test for
+// #1247: a device that never authenticates made every other device's setup
+// time out, because the wait for authentication ran inside the closure drained
+// by the single Worker goroutine. The wait itself is unchanged; it now runs on
+// the caller's goroutine, so the Worker stays free.
+func TestSetupWsmanClientSlowDeviceDoesNotDelayOthers(t *testing.T) { //nolint:paralleltest // mutates package-level state (requestQueue, waitForAuth, connections)
+	const (
+		slowGUID    = "issue-1247-slow-device"
+		healthyGUID = "issue-1247-healthy-device"
+		budget      = 3 * time.Second
+	)
+
+	if config.ConsoleConfig == nil {
+		config.ConsoleConfig = &config.Config{}
+
+		t.Cleanup(func() { config.ConsoleConfig = nil })
+	}
+
+	// Keep the slow device waiting well past the budget without making the
+	// test sit through the production 30s.
+	origWait := waitForAuth
+	waitForAuth = time.Minute
+
+	t.Cleanup(func() { waitForAuth = origWait })
+	t.Cleanup(func() { RemoveConnection(slowGUID); RemoveConnection(healthyGUID) })
+
+	// A cached, unauthenticated entry pointing at a black-hole address: the
+	// authentication wait will run to its full timeout.
+	SetConnectionEntry(slowGUID, &ConnectionEntry{
+		WsmanMessages: wsman.NewMessages(client.Parameters{
+			Target: "192.0.2.1", Username: "u", Password: "p", UseDigest: true,
+		}),
+		Timer: time.AfterFunc(time.Hour, func() {}),
+	})
+	require.False(t, GetConnectionEntry(slowGUID).WsmanMessages.Client.IsAuthenticated(),
+		"the slow device must start out unauthenticated for this test to exercise the wait")
+
+	stopWorker := make(chan struct{})
+	workerDone := make(chan struct{})
+
+	go func() {
+		defer close(workerDone)
+
+		for {
+			select {
+			case <-stopWorker:
+				return
+			case req := <-requestQueue:
+				req()
+				// Stands in for the Worker's queueTickTime throttle without
+				// mutating that package-level var out from under it.
+				time.Sleep(time.Millisecond)
+			}
+		}
+	}()
+
+	t.Cleanup(func() {
+		close(stopWorker)
+
+		select {
+		case <-workerDone:
+		case <-time.After(time.Second):
+		}
+	})
+
+	g := NewGoWSMANMessages(logger.New("error"), passthroughCryptor{})
+
+	ctx, cancel := context.WithCancel(context.Background())
+	defer cancel()
+
+	var wg sync.WaitGroup
+
+	wg.Add(1)
+
+	go func() {
+		defer wg.Done()
+
+		_, _ = g.SetupWsmanClient(ctx, entity.Device{GUID: slowGUID, Hostname: "192.0.2.1", Username: "u", Password: "p"}, false, false)
+	}()
+
+	t.Cleanup(wg.Wait)
+
+	// Give the slow request time to reach the Worker and start waiting.
+	time.Sleep(50 * time.Millisecond)
+
+	done := make(chan error, 1)
+
+	go func() {
+		_, err := g.SetupWsmanClient(ctx, entity.Device{GUID: healthyGUID, Hostname: "192.0.2.2", Username: "u", Password: "p"}, false, false)
+		done <- err
+	}()
+
+	select {
+	case err := <-done:
+		require.NoError(t, err, "the healthy device must set up successfully")
+	case <-time.After(budget):
+		t.Fatal("a slow device is still delaying every other device's setup (#1247)")
+	}
 }

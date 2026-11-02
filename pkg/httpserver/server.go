@@ -22,8 +22,8 @@ import (
 )
 
 const (
-	_defaultReadTimeout     = 15 * time.Second
-	_defaultWriteTimeout    = 15 * time.Second
+	_defaultReadTimeout     = 40 * time.Second
+	_defaultWriteTimeout    = 40 * time.Second
 	_defaultAddr            = ":80"
 	_defaultShutdownTimeout = 3 * time.Second
 

@@ -49,6 +49,8 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			usetls BOOLEAN NOT NULL DEFAULT FALSE,
 			allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
 			certhash TEXT NOT NULL DEFAULT '',
+			currentmode TEXT,
+			discovered BOOLEAN,
 			lastconnected TEXT,
 			lastdisconnected TEXT,
 			lastseen TEXT
@@ -276,8 +278,8 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 		{
 			name: "Successful query",
 			setup: func(dbConn *sql.DB) {
-				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
-					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, mpspassword, mebxpassword, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", "mpspassword1", "mebxpassword1", true, false, Certhash)
 				require.NoError(t, err)
 			},
 			guid:     "guid1",
@@ -295,11 +297,57 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 				DeviceInfo:       "deviceinfo1",
 				Username:         "username1",
 				Password:         "password1",
+				MPSPassword:      StringPtr("mpspassword1"),
+				MEBXPassword:     StringPtr("mebxpassword1"),
 				UseTLS:           true,
 				AllowSelfSigned:  false,
 				CertHash:         Certhash,
 			},
 			err: nil,
+		},
+		{
+			name: "Duplicate rows for same guid and tenant",
+			setup: func(dbConn *sql.DB) {
+				_, err := dbConn.ExecContext(context.Background(), `DROP TABLE devices`)
+				require.NoError(t, err)
+
+				_, err = dbConn.ExecContext(context.Background(), `
+					CREATE TABLE devices (
+						guid TEXT NOT NULL,
+						hostname TEXT NOT NULL DEFAULT '',
+						tags TEXT NOT NULL DEFAULT '',
+						mpsinstance TEXT NOT NULL DEFAULT '',
+						connectionstatus BOOLEAN NOT NULL DEFAULT FALSE,
+						mpsusername TEXT NOT NULL DEFAULT '',
+						tenantid TEXT NOT NULL,
+						friendlyname TEXT NOT NULL DEFAULT '',
+						dnssuffix TEXT NOT NULL DEFAULT '',
+						deviceinfo TEXT NOT NULL DEFAULT '',
+						username TEXT NOT NULL DEFAULT '',
+						password TEXT NOT NULL DEFAULT '',
+						mpspassword TEXT,
+						mebxpassword TEXT,
+						usetls BOOLEAN NOT NULL DEFAULT FALSE,
+						allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
+						certhash TEXT NOT NULL DEFAULT '',
+						lastconnected TEXT,
+						lastdisconnected TEXT,
+						lastseen TEXT
+					);
+				`)
+				require.NoError(t, err)
+
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, mpspassword, mebxpassword, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "tenant1", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", "mpspassword1", "mebxpassword1", true, false, Certhash)
+				require.NoError(t, err)
+				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, mpspassword, mebxpassword, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname2", "tag2", "mpsinstance2", false, "mpsusername2", "tenant1", "friendlyname2", "dnssuffix2", "deviceinfo2", "username2", "password2", "mpspassword2", "mebxpassword2", false, true, Certhash)
+				require.NoError(t, err)
+			},
+			guid:     "guid1",
+			tenantID: "tenant1",
+			expected: nil,
+			err:      repoerrors.NotUniqueError{},
 		},
 		{
 			name:     "No device found",
@@ -364,6 +412,103 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 			assert.IsType(t, tc.expected, device)
 		})
 	}
+}
+
+func TestDeviceRepo_GetByGUID(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		setup    func(dbConn *sql.DB)
+		guid     string
+		expected *entity.Device
+		err      error
+	}{
+		{
+			name: "Found regardless of tenant",
+			setup: func(dbConn *sql.DB) {
+				_, err := dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+					"guid1", "hostname1", "tag1", "mpsinstance1", true, "mpsusername1", "acme-corp", "friendlyname1", "dnssuffix1", "deviceinfo1", "username1", "password1", true, false, Certhash)
+				require.NoError(t, err)
+			},
+			guid:     "guid1",
+			expected: &entity.Device{GUID: "guid1", TenantID: "acme-corp"},
+			err:      nil,
+		},
+		{
+			name:     "No device found",
+			setup:    func(_ *sql.DB) {},
+			guid:     "guid2",
+			expected: nil,
+			err:      nil,
+		},
+		{
+			name:     QueryExecutionErrorTestName,
+			setup:    func(_ *sql.DB) {},
+			guid:     "guid1",
+			expected: nil,
+			err:      repoerrors.DatabaseError{},
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDeviceTable(t)
+			defer dbConn.Close()
+
+			tc.setup(dbConn)
+
+			sqlConfig := &db.SQL{
+				Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+				Pool:       dbConn,
+				IsEmbedded: true,
+			}
+
+			if tc.name == QueryExecutionErrorTestName {
+				sqlConfig.Builder = squirrel.StatementBuilder.PlaceholderFormat(squirrel.AtP)
+			}
+
+			mockLog := mocks.NewMockLogger(nil)
+			repo := sqldb.NewDeviceRepo(sqlConfig, mockLog)
+
+			device, err := repo.GetByGUID(context.Background(), tc.guid)
+
+			checkDeviceError(t, err, tc.err)
+
+			if tc.expected == nil {
+				assert.Nil(t, device)
+
+				return
+			}
+
+			require.NotNil(t, device)
+			assert.Equal(t, tc.expected.GUID, device.GUID)
+			assert.Equal(t, tc.expected.TenantID, device.TenantID)
+		})
+	}
+}
+
+func TestDeviceRepo_GetByGUIDUsesCallerContext(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	t.Cleanup(func() { _ = dbConn.Close() })
+
+	repo := sqldb.NewDeviceRepo(&db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}, mocks.NewMockLogger(nil))
+	ctx, cancel := context.WithCancel(context.Background())
+	cancel()
+
+	device, err := repo.GetByGUID(ctx, "guid1")
+	require.Nil(t, device)
+	require.Error(t, err)
+	require.Contains(t, err.Error(), context.Canceled.Error())
 }
 
 func TestDeviceRepo_GetDistinctTags(t *testing.T) {
@@ -815,7 +960,9 @@ func TestDeviceRepo_Update(t *testing.T) {
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					currentmode TEXT,
+					discovered BOOLEAN
 				);
 			`)
 			require.NoError(t, err)
@@ -1291,4 +1438,130 @@ func TestDeviceRepo_UpdateLastSeen(t *testing.T) {
 			tc.verify(t, dbConn)
 		})
 	}
+}
+
+// seedMode inserts a device row with the currentmode column set (nil -> SQL NULL).
+func seedMode(t *testing.T, dbConn *sql.DB, guid, tenantID string, currentMode *string) {
+	t.Helper()
+
+	_, err := dbConn.ExecContext(context.Background(),
+		`INSERT INTO devices (guid, tenantid, deviceinfo, currentmode) VALUES (?, ?, ?, ?)`,
+		guid, tenantID, "{}", currentMode)
+	require.NoError(t, err)
+}
+
+func TestDeviceRepo_GetActivated(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	// rpc-go reports interpreted control-mode strings (see utils.InterpretControlMode).
+	adminMode := "admin control mode"
+	clientMode := "client control mode"
+	notActivated := "not activated"
+	notActivatedCaps := "NOT ACTIVATED"
+	empty := ""
+
+	seedMode(t, dbConn, "guid-admin", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-client", "tenant1", &clientMode)
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> not activated
+	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive exclude
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> not activated
+	seedMode(t, dbConn, "guid-nullmode", "tenant1", nil)                        // NULL -> not activated
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
+	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?)`, "guid-notactivated", "guid-notactivated-caps", "guid-empty", "guid-nullmode")
+	require.NoError(t, err)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	result, err := repo.GetActivated(context.Background(), 0, 0, "tenant1")
+	require.NoError(t, err)
+	require.Len(t, result, 2)
+
+	guids := []string{result[0].GUID, result[1].GUID}
+	assert.ElementsMatch(t, []string{"guid-admin", "guid-client"}, guids)
+}
+
+func TestDeviceRepo_GetDiscovered(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	adminMode := "admin control mode"
+	notActivated := "not activated"
+	notActivatedCaps := "NOT ACTIVATED"
+	empty := ""
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> discovered
+	seedMode(t, dbConn, "guid-null", "tenant1", nil)                            // NULL -> discovered
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> discovered
+	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive
+	seedMode(t, dbConn, "guid-activated", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &notActivated)
+
+	_, err := dbConn.ExecContext(context.Background(),
+		`UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?)`,
+		"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps")
+	require.NoError(t, err)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	result, err := repo.GetDiscovered(context.Background(), 0, 0, "tenant1")
+	require.NoError(t, err)
+	require.Len(t, result, 4)
+
+	guids := make([]string, len(result))
+	for i, d := range result {
+		guids[i] = d.GUID
+	}
+
+	assert.ElementsMatch(t, []string{"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps"}, guids)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	adminMode := "admin control mode"
+	clientMode := "client control mode"
+	notActivated := "not activated"
+	empty := ""
+
+	seedMode(t, dbConn, "guid-admin", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-client", "tenant1", &clientMode)
+	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)
+	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)
+	seedMode(t, dbConn, "guid-legacy", "tenant1", nil)
+	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
+
+	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?)`, "guid-notactivated", "guid-empty", "guid-legacy")
+	require.NoError(t, err)
+	_, err = dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = false WHERE guid = ?`, "guid-client")
+	require.NoError(t, err)
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+	activated, discovered, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
+	require.NoError(t, err)
+	assert.Equal(t, 2, activated)
+	assert.Equal(t, 3, discovered)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts_Error(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, true), mocks.NewMockLogger(nil))
+
+	_, _, err := repo.GetDeviceStateCounts(context.Background(), "tenant1")
+	require.Error(t, err)
+
+	var dbErr repoerrors.DatabaseError
+
+	assert.True(t, errors.As(err, &dbErr))
 }

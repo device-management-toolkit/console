@@ -63,8 +63,8 @@
             "label": "Third-Party Licenses"
           },
           {
-              "path": "*.sigstore.json",
-              "label": "Cosign Signature Bundles"
+            "path": "cosign-signatures.zip",
+            "label": "Cosign Signature Bundles"
           }
         ]
       }

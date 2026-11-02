@@ -76,10 +76,81 @@ func (uc *UseCase) GetByColumn(ctx context.Context, columnName, queryValue, tena
 	return d1, nil
 }
 
+// entitiesToDTOs converts a slice of device entities into their DTO representations.
+func (uc *UseCase) entitiesToDTOs(data []entity.Device) ([]dto.Device, error) {
+	d1 := make([]dto.Device, len(data))
+
+	for i := range data {
+		tmpEntity := data[i] // create a new variable to avoid memory aliasing
+
+		d, err := uc.entityToDTO(&tmpEntity)
+		if err != nil {
+			return nil, err
+		}
+
+		d1[i] = *d
+	}
+
+	return d1, nil
+}
+
+func (uc *UseCase) GetActivated(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error) {
+	data, err := uc.repo.GetActivated(ctx, top, skip, tenantID)
+	if err != nil {
+		return nil, ErrDatabase.Wrap("GetActivated", "uc.repo.GetActivated", err)
+	}
+
+	return uc.entitiesToDTOs(data)
+}
+
+func (uc *UseCase) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error) {
+	data, err := uc.repo.GetDiscovered(ctx, top, skip, tenantID)
+	if err != nil {
+		return nil, ErrDatabase.Wrap("GetDiscovered", "uc.repo.GetDiscovered", err)
+	}
+
+	return uc.entitiesToDTOs(data)
+}
+
+func (uc *UseCase) GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error) {
+	activated, discovered, err = uc.repo.GetDeviceStateCounts(ctx, tenantID)
+	if err != nil {
+		return 0, 0, ErrDatabase.Wrap("GetDeviceStateCounts", "uc.repo.GetDeviceStateCounts", err)
+	}
+
+	return activated, discovered, nil
+}
+
 func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSecrets bool) (*dto.Device, error) {
 	data, err := uc.repo.GetByID(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
 		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
+	}
+
+	if data == nil || data.GUID == "" {
+		return nil, ErrNotFound
+	}
+
+	d2, err := uc.entityToDTO(data)
+	if err != nil {
+		return nil, err
+	}
+
+	if includeSecrets {
+		if err := uc.decryptSecrets(d2, data); err != nil {
+			return nil, err
+		}
+	}
+
+	return d2, nil
+}
+
+// GetByGUID resolves a device without a tenant filter, for callers that
+// identify themselves by GUID alone and cannot supply one.
+func (uc *UseCase) GetByGUID(ctx context.Context, guid string, includeSecrets bool) (*dto.Device, error) {
+	data, err := uc.repo.GetByGUID(ctx, strings.ToLower(guid))
+	if err != nil {
+		return nil, ErrDatabase.Wrap("GetByGUID", "uc.repo.GetByGUID", err)
 	}
 
 	if data == nil || data.GUID == "" {

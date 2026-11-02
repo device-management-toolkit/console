@@ -131,7 +131,7 @@ func verifyDTOToEntity(t *testing.T, uc *UseCase, guid, certHash string, buildDT
 		t.Fatalf("dtoToEntity result mismatch")
 	}
 
-	if !strings.EqualFold(firstEntity.GUID, guid) {
+	if strings.Compare(firstEntity.GUID, strings.ToLower(guid)) != 0 {
 		t.Fatalf("dtoToEntity did not lowercase GUID")
 	}
 

@@ -13,6 +13,8 @@ type DeviceStatResponse struct {
 	TotalCount        int `json:"totalCount"`
 	ConnectedCount    int `json:"connectedCount"`
 	DisconnectedCount int `json:"disconnectedCount"`
+	ActivatedCount    int `json:"activatedCount"`
+	DiscoveredCount   int `json:"discoveredCount"`
 }
 type Device struct {
 	ConnectionStatus bool        `json:"connectionStatus"`
@@ -29,12 +31,22 @@ type Device struct {
 	LastDisconnected *time.Time  `json:"lastDisconnected,omitempty"`
 	DeviceInfo       *DeviceInfo `json:"deviceInfo,omitempty"`
 	Username         string      `json:"username" binding:"max=16"`
-	Password         string      `json:"password"`
-	MPSPassword      string      `json:"mpspassword"`
-	MEBXPassword     string      `json:"mebxpassword"`
+	Password         string      `json:"password,omitempty"`
+	MPSPassword      string      `json:"mpspassword,omitempty"`
+	MEBXPassword     string      `json:"mebxpassword,omitempty"`
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+}
+
+// MarshalJSON leaves the password properties out of the JSON output.
+func (d Device) MarshalJSON() ([]byte, error) {
+	type plain Device
+
+	p := plain(d)
+	p.Password, p.MPSPassword, p.MEBXPassword = "", "", ""
+
+	return json.Marshal(p)
 }
 
 type DeviceInfo struct {
@@ -58,11 +70,91 @@ type DeviceInfo struct {
 	OSName               string                     `json:"osName,omitempty"`
 	OSVersion            string                     `json:"osVersion,omitempty"`
 	OSDistro             string                     `json:"osDistro,omitempty"`
+	DNSSuffixOS          string                     `json:"dnsSuffixOS,omitempty"`
 	CPUModel             string                     `json:"cpuModel,omitempty"`
 	OSIPAddress          string                     `json:"osIpAddress,omitempty"`
 	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
 	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
 	IEEE8021XEnabled     *bool                      `json:"ieee8021xEnabled,omitempty"`
+	IsElevated           *bool                      `json:"isElevated,omitempty"`
+	HECIAvailable        *bool                      `json:"heciAvailable,omitempty"`
+	MENetwork            *MENetworkInfo             `json:"meNetwork,omitempty"`
+	OSNetwork            *OSNetworkInfo             `json:"osNetwork,omitempty"`
+	PlatformAdapters     *PlatformAdaptersInfo      `json:"platformAdapters,omitempty"`
+}
+
+type MENetworkInfo struct {
+	Wired    *MEInterfaceInfo `json:"wired,omitempty"`
+	Wireless *MEInterfaceInfo `json:"wireless,omitempty"`
+}
+
+type MEInterfaceInfo struct {
+	IPAddress   string `json:"ipAddress,omitempty"`
+	DHCPEnabled *bool  `json:"dhcpEnabled,omitempty"`
+	DHCPMode    string `json:"dhcpMode,omitempty"`
+	LinkStatus  string `json:"linkStatus,omitempty"`
+	MACAddress  string `json:"macAddress,omitempty"`
+}
+
+type OSNetworkInfo struct {
+	Wired    []OSInterfaceInfo `json:"wired,omitempty"`
+	Wireless *OSInterfaceInfo  `json:"wireless,omitempty"`
+}
+
+type OSInterfaceInfo struct {
+	Name        string `json:"name,omitempty"`
+	IPAddress   string `json:"ipAddress,omitempty"`
+	DHCPEnabled *bool  `json:"dhcpEnabled,omitempty"`
+	LinkStatus  string `json:"linkStatus,omitempty"`
+	MACAddress  string `json:"macAddress,omitempty"`
+}
+
+type PlatformAdaptersInfo struct {
+	Wired    []string `json:"wired,omitempty"`
+	Wireless []string `json:"wireless,omitempty"`
+}
+
+func (p *PlatformAdaptersInfo) UnmarshalJSON(data []byte) error {
+	var raw struct {
+		Wired    json.RawMessage `json:"wired"`
+		Wireless json.RawMessage `json:"wireless"`
+	}
+	if err := json.Unmarshal(data, &raw); err != nil {
+		return err
+	}
+
+	var err error
+
+	p.Wired, err = unmarshalAdapterNames(raw.Wired)
+	if err != nil {
+		return err
+	}
+
+	p.Wireless, err = unmarshalAdapterNames(raw.Wireless)
+
+	return err
+}
+
+func unmarshalAdapterNames(data json.RawMessage) ([]string, error) {
+	if len(data) == 0 || string(data) == "null" {
+		return nil, nil
+	}
+
+	var names []string
+	if err := json.Unmarshal(data, &names); err == nil {
+		return names, nil
+	}
+
+	var name string
+	if err := json.Unmarshal(data, &name); err != nil {
+		return nil, err
+	}
+
+	if name == "" {
+		return nil, nil
+	}
+
+	return []string{name}, nil
 }
 
 // UnmarshalJSON implements custom JSON deserialization to support backwards compatibility

@@ -6,7 +6,6 @@ import (
 	"context"
 	"crypto/tls"
 	"encoding/binary"
-	"encoding/hex"
 	"errors"
 	"fmt"
 	"net"
@@ -76,11 +75,9 @@ func (s *Server) Notify() <-chan error {
 func (s *Server) ListenAndServe() error {
 	config := &tls.Config{
 		Certificates: []tls.Certificate{s.certificates},
-		// InsecureSkipVerify is set to true because this is a TLS server accepting
-		// client connections from AMT devices. The server does not need to verify
-		// its own certificate. Client authentication is handled at the APF protocol level.
-		InsecureSkipVerify: true, //nolint:gosec // Server-side TLS config, not a client connection
-		MinVersion:         tls.VersionTLS12,
+		// No ClientAuth/ClientCAs: client certificates are never requested from AMT
+		// devices — device authentication happens at the APF USERAUTH layer instead.
+		MinVersion: tls.VersionTLS12,
 	}
 
 	defaultCipherSuites := tls.CipherSuites()
@@ -90,7 +87,8 @@ func (s *Server) ListenAndServe() error {
 		config.CipherSuites = append(config.CipherSuites, suite.ID)
 	}
 	// add the weak cipher suites for AMT device compatibility
-	config.CipherSuites = append(config.CipherSuites,
+	config.CipherSuites = append(
+		config.CipherSuites,
 		tls.TLS_RSA_WITH_AES_128_GCM_SHA256,
 		tls.TLS_RSA_WITH_AES_128_CBC_SHA,
 		tls.TLS_RSA_WITH_AES_256_CBC_SHA,
@@ -256,7 +254,7 @@ func (ctx *connectionContext) readData() ([]byte, error) {
 	}
 
 	data := buf[:n]
-	ctx.log.Debug("Received data from %s: %s", ctx.handler.DeviceID(), hex.EncodeToString(data))
+	ctx.log.Debug("Received data from device", "device_id", ctx.handler.DeviceID(), "bytes_received", len(data))
 
 	return data, nil
 }
@@ -306,7 +304,7 @@ func (ctx *connectionContext) registerDevice() {
 		ctx.log.Error("Failed to update connection status for device %s: %v", deviceID, err)
 	}
 
-	ctx.log.Info("Device authenticated and registered: %s", deviceID)
+	ctx.log.Info("Device authenticated and registered", "device_id", deviceID)
 }
 
 func (ctx *connectionContext) writeResponse(response bytes.Buffer) error {
@@ -489,6 +487,7 @@ func (ctx *connectionContext) handleChannelClose(data []byte) bool {
 		return false
 	}
 
+	ctx.log.Info("AMT closed APF channel", "device_id", ctx.handler.DeviceID(), "channel_id", ourChannel)
 	ctx.device.UnregisterAPFChannel(ourChannel)
 
 	return true

@@ -112,7 +112,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: []dto.WirelessProfileResponse{{
 				ProfileName:          "Corp",
@@ -151,7 +151,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: []dto.WirelessProfileResponse{{
 				ProfileName:          "Corp",
@@ -192,7 +192,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			res: []dto.WirelessProfileResponse{{
 				ProfileName:          "CorpEAP2",
@@ -211,7 +211,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 			name:    "GetByID fails",
 			manMock: nil,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, ErrGeneral)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(nil, ErrGeneral)
 			},
 			res: nil,
 			err: devices.ErrGeneral,
@@ -220,7 +220,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 			name:    "device not found",
 			manMock: nil,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(nil, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(nil, nil)
 			},
 			res: nil,
 			err: devices.ErrNotFound,
@@ -305,7 +305,7 @@ func TestGetWirelessProfiles(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			res, err := useCase.GetWirelessProfiles(context.Background(), device.GUID)
+			res, err := useCase.GetWirelessProfiles(context.Background(), device.GUID, device.TenantID)
 			require.Equal(t, tc.res, res)
 
 			if tc.err != nil {
@@ -472,7 +472,7 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 				)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(gomock.Any(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(gomock.Any(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			err: context.Canceled,
 		},
@@ -484,7 +484,7 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 			},
 			portMock: expectWiFiPortAbsent,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().GetByID(context.Background(), device.GUID, "").Return(device, nil)
+				repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
 			},
 			err: wsman.ErrNoWiFiPort,
 		},
@@ -516,7 +516,7 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 				ctx = context.Background()
 			}
 
-			err := useCase.AddWirelessProfile(ctx, device.GUID, tc.profile)
+			err := useCase.AddWirelessProfile(ctx, device.GUID, device.TenantID, tc.profile)
 			if tc.err != nil {
 				require.Error(t, err)
 
@@ -527,6 +527,105 @@ func TestAddWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven co
 				}
 
 				require.IsType(t, tc.err, err)
+
+				return
+			}
+
+			require.NoError(t, err)
+		})
+	}
+}
+
+// wirelessProfileSettings returns count user-defined profiles with priorities
+// starting at 2, so they do not clash with a request that uses priority 1.
+func wirelessProfileSettings(count int) []wifi.WiFiEndpointSettingsResponse {
+	settings := make([]wifi.WiFiEndpointSettingsResponse, 0, count)
+
+	for i := 0; i < count; i++ {
+		name := fmt.Sprintf("Profile%d", i)
+		settings = append(settings, wifi.WiFiEndpointSettingsResponse{
+			InstanceID:  "Intel(r) AMT:WiFi Endpoint Settings " + name,
+			ElementName: name,
+			Priority:    i + 2,
+		})
+	}
+
+	return settings
+}
+
+func TestAddWirelessProfileLimit(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "device-guid-123"}
+	profile := config.WirelessProfile{
+		ProfileName:          "Home",
+		SSID:                 "HomeSSID",
+		Priority:             1,
+		Password:             "password",
+		AuthenticationMethod: "WPA2PSK",
+		EncryptionMethod:     "CCMP",
+	}
+	userSettings := wifi.WiFiEndpointSettingsResponse{InstanceID: "Intel(r) AMT:WiFi Endpoint User Settings 1", ElementName: "User", Priority: 1}
+
+	tests := []struct {
+		name      string
+		profile   config.WirelessProfile
+		settings  []wifi.WiFiEndpointSettingsResponse
+		expectAdd bool
+		wantErrIs error
+	}{
+		{
+			name:      "one below the limit is added",
+			profile:   profile,
+			settings:  wirelessProfileSettings(devices.MaxWirelessProfiles - 1),
+			expectAdd: true,
+		},
+		{
+			name:      "user settings entries do not count toward the limit",
+			profile:   config.WirelessProfile{ProfileName: "Home", SSID: "HomeSSID", Priority: 20, Password: "password", AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP"},
+			settings:  append(wirelessProfileSettings(devices.MaxWirelessProfiles-1), userSettings),
+			expectAdd: true,
+		},
+		{
+			name:      "at the limit is rejected",
+			profile:   profile,
+			settings:  wirelessProfileSettings(devices.MaxWirelessProfiles),
+			wantErrIs: devices.ErrWirelessProfileLimitReached,
+		},
+		{
+			name: "at the limit is rejected before 802.1x certificates are added",
+			profile: config.WirelessProfile{
+				ProfileName:          "Corp",
+				SSID:                 "CorpSSID",
+				Priority:             1,
+				AuthenticationMethod: "WPA2IEEE8021x",
+				EncryptionMethod:     "CCMP",
+				IEEE8021x:            &config.IEEE8021x{PrivateKey: "new-private"},
+			},
+			settings:  wirelessProfileSettings(devices.MaxWirelessProfiles),
+			wantErrIs: devices.ErrWirelessProfileLimitReached,
+		},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initWiFiProfileTest(t)
+
+			repo.EXPECT().GetByID(context.Background(), device.GUID, device.TenantID).Return(device, nil)
+			wsmanMock.EXPECT().SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).Return(management, nil)
+			expectWiFiPortPresent(management)
+			management.EXPECT().GetWiFiSettings().Return(tc.settings, nil)
+
+			if tc.expectAdd {
+				management.EXPECT().AddWiFiSettings(expectedWiFiRequest(tc.profile), models.IEEE8021xSettings{}, testWiFiEndpoint, "", "").Return(wifiportconfiguration.Response{}, nil)
+			}
+
+			err := useCase.AddWirelessProfile(context.Background(), device.GUID, device.TenantID, tc.profile)
+			if tc.wantErrIs != nil {
+				require.ErrorIs(t, err, tc.wantErrIs)
 
 				return
 			}
@@ -620,7 +719,7 @@ func TestDeleteWirelessProfile(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			err := useCase.DeleteWirelessProfile(context.Background(), device.GUID, "Home")
+			err := useCase.DeleteWirelessProfile(context.Background(), device.GUID, "Home", device.TenantID)
 			if tc.err != nil {
 				require.Error(t, err)
 				require.IsType(t, tc.err, err)
@@ -954,7 +1053,7 @@ func TestUpdateWirelessProfile(t *testing.T) { //nolint:gocognit // table-driven
 				ctx = context.Background()
 			}
 
-			err := useCase.UpdateWirelessProfile(ctx, device.GUID, tc.request)
+			err := useCase.UpdateWirelessProfile(ctx, device.GUID, device.TenantID, tc.request)
 			if tc.err != nil {
 				require.Error(t, err)
 
@@ -1145,7 +1244,7 @@ func TestAddWirelessProfileIEEE8021xCertificateHandling(t *testing.T) {
 				tc.repoMock(repo)
 			}
 
-			err := useCase.AddWirelessProfile(context.Background(), device.GUID, tc.profile)
+			err := useCase.AddWirelessProfile(context.Background(), device.GUID, device.TenantID, tc.profile)
 			if tc.err != nil {
 				require.Error(t, err)
 				require.IsType(t, tc.err, err)

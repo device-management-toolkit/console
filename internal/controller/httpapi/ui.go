@@ -4,6 +4,7 @@ package httpapi
 
 import (
 	"embed"
+	"fmt"
 	"io/fs"
 	"log"
 	"net"
@@ -48,7 +49,6 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 	handler.StaticFile("/main.js", modifiedMainJS)
 
 	handler.StaticFileFS("/polyfills.js", "./polyfills.js", http.FS(staticFiles))
-	handler.StaticFileFS("/media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", "./media/kJEhBvYX7BgnkSrUwT8OhrdQw4oELdPIeeII9v6oFsI.woff2", http.FS(staticFiles))
 	handler.StaticFileFS("/runtime.js", "./runtime.js", http.FS(staticFiles))
 	handler.StaticFileFS("/styles.css", "./styles.css", http.FS(staticFiles))
 	handler.StaticFileFS("/vendor.js", "./vendor.js", http.FS(staticFiles))
@@ -64,6 +64,10 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 
 	handler.StaticFS("/assets/monaco", http.FS(monacoFS))
 
+	if err := serveMedia(handler, staticFiles); err != nil {
+		l.Fatal(err)
+	}
+
 	langs := []string{"en", "fr", "de", "ar", "es", "fi", "he", "it", "ja", "nl", "ru", "sv"}
 	for _, lang := range langs {
 		relativePath := "/assets/i18n/" + lang + ".json"
@@ -71,17 +75,35 @@ func setupUIRoutes(handler *gin.Engine, l logger.Interface, cfg *config.Config) 
 		handler.StaticFileFS(relativePath, filePath, http.FS(staticFiles))
 	}
 
-	// SPA fallback for unmatched routes. Skip /assets/ so a missing static
-	// file 404s instead of silently returning the HTML shell.
-	handler.NoRoute(func(c *gin.Context) {
-		if strings.HasPrefix(c.Request.URL.Path, "/assets/") {
+	handler.NoRoute(spaFallback(staticFiles))
+}
+
+// serveMedia serves the whole media subtree; the UI build emits every file its
+// stylesheets reference there.
+func serveMedia(handler *gin.Engine, staticFiles fs.FS) error {
+	mediaFS, err := fs.Sub(staticFiles, "media")
+	if err != nil {
+		return fmt.Errorf("httpapi.serveMedia: %w", err)
+	}
+
+	handler.StaticFS("/media", http.FS(mediaFS))
+
+	return nil
+}
+
+// spaFallback serves the HTML shell for unmatched routes. It skips /assets/ and
+// /media/ so a missing static file 404s instead of silently returning the shell.
+func spaFallback(staticFiles fs.FS) gin.HandlerFunc {
+	return func(c *gin.Context) {
+		path := c.Request.URL.Path
+		if strings.HasPrefix(path, "/assets/") || strings.HasPrefix(path, "/media/") {
 			c.Status(http.StatusNotFound)
 
 			return
 		}
 
 		c.FileFromFS("./", http.FS(staticFiles))
-	})
+	}
 }
 
 func injectConfigToMainJS(l logger.Interface, cfg *config.Config) string {

@@ -67,6 +67,74 @@ func TestDeviceRepo_GetByID_NotFound(t *testing.T) {
 	require.Nil(t, got)
 }
 
+func TestDeviceRepo_GetByGUID_FoundInNonDefaultTenant(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{
+			{Key: "guid", Value: "g1"},
+			{Key: "friendlyname", Value: "lab-host-1"},
+			{Key: "tenantid", Value: "acme-corp"},
+		},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "g1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "g1", got.GUID)
+	require.Equal(t, "acme-corp", got.TenantID)
+}
+
+func TestDeviceRepo_GetByGUID_NotFound(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse("testdb." + mongo.CollectionDevices))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "ghost")
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
+func TestDeviceRepo_GetByGUID_AmbiguousAcrossTenantsReturnsNotUniqueError(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "tenantid", Value: "tenant-a"}},
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "tenantid", Value: "tenant-b"}},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "g1")
+	require.Nil(t, got)
+
+	var notUnique repoerrors.NotUniqueError
+	require.ErrorAs(t, err, &notUnique)
+}
+
+func TestDeviceRepo_GetByGUID_RejectsMalformedGUID(t *testing.T) {
+	t.Parallel()
+
+	db, _ := newMockedDB(t)
+
+	repo := mongo.NewDeviceRepo(db)
+
+	got, err := repo.GetByGUID(context.Background(), "bad guid")
+	require.NoError(t, err)
+	require.Nil(t, got)
+}
+
 func TestDeviceRepo_Get(t *testing.T) {
 	t.Parallel()
 
@@ -83,6 +151,73 @@ func TestDeviceRepo_Get(t *testing.T) {
 	rows, err := repo.Get(context.Background(), 10, 0, "t1")
 	require.NoError(t, err)
 	require.Len(t, rows, 2)
+}
+
+func TestDeviceRepo_GetActivated(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{{Key: "guid", Value: "g1"}, {Key: "currentmode", Value: "admin control mode"}, {Key: "tenantid", Value: "t1"}},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	rows, err := repo.GetActivated(context.Background(), 10, 0, "t1")
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "g1", rows[0].GUID)
+}
+
+func TestDeviceRepo_GetDiscovered(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	md.AddResponses(findResponse(
+		"testdb."+mongo.CollectionDevices,
+		bson.D{{Key: "guid", Value: "g2"}, {Key: "currentmode", Value: "not activated"}, {Key: "discovered", Value: true}, {Key: "tenantid", Value: "t1"}},
+	))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	rows, err := repo.GetDiscovered(context.Background(), 10, 0, "t1")
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, "g2", rows[0].GUID)
+}
+
+func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+
+	// Two CountDocuments calls: activated first, then discovered.
+	md.AddResponses(
+		findResponse("testdb."+mongo.CollectionDevices, bson.D{{Key: "n", Value: int64(3)}}),
+		findResponse("testdb."+mongo.CollectionDevices, bson.D{{Key: "n", Value: int64(1)}}),
+	)
+
+	repo := mongo.NewDeviceRepo(db)
+
+	activated, discovered, err := repo.GetDeviceStateCounts(context.Background(), "t1")
+	require.NoError(t, err)
+	require.Equal(t, 3, activated)
+	require.Equal(t, 1, discovered)
+}
+
+func TestDeviceRepo_GetActivated_InvalidTenant(t *testing.T) {
+	t.Parallel()
+
+	db, _ := newMockedDB(t)
+
+	repo := mongo.NewDeviceRepo(db)
+
+	rows, err := repo.GetActivated(context.Background(), 10, 0, "bad tenant!")
+	require.NoError(t, err)
+	require.Empty(t, rows)
 }
 
 // GetDistinctTags issues the `distinct` command, then de-duplicates and

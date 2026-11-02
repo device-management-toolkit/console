@@ -62,7 +62,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: []dto.AlarmClockOccurrence{},
@@ -73,7 +73,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			action: 0,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: []dto.AlarmClockOccurrence(nil),
@@ -92,7 +92,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: []dto.AlarmClockOccurrence(nil),
@@ -111,7 +111,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: []dto.AlarmClockOccurrence{},
@@ -133,7 +133,7 @@ func TestGetAlarmOccurrences(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetAlarmOccurrences(context.Background(), device.GUID)
+			res, err := useCase.GetAlarmOccurrences(context.Background(), device.GUID, device.TenantID)
 
 			assert.Equal(t, tc.res, res)
 
@@ -184,7 +184,7 @@ func TestCreateAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.AddAlarmOutput{},
@@ -195,7 +195,7 @@ func TestCreateAlarmOccurrences(t *testing.T) {
 			action: 0,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.AddAlarmOutput{},
@@ -214,7 +214,7 @@ func TestCreateAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.AddAlarmOutput{},
@@ -236,7 +236,7 @@ func TestCreateAlarmOccurrences(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.CreateAlarmOccurrences(context.Background(), device.GUID, occ)
+			res, err := useCase.CreateAlarmOccurrences(context.Background(), device.GUID, device.TenantID, occ)
 
 			require.Equal(t, tc.res, res)
 
@@ -275,7 +275,7 @@ func TestDeleteAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -285,7 +285,7 @@ func TestDeleteAlarmOccurrences(t *testing.T) {
 			action: 0,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			err: ErrGeneral,
@@ -303,7 +303,7 @@ func TestDeleteAlarmOccurrences(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -324,7 +324,7 @@ func TestDeleteAlarmOccurrences(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			err := useCase.DeleteAlarmOccurrences(context.Background(), device.GUID, "")
+			err := useCase.DeleteAlarmOccurrences(context.Background(), device.GUID, "", device.TenantID)
 
 			if tc.err != nil {
 				assert.Equal(t, tc.err, err)

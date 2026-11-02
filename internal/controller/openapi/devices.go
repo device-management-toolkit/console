@@ -16,10 +16,26 @@ func (f *FuegoAdapter) RegisterDeviceRoutes() {
 	f.registerDeviceQueryRoutes()
 	f.registerDeviceCertificateRoutes()
 	f.registerDeviceMutationRoutes()
+	f.registerDeviceExportRoutes()
+}
+
+func (f *FuegoAdapter) registerDeviceExportRoutes() {
+	fuego.Get(
+		f.server, "/api/v1/devices/export", f.exportDevices,
+		fuego.OptionTags("Devices"),
+		fuego.OptionSummary("Export Devices"),
+		fuego.OptionDescription("Export a tenant-scoped snapshot of all devices as JSON. "+
+			"The response follows the nested schema (metadata, summary, data) and "+
+			"excludes credential fields. Results are capped and the total record count is "+
+			"returned in the response body's summary.totalCount."),
+		fuego.OptionAddResponse(http.StatusServiceUnavailable, "Export generation failed or timed out", fuego.Response{Type: ErrorResponse{}}),
+		protectedRouteOptions(),
+	)
 }
 
 func (f *FuegoAdapter) registerDeviceAuthRoutes() {
-	fuego.Post(f.server, "/api/v1/authorize", f.login,
+	fuego.Post(
+		f.server, "/api/v1/authorize", f.login,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize"),
 		fuego.OptionDescription("Authenticate and return an access token.\n\n"+
@@ -27,11 +43,14 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 			"set as an HttpOnly session cookie so browsers need not store it. The cookie is "+
 			"named `"+config.DefaultSessionCookieName+"` unless the deployment overrides "+
 			"`auth.cookieName`, and is not issued at all when cookie auth is disabled or "+
-			"OIDC is configured."),
+			"OIDC is configured.\n\n"+
+			"When `auth.disabled` is true, any credentials are accepted, `token` is an empty "+
+			"string, and no cookie is set."),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
 	)
 
-	fuego.Post(f.server, "/api/v1/authorize/logout", f.logout,
+	fuego.Post(
+		f.server, "/api/v1/authorize/logout", f.logout,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Logout"),
 		fuego.OptionDescription("Expire the session cookie.\n\n"+
@@ -39,17 +58,20 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 			"the JWT is stateless and stays valid until it expires."),
 	)
 
-	fuego.Get(f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
+	fuego.Get(
+		f.server, "/api/v1/authorize/redirection/{id}", f.loginRedirection,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Authorize Redirection"),
-		fuego.OptionDescription("Generate an authorization token for device redirection"),
+		fuego.OptionDescription("Generate an authorization token for device redirection.\n\n"+
+			"When `auth.disabled` is true, `token` is the unsigned placeholder `direct`."),
 		fuego.OptionPath("id", "Device ID"),
 		protectedRouteOptions(),
 	)
 }
 
 func (f *FuegoAdapter) registerDeviceQueryRoutes() {
-	fuego.Get(f.server, "/api/v1/devices", f.getDevices,
+	fuego.Get(
+		f.server, "/api/v1/devices", f.getDevices,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("List Devices"),
 		fuego.OptionDescription("Retrieve all devices with optional pagination and filtering"),
@@ -60,17 +82,21 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		fuego.OptionQuery("method", "Method to filter tags (any/all)"),
 		fuego.OptionQuery("hostname", "Filter devices by host name"),
 		fuego.OptionQuery("friendlyName", "Filter devices by friendly name"),
+		fuego.OptionQueryBool("activated", "Return devices activated into client or admin control mode"),
+		fuego.OptionQueryBool("discovered", "Return devices discovered on the network but not yet activated"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/devices/stats", f.getDeviceStats,
+	fuego.Get(
+		f.server, "/api/v1/devices/stats", f.getDeviceStats,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device Statistics"),
 		fuego.OptionDescription("Retrieve statistics for devices"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/devices/redirectstatus/{guid}", f.getRedirectStatus,
+	fuego.Get(
+		f.server, "/api/v1/devices/redirectstatus/{guid}", f.getRedirectStatus,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Redirect Status"),
 		fuego.OptionDescription("Retrieve redirect status for a specific device"),
@@ -78,7 +104,8 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/devices/{guid}", f.getDeviceByID,
+	fuego.Get(
+		f.server, "/api/v1/devices/{guid}", f.getDeviceByID,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device by ID"),
 		fuego.OptionDescription("Retrieve a specific device by ID"),
@@ -86,7 +113,8 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/devices/tags", f.getTags,
+	fuego.Get(
+		f.server, "/api/v1/devices/tags", f.getTags,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Available Device Tags"),
 		fuego.OptionDescription("Retrieve a list of all available device tags"),
@@ -95,7 +123,8 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 }
 
 func (f *FuegoAdapter) registerDeviceCertificateRoutes() {
-	fuego.Get(f.server, "/api/v1/devices/cert/{guid}", f.getDeviceCertificate,
+	fuego.Get(
+		f.server, "/api/v1/devices/cert/{guid}", f.getDeviceCertificate,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Get Device Certificate"),
 		fuego.OptionDescription("Retrieve the certificate for a specific device"),
@@ -103,7 +132,8 @@ func (f *FuegoAdapter) registerDeviceCertificateRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/devices/cert/{guid}", f.pinDeviceCertificate,
+	fuego.Post(
+		f.server, "/api/v1/devices/cert/{guid}", f.pinDeviceCertificate,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Pin Device Certificate"),
 		fuego.OptionDescription("Pin the certificate for a specific device"),
@@ -111,7 +141,8 @@ func (f *FuegoAdapter) registerDeviceCertificateRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/devices/cert/{guid}", f.deleteDeviceCertificate,
+	fuego.Delete(
+		f.server, "/api/v1/devices/cert/{guid}", f.deleteDeviceCertificate,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Delete Device Certificate"),
 		fuego.OptionDescription("Delete the pinned certificate for a specific device"),
@@ -121,7 +152,8 @@ func (f *FuegoAdapter) registerDeviceCertificateRoutes() {
 }
 
 func (f *FuegoAdapter) registerDeviceMutationRoutes() {
-	fuego.Post(f.server, "/api/v1/devices", f.createDevice,
+	fuego.Post(
+		f.server, "/api/v1/devices", f.createDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
 		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true."),
@@ -129,14 +161,16 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/devices", f.updateDevice,
+	fuego.Patch(
+		f.server, "/api/v1/devices", f.updateDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Update Device"),
 		fuego.OptionDescription("Update an existing device"),
 		protectedRouteOptions(),
 	)
 
-	fuego.Delete(f.server, "/api/v1/devices/{guid}", f.deleteDevice,
+	fuego.Delete(
+		f.server, "/api/v1/devices/{guid}", f.deleteDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Delete Device"),
 		fuego.OptionDescription("Delete a device by ID"),
@@ -178,7 +212,6 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			GUID:             exampleDeviceGUID,
 			MPSUsername:      "mpsuser1",
 			Username:         "admin1",
-			Password:         "password1",
 			ConnectionStatus: true,
 			Hostname:         exampleDeviceHost,
 			DeviceInfo:       exampleDeviceInfo(),
@@ -187,7 +220,6 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			GUID:             "example-guid-2",
 			MPSUsername:      "mpsuser2",
 			Username:         "admin2",
-			Password:         "password2",
 			ConnectionStatus: false,
 			Hostname:         "device2.example.com",
 			DeviceInfo:       exampleDeviceInfo(),
@@ -205,6 +237,86 @@ func (f *FuegoAdapter) getDeviceStats(_ fuego.ContextNoBody) (dto.DeviceStatResp
 		TotalCount:        5,
 		ConnectedCount:    3,
 		DisconnectedCount: 2,
+		ActivatedCount:    4,
+		DiscoveredCount:   1,
+	}, nil
+}
+
+func exampleDeviceExportRecord() dto.DeviceExportRecord {
+	firstDiscovered := time.Date(2025, 6, 15, 10, 30, 0, 0, time.UTC)
+	lastSynced := time.Date(2026, 7, 20, 14, 22, 15, 0, time.UTC)
+	mebxEnabled := true
+	dhcpEnabled := true
+	lmsInstalled := true
+	monitorConnected := true
+	ieee8021xEnabled := false
+	isElevated := true
+	heciAvailable := true
+	ethernetAdapterCount := 2
+
+	return dto.DeviceExportRecord{
+		GUID:            exampleDeviceGUID,
+		Hostname:        exampleDeviceHost,
+		FriendlyName:    "Lab PC Alpha",
+		Tags:            []string{"campus-lab", "shared-device"},
+		TenantID:        defaultTenantID,
+		FirstDiscovered: &firstDiscovered,
+		LastSynced:      &lastSynced,
+		DeviceInfo: dto.DeviceExportInfo{
+			ME: &dto.ExportME{
+				DNSSuffix:         "corp.example.com",
+				CurrentMode:       "Admin",
+				MEBXEnabledInBIOS: &mebxEnabled,
+				FWVersion:         "16.1.32",
+				FWBuild:           "3400",
+				FWSku:             "16392",
+				Features:          "AMT Pro Corporate",
+				TLSMode:           "TLS 1.2",
+				DHCPEnabled:       &dhcpEnabled,
+				CertHashes:        []string{"a1b2c3xxx", "d4e5f6xxx"},
+				UPID: map[string]json.RawMessage{
+					"csmeId":            json.RawMessage(`"4A45A39C5ED9462082510000"`),
+					"oemId":             json.RawMessage(`""`),
+					"oemPlatformIdType": json.RawMessage(`"Not Set (0)"`),
+				},
+				HECIAvailable: &heciAvailable,
+				Network: &dto.ExportMENetwork{
+					Wired: &dto.ExportMEInterface{IPAddress: "10.0.0.12", DHCPEnabled: &dhcpEnabled},
+				},
+			},
+			OS: &dto.ExportOS{
+				Name:               "linux",
+				Version:            "6.8.0-51-generic",
+				Distro:             "Ubuntu 24.04 LTS",
+				LMSInstalled:       &lmsInstalled,
+				LMSVersion:         "2410.5.0.0",
+				MEInterfaceVersion: "16.1.25.2124",
+				MonitorConnected:   &monitorConnected,
+				IEEE8021XEnabled:   &ieee8021xEnabled,
+				IsElevated:         &isElevated,
+				Network: &dto.ExportOSNetwork{
+					Wired: []dto.ExportOSInterface{{IPAddress: "10.49.76.163"}},
+				},
+			},
+			Platform: &dto.ExportPlatform{
+				CPU:                  "Intel(R) Core(TM) Ultra 7 165H",
+				EthernetAdapterCount: &ethernetAdapterCount,
+			},
+			BMC: nil,
+		},
+	}
+}
+
+func (f *FuegoAdapter) exportDevices(_ fuego.ContextNoBody) (dto.DeviceExport, error) {
+	records := []dto.DeviceExportRecord{exampleDeviceExportRecord()}
+
+	return dto.DeviceExport{
+		Metadata: dto.ExportMetadata{
+			ExportedAt: time.Now().UTC(),
+			SwVersion:  "console v1.38.1",
+		},
+		Summary: dto.ExportSummary{TotalCount: len(records)},
+		Data:    records,
 	}, nil
 }
 
@@ -254,7 +366,6 @@ func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) 
 		GUID:             exampleDeviceGUID,
 		MPSUsername:      "mpsuser1",
 		Username:         "admin1",
-		Password:         "password1",
 		ConnectionStatus: true,
 		Hostname:         exampleDeviceHost,
 		DeviceInfo:       exampleDeviceInfo(),
@@ -270,6 +381,8 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 	ethernetAdapterCount := 2
 	monitorConnected := true
 	ieee8021xEnabled := false
+	isElevated := true
+	heciAvailable := true
 
 	return &dto.DeviceInfo{
 		FWVersion:            "16.1.30",
@@ -296,6 +409,8 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 		EthernetAdapterCount: &ethernetAdapterCount,
 		MonitorConnected:     &monitorConnected,
 		IEEE8021XEnabled:     &ieee8021xEnabled,
+		IsElevated:           &isElevated,
+		HECIAvailable:        &heciAvailable,
 	}
 }
 

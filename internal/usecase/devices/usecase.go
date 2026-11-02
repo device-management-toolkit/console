@@ -78,6 +78,8 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 
 	tags := strings.Join(d.Tags, ",")
 
+	syncDiscoveryState(d.DeviceInfo)
+
 	deviceInfo, err := marshalDeviceInfo(d.DeviceInfo)
 	if err != nil {
 		return nil, ErrDeviceUseCase.Wrap("dtoToEntity", "marshalDeviceInfo", err)
@@ -101,6 +103,12 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		Password:         d.Password,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+	}
+
+	// Sync the queryable mirror columns from the deviceinfo blob (source of truth).
+	if d.DeviceInfo != nil {
+		d1.CurrentMode = d.DeviceInfo.CurrentMode
+		d1.Discovered = d.DeviceInfo.Discovered
 	}
 
 	d1.Password, err = uc.safeRequirements.Encrypt(d1.Password)
@@ -184,11 +192,17 @@ var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
 	"osname":               func(dst, src *dto.DeviceInfo) { dst.OSName = src.OSName },
 	"osversion":            func(dst, src *dto.DeviceInfo) { dst.OSVersion = src.OSVersion },
 	"osdistro":             func(dst, src *dto.DeviceInfo) { dst.OSDistro = src.OSDistro },
+	"dnssuffixos":          func(dst, src *dto.DeviceInfo) { dst.DNSSuffixOS = src.DNSSuffixOS },
 	"cpumodel":             func(dst, src *dto.DeviceInfo) { dst.CPUModel = src.CPUModel },
 	"osipaddress":          func(dst, src *dto.DeviceInfo) { dst.OSIPAddress = src.OSIPAddress },
 	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
 	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
 	"ieee8021xenabled":     func(dst, src *dto.DeviceInfo) { dst.IEEE8021XEnabled = src.IEEE8021XEnabled },
+	"iselevated":           func(dst, src *dto.DeviceInfo) { dst.IsElevated = src.IsElevated },
+	"heciavailable":        func(dst, src *dto.DeviceInfo) { dst.HECIAvailable = src.HECIAvailable },
+	"menetwork":            func(dst, src *dto.DeviceInfo) { dst.MENetwork = src.MENetwork },
+	"osnetwork":            func(dst, src *dto.DeviceInfo) { dst.OSNetwork = src.OSNetwork },
+	"platformadapters":     func(dst, src *dto.DeviceInfo) { dst.PlatformAdapters = src.PlatformAdapters },
 }
 
 // firstDiscovered and discovered are set once at initial discovery and are immutable
@@ -202,6 +216,24 @@ func setFirstDiscoveredOnce(dst, src *dto.DeviceInfo) {
 func setDiscoveredOnce(dst, src *dto.DeviceInfo) {
 	if dst.Discovered == nil {
 		dst.Discovered = src.Discovered
+	}
+}
+
+// syncDiscoveryState only fills in a default Discovered value when the caller
+// didn't explicitly provide one; an explicit value (e.g. from a later info
+// sync) is preserved as-is rather than re-derived from CurrentMode.
+func syncDiscoveryState(info *dto.DeviceInfo) {
+	if info == nil || info.Discovered != nil {
+		return
+	}
+
+	switch strings.ToLower(strings.TrimSpace(info.CurrentMode)) {
+	case "not activated":
+		discovered := true
+		info.Discovered = &discovered
+	case "admin", "admin control mode", "client", "client control mode":
+		discovered := false
+		info.Discovered = &discovered
 	}
 }
 

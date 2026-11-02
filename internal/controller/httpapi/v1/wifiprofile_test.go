@@ -8,14 +8,22 @@ import (
 	"net/http/httptest"
 	"testing"
 
+	"github.com/gin-gonic/gin/binding"
+	"github.com/go-playground/validator/v10"
 	"github.com/stretchr/testify/require"
+	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
 
 	dto "github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 )
+
+// ginBindValidator keeps gin's default validator. Package variables are set
+// before init() runs, so this is read before domains_test.go disables it.
+var ginBindValidator = binding.Validator
 
 type wiFiProfileRouteTest struct {
 	name         string
@@ -54,7 +62,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodGet,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid").Return(expectedProfiles, nil)
+				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid", "").Return(expectedProfiles, nil)
 			},
 			response:     expectedProfiles,
 			expectedCode: http.StatusOK,
@@ -64,7 +72,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodGet,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid").Return(nil, ErrGeneral)
+				feature.EXPECT().GetWirelessProfiles(context.Background(), "device-guid", "").Return(nil, ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -74,7 +82,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", request).Return(nil)
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -91,7 +99,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", request).Return(ErrGeneral)
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -101,9 +109,19 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", request).Return(wsman.ErrNoWiFiPort)
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(wsman.ErrNoWiFiPort)
 			},
 			expectedCode: http.StatusNotFound,
+		},
+		{
+			name:        "add wireless profile - profile limit reached",
+			method:      http.MethodPost,
+			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
+			requestBody: request,
+			mock: func(feature *mocks.MockDeviceManagementFeature) {
+				feature.EXPECT().AddWirelessProfile(context.Background(), "device-guid", "", request).Return(devices.ErrWirelessProfileLimitReached)
+			},
+			expectedCode: http.StatusConflict,
 		},
 		{
 			name:        "update wireless profile",
@@ -111,7 +129,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", request).Return(nil)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", request).Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -121,7 +139,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: config.WirelessProfile{ProfileName: "guest", SSID: "CorpNet", Priority: 1, AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP", Password: "password123"},
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", config.WirelessProfile{ProfileName: "guest", SSID: "CorpNet", Priority: 1, AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP", Password: "password123"}).Return(nil)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", config.WirelessProfile{ProfileName: "guest", SSID: "CorpNet", Priority: 1, AuthenticationMethod: "WPA2PSK", EncryptionMethod: "CCMP", Password: "password123"}).Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -138,7 +156,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", request).Return(ErrGeneral)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", request).Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -148,7 +166,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			url:         "/api/v1/amt/networkSettings/wireless/profile/device-guid",
 			requestBody: request,
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", request).Return(wsman.ErrNoWiFiPort)
+				feature.EXPECT().UpdateWirelessProfile(context.Background(), "device-guid", "", request).Return(wsman.ErrNoWiFiPort)
 			},
 			expectedCode: http.StatusNotFound,
 		},
@@ -157,7 +175,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodDelete,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid/office",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office").Return(nil)
+				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office", "").Return(nil)
 			},
 			expectedCode: http.StatusNoContent,
 		},
@@ -166,7 +184,7 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			method: http.MethodDelete,
 			url:    "/api/v1/amt/networkSettings/wireless/profile/device-guid/office",
 			mock: func(feature *mocks.MockDeviceManagementFeature) {
-				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office").Return(ErrGeneral)
+				feature.EXPECT().DeleteWirelessProfile(context.Background(), "device-guid", "office", "").Return(ErrGeneral)
 			},
 			expectedCode: http.StatusInternalServerError,
 		},
@@ -222,6 +240,99 @@ func TestWiFiProfileRoutes(t *testing.T) { //nolint:gocognit // table-driven HTT
 			if tc.expectedCode == http.StatusNoContent {
 				require.Empty(t, w.Body.String())
 			}
+		})
+	}
+}
+
+// The other v1 route tests run with gin bind validation disabled. This test
+// turns it on for its own run, so it must not run in parallel with them.
+//
+//nolint:paralleltest // mutates the global gin binding.Validator
+func TestWiFiProfileRoutesValidation(t *testing.T) {
+	v, ok := ginBindValidator.Engine().(*validator.Validate)
+	require.True(t, ok)
+	require.NoError(t, v.RegisterValidation("wirelessprofile", dto.ValidateWirelessProfile))
+
+	binding.Validator = ginBindValidator
+
+	t.Cleanup(func() { binding.Validator = nil })
+
+	url := "/api/v1/amt/networkSettings/wireless/profile/device-guid"
+	peapMissingUsername := config.WirelessProfile{
+		ProfileName:          "OfficeEAP",
+		SSID:                 "CorpNet",
+		Priority:             1,
+		AuthenticationMethod: "WPA2IEEE8021x",
+		EncryptionMethod:     "CCMP",
+		IEEE8021x:            &config.IEEE8021x{AuthenticationProtocol: 2, Password: "password123"},
+	}
+
+	peapMissingPassword := peapMissingUsername
+	peapMissingPassword.IEEE8021x = &config.IEEE8021x{AuthenticationProtocol: 2, Username: "user"}
+
+	peapWithUsername := peapMissingUsername
+	peapWithUsername.IEEE8021x = &config.IEEE8021x{AuthenticationProtocol: 2, Username: "user", Password: "password123"}
+
+	tests := []wiFiProfileRouteTest{
+		{
+			name:         "add wireless profile - ieee8021x peap missing password",
+			method:       http.MethodPost,
+			url:          url,
+			requestBody:  peapMissingPassword,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "update wireless profile - ieee8021x peap missing password",
+			method:       http.MethodPatch,
+			url:          url,
+			requestBody:  peapMissingPassword,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "add wireless profile - ieee8021x peap missing username",
+			method:       http.MethodPost,
+			url:          url,
+			requestBody:  peapMissingUsername,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:         "update wireless profile - ieee8021x peap missing username",
+			method:       http.MethodPatch,
+			url:          url,
+			requestBody:  peapMissingUsername,
+			expectedCode: http.StatusBadRequest,
+		},
+		{
+			name:        "add wireless profile - ieee8021x peap with username",
+			method:      http.MethodPost,
+			url:         url,
+			requestBody: peapWithUsername,
+			mock: func(feature *mocks.MockDeviceManagementFeature) {
+				feature.EXPECT().AddWirelessProfile(gomock.Any(), "device-guid", "", peapWithUsername).Return(nil)
+			},
+			expectedCode: http.StatusNoContent,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			feature, engine := deviceManagementTest(t)
+
+			if tc.mock != nil {
+				tc.mock(feature)
+			}
+
+			payload, err := json.Marshal(tc.requestBody)
+			require.NoError(t, err)
+
+			req, err := http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(payload))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+
+			w := httptest.NewRecorder()
+			engine.ServeHTTP(w, req)
+
+			require.Equal(t, tc.expectedCode, w.Code, w.Body.String())
 		})
 	}
 }

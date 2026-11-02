@@ -66,7 +66,7 @@ func TestGetTLSSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: []dto.SettingDataResponse{
@@ -87,7 +87,7 @@ func TestGetTLSSettings(t *testing.T) {
 			action: 0,
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: []dto.SettingDataResponse(nil),
@@ -106,7 +106,7 @@ func TestGetTLSSettings(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: []dto.SettingDataResponse(nil),
@@ -127,7 +127,7 @@ func TestGetTLSSettings(t *testing.T) {
 
 			tc.repoMock(repo)
 
-			res, err := useCase.GetTLSSettingData(context.Background(), device.GUID)
+			res, err := useCase.GetTLSSettingData(context.Background(), device.GUID, device.TenantID)
 
 			require.Equal(t, tc.res, res)
 			require.IsType(t, tc.err, err)

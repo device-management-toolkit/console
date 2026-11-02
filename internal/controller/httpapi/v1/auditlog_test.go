@@ -46,8 +46,8 @@ func TestDownloadEventLogPaginatesWithStartIndex(t *testing.T) {
 		HasMoreRecords: false,
 	}
 
-	deviceManagement.EXPECT().GetEventLog(context.Background(), 0, eventLogBatchSize, "valid-guid").Return(firstBatch, nil)
-	deviceManagement.EXPECT().GetEventLog(context.Background(), 2, eventLogBatchSize, "valid-guid").Return(secondBatch, nil)
+	deviceManagement.EXPECT().GetEventLog(context.Background(), 0, eventLogBatchSize, "valid-guid", "").Return(firstBatch, nil)
+	deviceManagement.EXPECT().GetEventLog(context.Background(), 2, eventLogBatchSize, "valid-guid", "").Return(secondBatch, nil)
 
 	expectedLogs := append(append([]dto.EventLog{}, firstBatch.Records...), secondBatch.Records...)
 	exporter.EXPECT().ExportEventLogsCSV(expectedLogs).Return(strings.NewReader("Time,Source,Event Severity,Description\n"), nil)

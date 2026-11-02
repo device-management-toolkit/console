@@ -114,7 +114,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.getWiredNetworkSettings,
+	fuego.Get(
+		f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.getWiredNetworkSettings,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Wired Network Settings"),
 		fuego.OptionDescription("Retrieve the wired network settings for a device"),
@@ -122,7 +123,8 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Patch(f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.patchWiredNetworkSettings,
+	fuego.Patch(
+		f.server, "/api/v1/amt/networkSettings/wired/{guid}", f.patchWiredNetworkSettings,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Update Wired Network Settings"),
 		fuego.OptionDescription("Update the wired IPv4 configuration (DHCP or static IP) for a device"),
@@ -148,7 +150,9 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.addWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Create Wireless Profile"),
-		fuego.OptionDescription("Create a wireless profile on a device"),
+		fuego.OptionDescription("Create a wireless profile on a device. "+wirelessProfileRequestRules+". "+
+			"A device stores at most 8 wireless profiles; adding one more, or a profile whose name or priority "+
+			"already exists, is rejected with 409 Conflict"),
 		fuego.OptionPath("guid", "Device GUID"),
 		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
@@ -158,7 +162,7 @@ func (f *FuegoAdapter) registerNetworkRoutes() {
 		f.server, "/api/v1/amt/networkSettings/wireless/profile/{guid}", f.updateWirelessProfile,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Update Wireless Profile"),
-		fuego.OptionDescription("Update a wireless profile on a device"),
+		fuego.OptionDescription("Update a wireless profile on a device. "+wirelessProfileRequestRules),
 		fuego.OptionPath("guid", "Device GUID"),
 		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),
@@ -226,6 +230,14 @@ func (f *FuegoAdapter) registerWirelessStateRoutes() {
 	)
 }
 
+// wirelessProfileRequestRules documents the request validation in dto.ValidateWirelessProfile,
+// which the config.WirelessProfile body schema cannot express.
+const wirelessProfileRequestRules = "WPA/WPA2 PSK profiles require password and no ieee8021x. " +
+	"WPA/WPA2 IEEE 802.1x profiles require ieee8021x and no password; " +
+	"ieee8021x.authenticationProtocol must be 0 (EAP-TLS) or 2 (PEAPv0/EAP-MSCHAPv2), " +
+	"and PEAPv0/EAP-MSCHAPv2 also requires ieee8021x.username and ieee8021x.password. " +
+	"A profile that breaks these rules is rejected with 400 Bad Request"
+
 func (f *FuegoAdapter) registerWirelessProfileSyncRoutes() {
 	fuego.Get(
 		f.server, "/api/v1/amt/networkSettings/wireless/profileSync/{guid}", f.getWirelessProfileSync,
@@ -242,7 +254,6 @@ func (f *FuegoAdapter) registerWirelessProfileSyncRoutes() {
 		fuego.OptionSummary("Set Wireless Profile Sync"),
 		fuego.OptionDescription("Enable or disable local and/or UEFI WiFi profile synchronization. Requesting UEFI sync on an unsupported device rejects the entire request with 409 Conflict"),
 		fuego.OptionPath("guid", "Device GUID"),
-		errorResponseOption(http.StatusBadRequest, "Bad Request"),
 		errorResponseOption(http.StatusConflict, "Conflict"),
 		protectedRouteOptions(),
 	)
@@ -334,7 +345,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Get(f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
+	fuego.Get(
+		f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.getRemoteEraseCapabilities,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Remote Erase Capabilities"),
 		fuego.OptionDescription("Retrieve Remote Platform Erase capabilities for a device"),
@@ -342,7 +354,8 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		protectedRouteOptions(),
 	)
 
-	fuego.Post(f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.setRemoteEraseOptions,
+	fuego.Post(
+		f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.setRemoteEraseOptions,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Remote Erase Options"),
 		fuego.OptionDescription("Trigger Remote Platform Erase on a device; at least one erase option must be selected"),

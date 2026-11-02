@@ -4,6 +4,7 @@ import (
 	"errors"
 	"flag"
 	"fmt"
+	"log"
 	"net"
 	"net/url"
 	"os"
@@ -15,6 +16,8 @@ import (
 
 	"github.com/ilyakaznacheev/cleanenv"
 	"gopkg.in/yaml.v2"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 )
 
 var ConsoleConfig *Config
@@ -30,6 +33,10 @@ var (
 	ErrSecretsAddrNoHost               = errors.New("SECRETS_ADDR contains no host")
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
+	ErrAllowedOriginsEmpty             = errors.New("config: http.allowed_origins must list at least one origin (e.g. https://localhost:8181) — an empty list disables CORS outright and aborts startup")
+	ErrMaxTokenTTLInvalid              = errors.New("config: package.max_token_ttl must be at least 1 minute (e.g. 24h), or 0 to use the default")
+	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
+	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 )
 
 const defaultHost = "localhost"
@@ -57,6 +64,7 @@ type (
 		EA      `yaml:"ea"`
 		Auth    `yaml:"auth"`
 		UI      `yaml:"ui"`
+		Package `yaml:"package"`
 	}
 
 	// App -.
@@ -127,7 +135,7 @@ type (
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
-		JWTKey                   string        `env-required:"true" yaml:"jwtKey" env:"AUTH_JWT_KEY"`
+		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
 		ClientID                 string        `yaml:"clientId" env:"AUTH_CLIENT_ID"`
@@ -154,6 +162,16 @@ type (
 	// UI -.
 	UI struct {
 		ExternalURL string `yaml:"externalUrl" env:"UI_EXTERNAL_URL"`
+	}
+
+	// Package -. Settings for the Download RPC packaging endpoints.
+	Package struct {
+		RPCRepo  string `yaml:"rpc_repo" env:"RPC_REPO"`
+		LocalDir string `yaml:"local_dir" env:"RPC_LOCAL_DIR"`
+		// DisableFetch serves rpc-go builds from LocalDir only, never contacting GitHub.
+		DisableFetch bool `yaml:"disable_fetch" env:"RPC_DISABLE_FETCH"`
+		// MaxTokenTTL caps the auth-token lifetime a package request may ask for.
+		MaxTokenTTL time.Duration `yaml:"max_token_ttl" env:"RPC_MAX_TOKEN_TTL"`
 	}
 )
 
@@ -198,11 +216,33 @@ func defaultConfig() *Config {
 			DisableCIRA:          true,
 		},
 		HTTP: HTTP{
-			Host:             "",
-			Port:             "8181",
-			AllowedOrigins:   []string{"*"},
-			AllowedHeaders:   []string{"*"},
-			AllowCredentials: false,
+			Host: "",
+			Port: "8181",
+			AllowedOrigins: []string{
+				"http://localhost:8181",
+				"http://localhost:4200",
+				"http://127.0.0.1:8181",
+				"http://127.0.0.1:4200",
+				"https://localhost:8181",
+				"https://localhost:4200",
+				"https://127.0.0.1:8181",
+				"https://127.0.0.1:4200",
+			},
+			// Explicit rather than "*": Access-Control-Allow-Headers: * is taken
+			// literally by browsers once credentials are in play, and never
+			// covers Authorization even without them.
+			AllowedHeaders: []string{
+				"Origin",
+				"Accept",
+				"Content-Type",
+				"Content-Length",
+				"Authorization",
+				"If-Match",
+			},
+			// Safe alongside the explicit AllowedOrigins above: setupHTTPHandler
+			// forces this off whenever the allowlist contains "*", so cookie
+			// auth is only ever granted to enumerated origins.
+			AllowCredentials: true,
 			WSCompression:    true,
 			TLS: TLS{
 				Enabled:  true,
@@ -231,7 +271,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
-			JWTKey:                   "your_secret_jwt_key",
+			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
 			CookieEnabled:            true,
@@ -253,6 +293,10 @@ func defaultConfig() *Config {
 		},
 		UI: UI{
 			ExternalURL: "",
+		},
+		Package: Package{
+			RPCRepo:     "device-management-toolkit/rpc-go",
+			MaxTokenTTL: 24 * time.Hour,
 		},
 	}
 }
@@ -398,6 +442,11 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
+	return updateConfigFile(configPath, func(c *Config) { c.AdminPassword = adminPassword })
+}
+
+// updateConfigFile applies mutate to the file's own contents, never to the env-overlaid Config.
+func updateConfigFile(configPath string, mutate func(*Config)) error {
 	data, err := os.ReadFile(configPath)
 	if err != nil {
 		return err
@@ -408,9 +457,53 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
-	fileCfg.AdminPassword = adminPassword
+	mutate(fileCfg)
 
 	return writeConfig(configPath, fileCfg)
+}
+
+// ensureJWTKey mirrors the admin-password flow: a key from config or env is
+// used as-is, disabled auth needs none, and otherwise a random key is generated
+// and persisted so every restart signs tokens with the same secret.
+func ensureJWTKey(configPath string, cfg *Config) error {
+	if cfg.Disabled || cfg.JWTKey != "" {
+		return nil
+	}
+
+	key := security.Crypto{}.GenerateKey()
+
+	if err := updateConfigFile(configPath, func(c *Config) { c.JWTKey = key }); err != nil {
+		return fmt.Errorf("config: persisting generated auth.jwtKey to %s (set AUTH_JWT_KEY to provide one instead): %w", configPath, err)
+	}
+
+	cfg.JWTKey = key
+
+	log.Printf(
+		"WARNING: no auth.jwtKey was configured, so a random one was generated and saved to %s. "+
+			"Local basic auth is meant for single-user deployments; for production, configure your own "+
+			"OAuth2/OIDC provider via auth.clientId and auth.issuer instead.",
+		configPath,
+	)
+
+	return nil
+}
+
+// loadConfig layers the file (created with defaults on first run) and the
+// environment onto cfg, then generates auth.jwtKey when nothing supplied one.
+func loadConfig(configPath string, cfg *Config) error {
+	if err := readOrInitConfig(configPath, cfg); err != nil {
+		return err
+	}
+
+	if err := cleanenv.ReadEnv(cfg); err != nil {
+		return err
+	}
+
+	if err := ensureJWTKey(configPath, cfg); err != nil {
+		return err
+	}
+
+	return cfg.validate()
 }
 
 // validate checks that all Config values are sane.
@@ -423,6 +516,24 @@ func (c *Config) validate() error {
 
 	if c.RedirectionJWTExpiration < time.Minute {
 		return ErrRedirectionJWTExpirationInvalid
+	}
+
+	if c.MaxTokenTTL != 0 && c.MaxTokenTTL < time.Minute {
+		return ErrMaxTokenTTLInvalid
+	}
+
+	if c.DisableFetch && c.LocalDir == "" {
+		return ErrLocalDirRequired
+	}
+
+	if !c.Disabled && c.JWTKey == "" {
+		return ErrJWTKeyMissing
+	}
+
+	// Caught here rather than left to gin-contrib/cors, which panics with an
+	// opaque "conflict settings: all origins disabled" on an empty list.
+	if len(c.AllowedOrigins) == 0 {
+		return ErrAllowedOriginsEmpty
 	}
 
 	return nil
@@ -463,19 +574,7 @@ func NewConfig() (*Config, error) {
 		}
 	}
 
-	if err := readOrInitConfig(configPath, ConsoleConfig); err != nil {
-		ConsoleConfig = nil
-
-		return nil, err
-	}
-
-	if err := cleanenv.ReadEnv(ConsoleConfig); err != nil {
-		ConsoleConfig = nil
-
-		return nil, err
-	}
-
-	if err := ConsoleConfig.validate(); err != nil {
+	if err := loadConfig(configPath, ConsoleConfig); err != nil {
 		ConsoleConfig = nil
 
 		return nil, err
@@ -486,6 +585,10 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := ConsoleConfig.Validate(); err != nil {
+		return nil, err
+	}
+
+	if err := validateAndSetEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
 		return nil, err
 	}
 
@@ -566,4 +669,19 @@ func isLocalhost(host string) bool {
 	}
 
 	return false
+}
+
+func validateAndSetEncryptionKey(encryptionKey string) error {
+	if encryptionKey != "" {
+		if err := ValidateEncryptionKey(encryptionKey); err != nil {
+			return fmt.Errorf(
+				"invalid APP_ENCRYPTION_KEY (app.encryption_key in config.yml): %w.\n"+
+					"Generate one with `openssl rand -base64 24` (32 characters), "+
+					"or leave it unset and let Console generate and store a key for you",
+				err,
+			)
+		}
+	}
+
+	return nil
 }

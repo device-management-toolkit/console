@@ -114,7 +114,8 @@ func (r *CIRARepo) Update(ctx context.Context, c *entity.CIRAConfig) (bool, erro
 		return false, errCIRADatabase.Wrap("Update", "validate", nil)
 	}
 
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldConfigName: c.ConfigName, fieldTenantID: c.TenantID},
 		bson.M{opSet: bson.M{
 			"mpsaddress":             c.MPSAddress,

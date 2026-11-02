@@ -132,7 +132,8 @@ func (r *IEEE8021xRepo) Update(ctx context.Context, c *entity.IEEE8021xConfig) (
 		return false, errIEEEDatabase.Wrap("Update", "validate", nil)
 	}
 
-	res, err := r.col.UpdateOne(ctx,
+	res, err := r.col.UpdateOne(
+		ctx,
 		bson.M{fieldProfileName: c.ProfileName, fieldTenantID: c.TenantID},
 		bson.M{opSet: bson.M{
 			"authenticationprotocol": c.AuthenticationProtocol,

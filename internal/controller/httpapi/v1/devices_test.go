@@ -16,6 +16,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -49,6 +50,7 @@ func devicesTest(t *testing.T) (*mocks.MockDeviceManagementFeature, *gin.Engine)
 	device := mocks.NewMockDeviceManagementFeature(mockCtl)
 
 	engine := gin.New()
+	engine.Use(middleware.ResolveTenant(log))
 	handler := engine.Group("/api/v1")
 
 	NewDeviceRoutes(handler, device, log)
@@ -63,6 +65,7 @@ type deviceTest struct {
 	mock         func(repo *mocks.MockDeviceManagementFeature)
 	response     interface{}
 	requestBody  dto.Device
+	tenantID     string
 	expectedCode int
 }
 
@@ -86,13 +89,20 @@ var (
 		"lastdisconnected": true,
 		"username":         true,
 		"password":         true,
-		"mpspassword":      true,
-		"mebxpassword":     true,
 		"usetls":           true,
 		"allowselfsigned":  true,
 		"certhash":         true,
 	}
 )
+
+// deviceRequestBody encodes d with its password properties, which Device.MarshalJSON omits.
+func deviceRequestBody(d dto.Device) []byte {
+	type withPasswords dto.Device
+
+	body, _ := json.Marshal(withPasswords(d))
+
+	return body
+}
 
 func TestDevicesRoutes(t *testing.T) {
 	t.Parallel()
@@ -109,6 +119,40 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
 			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get activated devices",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetActivated(context.Background(), 25, 0, "").Return([]dto.Device{{
+					GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
+				}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get discovered devices",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?discovered=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetDiscovered(context.Background(), 25, 0, "").Return([]dto.Device{{
+					GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname",
+				}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get activated devices - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetActivated(context.Background(), 25, 0, "").Return(nil, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
 		},
 		{
 			name:   "get all devices - with count",
@@ -182,6 +226,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusCreated,
 		},
 		{
@@ -211,6 +256,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -260,6 +306,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusOK,
 		},
 		{
@@ -289,6 +336,7 @@ func TestDevicesRoutes(t *testing.T) {
 			},
 			response:     devices.ErrDatabase,
 			requestBody:  requestDevice,
+			tenantID:     "tenantId",
 			expectedCode: http.StatusBadRequest,
 		},
 		{
@@ -317,9 +365,33 @@ func TestDevicesRoutes(t *testing.T) {
 			url:    "/api/v1/devices/stats",
 			mock: func(device *mocks.MockDeviceManagementFeature) {
 				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "").Return(4, 1, nil)
 			},
-			response:     dto.DeviceStatResponse{TotalCount: 5},
+			response:     dto.DeviceStatResponse{TotalCount: 5, ActivatedCount: 4, DiscoveredCount: 1},
 			expectedCode: http.StatusOK,
+		},
+		{
+			name:     "get devices stats scoped to tenant",
+			method:   http.MethodGet,
+			url:      "/api/v1/devices/stats",
+			tenantID: "tenant1",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetCount(context.Background(), "tenant1").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "tenant1").Return(4, 1, nil)
+			},
+			response:     dto.DeviceStatResponse{TotalCount: 5, ActivatedCount: 4, DiscoveredCount: 1},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get devices stats - failed",
+			method: http.MethodGet,
+			url:    "/api/v1/devices/stats",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetCount(context.Background(), "").Return(5, nil)
+				device.EXPECT().GetDeviceStateCounts(context.Background(), "").Return(0, 0, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			expectedCode: http.StatusBadRequest,
 		},
 	}
 
@@ -338,14 +410,17 @@ func TestDevicesRoutes(t *testing.T) {
 			var err error
 
 			if tc.method == http.MethodPost || tc.method == http.MethodPatch {
-				reqBody, _ := json.Marshal(tc.requestBody)
-				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(reqBody))
+				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, bytes.NewBuffer(deviceRequestBody(tc.requestBody)))
 			} else {
 				req, err = http.NewRequestWithContext(context.Background(), tc.method, tc.url, http.NoBody)
 			}
 
 			if err != nil {
 				t.Fatalf("Couldn't create request: %v\n", err)
+			}
+
+			if tc.tenantID != "" {
+				req.Header.Set(middleware.TenantHeaderName, tc.tenantID)
 			}
 
 			w := httptest.NewRecorder()
@@ -515,6 +590,60 @@ func TestDevicesInsertRejectsInvalidJSON(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusBadRequest, w.Code)
+}
+
+func TestDevicesUpdateEchoedListResponseOmitsPasswordProperties(t *testing.T) {
+	t.Parallel()
+
+	stored := dto.Device{
+		GUID:         testDeviceGUID,
+		Hostname:     "test-device",
+		Tags:         []string{"lab"},
+		Username:     "admin",
+		MPSPassword:  "encrypted-mps",
+		MEBXPassword: "encrypted-mebx",
+	}
+
+	devicesFeature, engine := devicesTest(t)
+
+	devicesFeature.EXPECT().
+		Get(context.Background(), 25, 0, "").
+		Return([]dto.Device{stored}, nil)
+
+	listReq, err := http.NewRequestWithContext(context.Background(), http.MethodGet, "/api/v1/devices", http.NoBody)
+	require.NoError(t, err)
+
+	listResp := httptest.NewRecorder()
+	engine.ServeHTTP(listResp, listReq)
+	require.Equal(t, http.StatusOK, listResp.Code)
+
+	var listed []map[string]any
+	require.NoError(t, json.Unmarshal(listResp.Body.Bytes(), &listed))
+	require.Len(t, listed, 1)
+
+	listed[0]["tags"] = []string{"lab", "floor-2"}
+
+	body, err := json.Marshal(listed[0])
+	require.NoError(t, err)
+
+	devicesFeature.EXPECT().
+		Update(context.Background(), gomock.Any(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error) {
+			require.True(t, fields["tags"])
+			require.NotContains(t, fields, "password")
+			require.NotContains(t, fields, "mpspassword")
+			require.NotContains(t, fields, "mebxpassword")
+
+			return d, nil
+		})
+
+	patchReq, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/devices", bytes.NewBuffer(body))
+	require.NoError(t, err)
+
+	patchResp := httptest.NewRecorder()
+	engine.ServeHTTP(patchResp, patchReq)
+
+	require.Equal(t, http.StatusOK, patchResp.Code)
 }
 
 // encoding/json unmarshals case-insensitively; the merge must see the field as
@@ -773,7 +902,7 @@ func TestLoginRedirection(t *testing.T) {
 			deviceID: "test-device-guid",
 			mock: func(devFeature *mocks.MockDeviceManagementFeature) {
 				devFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
-					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host"}, nil)
+					Return(&dto.Device{GUID: "test-device-guid", Hostname: "test-host", TenantID: "tenant-a"}, nil)
 			},
 			expectedCode: http.StatusOK,
 			expectedErr:  false,
@@ -851,6 +980,51 @@ func TestLoginRedirection(t *testing.T) {
 	}
 }
 
+// TestLoginRedirection_AuthDisabled checks that auth-off mode hands out an
+// unsigned placeholder, which a later auth-enabled run cannot verify.
+//
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLoginRedirection_AuthDisabled(t *testing.T) {
+	// Consume the sync.Once first so parallel tests keep the shared config after cleanup.
+	setupTestConfig()
+
+	prev := config.ConsoleConfig
+
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+
+	config.ConsoleConfig = &config.Config{
+		Auth: config.Auth{
+			Disabled:                 true,
+			JWTKey:                   testJWTKey,
+			JWTExpiration:            time.Hour,
+			RedirectionJWTExpiration: 5 * time.Minute,
+		},
+	}
+
+	devicesFeature, engine := devicesTest(t)
+	devicesFeature.EXPECT().GetByID(context.Background(), "test-device-guid", "", false).
+		Return(&dto.Device{GUID: "test-device-guid"}, nil)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodGet,
+		"/api/v1/authorize/redirection/test-device-guid", http.NoBody)
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusOK, w.Code)
+
+	var response map[string]string
+
+	require.NoError(t, json.Unmarshal(w.Body.Bytes(), &response))
+	require.Equal(t, authDisabledRedirectionToken, response["token"])
+
+	_, err = jwt.Parse(response["token"], func(_ *jwt.Token) (interface{}, error) {
+		return []byte(testJWTKey), nil
+	})
+	require.Error(t, err, "placeholder must not verify against the configured key")
+}
+
 // verifyRedirectionToken checks the token's expiration and AMT-GUID (deviceId) binding.
 func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) {
 	t.Helper()
@@ -864,7 +1038,6 @@ func verifyRedirectionToken(t *testing.T, tokenString, expectedDeviceID string) 
 
 	// deviceId must be the device GUID
 	require.Equal(t, expectedDeviceID, claims["deviceId"], "token deviceId should be the device GUID")
-
 	// Verify expiration is set
 	exp, err := claims.GetExpirationTime()
 	require.NoError(t, err)

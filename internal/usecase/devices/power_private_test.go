@@ -127,7 +127,7 @@ func TestGetBootSource(t *testing.T) {
 			t.Parallel()
 
 			uc := &UseCase{} // create a dummy UseCase
-			res := uc.getBootSource("test-guid", &tc.bootSettings)
+			res := uc.getBootSource("test-guid", "", &tc.bootSettings)
 
 			require.Equal(t, tc.res, res)
 		})

@@ -5,14 +5,16 @@ import (
 
 	"github.com/gin-gonic/gin"
 
+	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
 // getKVMDisplays returns current IPS_ScreenSettingData for the device
 func (r *deviceManagementRoutes) getKVMDisplays(c *gin.Context) {
 	guid := c.Param("guid")
+	tenantID := middleware.TenantID(c)
 
-	settings, err := r.d.GetKVMScreenSettings(c.Request.Context(), guid)
+	settings, err := r.d.GetKVMScreenSettings(c.Request.Context(), guid, tenantID)
 	if err != nil {
 		r.l.Error(err, "http - v1 - getKVMDisplays")
 		ErrorResponse(c, err)
@@ -28,13 +30,15 @@ func (r *deviceManagementRoutes) setKVMDisplays(c *gin.Context) {
 	guid := c.Param("guid")
 
 	var req dto.KVMScreenSettingsRequest
-	if err := c.ShouldBindJSON(&req); err != nil {
+	if err := BindJSON(c, &req); err != nil {
 		ErrorResponse(c, err)
 
 		return
 	}
 
-	settings, err := r.d.SetKVMScreenSettings(c.Request.Context(), guid, req)
+	tenantID := middleware.TenantID(c)
+
+	settings, err := r.d.SetKVMScreenSettings(c.Request.Context(), guid, tenantID, req)
 	if err != nil {
 		r.l.Error(err, "http - v1 - setKVMDisplays")
 		ErrorResponse(c, err)

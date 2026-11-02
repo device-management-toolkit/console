@@ -53,7 +53,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: expectedDTO,
@@ -64,7 +64,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			res: dto.BootCapabilities{},
@@ -75,7 +75,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, nil)
 			},
 			res: dto.BootCapabilities{},
@@ -86,7 +86,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(&entity.Device{GUID: "", TenantID: "tenant-id-456"}, nil)
 			},
 			res: dto.BootCapabilities{},
@@ -101,7 +101,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.BootCapabilities{},
@@ -119,7 +119,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			res: dto.BootCapabilities{},
@@ -137,7 +137,7 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 			tc.manMock(wsmanMock, management)
 			tc.repoMock(repo)
 
-			res, err := useCase.GetRemoteEraseCapabilities(context.Background(), device.GUID)
+			res, err := useCase.GetRemoteEraseCapabilities(context.Background(), device.GUID, device.TenantID)
 			require.Equal(t, tc.err, err)
 			require.Equal(t, tc.res, res)
 		})
@@ -172,7 +172,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check erase options", "at least one erase option must be selected"),
@@ -193,7 +193,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -214,7 +214,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -232,7 +232,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check boot capabilities", "device does not support Remote Platform Erase"),
@@ -253,7 +253,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -274,7 +274,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -285,7 +285,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, ErrGeneral)
 			},
 			err: ErrGeneral,
@@ -296,7 +296,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(nil, nil)
 			},
 			err: devices.ErrNotFound,
@@ -307,7 +307,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			manMock: func(_ *mocks.MockWSMAN, _ *mocks.MockManagement) {},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(&entity.Device{GUID: "", TenantID: "tenant-id-456"}, nil)
 			},
 			err: devices.ErrNotFound,
@@ -322,7 +322,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -340,7 +340,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -361,7 +361,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: ErrGeneral,
@@ -382,7 +382,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -403,7 +403,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -424,7 +424,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: nil,
@@ -442,7 +442,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check erase options", "at least one erase option must be selected"),
@@ -463,7 +463,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
 				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, "").
+					GetByID(context.Background(), device.GUID, device.TenantID).
 					Return(device, nil)
 			},
 			err: devices.NotSupportedError{Console: consoleerrors.CreateConsoleError("Remote Platform Erase is not enabled by the BIOS on this device")},
@@ -480,7 +480,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 			tc.manMock(wsmanMock, management)
 			tc.repoMock(repo)
 
-			err := useCase.SetRemoteEraseOptions(context.Background(), device.GUID, tc.req)
+			err := useCase.SetRemoteEraseOptions(context.Background(), device.GUID, device.TenantID, tc.req)
 			require.Equal(t, tc.err, err)
 		})
 	}

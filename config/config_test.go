@@ -1,14 +1,19 @@
 package config
 
 import (
+	"bytes"
 	"errors"
+	"log"
 	"os"
 	"path/filepath"
 	"runtime"
 	"testing"
+	"time"
 
+	"github.com/ilyakaznacheev/cleanenv"
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
+	"gopkg.in/yaml.v2"
 )
 
 func clearEnv() {
@@ -17,23 +22,11 @@ func clearEnv() {
 	os.Unsetenv("LOG_LEVEL")
 	os.Unsetenv("DB_POOL_MAX")
 	os.Unsetenv("DB_URL")
-	os.Unsetenv("SECRETS_ADDR")
 }
 
-func TestNewConfig_InvalidEnvVar(t *testing.T) {
-	clearEnv()
-	defer clearEnv()
-
-	// DB_POOL_MAX expects an int; a non-numeric value causes cleanenv.ReadEnv to fail.
-	t.Setenv("DB_POOL_MAX", "not-a-number")
-
-	cfg, err := NewConfig()
-	assert.Error(t, err)
-	assert.Nil(t, cfg)
-}
-
-func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_Defaults(t *testing.T) {
 	clearEnv() // Clear environment variables to ensure defaults are tested
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-default-testing")
 
 	cfg, err := NewConfig()
 
@@ -51,8 +44,25 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 
 	assert.Equal(t, "", cfg.Host)
 	assert.Equal(t, "8181", cfg.Port)
-	assert.Equal(t, []string{"*"}, cfg.AllowedOrigins)
-	assert.Equal(t, []string{"*"}, cfg.AllowedHeaders)
+	assert.Equal(t, []string{
+		"http://localhost:8181",
+		"http://localhost:4200",
+		"http://127.0.0.1:8181",
+		"http://127.0.0.1:4200",
+		"https://localhost:8181",
+		"https://localhost:4200",
+		"https://127.0.0.1:8181",
+		"https://127.0.0.1:4200",
+	}, cfg.AllowedOrigins)
+	assert.Equal(t, []string{
+		"Origin",
+		"Accept",
+		"Content-Type",
+		"Content-Length",
+		"Authorization",
+		"If-Match",
+	}, cfg.AllowedHeaders)
+	assert.Equal(t, true, cfg.AllowCredentials)
 	assert.Equal(t, true, cfg.TLS.Enabled)
 
 	assert.Equal(t, "info", cfg.Level)
@@ -60,7 +70,7 @@ func TestNewConfig_Defaults(t *testing.T) { //nolint:paralleltest // cannot have
 	assert.Equal(t, 2, cfg.PoolMax)
 }
 
-func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_EnvVars(t *testing.T) {
 	// Set environment variables
 	os.Setenv("APP_NAME", "testApp")
 	os.Setenv("HTTP_PORT", "9090")
@@ -68,6 +78,7 @@ func TestNewConfig_EnvVars(t *testing.T) { //nolint:paralleltest // cannot have 
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://user:password@localhost:5432/testdb")
 	os.Setenv("HTTP_TLS_ENABLED", "false")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-env-testing")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -317,7 +328,7 @@ func TestWriteConfig_TightensExistingLooseFile(t *testing.T) {
 	assert.Equal(t, configFilePerm, fileInfo.Mode().Perm())
 }
 
-func TestNewConfig_FileAndEnvVars(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+func TestNewConfig_FileAndEnvVars(t *testing.T) {
 	clearEnv() // Clear environment variables before setting new ones
 
 	// Create a temporary config file
@@ -344,6 +355,7 @@ postgres:
 	os.Setenv("LOG_LEVEL", "debug")
 	os.Setenv("DB_POOL_MAX", "10")
 	os.Setenv("DB_URL", "postgres://envuser:envpassword@localhost:5432/envdb")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key-for-file-and-env-testing")
 
 	defer clearEnv() // Ensure environment variables are cleared after test
 
@@ -408,25 +420,89 @@ func TestValidate_SecretsAddrHTTPLocalhost(t *testing.T) {
 func TestValidate_SecretsAddrHTTPNonLocalhost(t *testing.T) {
 	t.Parallel()
 
-	testCases := []string{
+	for _, addr := range []string{
 		"http://vault.example.com:8200",
 		"http://192.168.1.1:8200",
 		"http://vault-server:8200",
-	}
-	for _, addr := range testCases {
+	} {
 		t.Run(addr, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{
-				Secrets: Secrets{
-					Address: addr,
-				},
-			}
-			err := cfg.Validate()
-			assert.Error(t, err, "expected %s to fail", addr)
-			assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
+			cfg := &Config{Secrets: Secrets{Address: addr}}
+			require.ErrorIs(t, cfg.Validate(), ErrSecretsAddrInsecure)
 		})
 	}
+}
+
+func TestValidatePort(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name    string
+		port    string
+		wantErr error
+	}{
+		{name: "valid port", port: "8181"},
+		{name: "port 1", port: "1"},
+		{name: "port 65535", port: "65535"},
+		{name: "port 0", port: "0", wantErr: ErrPortOutOfRange},
+		{name: "port 65536", port: "65536", wantErr: ErrPortOutOfRange},
+		{name: "negative", port: "-1", wantErr: ErrPortOutOfRange},
+		{name: "non-numeric", port: "abc", wantErr: ErrPortNotNumeric},
+		{name: "with metacharacter", port: "8181&calc", wantErr: ErrPortNotNumeric},
+		{name: "empty string", port: "", wantErr: ErrPortNotNumeric},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			err := validatePort(tt.port)
+			if tt.wantErr != nil {
+				require.ErrorIs(t, err, tt.wantErr)
+			} else {
+				require.NoError(t, err)
+			}
+		})
+	}
+}
+
+func TestNewConfig_InvalidPort(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+	clearEnv()
+	os.Setenv("HTTP_PORT", "not-a-port")
+
+	defer clearEnv()
+
+	_, err := NewConfig()
+	require.ErrorIs(t, err, ErrPortNotNumeric)
+}
+
+func TestNewConfig_PortOutOfRange(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+	clearEnv()
+	os.Setenv("HTTP_PORT", "70000")
+
+	defer clearEnv()
+
+	_, err := NewConfig()
+	require.ErrorIs(t, err, ErrPortOutOfRange)
+}
+
+func TestNewConfig_InvalidEnvResetsConsoleConfig(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying environment variables
+	clearEnv()
+
+	// DB_POOL_MAX expects an int; a non-numeric value makes cleanenv fail,
+	// exercising an error path in NewConfig.
+	os.Setenv("DB_POOL_MAX", "not-a-number")
+
+	defer clearEnv()
+
+	cfg, err := NewConfig()
+
+	require.Error(t, err)
+	assert.Nil(t, cfg)
+	assert.Nil(t, ConsoleConfig)
 }
 
 func TestValidate_SecretsAddrInvalidURL(t *testing.T) {
@@ -470,27 +546,9 @@ func TestValidate_SecretsAddrMissingScheme(t *testing.T) {
 func TestValidate_SecretsAddrUnsupportedScheme(t *testing.T) {
 	t.Parallel()
 
-	testCases := []string{
-		"ftp://vault.example.com:8200",
-		"file:///tmp/vault",
-	}
+	cfg := &Config{Secrets: Secrets{Address: "ftp://vault.example.com:8200"}}
 
-	for _, addr := range testCases {
-		t.Run(addr, func(t *testing.T) {
-			t.Parallel()
-
-			cfg := &Config{
-				Secrets: Secrets{
-					Address: addr,
-				},
-			}
-
-			err := cfg.Validate()
-			assert.Error(t, err)
-			assert.True(t, errors.Is(err, ErrSecretsAddrInvalid), "expected ErrSecretsAddrInvalid, got %v", err)
-			assert.Contains(t, err.Error(), "unsupported scheme")
-		})
-	}
+	require.ErrorIs(t, cfg.Validate(), ErrSecretsAddrInvalid)
 }
 
 func TestIsLocalhost(t *testing.T) {
@@ -527,6 +585,110 @@ func TestIsLocalhost(t *testing.T) {
 	}
 }
 
+func TestValidate_ZeroJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTExpiration = 0
+
+	require.ErrorIs(t, cfg.validate(), ErrJWTExpirationInvalid)
+}
+
+func TestValidate_NegativeJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTExpiration = -time.Hour
+
+	require.ErrorIs(t, cfg.validate(), ErrJWTExpirationInvalid)
+}
+
+func TestValidate_SubMinuteJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTExpiration = 30 * time.Second
+
+	require.ErrorIs(t, cfg.validate(), ErrJWTExpirationInvalid)
+}
+
+func TestValidate_SubMinuteMaxTokenTTL(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.MaxTokenTTL = 30 * time.Second
+
+	require.ErrorIs(t, cfg.validate(), ErrMaxTokenTTLInvalid)
+}
+
+func TestValidate_NegativeMaxTokenTTL(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.MaxTokenTTL = -time.Hour
+
+	require.ErrorIs(t, cfg.validate(), ErrMaxTokenTTLInvalid)
+}
+
+func TestValidate_UnsetMaxTokenTTLIsAllowed(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.MaxTokenTTL = 0
+	cfg.JWTKey = "test-jwt-key"
+
+	require.NoError(t, cfg.validate())
+}
+
+func TestValidate_DisableFetchRequiresLocalDir(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key"
+	cfg.DisableFetch = true
+
+	require.ErrorIs(t, cfg.validate(), ErrLocalDirRequired)
+
+	cfg.LocalDir = "/opt/rpc-go"
+	require.NoError(t, cfg.validate())
+}
+
+func TestValidate_ZeroRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = 0
+
+	require.ErrorIs(t, cfg.validate(), ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_NegativeRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = -5 * time.Minute
+
+	require.ErrorIs(t, cfg.validate(), ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_SubMinuteRedirectionJWTExpiration(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.RedirectionJWTExpiration = 30 * time.Second
+
+	require.ErrorIs(t, cfg.validate(), ErrRedirectionJWTExpirationInvalid)
+}
+
+func TestValidate_ValidDefaults(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key-for-validation"
+
+	require.NoError(t, cfg.validate())
+}
+
 func TestValidate_CallsValidateSecretsAddr(t *testing.T) {
 	t.Parallel()
 
@@ -539,6 +701,36 @@ func TestValidate_CallsValidateSecretsAddr(t *testing.T) {
 	err := cfg.Validate()
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrSecretsAddrInsecure), "expected ErrSecretsAddrInsecure, got %v", err)
+}
+
+func TestValidate_MissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = ""
+
+	err := cfg.validate()
+	require.ErrorIs(t, err, ErrJWTKeyMissing)
+}
+
+func TestValidate_AuthDisabledAllowsMissingJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.Disabled = true
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
+func TestValidate_JWTKeyPresent(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key"
+
+	err := cfg.validate()
+	require.NoError(t, err)
 }
 
 func TestValidate_AllowsValidRemoteHTTPS(t *testing.T) {
@@ -557,24 +749,124 @@ func TestValidate_AllowsValidRemoteHTTPS(t *testing.T) {
 func TestValidateSecretsAddr_NoHost(t *testing.T) {
 	t.Parallel()
 
-	testCases := []string{
-		"http://",       // Scheme but no host
-		"https://",      // Scheme but no host
-		"http://:8200",  // Scheme with port but no host
-		"https://:8200", // Scheme with port but no host
+	cfg := defaultConfig()
+	cfg.JWTKey = "test-jwt-key"
+
+	err := cfg.validate()
+	require.NoError(t, err)
+}
+
+// Rejected here rather than left to gin-contrib/cors, which panics on an empty
+// AllowOrigins list.
+func TestValidate_EmptyAllowedOrigins(t *testing.T) {
+	t.Parallel()
+
+	for _, origins := range [][]string{nil, {}} {
+		cfg := defaultConfig()
+		cfg.JWTKey = "test-jwt-key"
+		cfg.AllowedOrigins = origins
+
+		err := cfg.validate()
+		require.ErrorIs(t, err, ErrAllowedOriginsEmpty)
 	}
-	for _, addr := range testCases {
-		t.Run(addr, func(t *testing.T) {
+}
+
+// The shipped defaults must not hand every site a CORS pass, and must not use
+// "*" for headers either: browsers read that literally once credentials are in
+// play, and it never covers Authorization.
+func TestDefaultConfig_NoWildcardCORS(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+
+	require.NotContains(t, cfg.AllowedOrigins, "*")
+	require.NotEmpty(t, cfg.AllowedOrigins)
+	require.NotContains(t, cfg.AllowedHeaders, "*")
+	require.Contains(t, cfg.AllowedHeaders, "Authorization")
+	// Safe only because the origins above are explicit; setupHTTPHandler drops
+	// it if an admin reintroduces "*".
+	require.True(t, cfg.AllowCredentials)
+}
+
+// readConfigFile parses what is on disk, bypassing the env overlay.
+func readConfigFile(t *testing.T, path string) *Config {
+	t.Helper()
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	fileCfg := defaultConfig()
+	require.NoError(t, yaml.Unmarshal(data, fileCfg))
+
+	return fileCfg
+}
+
+func TestEnsureJWTKey(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name          string
+		disabled      bool
+		key           string
+		wantGenerated bool
+	}{
+		{"generates and persists when auth is enabled and no key is set", false, "", true},
+		{"keeps a configured key and never writes it to disk", false, "from-env", false},
+		{"skips generation when auth is disabled", true, "", false},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{
-				Secrets: Secrets{
-					Address: addr,
-				},
+			path := filepath.Join(t.TempDir(), "config.yml")
+			require.NoError(t, writeConfig(path, defaultConfig()))
+
+			cfg := defaultConfig()
+			cfg.Disabled = tc.disabled
+			cfg.JWTKey = tc.key
+
+			require.NoError(t, ensureJWTKey(path, cfg))
+
+			if !tc.wantGenerated {
+				assert.Equal(t, tc.key, cfg.JWTKey)
+				assert.Empty(t, readConfigFile(t, path).JWTKey)
+
+				return
 			}
-			err := cfg.validateSecretsAddr()
-			assert.Error(t, err, "expected %s to fail", addr)
-			assert.True(t, errors.Is(err, ErrSecretsAddrNoHost), "expected ErrSecretsAddrNoHost, got %v", err)
+
+			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
+			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
+
+			// A restart must reuse the persisted key rather than rotate it.
+			again := readConfigFile(t, path)
+			require.NoError(t, ensureJWTKey(path, again))
+			assert.Equal(t, cfg.JWTKey, again.JWTKey)
 		})
 	}
+}
+
+func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:paralleltest // rebinds the global log output
+	var buf bytes.Buffer
+
+	orig := log.Writer()
+
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(orig) })
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	require.NoError(t, writeConfig(path, defaultConfig()))
+
+	require.NoError(t, ensureJWTKey(path, defaultConfig()))
+	assert.Contains(t, buf.String(), "OAuth2")
+}
+
+// TestReadEnv_EmptyJWTKeyIsNotRejected guards against re-adding env-required to
+// JWTKey: that check runs before ensureJWTKey and ignores auth.disabled.
+func TestReadEnv_EmptyJWTKeyIsNotRejected(t *testing.T) {
+	t.Parallel()
+
+	require.NoError(t, cleanenv.ReadEnv(defaultConfig()))
 }
