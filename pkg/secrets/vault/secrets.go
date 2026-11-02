@@ -5,7 +5,6 @@ import (
 	"errors"
 	"fmt"
 	"path"
-	"regexp"
 	"strings"
 )
 
@@ -14,8 +13,6 @@ const (
 	vaultDataField  = "data"
 	vaultValueField = "value"
 )
-
-var pathKeyPattern = regexp.MustCompile(`^[a-zA-Z0-9._/-]+$`)
 
 // Sentinel errors for secret operations.
 var (
@@ -41,10 +38,6 @@ func validatePathKey(key string) error {
 		return fmt.Errorf("%w: backslash is not allowed: %q", ErrInvalidPathKey, key)
 	}
 
-	if !pathKeyPattern.MatchString(key) {
-		return fmt.Errorf("%w: key contains unsupported characters: %q", ErrInvalidPathKey, key)
-	}
-
 	if strings.HasPrefix(key, "/") {
 		return fmt.Errorf("%w: absolute path not allowed: %q", ErrInvalidPathKey, key)
 	}
@@ -54,13 +47,9 @@ func validatePathKey(key string) error {
 		return fmt.Errorf("%w: traversal not allowed: %q", ErrInvalidPathKey, key)
 	}
 
-	if cleanKey != key {
-		return fmt.Errorf("%w: non-normalized path not allowed: %q", ErrInvalidPathKey, key)
-	}
-
 	segments := strings.Split(key, "/")
 	for _, segment := range segments {
-		if segment == "" || segment == "." || segment == ".." {
+		if segment == ".." {
 			return fmt.Errorf("%w: invalid path segment in key: %q", ErrInvalidPathKey, key)
 		}
 	}

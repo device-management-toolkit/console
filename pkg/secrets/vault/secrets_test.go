@@ -49,16 +49,19 @@ func TestValidatePathKey(t *testing.T) {
 		{name: "valid nested", key: "certificates/root", wantError: false},
 		{name: "valid simple", key: "encryption-key", wantError: false},
 		{name: "valid underscore and dot", key: "certs/root_v1.pem", wantError: false},
+		{name: "Auth0 tenant ID", key: "domains/auth0|abc/prof", wantError: false},
+		{name: "tenant ID with colon", key: "domains/acme:prod/prof", wantError: false},
+		{name: "tenant ID with spaces and braces", key: "domains/acme {prod}/prof", wantError: false},
+		{name: "query and fragment characters", key: "certs/root?x=1#frag", wantError: false},
+		{name: "percent encoded slash", key: "certs%2froot", wantError: false},
 		{name: "empty", key: "", wantError: true},
 		{name: "absolute-like", key: "/certificates/root", wantError: true},
 		{name: "parent traversal", key: "../other/path", wantError: true},
+		{name: "parent segment in normalized path", key: "certs/../other", wantError: true},
 		{name: "inline traversal", key: "certs/../../other", wantError: true},
-		{name: "dot segment", key: "./certs/root", wantError: true},
-		{name: "double slash", key: "certs//root", wantError: true},
+		{name: "dot segment normalizes", key: "./certs/root", wantError: false},
+		{name: "double slash normalizes", key: "certs//root", wantError: false},
 		{name: "backslash separator", key: "certs\\root", wantError: true},
-		{name: "query char", key: "certs/root?x=1", wantError: true},
-		{name: "fragment char", key: "certs/root#frag", wantError: true},
-		{name: "percent encoded slash", key: "certs%2froot", wantError: true},
 	}
 
 	for _, tc := range testCases {
@@ -88,13 +91,10 @@ func TestValidatePathKey_TraversalBranch(t *testing.T) {
 	assert.Contains(t, err.Error(), "traversal not allowed")
 }
 
-func TestValidatePathKey_NonNormalizedBranch(t *testing.T) {
+func TestValidatePathKey_RepeatedSlashIsAllowed(t *testing.T) {
 	t.Parallel()
 
-	err := validatePathKey("a//b")
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrInvalidPathKey), "expected ErrInvalidPathKey, got %v", err)
-	assert.Contains(t, err.Error(), "non-normalized path not allowed")
+	assert.NoError(t, validatePathKey("a//b"))
 }
 
 func TestBuildScopedSecretPath(t *testing.T) {
@@ -134,10 +134,22 @@ func TestBuildScopedSecretPath(t *testing.T) {
 			wantError: true,
 		},
 		{
-			name:      "reject unsupported chars",
-			basePath:  "secret/data/console",
-			key:       "certs/root?x=1",
-			wantError: true,
+			name:     "tenant ID characters are preserved",
+			basePath: "secret/data/console",
+			key:      "domains/auth0|abc: prod {x}/prof",
+			wantPath: "secret/data/console/domains/auth0|abc: prod {x}/prof",
+		},
+		{
+			name:     "empty tenant ID path is normalized",
+			basePath: "secret/data/console",
+			key:      "certs/domains//prof",
+			wantPath: "secret/data/console/certs/domains/prof",
+		},
+		{
+			name:     "repeated separators are normalized",
+			basePath: "secret/data/console",
+			key:      "certs//root",
+			wantPath: "secret/data/console/certs/root",
 		},
 		{
 			name:      "reject when base namespace is empty",
@@ -385,6 +397,20 @@ func TestDeleteKeyValue_PathBasedSuccess(t *testing.T) {
 	})
 
 	err := client.DeleteKeyValue("certs/root")
+	assert.NoError(t, err)
+}
+
+func TestDeleteKeyValue_EmptyTenantIDPath(t *testing.T) {
+	t.Parallel()
+
+	client := newTestVaultClient(t, func(method, reqPath string, _ []byte) (int, string) {
+		assert.Equal(t, http.MethodDelete, method)
+		assert.Equal(t, "/v1/secret/metadata/console/certs/domains/prof", reqPath)
+
+		return http.StatusNoContent, ``
+	})
+
+	err := client.DeleteKeyValue("certs/domains//prof")
 	assert.NoError(t, err)
 }
 
