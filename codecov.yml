@@ -4,4 +4,5 @@ coverage:
   range: 25...100
   # Specify files or directories to ignore
 ignore:
+- "internal/mocks/**"
 - "internal/usecase/devices/wsman/*"

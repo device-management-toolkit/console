@@ -94,6 +94,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 				RestoreBIOSToEOM:   true,
 				UnconfigureCSME:    true,
 				SSDPassword:        "s3cr3t",
+				PSID:               "drive-psid",
 			},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", "", dto.RemoteEraseRequest{
@@ -102,6 +103,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					RestoreBIOSToEOM:   true,
 					UnconfigureCSME:    true,
 					SSDPassword:        "s3cr3t",
+					PSID:               "drive-psid",
 				}).
 					Return(nil)
 			},
