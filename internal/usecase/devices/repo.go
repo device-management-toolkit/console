@@ -281,10 +281,20 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 
 		mergeDeviceFields(existing, d, fields)
 		d = existing
+
+		// connectionType follows the merged MPS credentials unless the request
+		// set it explicitly, so legacy rows are backfilled on their first edit.
+		if !fields["connectiontype"] {
+			d.ConnectionType = ""
+		}
 	}
 
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
+		return nil, err
+	}
+
+	if err := resolveConnectionType(d1); err != nil {
 		return nil, err
 	}
 
@@ -326,6 +336,10 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 		d1.GUID = uuid.New().String()
 	}
 
+	if err := resolveConnectionType(d1); err != nil {
+		return nil, err
+	}
+
 	// Server-managed: client values ignored. Nanosecond UTC keeps createddate
 	// sortable and collision-free within a second.
 	d1.ID = uuid.New().String()
@@ -353,4 +367,27 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 	}
 
 	return d2, nil
+}
+
+// resolveConnectionType canonicalizes a client-supplied connectionType, or
+// derives it when absent: a device provisioned with an MPS username reaches
+// Console over CIRA, anything else is managed directly. Values other than
+// CIRA or Direct (case-insensitive) are rejected.
+func resolveConnectionType(d *entity.Device) error {
+	switch strings.ToLower(strings.TrimSpace(d.ConnectionType)) {
+	case "":
+		if d.MPSUsername != "" {
+			d.ConnectionType = entity.ConnectionTypeCIRA
+		} else {
+			d.ConnectionType = entity.ConnectionTypeDirect
+		}
+	case "cira":
+		d.ConnectionType = entity.ConnectionTypeCIRA
+	case "direct":
+		d.ConnectionType = entity.ConnectionTypeDirect
+	default:
+		return ValidationError{}.Wrap("resolveConnectionType", "connectionType", "connectionType must be CIRA or Direct")
+	}
+
+	return nil
 }

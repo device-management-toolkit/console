@@ -8,6 +8,7 @@ import (
 	"github.com/go-fuego/fuego"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 )
 
@@ -157,7 +158,9 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
 		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true. "+
-			"id, createdDate, and lastUpdated are server-generated and read-only."),
+			"id, createdDate, and lastUpdated are server-generated and read-only. "+
+			"connectionType is CIRA or Direct; when omitted it is derived from the MPS credentials "+
+			"(CIRA when mpsusername is set, otherwise Direct). productType is optional client-supplied metadata."),
 		fuego.OptionDefaultStatusCode(http.StatusCreated),
 		protectedRouteOptions(),
 	)
@@ -167,7 +170,8 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Update Device"),
 		fuego.OptionDescription("Update an existing device. id and createdDate are immutable; lastUpdated is refreshed by the "+
-			"server on every edit."),
+			"server on every edit. connectionType is CIRA or Direct; when a PATCH omits it, it is re-derived "+
+			"from the device's MPS credentials. productType is optional client-supplied metadata."),
 		protectedRouteOptions(),
 	)
 
@@ -220,6 +224,8 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			ID:               exampleDeviceID,
 			CreatedDate:      exampleCreatedDate,
 			LastUpdated:      exampleLastUpdated,
+			ConnectionType:   entity.ConnectionTypeCIRA,
+			ProductType:      "vPro",
 		},
 		{
 			GUID:             "example-guid-2",
@@ -231,6 +237,8 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			ID:               "7a1d4c0e-3b7f-4e1a-9c2d-0f6b8e5a2c11",
 			CreatedDate:      exampleCreatedDate,
 			LastUpdated:      exampleLastUpdated,
+			ConnectionType:   entity.ConnectionTypeDirect,
+			ProductType:      "ISM",
 		},
 	}
 
@@ -380,6 +388,8 @@ func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) 
 		ID:               exampleDeviceID,
 		CreatedDate:      exampleCreatedDate,
 		LastUpdated:      exampleLastUpdated,
+		ConnectionType:   entity.ConnectionTypeCIRA,
+		ProductType:      "vPro",
 	}, nil
 }
 
