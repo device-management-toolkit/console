@@ -558,6 +558,57 @@ func TestValidate_AuthDisabledAllowsMissingJWTKey(t *testing.T) {
 	require.NoError(t, err)
 }
 
+func TestValidate_GatewayEnforcedRequiresAuthEnabled(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.Disabled = true
+	cfg.GatewayEnforced = true
+
+	require.ErrorIs(t, cfg.validate(), ErrGatewayEnforcedWithAuthDisabled)
+}
+
+func TestValidate_GatewayEnforcedRequiresJWTKey(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.GatewayEnforced = true
+	cfg.JWTKey = ""
+
+	require.ErrorIs(t, cfg.validate(), ErrJWTKeyMissing)
+
+	cfg.JWTKey = "test-jwt-key"
+
+	require.NoError(t, cfg.validate())
+}
+
+func TestAPIVerifiesJWT(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name            string
+		disabled        bool
+		gatewayEnforced bool
+		want            bool
+	}{
+		{name: "auth enabled", want: true},
+		{name: "auth disabled", disabled: true, want: false},
+		{name: "gateway enforced", gatewayEnforced: true, want: false},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			cfg := defaultConfig()
+			cfg.Disabled = tc.disabled
+			cfg.GatewayEnforced = tc.gatewayEnforced
+
+			require.Equal(t, tc.want, cfg.APIVerifiesJWT())
+		})
+	}
+}
+
 func TestValidate_JWTKeyPresent(t *testing.T) {
 	t.Parallel()
 
