@@ -2,6 +2,7 @@ package devices
 
 import (
 	"context"
+	"errors"
 	"fmt"
 	"strings"
 	"time"
@@ -128,7 +129,7 @@ func (uc *UseCase) GetByID(ctx context.Context, guid, tenantID string, includeSe
 		return nil, ErrDatabase.Wrap("GetByID", "uc.repo.GetByID", err)
 	}
 
-	if data == nil || data.GUID == "" {
+	if data == nil || data.GUID == "" || data.IsDeleted {
 		return nil, ErrNotFound
 	}
 
@@ -154,7 +155,7 @@ func (uc *UseCase) GetByGUID(ctx context.Context, guid string, includeSecrets bo
 		return nil, ErrDatabase.Wrap("GetByGUID", "uc.repo.GetByGUID", err)
 	}
 
-	if data == nil || data.GUID == "" {
+	if data == nil || data.GUID == "" || data.IsDeleted {
 		return nil, ErrNotFound
 	}
 
@@ -258,9 +259,9 @@ func (uc *UseCase) UpdateLastSeen(ctx context.Context, guid string) error {
 }
 
 func (uc *UseCase) Delete(ctx context.Context, guid, tenantID string) error {
-	isSuccessful, err := uc.repo.Delete(ctx, strings.ToLower(guid), tenantID)
+	isSuccessful, err := uc.repo.SoftDelete(ctx, strings.ToLower(guid), tenantID)
 	if err != nil {
-		return ErrDatabase.Wrap("Delete", "uc.repo.Delete", err)
+		return ErrDatabase.Wrap("Delete", "uc.repo.SoftDelete", err)
 	}
 
 	if !isSuccessful {
@@ -349,7 +350,14 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 
 	_, err = uc.repo.Insert(ctx, d1)
 	if err != nil {
-		return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
+		restored, restoreErr := uc.restoreDeleted(ctx, d1, err)
+		if restoreErr != nil {
+			return nil, restoreErr
+		}
+
+		if !restored {
+			return nil, ErrDatabase.Wrap("Insert", "uc.repo.Insert", err)
+		}
 	}
 
 	newDevice, err := uc.repo.GetByID(ctx, d1.GUID, d1.TenantID)
@@ -390,4 +398,43 @@ func resolveConnectionType(d *entity.Device) error {
 	}
 
 	return nil
+}
+
+// restoreDeleted handles an Insert that collided with a soft-deleted record
+// for the same GUID and tenant: the record is revived in place with the new
+// details, keeping its original id and createdDate when it has them. It
+// returns false when the error is not a uniqueness conflict or the existing
+// record is live, so the caller reports the original conflict.
+func (uc *UseCase) restoreDeleted(ctx context.Context, d *entity.Device, insertErr error) (bool, error) {
+	var notUnique repoerrors.NotUniqueError
+	if !errors.As(insertErr, &notUnique) {
+		return false, nil
+	}
+
+	existing, err := uc.repo.GetByID(ctx, d.GUID, d.TenantID)
+	if err != nil {
+		return false, ErrDatabase.Wrap("Insert", "uc.repo.GetByID", err)
+	}
+
+	if existing == nil || !existing.IsDeleted {
+		return false, nil
+	}
+
+	if existing.ID != "" {
+		d.ID = existing.ID
+	}
+
+	if existing.CreatedDate != "" {
+		d.CreatedDate = existing.CreatedDate
+	}
+
+	d.IsDeleted = false
+	d.DeletedDate = ""
+
+	updated, err := uc.repo.Update(ctx, d)
+	if err != nil {
+		return false, ErrDatabase.Wrap("Insert", "uc.repo.Update", err)
+	}
+
+	return updated, nil
 }

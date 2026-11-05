@@ -35,6 +35,9 @@ const (
 	// discoveredWhere requires the persisted discovery flag and a pre-provisioning
 	// control mode. A device that has since entered ACM/CCM remains managed.
 	discoveredWhere = "(discovered = ? AND (currentmode IS NULL OR currentmode = '' OR LOWER(currentmode) = 'not activated'))"
+	// liveWhere hides soft-deleted rows from every list, count, and lookup
+	// except the key lookups (GetByID, GetByGUID), whose callers decide.
+	liveWhere = "isdeleted IS NOT TRUE"
 )
 
 // New -.
@@ -48,6 +51,7 @@ func (r *DeviceRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 		Select("COUNT(*) OVER() AS total_count").
 		From("devices").
 		Where("tenantid = ?", tenantID).
+		Where(liveWhere).
 		ToSql()
 	if err != nil {
 		return 0, ErrDeviceDatabase.Wrap("GetCount", "r.Builder: ", err)
@@ -105,9 +109,10 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 			"createddate",
 			"lastupdated",
 			"producttype",
-			"connectiontype").
+			"connectiontype", "isdeleted", "deleteddate").
 		From("devices").
 		Where("tenantid = ?", tenantID).
+		Where(liveWhere).
 		OrderBy("guid").
 		Limit(limitedTop).
 		Offset(limitedSkip).
@@ -132,7 +137,7 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType, &d.IsDeleted, &d.DeletedDate)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
@@ -199,10 +204,11 @@ func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, s
 			"usetls",
 			"allowselfsigned",
 			"certhash",
-			"id", "createddate", "lastupdated", "producttype", "connectiontype",
+			"id", "createddate", "lastupdated", "producttype", "connectiontype", "isdeleted", "deleteddate",
 		).
 		From("devices").
 		Where("tenantid = ?", tenantID).
+		Where(liveWhere).
 		Where(whereClause, whereArgs...).
 		OrderBy("guid").
 		Limit(limitedTop).
@@ -223,7 +229,7 @@ func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, s
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType, &d.IsDeleted, &d.DeletedDate)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap(op, "rows.Scan: ", err)
 		}
@@ -244,6 +250,7 @@ func (r *DeviceRepo) countFiltered(op, whereClause string, whereArgs []any, tena
 		Select("COUNT(*)").
 		From("devices").
 		Where("tenantid = ?", tenantID).
+		Where(liveWhere).
 		Where(whereClause, whereArgs...).
 		ToSql()
 	if err != nil {
@@ -290,6 +297,8 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 			"lastupdated",
 			"producttype",
 			"connectiontype",
+			"isdeleted",
+			"deleteddate",
 		).
 		From("devices").
 		Where("guid = ? and tenantid = ?").
@@ -319,7 +328,7 @@ func (r *DeviceRepo) GetByID(_ context.Context, guid, tenantID string) (*entity.
 
 	d := &entity.Device{}
 
-	err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType)
+	err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType, &d.IsDeleted, &d.DeletedDate)
 	if err != nil {
 		return d, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 	}
@@ -360,6 +369,8 @@ func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device
 			"lastupdated",
 			"producttype",
 			"connectiontype",
+			"isdeleted",
+			"deleteddate",
 		).
 		From("devices").
 		Where("guid = ?").
@@ -382,7 +393,7 @@ func (r *DeviceRepo) GetByGUID(ctx context.Context, guid string) (*entity.Device
 	if rows.Next() {
 		d := &entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.MPSPassword, &d.MEBXPassword, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType, &d.IsDeleted, &d.DeletedDate)
 		if err != nil {
 			return d, ErrDeviceDatabase.Wrap("GetByGUID", "rows.Scan: ", err)
 		}
@@ -402,6 +413,7 @@ func (r *DeviceRepo) GetDistinctTags(_ context.Context, tenantID string) ([]stri
 		Select("DISTINCT tags as tag").
 		From("devices").
 		Where("tenantid = ?", tenantID).
+		Where(liveWhere).
 		ToSql()
 	if err != nil {
 		return []string{}, ErrDeviceDatabase.Wrap("GetDistinctTags", "r.Builder: ", err)
@@ -454,8 +466,9 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 			"createddate",
 			"lastupdated",
 			"producttype",
-			"connectiontype").
-		From("devices")
+			"connectiontype", "isdeleted", "deleteddate").
+		From("devices").
+		Where(liveWhere)
 
 	if method == "AND" {
 		// All tags must be present (simulating an 'AND' operation)
@@ -508,7 +521,7 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 
 	for rows.Next() {
 		var d entity.Device
-		if err := rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType); err != nil {
+		if err := rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType, &d.IsDeleted, &d.DeletedDate); err != nil {
 			return nil, ErrDeviceDatabase.Wrap("GetByTags", "rows.Scan", err)
 		}
 
@@ -566,6 +579,10 @@ func (r *DeviceRepo) Update(_ context.Context, d *entity.Device) (bool, error) {
 		Set("discovered", d.Discovered).
 		Set("producttype", d.ProductType).
 		Set("connectiontype", d.ConnectionType).
+		// The use case owns the soft-delete pair: SoftDelete sets them, Insert
+		// clears them when it restores a deleted record.
+		Set("isdeleted", d.IsDeleted).
+		Set("deleteddate", d.DeletedDate).
 		// Refreshed on every record edit; the use case stamps d.LastUpdated first.
 		Set("lastupdated", d.LastUpdated).
 		// id and createddate are immutable — intentionally not Set here.
@@ -643,8 +660,8 @@ func (r *DeviceRepo) UpdateLastSeen(_ context.Context, guid string) error {
 func (r *DeviceRepo) Insert(_ context.Context, d *entity.Device) (string, error) {
 	insertBuilder := r.Builder.
 		Insert("devices").
-		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash", "currentmode", "discovered", "id", "createddate", "lastupdated", "producttype", "connectiontype").
-		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash, d.CurrentMode, d.Discovered, d.ID, d.CreatedDate, d.LastUpdated, d.ProductType, d.ConnectionType)
+		Columns("guid", "hostname", "tags", "mpsinstance", "connectionstatus", "mpsusername", "tenantid", "friendlyname", "dnssuffix", "deviceinfo", "username", "password", "mpspassword", "mebxpassword", "usetls", "allowselfsigned", "certhash", "currentmode", "discovered", "id", "createddate", "lastupdated", "producttype", "connectiontype", "isdeleted", "deleteddate").
+		Values(d.GUID, d.Hostname, d.Tags, d.MPSInstance, d.ConnectionStatus, d.MPSUsername, d.TenantID, d.FriendlyName, d.DNSSuffix, d.DeviceInfo, d.Username, d.Password, d.MPSPassword, d.MEBXPassword, d.UseTLS, d.AllowSelfSigned, d.CertHash, d.CurrentMode, d.Discovered, d.ID, d.CreatedDate, d.LastUpdated, d.ProductType, d.ConnectionType, d.IsDeleted, d.DeletedDate)
 
 	if !r.IsEmbedded {
 		insertBuilder = insertBuilder.Suffix("RETURNING xmin::text")
@@ -697,9 +714,12 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 			"lastupdated",
 			"producttype",
 			"connectiontype",
+			"isdeleted",
+			"deleteddate",
 		).
 		From("devices").
 		Where(columnName+" = ? AND tenantid = ?", queryValue, tenantID).
+		Where(liveWhere).
 		ToSql()
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
@@ -721,7 +741,7 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 	for rows.Next() {
 		d := entity.Device{}
 
-		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType)
+		err = rows.Scan(&d.GUID, &d.Hostname, &d.Tags, &d.MPSInstance, &d.ConnectionStatus, &d.MPSUsername, &d.TenantID, &d.FriendlyName, &d.DNSSuffix, &d.DeviceInfo, &d.Username, &d.Password, &d.UseTLS, &d.AllowSelfSigned, &d.CertHash, &d.ID, &d.CreatedDate, &d.LastUpdated, &d.ProductType, &d.ConnectionType, &d.IsDeleted, &d.DeletedDate)
 		if err != nil {
 			return nil, ErrDeviceDatabase.Wrap("Get", "rows.Scan: ", err)
 		}
@@ -730,4 +750,32 @@ func (r *DeviceRepo) GetByColumn(_ context.Context, columnName, queryValue, tena
 	}
 
 	return devices, nil
+}
+
+// SoftDelete flags a live device as deleted and stamps deleteddate. The row
+// stays in place so Insert can restore it; every read except the key lookups
+// hides it. Returns false when no live device matches.
+func (r *DeviceRepo) SoftDelete(_ context.Context, guid, tenantID string) (bool, error) {
+	sqlQuery, args, err := r.Builder.
+		Update("devices").
+		Set("isdeleted", true).
+		Set("deleteddate", time.Now().UTC().Format(time.RFC3339Nano)).
+		Where("guid = ? AND tenantid = ?", guid, tenantID).
+		Where(liveWhere).
+		ToSql()
+	if err != nil {
+		return false, ErrDeviceDatabase.Wrap("SoftDelete", "r.Builder", err)
+	}
+
+	res, err := r.Pool.ExecContext(context.Background(), sqlQuery, args...)
+	if err != nil {
+		return false, ErrDeviceDatabase.Wrap("SoftDelete", "r.Pool.Exec", err)
+	}
+
+	rowsAffected, err := res.RowsAffected()
+	if err != nil {
+		return false, ErrDeviceDatabase.Wrap("SoftDelete", "res.RowsAffected", err)
+	}
+
+	return rowsAffected > 0, nil
 }

@@ -59,7 +59,9 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			createddate TEXT NOT NULL DEFAULT '',
 			lastupdated TEXT NOT NULL DEFAULT '',
 			producttype TEXT NOT NULL DEFAULT '',
-			connectiontype TEXT NOT NULL DEFAULT ''
+			connectiontype TEXT NOT NULL DEFAULT '',
+			isdeleted BOOLEAN NOT NULL DEFAULT FALSE,
+			deleteddate TEXT NOT NULL DEFAULT ''
 		);
 	`,
 	)
@@ -345,7 +347,9 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 						createddate TEXT NOT NULL DEFAULT '',
 						lastupdated TEXT NOT NULL DEFAULT '',
 						producttype TEXT NOT NULL DEFAULT '',
-						connectiontype TEXT NOT NULL DEFAULT ''
+						connectiontype TEXT NOT NULL DEFAULT '',
+						isdeleted BOOLEAN NOT NULL DEFAULT FALSE,
+						deleteddate TEXT NOT NULL DEFAULT ''
 					);
 				`,
 				)
@@ -907,7 +911,9 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
                     createddate TEXT NOT NULL DEFAULT '',
                     lastupdated TEXT NOT NULL DEFAULT '',
                     producttype TEXT NOT NULL DEFAULT '',
-                    connectiontype TEXT NOT NULL DEFAULT ''
+                    connectiontype TEXT NOT NULL DEFAULT '',
+                    isdeleted BOOLEAN NOT NULL DEFAULT FALSE,
+                    deleteddate TEXT NOT NULL DEFAULT ''
                 );
             `,
 			)
@@ -1013,7 +1019,9 @@ func TestDeviceRepo_Delete(t *testing.T) {
 					createddate TEXT NOT NULL DEFAULT '',
 					lastupdated TEXT NOT NULL DEFAULT '',
 					producttype TEXT NOT NULL DEFAULT '',
-					connectiontype TEXT NOT NULL DEFAULT ''
+					connectiontype TEXT NOT NULL DEFAULT '',
+					isdeleted BOOLEAN NOT NULL DEFAULT FALSE,
+					deleteddate TEXT NOT NULL DEFAULT ''
 				);
 			`,
 			)
@@ -1173,7 +1181,9 @@ func TestDeviceRepo_Update(t *testing.T) {
 					createddate TEXT NOT NULL DEFAULT '',
 					lastupdated TEXT NOT NULL DEFAULT '',
 					producttype TEXT NOT NULL DEFAULT '',
-					connectiontype TEXT NOT NULL DEFAULT ''
+					connectiontype TEXT NOT NULL DEFAULT '',
+					isdeleted BOOLEAN NOT NULL DEFAULT FALSE,
+					deleteddate TEXT NOT NULL DEFAULT ''
 				);
 			`,
 			)
@@ -1435,7 +1445,9 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
                     createddate TEXT NOT NULL DEFAULT '',
                     lastupdated TEXT NOT NULL DEFAULT '',
                     producttype TEXT NOT NULL DEFAULT '',
-                    connectiontype TEXT NOT NULL DEFAULT ''
+                    connectiontype TEXT NOT NULL DEFAULT '',
+                    isdeleted BOOLEAN NOT NULL DEFAULT FALSE,
+                    deleteddate TEXT NOT NULL DEFAULT ''
                 );
             `,
 			)
@@ -1783,4 +1795,105 @@ func TestDeviceRepo_GetDeviceStateCounts_Error(t *testing.T) {
 	var dbErr repoerrors.DatabaseError
 
 	assert.True(t, errors.As(err, &dbErr))
+}
+
+// TestDeviceRepo_SoftDelete: a flagged row disappears from every list, count,
+// and column/tag lookup, stays reachable through the key lookups with the flag
+// set, cannot be flagged twice, and comes back once Update clears the flag.
+func TestDeviceRepo_SoftDelete(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	sqlConfig := &db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}
+
+	repo := sqldb.NewDeviceRepo(sqlConfig, mocks.NewMockLogger(nil))
+	ctx := context.Background()
+	certHash := "certhash"
+
+	live := &entity.Device{GUID: "guid-live", TenantID: "tenant1", CertHash: &certHash, Hostname: "live-host", Tags: "shared"}
+	doomed := &entity.Device{GUID: "guid-doomed", TenantID: "tenant1", CertHash: &certHash, Hostname: "doomed-host", Tags: "shared,doomed"}
+
+	for _, d := range []*entity.Device{live, doomed} {
+		_, err := repo.Insert(ctx, d)
+		require.NoError(t, err)
+	}
+
+	deleted, err := repo.SoftDelete(ctx, "guid-doomed", "tenant1")
+	require.NoError(t, err)
+	require.True(t, deleted)
+
+	// Not twice, and not for rows that do not exist.
+	deleted, err = repo.SoftDelete(ctx, "guid-doomed", "tenant1")
+	require.NoError(t, err)
+	require.False(t, deleted, "a second SoftDelete must report no live match")
+
+	deleted, err = repo.SoftDelete(ctx, "guid-missing", "tenant1")
+	require.NoError(t, err)
+	require.False(t, deleted)
+
+	count, err := repo.GetCount(ctx, "tenant1")
+	require.NoError(t, err)
+	require.Equal(t, 1, count)
+
+	activated, discovered, err := repo.GetDeviceStateCounts(ctx, "tenant1")
+	require.NoError(t, err)
+	require.Equal(t, 1, activated)
+	require.Equal(t, 0, discovered)
+
+	onlyLive := []func() ([]entity.Device, error){
+		func() ([]entity.Device, error) { return repo.Get(ctx, 10, 0, "tenant1") },
+		func() ([]entity.Device, error) { return repo.GetActivated(ctx, 10, 0, "tenant1") },
+		func() ([]entity.Device, error) {
+			return repo.GetByTags(ctx, []string{"shared"}, "any", 10, 0, "tenant1")
+		},
+	}
+	for _, query := range onlyLive {
+		rows, queryErr := query()
+		require.NoError(t, queryErr)
+		require.Len(t, rows, 1)
+		require.Equal(t, "guid-live", rows[0].GUID)
+	}
+
+	rows, err := repo.GetByColumn(ctx, "hostname", "doomed-host", "tenant1")
+	require.NoError(t, err)
+	require.Empty(t, rows, "GetByColumn must hide soft-deleted rows")
+
+	tags, err := repo.GetDistinctTags(ctx, "tenant1")
+	require.NoError(t, err)
+	require.Equal(t, []string{"shared"}, tags, "tags of soft-deleted rows must not leak")
+
+	// Key lookups still return the row, flagged, so the use case can decide.
+	got, err := repo.GetByID(ctx, "guid-doomed", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.True(t, got.IsDeleted)
+	require.NotEmpty(t, got.DeletedDate)
+
+	byGUID, err := repo.GetByGUID(ctx, "guid-doomed")
+	require.NoError(t, err)
+	require.NotNil(t, byGUID)
+	require.True(t, byGUID.IsDeleted)
+
+	// Restore: clearing the pair through Update makes the row visible again.
+	got.IsDeleted = false
+	got.DeletedDate = ""
+
+	updated, err := repo.Update(ctx, got)
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	count, err = repo.GetCount(ctx, "tenant1")
+	require.NoError(t, err)
+	require.Equal(t, 2, count)
+
+	restored, err := repo.GetByID(ctx, "guid-doomed", "tenant1")
+	require.NoError(t, err)
+	require.False(t, restored.IsDeleted)
+	require.Empty(t, restored.DeletedDate)
 }

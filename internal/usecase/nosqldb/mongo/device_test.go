@@ -511,3 +511,152 @@ func TestDeviceRepo_Delete_NoMatch(t *testing.T) {
 	require.NoError(t, err)
 	require.False(t, ok)
 }
+
+// updateFilterKeys extracts the key set of the query document from a captured
+// `update` command (shape: {update, updates:[{q:{...}, u:{...}}]}).
+func updateFilterKeys(t *testing.T, cmd bson.Raw) map[string]struct{} {
+	t.Helper()
+
+	updates, err := cmd.LookupErr("updates")
+	require.NoError(t, err)
+
+	vals, err := updates.Array().Values()
+	require.NoError(t, err)
+	require.NotEmpty(t, vals)
+
+	q, err := vals[0].Document().LookupErr("q")
+	require.NoError(t, err)
+
+	elems, err := q.Document().Elements()
+	require.NoError(t, err)
+
+	keys := make(map[string]struct{}, len(elems))
+	for _, e := range elems {
+		keys[e.Key()] = struct{}{}
+	}
+
+	return keys
+}
+
+// TestDeviceRepo_SoftDelete_FlagsOnlyLiveDocuments: the update must set the
+// soft-delete pair and match only documents that are not already flagged.
+func TestDeviceRepo_SoftDelete_FlagsOnlyLiveDocuments(t *testing.T) {
+	t.Parallel()
+
+	db, md, cc := newMonitoredDB(t)
+	md.AddResponses(updateResponse(1))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	ok, err := repo.SoftDelete(context.Background(), "g1", "t1")
+	require.NoError(t, err)
+	require.True(t, ok)
+
+	cmd, found := cc.byName("update")
+	require.True(t, found, "expected an update command to be sent")
+
+	set := updateSetKeys(t, cmd)
+	require.Contains(t, set, "isdeleted")
+	require.Contains(t, set, "deleteddate")
+	require.Len(t, set, 2, "SoftDelete must touch nothing but the soft-delete pair")
+
+	filter := updateFilterKeys(t, cmd)
+	require.Contains(t, filter, "guid")
+	require.Contains(t, filter, "tenantid")
+	require.Contains(t, filter, "isdeleted", "an already-deleted document must not match")
+}
+
+// TestDeviceRepo_SoftDelete_NoLiveMatch: a second delete (or a missing device)
+// reports false without error.
+func TestDeviceRepo_SoftDelete_NoLiveMatch(t *testing.T) {
+	t.Parallel()
+
+	db, md := newMockedDB(t)
+	md.AddResponses(updateResponse(0))
+
+	repo := mongo.NewDeviceRepo(db)
+
+	ok, err := repo.SoftDelete(context.Background(), "g1", "t1")
+	require.NoError(t, err)
+	require.False(t, ok)
+}
+
+// TestDeviceRepo_Reads_HideSoftDeleted: list, tag, and column reads filter on
+// isdeleted while the key lookup by GUID does not, so the use case can
+// recognize and restore a deleted record.
+func TestDeviceRepo_Reads_HideSoftDeleted(t *testing.T) {
+	t.Parallel()
+
+	filtered := map[string]func(repo *mongo.DeviceRepo) error{
+		"Get": func(repo *mongo.DeviceRepo) error {
+			_, err := repo.Get(context.Background(), 10, 0, "t1")
+
+			return err
+		},
+		"GetActivated": func(repo *mongo.DeviceRepo) error {
+			_, err := repo.GetActivated(context.Background(), 10, 0, "t1")
+
+			return err
+		},
+		"GetByTags": func(repo *mongo.DeviceRepo) error {
+			_, err := repo.GetByTags(context.Background(), []string{"lab"}, "any", 10, 0, "t1")
+
+			return err
+		},
+		"GetByColumn": func(repo *mongo.DeviceRepo) error {
+			_, err := repo.GetByColumn(context.Background(), "hostname", "h1", "t1")
+
+			return err
+		},
+	}
+
+	for name, call := range filtered {
+		call := call
+
+		t.Run(name, func(t *testing.T) {
+			t.Parallel()
+
+			db, md, cc := newMonitoredDB(t)
+			md.AddResponses(findResponse("testdb." + mongo.CollectionDevices))
+
+			require.NoError(t, call(mongo.NewDeviceRepo(db)))
+
+			cmd, found := cc.byName("find")
+			require.True(t, found, "expected a find command to be sent")
+
+			filter, err := cmd.LookupErr("filter")
+			require.NoError(t, err)
+
+			isDeleted, err := filter.Document().LookupErr("isdeleted")
+			require.NoError(t, err, "read must filter on isdeleted")
+			require.Equal(t, `{"$ne": true}`, isDeleted.Document().String())
+		})
+	}
+
+	t.Run("GetByID keeps flagged documents reachable", func(t *testing.T) {
+		t.Parallel()
+
+		db, md, cc := newMonitoredDB(t)
+		md.AddResponses(findResponse("testdb."+mongo.CollectionDevices, bson.D{
+			{Key: "guid", Value: "g1"},
+			{Key: "tenantid", Value: "t1"},
+			{Key: "isdeleted", Value: true},
+			{Key: "deleteddate", Value: "2026-06-19T09:30:00Z"},
+		}))
+
+		got, err := mongo.NewDeviceRepo(db).GetByID(context.Background(), "g1", "t1")
+		require.NoError(t, err)
+		require.NotNil(t, got)
+		require.True(t, got.IsDeleted)
+		require.Equal(t, "2026-06-19T09:30:00Z", got.DeletedDate)
+
+		cmd, found := cc.byName("find")
+		require.True(t, found)
+
+		filter, err := cmd.LookupErr("filter")
+		require.NoError(t, err)
+
+		_, err = filter.Document().LookupErr("isdeleted")
+		require.Error(t, err, "key lookup must not filter on isdeleted")
+	})
+}

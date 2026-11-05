@@ -17,6 +17,8 @@ const (
 	fieldWiredInterface       = "wiredinterface"
 	fieldCurrentMode          = "currentmode"
 	fieldDiscovered           = "discovered"
+	fieldIsDeleted            = "isdeleted"
+	fieldDeletedDate          = "deleteddate"
 )
 
 const (
@@ -26,4 +28,5 @@ const (
 	opIn     = "$in"
 	opNor    = "$nor"
 	opOr     = "$or"
+	opNe     = "$ne"
 )
