@@ -76,6 +76,17 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	}
 
 	handler := gin.New()
+	// Only proxies/gateways listed in http.trusted_proxies may set
+	// X-Forwarded-For/X-Real-IP for c.ClientIP() (used by per-client login
+	// rate limiting and audit logs). The default (empty) trusts none, so
+	// ClientIP() reads RemoteAddr directly instead of an attacker-controlled
+	// header — deployments behind a real reverse proxy should configure it so
+	// clients aren't all collapsed into the proxy's single address.
+	if err := handler.SetTrustedProxies(cfg.TrustedProxies); err != nil {
+		log.Warn(fmt.Sprintf("app - setupHTTPHandler - invalid http.trusted_proxies, trusting none: %v", err))
+
+		_ = handler.SetTrustedProxies(nil)
+	}
 	// Ahead of CORS on purpose: the CORS middleware answers preflights and
 	// rejects disallowed origins itself, so anything after it never runs.
 	handler.Use(securityHeaders())

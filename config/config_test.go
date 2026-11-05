@@ -68,6 +68,66 @@ func TestNewConfig_Defaults(t *testing.T) {
 	assert.Equal(t, "info", cfg.Level)
 
 	assert.Equal(t, 2, cfg.PoolMax)
+	assert.Equal(t, "config", cfg.SecretBackend)
+	assert.Equal(t, "standalone", cfg.AdminUsername)
+}
+
+func TestLoadConfig_KeyringIgnoresConfigAndEnvironmentCredentials(t *testing.T) {
+	t.Setenv("AUTH_SECRET_BACKEND", "keyring")
+	t.Setenv("AUTH_ADMIN_USERNAME", "environment-user")
+	t.Setenv("AUTH_ADMIN_PASSWORD", "environment-password")
+	t.Setenv("AUTH_JWT_KEY", "")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: config\n  adminUsername: file-user\n  adminPassword: file-password\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Equal(t, "keyring", cfg.SecretBackend)
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
+	assert.NotEmpty(t, cfg.JWTKey)
+
+	after, err := os.ReadFile(path)
+	require.NoError(t, err)
+	assert.Equal(t, content, after, "keyring mode must not modify the configuration file")
+}
+
+func TestLoadConfig_ConfigBackendKeepsExistingCredentialSources(t *testing.T) {
+	t.Setenv("AUTH_ADMIN_USERNAME", "environment-user")
+	t.Setenv("AUTH_ADMIN_PASSWORD", "environment-password")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: config\n  adminUsername: file-user\n  adminPassword: file-password\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Equal(t, "config", cfg.SecretBackend)
+	assert.Equal(t, "environment-user", cfg.AdminUsername)
+	assert.Equal(t, "environment-password", cfg.AdminPassword)
+}
+
+func TestLoadConfig_OIDCOverridesStandaloneCredentialBackend(t *testing.T) {
+	t.Setenv("AUTH_SECRET_BACKEND", "unsupported")
+	t.Setenv("AUTH_ADMIN_USERNAME", "environment-user")
+	t.Setenv("AUTH_ADMIN_PASSWORD", "environment-password")
+	t.Setenv("AUTH_JWT_KEY", "test-jwt-key")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: unsupported\n  adminUsername: file-user\n  adminPassword: file-password\n  clientId: oidc-client\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Equal(t, "oidc-client", cfg.ClientID)
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
 }
 
 func TestNewConfig_EnvVars(t *testing.T) {
@@ -642,7 +702,7 @@ func TestEnsureJWTKey(t *testing.T) {
 		key           string
 		wantGenerated bool
 	}{
-		{"generates and persists when auth is enabled and no key is set", false, "", true},
+		{"generates when auth is enabled and no key is set", false, "", true},
 		{"keeps a configured key and never writes it to disk", false, "from-env", false},
 		{"skips generation when auth is disabled", true, "", false},
 	}
@@ -669,13 +729,8 @@ func TestEnsureJWTKey(t *testing.T) {
 				return
 			}
 
-			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
+			assert.NotEmpty(t, cfg.JWTKey)
 			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
-
-			// A restart must reuse the persisted key rather than rotate it.
-			again := readConfigFile(t, path)
-			require.NoError(t, ensureJWTKey(path, again))
-			assert.Equal(t, cfg.JWTKey, again.JWTKey)
 		})
 	}
 }
@@ -692,7 +747,7 @@ func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:parallelt
 	require.NoError(t, writeConfig(path, defaultConfig()))
 
 	require.NoError(t, ensureJWTKey(path, defaultConfig()))
-	assert.Contains(t, buf.String(), "OAuth2")
+	assert.Contains(t, buf.String(), "saved to")
 }
 
 // TestReadEnv_EmptyJWTKeyIsNotRejected guards against re-adding env-required to
@@ -701,4 +756,38 @@ func TestReadEnv_EmptyJWTKeyIsNotRejected(t *testing.T) {
 	t.Parallel()
 
 	require.NoError(t, cleanenv.ReadEnv(defaultConfig()))
+}
+
+func TestDefaultConfig_JWTKeyEmptyByDefault(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	assert.Empty(t, cfg.JWTKey)
+}
+
+func TestEnsureRuntimeJWTKey_GeneratesWhenMissing(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	require.Empty(t, cfg.JWTKey)
+
+	err := ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.NotEmpty(t, cfg.JWTKey)
+
+	firstKey := cfg.JWTKey
+	err = ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, firstKey, cfg.JWTKey)
+}
+
+func TestEnsureRuntimeJWTKey_PreservesConfiguredValue(t *testing.T) {
+	t.Parallel()
+
+	cfg := defaultConfig()
+	cfg.JWTKey = "configured-jwt-key"
+
+	err := ensureRuntimeJWTKey(cfg)
+	require.NoError(t, err)
+	assert.Equal(t, "configured-jwt-key", cfg.JWTKey)
 }

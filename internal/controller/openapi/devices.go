@@ -47,6 +47,7 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 			"When `auth.disabled` is true, any credentials are accepted, `token` is an empty "+
 			"string, and no cookie is set."),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Unauthorized: invalid credentials", fuego.Response{Type: ErrorResponse{}}),
+		fuego.OptionAddResponse(http.StatusTooManyRequests, "Rate limited: too many failed login attempts from this client", fuego.Response{Type: ErrorResponse{}}),
 	)
 
 	fuego.Post(
