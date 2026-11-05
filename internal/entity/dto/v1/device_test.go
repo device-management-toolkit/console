@@ -178,9 +178,9 @@ func TestDevice_JSONContract(t *testing.T) {
 		t.Parallel()
 
 		out := deviceJSONFields(t, Device{
-			ID:             "id-1",
-			CreatedDate:    "2026-05-26T12:00:00Z",
-			LastUpdated:    "2026-05-27T08:00:00Z",
+			ID:          "id-1",
+			CreatedDate: "2026-05-26T12:00:00Z",
+			LastUpdated: "2026-05-27T08:00:00Z",
 		})
 
 		require.JSONEq(t, `"id-1"`, string(out["id"]))

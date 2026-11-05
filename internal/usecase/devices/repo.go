@@ -354,4 +354,3 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 
 	return d2, nil
 }
-

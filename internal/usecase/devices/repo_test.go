@@ -499,18 +499,18 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
-		GUID:           "device-guid-123",
-		TenantID:       "tenant-id-456",
-		Password:       "encrypted",
-		MPSPassword:    nil,
-		MEBXPassword:   nil,
-		Tags:           "hello,test",
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  nil,
+		MEBXPassword: nil,
+		Tags:         "hello,test",
 	}
 
 	deviceDTO := &dto.Device{
-		GUID:           "device-guid-123",
-		TenantID:       "tenant-id-456",
-		Tags:           []string{"hello", "test"},
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		Tags:     []string{"hello", "test"},
 	}
 
 	tests := []testUsecase{
@@ -576,11 +576,11 @@ func TestInsert(t *testing.T) {
 			name: "successful insertion",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:           "device-guid-123",
-					Password:       "encrypted",
-					MPSPassword:    nil,
-					MEBXPassword:   nil,
-					TenantID:       "tenant-id-456",
+					GUID:         "device-guid-123",
+					Password:     "encrypted",
+					MPSPassword:  nil,
+					MEBXPassword: nil,
+					TenantID:     "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -597,11 +597,11 @@ func TestInsert(t *testing.T) {
 			name: "insertion fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:           "device-guid-123",
-					Password:       "encrypted",
-					MPSPassword:    nil,
-					MEBXPassword:   nil,
-					TenantID:       "tenant-id-456",
+					GUID:         "device-guid-123",
+					Password:     "encrypted",
+					MPSPassword:  nil,
+					MEBXPassword: nil,
+					TenantID:     "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -648,12 +648,12 @@ func TestUpdateWithPasswords(t *testing.T) {
 
 	// Entity with encrypted passwords (what gets stored in DB)
 	deviceWithPasswords := &entity.Device{
-		GUID:           "device-guid-123",
-		TenantID:       "tenant-id-456",
-		Password:       "encrypted",
-		MPSPassword:    ptr("encrypted"),
-		MEBXPassword:   ptr("encrypted"),
-		Tags:           "hello,test",
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+		Tags:         "hello,test",
 	}
 
 	// DTO with plaintext passwords (what comes from API)
@@ -667,11 +667,11 @@ func TestUpdateWithPasswords(t *testing.T) {
 
 	// Expected DTO result (passwords not returned without includeSecrets)
 	expectedDTO := &dto.Device{
-		GUID:           "device-guid-123",
-		TenantID:       "tenant-id-456",
-		Tags:           []string{"hello", "test"},
-		MPSPassword:    "encrypted",
-		MEBXPassword:   "encrypted",
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Tags:         []string{"hello", "test"},
+		MPSPassword:  "encrypted",
+		MEBXPassword: "encrypted",
 	}
 
 	t.Run("successful update with passwords", func(t *testing.T) {
@@ -705,11 +705,11 @@ func TestInsertWithPasswords(t *testing.T) {
 
 		// Entity with encrypted passwords
 		deviceWithPasswords := &entity.Device{
-			GUID:           "device-guid-123",
-			TenantID:       "tenant-id-456",
-			Password:       "encrypted",
-			MPSPassword:    ptr("encrypted"),
-			MEBXPassword:   ptr("encrypted"),
+			GUID:         "device-guid-123",
+			TenantID:     "tenant-id-456",
+			Password:     "encrypted",
+			MPSPassword:  ptr("encrypted"),
+			MEBXPassword: ptr("encrypted"),
 		}
 
 		repo.EXPECT().
@@ -908,16 +908,16 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 
 		// Expected entity with lowercase GUID (after normalization)
 		expectedEntity := &entity.Device{
-			GUID:           "aaf0c395-c2a2-992e-5655-48210b50d8c9",
-			TenantID:       "tenant-id-456",
-			Password:       "encrypted",
+			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID: "tenant-id-456",
+			Password: "encrypted",
 		}
 
 		// Expected DTO result
 		expectedDTO := &dto.Device{
-			GUID:           "aaf0c395-c2a2-992e-5655-48210b50d8c9",
-			TenantID:       "tenant-id-456",
-			Tags:           nil,
+			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID: "tenant-id-456",
+			Tags:     nil,
 		}
 
 		repo.EXPECT().
@@ -991,23 +991,23 @@ func TestUpdatePartial(t *testing.T) {
 	// Only fields without omitempty tag are included in JSON for zero values.
 	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"firstDiscovered":"2026-05-20T00:00:00Z","currentMode":"","features":"","ipAddress":"10.0.0.55","lastSynced":"2026-05-21T00:00:00Z","lmsInstalled":true}`
 	expectedEntity := &entity.Device{
-		GUID:           "device-guid-123",
-		TenantID:       "tenant-id-456",
-		Hostname:       "new-hostname",
-		DeviceInfo:     expectedDeviceInfoJSON,
-		Tags:           "lab,floor-2",
-		MPSUsername:    "admin",
-		Username:       "amtadmin",
-		Password:       "encrypted",
-		MPSPassword:    ptr("encrypted"),
-		MEBXPassword:   ptr("encrypted"),
-		Discovered:     boolPtr(true),
+		GUID:         "device-guid-123",
+		TenantID:     "tenant-id-456",
+		Hostname:     "new-hostname",
+		DeviceInfo:   expectedDeviceInfoJSON,
+		Tags:         "lab,floor-2",
+		MPSUsername:  "admin",
+		Username:     "amtadmin",
+		Password:     "encrypted",
+		MPSPassword:  ptr("encrypted"),
+		MEBXPassword: ptr("encrypted"),
+		Discovered:   boolPtr(true),
 	}
 
 	expectedDTO := &dto.Device{
-		GUID:           "device-guid-123",
-		TenantID:       "tenant-id-456",
-		Hostname:       "new-hostname",
+		GUID:     "device-guid-123",
+		TenantID: "tenant-id-456",
+		Hostname: "new-hostname",
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:       "16.1.30",
 			FWBuild:         "3400",
@@ -1357,4 +1357,3 @@ func TestUpdateLastSeen(t *testing.T) {
 		})
 	}
 }
-
