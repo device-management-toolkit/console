@@ -2261,7 +2261,14 @@
 									"    pm.expect(raw).to.not.include('mpspassword');\r",
 									"    pm.expect(raw).to.not.include('mebxpassword');\r",
 									"    pm.expect(raw).to.not.include('\\\"password\\\"');\r",
-									"});"
+									"});\r",
+									"pm.test(\"Response includes server-managed identity fields\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.id).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.createdDate).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.lastUpdated).to.be.a(\"string\").and.not.empty;\r",
+									"});\r",
+									""
 								],
 								"type": "text/javascript"
 							}
@@ -2442,8 +2449,13 @@
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false)\r",
 									"    pm.expect(jsonData.dnsSuffix).to.be.equal(\"os.suffix.com\")\r",
 									"    pm.expect(jsonData.tags[0]).to.be.equal(\"acm\")\r",
-									"})\r",
-									""
+									"});\r",
+									"pm.test(\"lastUpdated is refreshed on PATCH\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.lastUpdated).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.createdDate).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.lastUpdated).to.not.equal(jsonData.createdDate);\r",
+									"})"
 								],
 								"type": "text/javascript",
 								"packages": {}

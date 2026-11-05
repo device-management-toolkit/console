@@ -156,3 +156,49 @@ func TestDeviceInfoJSONPlatformAdapterNameArraysDecode(t *testing.T) {
 	require.Equal(t, []string{"eth0", "eth1"}, decoded.PlatformAdapters.Wired)
 	require.Equal(t, []string{"wlan0", "wlan1"}, decoded.PlatformAdapters.Wireless)
 }
+
+// TestDevice_JSONContract locks the serialization of the identity/lifecycle
+// fields on the /api/v1 device shape: they are all omitempty, so they stay
+// absent on empty/legacy payloads and don't change the wire shape existing v1
+// consumers expect.
+func TestDevice_JSONContract(t *testing.T) {
+	t.Parallel()
+
+	t.Run("zero value omits identity fields", func(t *testing.T) {
+		t.Parallel()
+
+		out := deviceJSONFields(t, Device{})
+
+		for _, k := range []string{"id", "createdDate", "lastUpdated"} {
+			require.NotContains(t, out, k, "%s must be omitempty on an empty device", k)
+		}
+	})
+
+	t.Run("populated values serialize under the expected keys", func(t *testing.T) {
+		t.Parallel()
+
+		out := deviceJSONFields(t, Device{
+			ID:             "id-1",
+			CreatedDate:    "2026-05-26T12:00:00Z",
+			LastUpdated:    "2026-05-27T08:00:00Z",
+		})
+
+		require.JSONEq(t, `"id-1"`, string(out["id"]))
+		require.JSONEq(t, `"2026-05-26T12:00:00Z"`, string(out["createdDate"]))
+		require.JSONEq(t, `"2026-05-27T08:00:00Z"`, string(out["lastUpdated"]))
+	})
+}
+
+// deviceJSONFields marshals d and returns its top-level JSON object keyed by
+// field name, so a test can assert on key presence/absence and values.
+func deviceJSONFields(t *testing.T, d Device) map[string]json.RawMessage {
+	t.Helper()
+
+	b, err := json.Marshal(d)
+	require.NoError(t, err)
+
+	var m map[string]json.RawMessage
+	require.NoError(t, json.Unmarshal(b, &m))
+
+	return m
+}

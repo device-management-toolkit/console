@@ -16,10 +16,13 @@ import (
 
 // Shared constants for OpenAPI example responses and defaults.
 const (
-	defaultVersion    = "1.0.0"
-	defaultTenantID   = "default"
-	exampleDeviceGUID = "example-guid-1"
-	exampleDeviceHost = "device1.example.com"
+	defaultVersion     = "1.0.0"
+	defaultTenantID    = "default"
+	exampleDeviceGUID  = "example-guid-1"
+	exampleDeviceHost  = "device1.example.com"
+	exampleDeviceID    = "0f8fad5b-d9cb-469f-a165-70867728950e"
+	exampleCreatedDate = "2026-05-26T12:00:00Z"
+	exampleLastUpdated = "2026-06-19T09:30:00Z"
 
 	bearerAuthScheme = "bearerAuth"
 	cookieAuthScheme = "cookieAuth"

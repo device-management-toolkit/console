@@ -37,6 +37,9 @@ type Device struct {
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+	ID               string      `json:"id,omitempty"`             // server-managed surrogate key; read-only
+	CreatedDate      string      `json:"createdDate,omitempty"`    // server-set on insert; read-only
+	LastUpdated      string      `json:"lastUpdated,omitempty"`    // server-set on insert + record edits; read-only
 }
 
 // MarshalJSON leaves the password properties out of the JSON output.

@@ -3,6 +3,8 @@ package devices_test
 import (
 	"context"
 	"encoding/json"
+	"fmt"
+	"reflect"
 	"testing"
 	"time"
 
@@ -23,6 +25,61 @@ func ptr(s string) *string {
 
 func boolPtr(v bool) *bool {
 	return &v
+}
+
+// insertedDevice matches the entity passed to repo.Insert, asserting the
+// server-set ID/CreatedDate/LastUpdated are populated (LastUpdated == CreatedDate)
+// while ignoring their non-deterministic values.
+type insertedDevice struct{ want *entity.Device }
+
+func (m insertedDevice) Matches(x any) bool {
+	got, ok := x.(*entity.Device)
+	if !ok || got == nil {
+		return false
+	}
+
+	if got.ID == "" || got.CreatedDate == "" {
+		return false
+	}
+
+	if got.LastUpdated != got.CreatedDate {
+		return false
+	}
+
+	cp := *got
+	cp.ID = ""
+	cp.CreatedDate = ""
+	cp.LastUpdated = ""
+
+	return reflect.DeepEqual(&cp, m.want)
+}
+
+func (m insertedDevice) String() string {
+	return fmt.Sprintf("matches %+v (ignoring server-set ID/CreatedDate/LastUpdated)", m.want)
+}
+
+// updatedDevice matches the entity passed to repo.Update, asserting the
+// server-set LastUpdated was refreshed (non-empty) while ignoring its value.
+type updatedDevice struct{ want *entity.Device }
+
+func (m updatedDevice) Matches(x any) bool {
+	got, ok := x.(*entity.Device)
+	if !ok || got == nil {
+		return false
+	}
+
+	if got.LastUpdated == "" {
+		return false
+	}
+
+	cp := *got
+	cp.LastUpdated = ""
+
+	return reflect.DeepEqual(&cp, m.want)
+}
+
+func (m updatedDevice) String() string {
+	return fmt.Sprintf("matches %+v (ignoring server-set LastUpdated)", m.want)
 }
 
 type testUsecase struct {
@@ -442,18 +499,18 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Password:     "encrypted",
-		MPSPassword:  nil,
-		MEBXPassword: nil,
-		Tags:         "hello,test",
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Password:       "encrypted",
+		MPSPassword:    nil,
+		MEBXPassword:   nil,
+		Tags:           "hello,test",
 	}
 
 	deviceDTO := &dto.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-		Tags:     []string{"hello", "test"},
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Tags:           []string{"hello", "test"},
 	}
 
 	tests := []testUsecase{
@@ -461,7 +518,7 @@ func TestUpdate(t *testing.T) {
 			name: "successful update",
 			mock: func(repo *mocks.MockDeviceManagementRepository, management *mocks.MockWSMAN) {
 				repo.EXPECT().
-					Update(context.Background(), device).
+					Update(context.Background(), updatedDevice{device}).
 					Return(true, nil)
 				repo.EXPECT().
 					GetByID(context.Background(), "device-guid-123", "tenant-id-456").
@@ -476,7 +533,7 @@ func TestUpdate(t *testing.T) {
 			name: "update fails - not found",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				repo.EXPECT().
-					Update(context.Background(), device).
+					Update(context.Background(), updatedDevice{device}).
 					Return(false, nil)
 			},
 			res: (*dto.Device)(nil),
@@ -486,7 +543,7 @@ func TestUpdate(t *testing.T) {
 			name: "update fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				repo.EXPECT().
-					Update(context.Background(), device).
+					Update(context.Background(), updatedDevice{device}).
 					Return(false, devices.ErrDatabase)
 			},
 			res: (*dto.Device)(nil),
@@ -519,15 +576,15 @@ func TestInsert(t *testing.T) {
 			name: "successful insertion",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:         "device-guid-123",
-					Password:     "encrypted",
-					MPSPassword:  nil,
-					MEBXPassword: nil,
-					TenantID:     "tenant-id-456",
+					GUID:           "device-guid-123",
+					Password:       "encrypted",
+					MPSPassword:    nil,
+					MEBXPassword:   nil,
+					TenantID:       "tenant-id-456",
 				}
 
 				repo.EXPECT().
-					Insert(context.Background(), device).
+					Insert(context.Background(), insertedDevice{want: device}).
 					Return("unique-device-id", nil)
 				repo.EXPECT().
 					GetByID(context.Background(), device.GUID, "tenant-id-456").
@@ -540,15 +597,15 @@ func TestInsert(t *testing.T) {
 			name: "insertion fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:         "device-guid-123",
-					Password:     "encrypted",
-					MPSPassword:  nil,
-					MEBXPassword: nil,
-					TenantID:     "tenant-id-456",
+					GUID:           "device-guid-123",
+					Password:       "encrypted",
+					MPSPassword:    nil,
+					MEBXPassword:   nil,
+					TenantID:       "tenant-id-456",
 				}
 
 				repo.EXPECT().
-					Insert(context.Background(), device).
+					Insert(context.Background(), insertedDevice{want: device}).
 					Return("", devices.ErrDatabase)
 			},
 			res: (*dto.Device)(nil),
@@ -591,12 +648,12 @@ func TestUpdateWithPasswords(t *testing.T) {
 
 	// Entity with encrypted passwords (what gets stored in DB)
 	deviceWithPasswords := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Password:     "encrypted",
-		MPSPassword:  ptr("encrypted"),
-		MEBXPassword: ptr("encrypted"),
-		Tags:         "hello,test",
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Password:       "encrypted",
+		MPSPassword:    ptr("encrypted"),
+		MEBXPassword:   ptr("encrypted"),
+		Tags:           "hello,test",
 	}
 
 	// DTO with plaintext passwords (what comes from API)
@@ -610,11 +667,11 @@ func TestUpdateWithPasswords(t *testing.T) {
 
 	// Expected DTO result (passwords not returned without includeSecrets)
 	expectedDTO := &dto.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Tags:         []string{"hello", "test"},
-		MPSPassword:  "encrypted",
-		MEBXPassword: "encrypted",
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Tags:           []string{"hello", "test"},
+		MPSPassword:    "encrypted",
+		MEBXPassword:   "encrypted",
 	}
 
 	t.Run("successful update with passwords", func(t *testing.T) {
@@ -623,7 +680,7 @@ func TestUpdateWithPasswords(t *testing.T) {
 		useCase, repo, management := devicesTest(t)
 
 		repo.EXPECT().
-			Update(context.Background(), deviceWithPasswords).
+			Update(context.Background(), updatedDevice{deviceWithPasswords}).
 			Return(true, nil)
 		repo.EXPECT().
 			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
@@ -648,15 +705,15 @@ func TestInsertWithPasswords(t *testing.T) {
 
 		// Entity with encrypted passwords
 		deviceWithPasswords := &entity.Device{
-			GUID:         "device-guid-123",
-			TenantID:     "tenant-id-456",
-			Password:     "encrypted",
-			MPSPassword:  ptr("encrypted"),
-			MEBXPassword: ptr("encrypted"),
+			GUID:           "device-guid-123",
+			TenantID:       "tenant-id-456",
+			Password:       "encrypted",
+			MPSPassword:    ptr("encrypted"),
+			MEBXPassword:   ptr("encrypted"),
 		}
 
 		repo.EXPECT().
-			Insert(context.Background(), deviceWithPasswords).
+			Insert(context.Background(), insertedDevice{want: deviceWithPasswords}).
 			Return("unique-device-id", nil)
 		repo.EXPECT().
 			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
@@ -851,20 +908,20 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 
 		// Expected entity with lowercase GUID (after normalization)
 		expectedEntity := &entity.Device{
-			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
-			TenantID: "tenant-id-456",
-			Password: "encrypted",
+			GUID:           "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID:       "tenant-id-456",
+			Password:       "encrypted",
 		}
 
 		// Expected DTO result
 		expectedDTO := &dto.Device{
-			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
-			TenantID: "tenant-id-456",
-			Tags:     nil,
+			GUID:           "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID:       "tenant-id-456",
+			Tags:           nil,
 		}
 
 		repo.EXPECT().
-			Update(context.Background(), expectedEntity).
+			Update(context.Background(), updatedDevice{expectedEntity}).
 			Return(true, nil)
 		repo.EXPECT().
 			GetByID(context.Background(), "aaf0c395-c2a2-992e-5655-48210b50d8c9", "tenant-id-456").
@@ -934,23 +991,23 @@ func TestUpdatePartial(t *testing.T) {
 	// Only fields without omitempty tag are included in JSON for zero values.
 	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"firstDiscovered":"2026-05-20T00:00:00Z","currentMode":"","features":"","ipAddress":"10.0.0.55","lastSynced":"2026-05-21T00:00:00Z","lmsInstalled":true}`
 	expectedEntity := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Hostname:     "new-hostname",
-		DeviceInfo:   expectedDeviceInfoJSON,
-		Tags:         "lab,floor-2",
-		MPSUsername:  "admin",
-		Username:     "amtadmin",
-		Password:     "encrypted",
-		MPSPassword:  ptr("encrypted"),
-		MEBXPassword: ptr("encrypted"),
-		Discovered:   boolPtr(true),
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Hostname:       "new-hostname",
+		DeviceInfo:     expectedDeviceInfoJSON,
+		Tags:           "lab,floor-2",
+		MPSUsername:    "admin",
+		Username:       "amtadmin",
+		Password:       "encrypted",
+		MPSPassword:    ptr("encrypted"),
+		MEBXPassword:   ptr("encrypted"),
+		Discovered:     boolPtr(true),
 	}
 
 	expectedDTO := &dto.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-		Hostname: "new-hostname",
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Hostname:       "new-hostname",
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:       "16.1.30",
 			FWBuild:         "3400",
@@ -981,10 +1038,15 @@ func TestUpdatePartial(t *testing.T) {
 				require.NotNil(t, actualEntity)
 				require.JSONEq(t, expectedDeviceInfoJSON, actualEntity.DeviceInfo)
 
+				// Update stamps a fresh server-managed LastUpdated; assert it was
+				// set, then zero it for the field-by-field comparison below.
+				require.NotEmpty(t, actualEntity.LastUpdated)
+
 				expectedWithoutInfo := *expectedEntity
 				actualWithoutInfo := *actualEntity
 				expectedWithoutInfo.DeviceInfo = ""
 				actualWithoutInfo.DeviceInfo = ""
+				actualWithoutInfo.LastUpdated = ""
 				require.Equal(t, expectedWithoutInfo, actualWithoutInfo)
 
 				var actualInfo dto.DeviceInfo
@@ -1295,3 +1357,4 @@ func TestUpdateLastSeen(t *testing.T) {
 		})
 	}
 }
+

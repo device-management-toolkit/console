@@ -103,6 +103,8 @@ func (uc *UseCase) dtoToEntity(d *dto.Device) (*entity.Device, error) {
 		Password:         d.Password,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+		// ID/CreatedDate/LastUpdated are server-managed: set by Insert/Update, not
+		// copied from the DTO. Leaving them zero keeps server-authority structural.
 	}
 
 	// Sync the queryable mirror columns from the deviceinfo blob (source of truth).
@@ -168,6 +170,7 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"allowselfsigned":  func(dst, src *dto.Device) { dst.AllowSelfSigned = src.AllowSelfSigned },
 	"certhash":         func(dst, src *dto.Device) { dst.CertHash = src.CertHash },
 	deviceInfoFieldKey: func(dst, src *dto.Device) { dst.DeviceInfo = src.DeviceInfo },
+	// id, createdDate, and lastUpdated are server-managed and intentionally not patchable.
 }
 
 var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
@@ -335,6 +338,9 @@ func (uc *UseCase) entityToDTO(d *entity.Device) (*dto.Device, error) {
 		Username:         d.Username,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+		ID:               d.ID,
+		CreatedDate:      d.CreatedDate,
+		LastUpdated:      d.LastUpdated,
 	}
 
 	if d.CertHash != nil {

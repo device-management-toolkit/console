@@ -156,7 +156,8 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		f.server, "/api/v1/devices", f.createDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
-		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true."),
+		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true. "+
+			"id, createdDate, and lastUpdated are server-generated and read-only."),
 		fuego.OptionDefaultStatusCode(http.StatusCreated),
 		protectedRouteOptions(),
 	)
@@ -165,7 +166,8 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		f.server, "/api/v1/devices", f.updateDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Update Device"),
-		fuego.OptionDescription("Update an existing device"),
+		fuego.OptionDescription("Update an existing device. id and createdDate are immutable; lastUpdated is refreshed by the "+
+			"server on every edit."),
 		protectedRouteOptions(),
 	)
 
@@ -215,6 +217,9 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			ConnectionStatus: true,
 			Hostname:         exampleDeviceHost,
 			DeviceInfo:       exampleDeviceInfo(),
+			ID:               exampleDeviceID,
+			CreatedDate:      exampleCreatedDate,
+			LastUpdated:      exampleLastUpdated,
 		},
 		{
 			GUID:             "example-guid-2",
@@ -223,6 +228,9 @@ func (f *FuegoAdapter) getDevices(_ fuego.ContextNoBody) (dto.DeviceCountRespons
 			ConnectionStatus: false,
 			Hostname:         "device2.example.com",
 			DeviceInfo:       exampleDeviceInfo(),
+			ID:               "7a1d4c0e-3b7f-4e1a-9c2d-0f6b8e5a2c11",
+			CreatedDate:      exampleCreatedDate,
+			LastUpdated:      exampleLastUpdated,
 		},
 	}
 
@@ -369,6 +377,9 @@ func (f *FuegoAdapter) getDeviceByID(_ fuego.ContextNoBody) (dto.Device, error) 
 		ConnectionStatus: true,
 		Hostname:         exampleDeviceHost,
 		DeviceInfo:       exampleDeviceInfo(),
+		ID:               exampleDeviceID,
+		CreatedDate:      exampleCreatedDate,
+		LastUpdated:      exampleLastUpdated,
 	}, nil
 }
 
