@@ -17,6 +17,7 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	pwdhash "github.com/device-management-toolkit/console/pkg/secrets"
 )
 
 func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying env variables.
@@ -159,19 +160,41 @@ func TestCheckStoredEncryptionKey(t *testing.T) { //nolint:paralleltest // rebin
 	}
 }
 
-// TestHandleAdminPassword_AlreadyConfigured tests when password is already set.
+// TestHandleAdminPassword_AlreadyConfigured tests when password is already set
+// as a PBKDF2 hash: it must be left untouched.
 func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
 	t.Parallel()
 
+	hash, err := pwdhash.GeneratePBKDF2Hash("already-set")
+	require.NoError(t, err)
+
 	cfg := &config.Config{
 		Auth: config.Auth{
-			AdminPassword: "already-set",
+			AdminPassword: hash,
 		},
 	}
 
 	handleAdminPassword(cfg)
 
-	assert.Equal(t, "already-set", cfg.AdminPassword)
+	assert.Equal(t, hash, cfg.AdminPassword)
+}
+
+// TestHandleAdminPassword_PlaintextConfiguredIsHashed tests that a plaintext
+// password configured directly (e.g. a config.yml predating PBKDF2 support)
+// is hashed in memory so it verifies correctly.
+func TestHandleAdminPassword_PlaintextConfiguredIsHashed(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Auth: config.Auth{
+			AdminPassword: "P@ssw0rdd",
+		},
+	}
+
+	handleAdminPassword(cfg)
+
+	assert.True(t, pwdhash.IsPBKDF2Hash(cfg.AdminPassword))
+	assert.True(t, pwdhash.VerifyPBKDF2Hash(cfg.AdminPassword, "P@ssw0rdd"))
 }
 
 func TestIsStrongAdminPassword(t *testing.T) {
@@ -270,7 +293,7 @@ func TestHandleAdminPassword_WeakConfiguredPasswordStillStarts(t *testing.T) { /
 
 	handleAdminPassword(cfg)
 
-	assert.Equal(t, "weak", cfg.AdminPassword)
+	assert.True(t, pwdhash.VerifyPBKDF2Hash(cfg.AdminPassword, "weak"))
 	assert.Contains(t, buf.String(), "Console is starting anyway")
 }
 
