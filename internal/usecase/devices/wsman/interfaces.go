@@ -35,6 +35,8 @@ type Management interface {
 	AddClientCert(clientCert string) (string, error)
 	GetAMTVersion() ([]software.SoftwareIdentity, error)
 	GetSetupAndConfiguration() ([]setupandconfiguration.SetupAndConfigurationServiceResponse, error)
+	// GetUUID reads the AMT UUID from the device in canonical lowercase form.
+	GetUUID() (string, error)
 	GetAMTRedirectionService() (redirection.Response, error)
 	SetAMTRedirectionService(*redirection.RedirectionRequest) (redirection.Response, error)
 	RequestAMTRedirectionServiceStateChange(ider, sol bool) (redirection.RequestedState, int, error)

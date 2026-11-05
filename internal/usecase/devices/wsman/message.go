@@ -6,6 +6,7 @@ import (
 	"errors"
 	"fmt"
 	"net"
+	"strings"
 	"sync"
 	"time"
 
@@ -2114,4 +2115,20 @@ func (c *ConnectionEntry) SetLinkPreference(linkPreference, timeout uint32) (int
 	}
 
 	return response.Body.SetLinkPreferenceResponse.ReturnValue, nil
+}
+
+// GetUUID reads the AMT UUID from the device and returns it in canonical
+// lowercase form, the way Console keys device records.
+func (c *ConnectionEntry) GetUUID() (string, error) {
+	response, err := c.WsmanMessages.AMT.SetupAndConfigurationService.GetUUID()
+	if err != nil {
+		return "", err
+	}
+
+	amtUUID, err := response.DecodeUUID()
+	if err != nil {
+		return "", err
+	}
+
+	return strings.ToLower(amtUUID), nil
 }

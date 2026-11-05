@@ -334,7 +334,12 @@ func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, erro
 	}
 
 	if d1.GUID == "" {
-		d1.GUID = uuid.New().String()
+		resolved, err := uc.resolveGUID(ctx, d, d1)
+		if err != nil {
+			return nil, err
+		}
+
+		d1.GUID = resolved
 	}
 
 	if err := resolveConnectionType(d1); err != nil {
@@ -437,4 +442,40 @@ func (uc *UseCase) restoreDeleted(ctx context.Context, d *entity.Device, insertE
 	}
 
 	return updated, nil
+}
+
+// resolveGUID reads the AMT UUID from a device that was added without a guid,
+// so the record is keyed by the hardware identity that rpc-go and CIRA present
+// later rather than by a generated value nothing can ever match. The probe
+// client is cached under a throwaway key for the lookup only and evicted
+// afterwards; the real client is created on demand once the record exists.
+func (uc *UseCase) resolveGUID(ctx context.Context, d *dto.Device, stored *entity.Device) (string, error) {
+	if d.Hostname == "" || d.Username == "" || d.Password == "" {
+		return "", ValidationError{}.Wrap("Insert", "resolveGUID",
+			"guid was omitted, so hostname, username, and password are required to read the AMT UUID from the device")
+	}
+
+	probe := *stored
+	probe.GUID = "resolve-" + uuid.New().String()
+
+	defer uc.device.DestroyWsmanClient(dto.Device{GUID: probe.GUID})
+
+	client, err := uc.device.SetupWsmanClient(ctx, probe, false, true)
+	if err != nil {
+		return "", ValidationError{}.Wrap("Insert", "resolveGUID",
+			"could not connect to "+d.Hostname+" to read the AMT UUID; check that the device is reachable and the AMT credentials are correct: "+err.Error())
+	}
+
+	amtUUID, err := client.GetUUID()
+	if err != nil {
+		return "", ValidationError{}.Wrap("Insert", "resolveGUID",
+			"could not read the AMT UUID from "+d.Hostname+"; check that the device is reachable and the AMT credentials are correct: "+err.Error())
+	}
+
+	amtUUID = strings.ToLower(strings.TrimSpace(amtUUID))
+	if amtUUID == "" {
+		return "", ValidationError{}.Wrap("Insert", "resolveGUID", d.Hostname+" returned an empty AMT UUID")
+	}
+
+	return amtUUID, nil
 }
