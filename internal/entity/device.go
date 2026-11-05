@@ -21,6 +21,8 @@ type Device struct {
 	LastUpdated      string     `bson:"lastupdated"`    // server-set on insert + refreshed on record edits (RFC3339Nano UTC); NOT touched by heartbeats
 	ProductType      string     `bson:"producttype"`    // manageability SKU (vPro/ISM)
 	ConnectionType   string     `bson:"connectiontype"` // device connection type (CIRA/Direct)
+	IsDeleted        bool       `bson:"isdeleted"`      // soft-delete flag; hidden from every read while set
+	DeletedDate      string     `bson:"deleteddate"`    // server-set by SoftDelete (RFC3339Nano UTC); cleared on restore
 	MPSUsername      string     `bson:"mpsusername"`
 	Tags             string     `bson:"tags"`
 	TenantID         string     `bson:"tenantid"`

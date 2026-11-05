@@ -179,7 +179,9 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		f.server, "/api/v1/devices/{guid}", f.deleteDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Delete Device"),
-		fuego.OptionDescription("Delete a device by ID"),
+		fuego.OptionDescription("Soft-delete a device by GUID. The record is kept with isdeleted set and hidden from "+
+			"every read; adding a device with the same GUID later restores it with the new details, "+
+			"keeping its original id and createdDate."),
 		fuego.OptionPath("guid", "Device GUID"),
 		fuego.OptionDefaultStatusCode(http.StatusNoContent),
 		protectedRouteOptions(),

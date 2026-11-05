@@ -32,16 +32,20 @@ func TestDeviceIdentityMigrationFromMain(t *testing.T) {
 	require.NoError(t, err)
 	require.NoError(t, m.Up())
 
-	var id, created, updated, product, connection string
+	var id, created, updated, product, connection, deleted string
 
-	err = pool.QueryRow("SELECT id, createddate, lastupdated, producttype, connectiontype FROM devices WHERE guid = 'legacy'").
-		Scan(&id, &created, &updated, &product, &connection)
+	var isDeleted bool
+
+	err = pool.QueryRow("SELECT id, createddate, lastupdated, producttype, connectiontype, isdeleted, deleteddate FROM devices WHERE guid = 'legacy'").
+		Scan(&id, &created, &updated, &product, &connection, &isDeleted, &deleted)
 	require.NoError(t, err)
 	require.Empty(t, id)
 	require.Empty(t, created)
 	require.Empty(t, updated)
 	require.Empty(t, product)
 	require.Empty(t, connection)
+	require.False(t, isDeleted)
+	require.Empty(t, deleted)
 
 	// Rollback preserves existing devices and can be followed by another upgrade.
 	require.NoError(t, m.Steps(-1))

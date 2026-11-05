@@ -28,6 +28,8 @@ type deviceUpdateFields struct {
 	LastUpdated      string  `bson:"lastupdated"`
 	ProductType      string  `bson:"producttype"`
 	ConnectionType   string  `bson:"connectiontype"`
+	IsDeleted        bool    `bson:"isdeleted"`
+	DeletedDate      string  `bson:"deleteddate"`
 	GUID             string  `bson:"guid"`
 	Hostname         string  `bson:"hostname"`
 	Tags             string  `bson:"tags"`
@@ -66,7 +68,7 @@ func (r *DeviceRepo) GetCount(ctx context.Context, tenantID string) (int, error)
 		return 0, nil
 	}
 
-	n, err := r.col.CountDocuments(ctx, bson.M{fieldTenantID: tenantID})
+	n, err := r.col.CountDocuments(ctx, liveFilter(bson.M{fieldTenantID: tenantID}))
 	if err != nil {
 		return 0, errDeviceDatabase.Wrap("GetCount", "CountDocuments", err)
 	}
@@ -89,7 +91,7 @@ func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([
 		offset = int64(skip)
 	}
 
-	cur, err := r.col.Find(ctx, bson.M{fieldTenantID: tenantID},
+	cur, err := r.col.Find(ctx, liveFilter(bson.M{fieldTenantID: tenantID}),
 		options.Find().SetSort(bson.D{{Key: fieldGUID, Value: 1}}).SetLimit(limit).SetSkip(offset))
 	if err != nil {
 		return nil, errDeviceDatabase.Wrap("Get", "Find", err)
@@ -160,7 +162,7 @@ func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]st
 
 	// Tags are a comma-joined string (SQL-compat); split and dedupe in Go.
 	var rawStrings []string
-	if err := r.col.Distinct(ctx, fieldTags, bson.M{fieldTenantID: tenantID}).Decode(&rawStrings); err != nil {
+	if err := r.col.Distinct(ctx, fieldTags, liveFilter(bson.M{fieldTenantID: tenantID})).Decode(&rawStrings); err != nil {
 		return []string{}, errDeviceDatabase.Wrap("GetDistinctTags", "Distinct", err)
 	}
 
@@ -197,7 +199,7 @@ func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string
 		regexes = append(regexes, bson.M{fieldTags: bson.M{opRegex: "(^|,)" + regexp.QuoteMeta(t) + "(,|$)"}})
 	}
 
-	filter := bson.M{fieldTenantID: tenantID}
+	filter := liveFilter(bson.M{fieldTenantID: tenantID})
 
 	if len(regexes) > 0 {
 		if method == "AND" {
@@ -287,6 +289,10 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 			LastUpdated:    d.LastUpdated,
 			ProductType:    d.ProductType,
 			ConnectionType: d.ConnectionType,
+			// The use case owns the soft-delete pair: SoftDelete sets them, Insert
+			// clears them when it restores a deleted record.
+			IsDeleted:   d.IsDeleted,
+			DeletedDate: d.DeletedDate,
 		}},
 	)
 	if err != nil {
@@ -375,7 +381,7 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 		return []entity.Device{}, nil
 	}
 
-	cur, err := r.col.Find(ctx, bson.M{field: queryValue, fieldTenantID: tenantID})
+	cur, err := r.col.Find(ctx, liveFilter(bson.M{field: queryValue, fieldTenantID: tenantID}))
 	if err != nil {
 		return nil, errDeviceDatabase.Wrap("GetByColumn", "Find", err)
 	}
@@ -394,10 +400,10 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 // pre-provisioning, including legacy rows with no discovery or control-mode
 // information.
 func activatedFilter(tenantID string) bson.M {
-	return bson.M{
+	return liveFilter(bson.M{
 		fieldTenantID: tenantID,
 		opNor:         bson.A{discoveredStateFilter()},
-	}
+	})
 }
 
 // discoveredStateFilter identifies a device still in pre-provisioning state
@@ -418,7 +424,7 @@ func discoveredFilter(tenantID string) bson.M {
 	filter := discoveredStateFilter()
 	filter[fieldTenantID] = tenantID
 
-	return filter
+	return liveFilter(filter)
 }
 
 // GetActivated returns devices that have been provisioned into an AMT control mode.
@@ -483,4 +489,39 @@ func (r *DeviceRepo) findFiltered(ctx context.Context, op string, filter bson.M,
 	}
 
 	return devs, nil
+}
+
+// liveFilter hides soft-deleted documents. Documents that predate the field
+// have no isdeleted key, so the predicate is "not true" rather than "false".
+func liveFilter(filter bson.M) bson.M {
+	filter[fieldIsDeleted] = bson.M{opNe: true}
+
+	return filter
+}
+
+// SoftDelete flags a live device as deleted and stamps deleteddate. The
+// document stays in place so Insert can restore it; every read except the
+// key lookups hides it. Returns false when no live device matches.
+func (r *DeviceRepo) SoftDelete(ctx context.Context, guid, tenantID string) (bool, error) {
+	if !identifierRegex.MatchString(guid) {
+		return false, nil
+	}
+
+	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
+		return false, nil
+	}
+
+	res, err := r.col.UpdateOne(
+		ctx,
+		liveFilter(bson.M{fieldGUID: guid, fieldTenantID: tenantID}),
+		bson.M{opSet: bson.M{
+			fieldIsDeleted:   true,
+			fieldDeletedDate: time.Now().UTC().Format(time.RFC3339Nano),
+		}},
+	)
+	if err != nil {
+		return false, errDeviceDatabase.Wrap("SoftDelete", "UpdateOne", err)
+	}
+
+	return res.MatchedCount > 0, nil
 }

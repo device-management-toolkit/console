@@ -454,7 +454,7 @@ func TestDelete(t *testing.T) {
 			tenantID: "tenant-id-456",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				repo.EXPECT().
-					Delete(context.Background(), "guid-123", "tenant-id-456").
+					SoftDelete(context.Background(), "guid-123", "tenant-id-456").
 					Return(true, nil)
 			},
 			err: nil,
@@ -465,7 +465,7 @@ func TestDelete(t *testing.T) {
 			tenantID: "tenant-id-456",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				repo.EXPECT().
-					Delete(context.Background(), "guid-456", "tenant-id-456").
+					SoftDelete(context.Background(), "guid-456", "tenant-id-456").
 					Return(false, nil)
 			},
 			err: devices.ErrNotFound,
@@ -887,7 +887,7 @@ func TestDelete_UUIDNormalization(t *testing.T) {
 
 			// Expect the normalized (lowercase) GUID to be passed to the repository
 			repo.EXPECT().
-				Delete(context.Background(), tc.expectGUID, "tenant-id-456").
+				SoftDelete(context.Background(), tc.expectGUID, "tenant-id-456").
 				Return(true, nil)
 
 			err := useCase.Delete(context.Background(), tc.inputGUID, "tenant-id-456")
@@ -1526,5 +1526,113 @@ func TestUpdate_ConnectionType(t *testing.T) {
 		var validationErr devices.ValidationError
 
 		require.ErrorAs(t, err, &validationErr)
+	})
+}
+
+// TestGetByID_HidesSoftDeleted: the repository key lookups return flagged rows
+// so Insert can restore them, but the API-facing lookups must report not found.
+func TestGetByID_HidesSoftDeleted(t *testing.T) {
+	t.Parallel()
+
+	deleted := &entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", IsDeleted: true, DeletedDate: "2026-06-19T09:30:00Z"}
+
+	t.Run("GetByID", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+		repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(deleted, nil)
+
+		_, err := useCase.GetByID(context.Background(), "device-guid-123", "tenant-id-456", false)
+
+		var notFoundErr repoerrors.NotFoundError
+
+		require.ErrorAs(t, err, &notFoundErr)
+	})
+
+	t.Run("GetByGUID", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+		repo.EXPECT().GetByGUID(context.Background(), "device-guid-123").Return(deleted, nil)
+
+		_, err := useCase.GetByGUID(context.Background(), "device-guid-123", false)
+
+		var notFoundErr repoerrors.NotFoundError
+
+		require.ErrorAs(t, err, &notFoundErr)
+	})
+}
+
+// TestInsert_RestoresSoftDeleted: adding a device whose GUID belongs to a
+// soft-deleted record revives that record with the new details, keeping its
+// original id and createdDate. A live duplicate still surfaces the conflict.
+func TestInsert_RestoresSoftDeleted(t *testing.T) {
+	t.Parallel()
+
+	conflict := repoerrors.NotUniqueError{}
+
+	t.Run("revives the deleted record in place", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		existing := &entity.Device{
+			GUID:        "device-guid-123",
+			TenantID:    "tenant-id-456",
+			ID:          "original-id",
+			CreatedDate: "2026-01-01T00:00:00Z",
+			Hostname:    "old-host",
+			IsDeleted:   true,
+			DeletedDate: "2026-06-19T09:30:00Z",
+		}
+		restored := &entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ID: "original-id", CreatedDate: "2026-01-01T00:00:00Z", Hostname: "new-host"}
+
+		repo.EXPECT().Insert(context.Background(), gomock.Any()).Return("", conflict)
+		repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(existing, nil)
+		repo.EXPECT().
+			Update(context.Background(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, d *entity.Device) (bool, error) {
+				require.Equal(t, "original-id", d.ID, "restore keeps the original id")
+				require.Equal(t, "2026-01-01T00:00:00Z", d.CreatedDate, "restore keeps the original createdDate")
+				require.Equal(t, "new-host", d.Hostname, "restore applies the new details")
+				require.False(t, d.IsDeleted)
+				require.Empty(t, d.DeletedDate)
+				require.NotEmpty(t, d.LastUpdated)
+
+				return true, nil
+			})
+		repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(restored, nil)
+
+		got, err := useCase.Insert(context.Background(), &dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", Hostname: "new-host"})
+		require.NoError(t, err)
+		require.Equal(t, "original-id", got.ID)
+		require.Equal(t, "new-host", got.Hostname)
+	})
+
+	t.Run("live duplicate still conflicts", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().Insert(context.Background(), gomock.Any()).Return("", conflict)
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(&entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"}, nil)
+
+		// gomock fails the test if Update is called, so a returned error proves
+		// the conflict surfaced unchanged instead of being treated as a restore.
+		_, err := useCase.Insert(context.Background(), &dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"})
+		require.Error(t, err)
+	})
+
+	t.Run("non-conflict errors are not retried", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().Insert(context.Background(), gomock.Any()).Return("", devices.ErrDatabase)
+
+		_, err := useCase.Insert(context.Background(), &dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"})
+		require.Error(t, err)
 	})
 }
