@@ -30,7 +30,8 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 	dbConn, err := sql.Open("sqlite", ":memory:")
 	require.NoError(t, err)
 
-	_, err = dbConn.ExecContext(context.Background(), `
+	_, err = dbConn.ExecContext(
+		context.Background(), `
 		CREATE TABLE devices (
 			guid TEXT PRIMARY KEY,
 			hostname TEXT NOT NULL DEFAULT '',
@@ -53,9 +54,15 @@ func setupDeviceTable(t *testing.T) *sql.DB {
 			discovered BOOLEAN,
 			lastconnected TEXT,
 			lastdisconnected TEXT,
-			lastseen TEXT
+			lastseen TEXT,
+			id TEXT NOT NULL DEFAULT '',
+			createddate TEXT NOT NULL DEFAULT '',
+			lastupdated TEXT NOT NULL DEFAULT '',
+			producttype TEXT NOT NULL DEFAULT '',
+			connectiontype TEXT NOT NULL DEFAULT ''
 		);
-	`)
+	`,
+	)
 	require.NoError(t, err)
 
 	return dbConn
@@ -311,7 +318,8 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 				_, err := dbConn.ExecContext(context.Background(), `DROP TABLE devices`)
 				require.NoError(t, err)
 
-				_, err = dbConn.ExecContext(context.Background(), `
+				_, err = dbConn.ExecContext(
+					context.Background(), `
 					CREATE TABLE devices (
 						guid TEXT NOT NULL,
 						hostname TEXT NOT NULL DEFAULT '',
@@ -332,9 +340,15 @@ func TestDeviceRepo_GetByID(t *testing.T) {
 						certhash TEXT NOT NULL DEFAULT '',
 						lastconnected TEXT,
 						lastdisconnected TEXT,
-						lastseen TEXT
+						lastseen TEXT,
+						id TEXT NOT NULL DEFAULT '',
+						createddate TEXT NOT NULL DEFAULT '',
+						lastupdated TEXT NOT NULL DEFAULT '',
+						producttype TEXT NOT NULL DEFAULT '',
+						connectiontype TEXT NOT NULL DEFAULT ''
 					);
-				`)
+				`,
+				)
 				require.NoError(t, err)
 
 				_, err = dbConn.ExecContext(context.Background(), `INSERT INTO devices (guid, hostname, tags, mpsinstance, connectionstatus, mpsusername, tenantid, friendlyname, dnssuffix, deviceinfo, username, password, mpspassword, mebxpassword, usetls, allowselfsigned, certhash) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
@@ -509,6 +523,183 @@ func TestDeviceRepo_GetByGUIDUsesCallerContext(t *testing.T) {
 	require.Nil(t, device)
 	require.Error(t, err)
 	require.Contains(t, err.Error(), context.Canceled.Error())
+}
+
+// TestDeviceRepo_IdentityColumnsRoundTrip verifies the issue #843 identity
+// columns (id, createddate, lastupdated, producttype, connectiontype)
+// persist on Insert and read back through GetByID.
+func TestDeviceRepo_IdentityColumnsRoundTrip(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	sqlConfig := &db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}
+
+	repo := sqldb.NewDeviceRepo(sqlConfig, mocks.NewMockLogger(nil))
+
+	certHash := "certhash"
+	want := &entity.Device{
+		GUID:           "guid-identity",
+		TenantID:       "tenant1",
+		CertHash:       &certHash,
+		ID:             "11111111-2222-3333-4444-555555555555",
+		CreatedDate:    "2026-05-26T12:00:00Z",
+		ProductType:    "vpro",
+		ConnectionType: "CIRA",
+		LastUpdated:    "2026-05-26T13:00:00Z",
+		Tags:           "identity",
+	}
+
+	_, err := repo.Insert(context.Background(), want)
+	require.NoError(t, err)
+
+	got, err := repo.GetByID(context.Background(), "guid-identity", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, want.ID, got.ID)
+	require.Equal(t, want.CreatedDate, got.CreatedDate)
+	require.Equal(t, want.ProductType, got.ProductType)
+	require.Equal(t, want.ConnectionType, got.ConnectionType)
+	require.Equal(t, want.LastUpdated, got.LastUpdated)
+
+	ctx := context.Background()
+	byGUID, err := repo.GetByGUID(ctx, want.GUID)
+	require.NoError(t, err)
+	require.Equal(t, got, byGUID)
+
+	queries := []func() ([]entity.Device, error){
+		func() ([]entity.Device, error) { return repo.Get(ctx, 10, 0, want.TenantID) },
+		func() ([]entity.Device, error) { return repo.GetActivated(ctx, 10, 0, want.TenantID) },
+		func() ([]entity.Device, error) { return repo.GetByColumn(ctx, "guid", want.GUID, want.TenantID) },
+		func() ([]entity.Device, error) {
+			return repo.GetByTags(ctx, []string{"identity"}, "any", 10, 0, want.TenantID)
+		},
+	}
+	for _, query := range queries {
+		rows, queryErr := query()
+		require.NoError(t, queryErr)
+		require.Len(t, rows, 1)
+		require.Equal(t, got.ID, rows[0].ID)
+		require.Equal(t, got.CreatedDate, rows[0].CreatedDate)
+		require.Equal(t, got.LastUpdated, rows[0].LastUpdated)
+		require.Equal(t, got.ProductType, rows[0].ProductType)
+		require.Equal(t, got.ConnectionType, rows[0].ConnectionType)
+	}
+
+	discovered := true
+	want.Discovered = &discovered
+	want.CurrentMode = "not activated"
+	updated, err := repo.Update(ctx, want)
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	rows, err := repo.GetDiscovered(ctx, 10, 0, want.TenantID)
+	require.NoError(t, err)
+	require.Len(t, rows, 1)
+	require.Equal(t, *got, rows[0])
+}
+
+// TestDeviceRepo_IdentityColumnsImmutableOnUpdate guards the design invariant
+// that id and createddate cannot be mutated via Update — the SQL
+// SET list deliberately omits them, so an Update carrying changed values is a
+// no-op for those columns.
+func TestDeviceRepo_IdentityColumnsImmutableOnUpdate(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	sqlConfig := &db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}
+
+	repo := sqldb.NewDeviceRepo(sqlConfig, mocks.NewMockLogger(nil))
+
+	certHash := "certhash"
+	original := &entity.Device{
+		GUID:        "guid-immut",
+		TenantID:    "tenant1",
+		CertHash:    &certHash,
+		ID:          "original-id",
+		CreatedDate: "2026-05-26T12:00:00Z",
+	}
+
+	_, err := repo.Insert(context.Background(), original)
+	require.NoError(t, err)
+
+	// Attempt to mutate the immutable fields via Update.
+	tampered := *original
+	tampered.ID = "tampered-id"
+	tampered.CreatedDate = "2099-01-01T00:00:00Z"
+	tampered.FriendlyName = "renamed"
+
+	updated, err := repo.Update(context.Background(), &tampered)
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	got, err := repo.GetByID(context.Background(), "guid-immut", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "original-id", got.ID, "id must not change on Update")
+	require.Equal(t, "2026-05-26T12:00:00Z", got.CreatedDate, "createddate must not change on Update")
+	require.Equal(t, "renamed", got.FriendlyName, "mutable fields should still update")
+}
+
+// TestDeviceRepo_LastUpdateRefreshedOnUpdateNotHeartbeat: the main Update path
+// writes lastupdated, but the UpdateLastSeen heartbeat must leave it untouched.
+func TestDeviceRepo_LastUpdateRefreshedOnUpdateNotHeartbeat(t *testing.T) {
+	t.Parallel()
+
+	dbConn := setupDeviceTable(t)
+	defer dbConn.Close()
+
+	sqlConfig := &db.SQL{
+		Builder:    squirrel.StatementBuilder.PlaceholderFormat(squirrel.Question),
+		Pool:       dbConn,
+		IsEmbedded: true,
+	}
+
+	repo := sqldb.NewDeviceRepo(sqlConfig, mocks.NewMockLogger(nil))
+
+	certHash := "certhash"
+	original := &entity.Device{
+		GUID:        "guid-lastupdated",
+		TenantID:    "tenant1",
+		CertHash:    &certHash,
+		LastUpdated: "2026-06-19T00:00:00Z",
+	}
+
+	_, err := repo.Insert(context.Background(), original)
+	require.NoError(t, err)
+
+	// A heartbeat must not disturb lastupdated.
+	require.NoError(t, repo.UpdateLastSeen(context.Background(), "guid-lastupdated"))
+
+	got, err := repo.GetByID(context.Background(), "guid-lastupdated", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "2026-06-19T00:00:00Z", got.LastUpdated, "UpdateLastSeen must not change lastupdated")
+
+	// The main Update path persists a refreshed lastupdated.
+	edit := *original
+	edit.LastUpdated = "2026-06-19T09:30:00Z"
+	edit.FriendlyName = "renamed"
+
+	updated, err := repo.Update(context.Background(), &edit)
+	require.NoError(t, err)
+	require.True(t, updated)
+
+	got, err = repo.GetByID(context.Background(), "guid-lastupdated", "tenant1")
+	require.NoError(t, err)
+	require.NotNil(t, got)
+	require.Equal(t, "2026-06-19T09:30:00Z", got.LastUpdated, "Update must persist the refreshed lastupdated")
 }
 
 func TestDeviceRepo_GetDistinctTags(t *testing.T) {
@@ -699,7 +890,8 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 
 			defer dbConn.Close()
 
-			_, err = dbConn.ExecContext(context.Background(), `
+			_, err = dbConn.ExecContext(
+				context.Background(), `
                 CREATE TABLE devices (
                     guid TEXT PRIMARY KEY,
                     hostname TEXT NOT NULL DEFAULT '',
@@ -710,9 +902,15 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
                     tenantid TEXT NOT NULL,
                     friendlyname TEXT NOT NULL DEFAULT '',
                     dnssuffix TEXT NOT NULL DEFAULT '',
-                    deviceinfo TEXT NOT NULL DEFAULT ''
+                    deviceinfo TEXT NOT NULL DEFAULT '',
+                    id TEXT NOT NULL DEFAULT '',
+                    createddate TEXT NOT NULL DEFAULT '',
+                    lastupdated TEXT NOT NULL DEFAULT '',
+                    producttype TEXT NOT NULL DEFAULT '',
+                    connectiontype TEXT NOT NULL DEFAULT ''
                 );
-            `)
+            `,
+			)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -791,7 +989,8 @@ func TestDeviceRepo_Delete(t *testing.T) {
 
 			defer dbConn.Close()
 
-			_, err = dbConn.ExecContext(context.Background(), `
+			_, err = dbConn.ExecContext(
+				context.Background(), `
 				CREATE TABLE devices (
 					guid TEXT PRIMARY KEY,
 					hostname TEXT NOT NULL DEFAULT '',
@@ -809,9 +1008,15 @@ func TestDeviceRepo_Delete(t *testing.T) {
 					mebxpassword TEXT,
 					usetls BOOLEAN NOT NULL DEFAULT FALSE,
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+					id TEXT NOT NULL DEFAULT '',
+					createddate TEXT NOT NULL DEFAULT '',
+					lastupdated TEXT NOT NULL DEFAULT '',
+					producttype TEXT NOT NULL DEFAULT '',
+					connectiontype TEXT NOT NULL DEFAULT ''
 				);
-			`)
+			`,
+			)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -942,7 +1147,8 @@ func TestDeviceRepo_Update(t *testing.T) {
 
 			defer dbConn.Close()
 
-			_, err = dbConn.ExecContext(context.Background(), `
+			_, err = dbConn.ExecContext(
+				context.Background(), `
 				CREATE TABLE devices (
 					guid TEXT PRIMARY KEY,
 					hostname TEXT NOT NULL DEFAULT '',
@@ -962,9 +1168,15 @@ func TestDeviceRepo_Update(t *testing.T) {
 					allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
 					certhash TEXT NOT NULL DEFAULT '',
 					currentmode TEXT,
-					discovered BOOLEAN
+					discovered BOOLEAN,
+					id TEXT NOT NULL DEFAULT '',
+					createddate TEXT NOT NULL DEFAULT '',
+					lastupdated TEXT NOT NULL DEFAULT '',
+					producttype TEXT NOT NULL DEFAULT '',
+					connectiontype TEXT NOT NULL DEFAULT ''
 				);
-			`)
+			`,
+			)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
@@ -1201,7 +1413,8 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
 
 			defer dbConn.Close()
 
-			_, err = dbConn.ExecContext(context.Background(), `
+			_, err = dbConn.ExecContext(
+				context.Background(), `
                 CREATE TABLE devices (
                     guid TEXT PRIMARY KEY,
                     hostname TEXT NOT NULL DEFAULT '',
@@ -1217,9 +1430,15 @@ func TestDeviceRepo_GetByColumn(t *testing.T) {
                     password TEXT NOT NULL DEFAULT '',
                     usetls BOOLEAN NOT NULL DEFAULT FALSE,
                     allowselfsigned BOOLEAN NOT NULL DEFAULT FALSE,
-					certhash TEXT NOT NULL DEFAULT ''
+					certhash TEXT NOT NULL DEFAULT '',
+                    id TEXT NOT NULL DEFAULT '',
+                    createddate TEXT NOT NULL DEFAULT '',
+                    lastupdated TEXT NOT NULL DEFAULT '',
+                    producttype TEXT NOT NULL DEFAULT '',
+                    connectiontype TEXT NOT NULL DEFAULT ''
                 );
-            `)
+            `,
+			)
 			require.NoError(t, err)
 
 			tc.setup(dbConn)
