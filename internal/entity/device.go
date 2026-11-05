@@ -2,6 +2,13 @@ package entity
 
 import "time"
 
+// Device.ConnectionType values. A device provisioned with MPS credentials
+// reaches Console over CIRA; otherwise Console manages it directly.
+const (
+	ConnectionTypeCIRA   = "CIRA"
+	ConnectionTypeDirect = "Direct"
+)
+
 // BSON tags are lowercase to match the mongo-driver codec default — do not
 // change to camelCase or existing data won't decode.
 type Device struct {

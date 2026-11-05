@@ -499,18 +499,20 @@ func TestUpdate(t *testing.T) {
 	t.Parallel()
 
 	device := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Password:     "encrypted",
-		MPSPassword:  nil,
-		MEBXPassword: nil,
-		Tags:         "hello,test",
+		ConnectionType: entity.ConnectionTypeDirect,
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Password:       "encrypted",
+		MPSPassword:    nil,
+		MEBXPassword:   nil,
+		Tags:           "hello,test",
 	}
 
 	deviceDTO := &dto.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-		Tags:     []string{"hello", "test"},
+		ConnectionType: entity.ConnectionTypeDirect,
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Tags:           []string{"hello", "test"},
 	}
 
 	tests := []testUsecase{
@@ -576,11 +578,12 @@ func TestInsert(t *testing.T) {
 			name: "successful insertion",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:         "device-guid-123",
-					Password:     "encrypted",
-					MPSPassword:  nil,
-					MEBXPassword: nil,
-					TenantID:     "tenant-id-456",
+					ConnectionType: entity.ConnectionTypeDirect,
+					GUID:           "device-guid-123",
+					Password:       "encrypted",
+					MPSPassword:    nil,
+					MEBXPassword:   nil,
+					TenantID:       "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -597,11 +600,12 @@ func TestInsert(t *testing.T) {
 			name: "insertion fails - database error",
 			mock: func(repo *mocks.MockDeviceManagementRepository, _ *mocks.MockWSMAN) {
 				device := &entity.Device{
-					GUID:         "device-guid-123",
-					Password:     "encrypted",
-					MPSPassword:  nil,
-					MEBXPassword: nil,
-					TenantID:     "tenant-id-456",
+					ConnectionType: entity.ConnectionTypeDirect,
+					GUID:           "device-guid-123",
+					Password:       "encrypted",
+					MPSPassword:    nil,
+					MEBXPassword:   nil,
+					TenantID:       "tenant-id-456",
 				}
 
 				repo.EXPECT().
@@ -648,12 +652,13 @@ func TestUpdateWithPasswords(t *testing.T) {
 
 	// Entity with encrypted passwords (what gets stored in DB)
 	deviceWithPasswords := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Password:     "encrypted",
-		MPSPassword:  ptr("encrypted"),
-		MEBXPassword: ptr("encrypted"),
-		Tags:         "hello,test",
+		ConnectionType: entity.ConnectionTypeDirect,
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Password:       "encrypted",
+		MPSPassword:    ptr("encrypted"),
+		MEBXPassword:   ptr("encrypted"),
+		Tags:           "hello,test",
 	}
 
 	// DTO with plaintext passwords (what comes from API)
@@ -667,11 +672,12 @@ func TestUpdateWithPasswords(t *testing.T) {
 
 	// Expected DTO result (passwords not returned without includeSecrets)
 	expectedDTO := &dto.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Tags:         []string{"hello", "test"},
-		MPSPassword:  "encrypted",
-		MEBXPassword: "encrypted",
+		ConnectionType: entity.ConnectionTypeDirect,
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Tags:           []string{"hello", "test"},
+		MPSPassword:    "encrypted",
+		MEBXPassword:   "encrypted",
 	}
 
 	t.Run("successful update with passwords", func(t *testing.T) {
@@ -705,11 +711,12 @@ func TestInsertWithPasswords(t *testing.T) {
 
 		// Entity with encrypted passwords
 		deviceWithPasswords := &entity.Device{
-			GUID:         "device-guid-123",
-			TenantID:     "tenant-id-456",
-			Password:     "encrypted",
-			MPSPassword:  ptr("encrypted"),
-			MEBXPassword: ptr("encrypted"),
+			ConnectionType: entity.ConnectionTypeDirect,
+			GUID:           "device-guid-123",
+			TenantID:       "tenant-id-456",
+			Password:       "encrypted",
+			MPSPassword:    ptr("encrypted"),
+			MEBXPassword:   ptr("encrypted"),
 		}
 
 		repo.EXPECT().
@@ -908,16 +915,18 @@ func TestUpdate_UUIDNormalization(t *testing.T) {
 
 		// Expected entity with lowercase GUID (after normalization)
 		expectedEntity := &entity.Device{
-			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
-			TenantID: "tenant-id-456",
-			Password: "encrypted",
+			ConnectionType: entity.ConnectionTypeDirect,
+			GUID:           "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID:       "tenant-id-456",
+			Password:       "encrypted",
 		}
 
 		// Expected DTO result
 		expectedDTO := &dto.Device{
-			GUID:     "aaf0c395-c2a2-992e-5655-48210b50d8c9",
-			TenantID: "tenant-id-456",
-			Tags:     nil,
+			ConnectionType: entity.ConnectionTypeDirect,
+			GUID:           "aaf0c395-c2a2-992e-5655-48210b50d8c9",
+			TenantID:       "tenant-id-456",
+			Tags:           nil,
 		}
 
 		repo.EXPECT().
@@ -991,23 +1000,25 @@ func TestUpdatePartial(t *testing.T) {
 	// Only fields without omitempty tag are included in JSON for zero values.
 	expectedDeviceInfoJSON := `{"fwVersion":"16.1.30","fwBuild":"3400","fwSku":"","discovered":true,"firstDiscovered":"2026-05-20T00:00:00Z","currentMode":"","features":"","ipAddress":"10.0.0.55","lastSynced":"2026-05-21T00:00:00Z","lmsInstalled":true}`
 	expectedEntity := &entity.Device{
-		GUID:         "device-guid-123",
-		TenantID:     "tenant-id-456",
-		Hostname:     "new-hostname",
-		DeviceInfo:   expectedDeviceInfoJSON,
-		Tags:         "lab,floor-2",
-		MPSUsername:  "admin",
-		Username:     "amtadmin",
-		Password:     "encrypted",
-		MPSPassword:  ptr("encrypted"),
-		MEBXPassword: ptr("encrypted"),
-		Discovered:   boolPtr(true),
+		ConnectionType: entity.ConnectionTypeCIRA,
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Hostname:       "new-hostname",
+		DeviceInfo:     expectedDeviceInfoJSON,
+		Tags:           "lab,floor-2",
+		MPSUsername:    "admin",
+		Username:       "amtadmin",
+		Password:       "encrypted",
+		MPSPassword:    ptr("encrypted"),
+		MEBXPassword:   ptr("encrypted"),
+		Discovered:     boolPtr(true),
 	}
 
 	expectedDTO := &dto.Device{
-		GUID:     "device-guid-123",
-		TenantID: "tenant-id-456",
-		Hostname: "new-hostname",
+		ConnectionType: entity.ConnectionTypeCIRA,
+		GUID:           "device-guid-123",
+		TenantID:       "tenant-id-456",
+		Hostname:       "new-hostname",
 		DeviceInfo: &dto.DeviceInfo{
 			FWVersion:       "16.1.30",
 			FWBuild:         "3400",
@@ -1356,4 +1367,164 @@ func TestUpdateLastSeen(t *testing.T) {
 			require.IsType(t, tc.err, err)
 		})
 	}
+}
+
+// TestInsert_ConnectionType covers the server-side connectionType rule on
+// create: derived from the MPS credentials when absent, canonicalized when
+// supplied, rejected when it is neither CIRA nor Direct.
+func TestInsert_ConnectionType(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		in   dto.Device
+		want string
+	}{
+		{
+			name: "derives Direct without MPS credentials",
+			in:   dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"},
+			want: entity.ConnectionTypeDirect,
+		},
+		{
+			name: "derives CIRA from mpsusername",
+			in:   dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", MPSUsername: "admin"},
+			want: entity.ConnectionTypeCIRA,
+		},
+		{
+			name: "canonicalizes an explicit lowercase value",
+			in:   dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ConnectionType: "cira"},
+			want: entity.ConnectionTypeCIRA,
+		},
+		{
+			name: "keeps an explicit value over the derived one",
+			in:   dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", MPSUsername: "admin", ConnectionType: "Direct"},
+			want: entity.ConnectionTypeDirect,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, _ := devicesTest(t)
+
+			repo.EXPECT().
+				Insert(context.Background(), gomock.Any()).
+				DoAndReturn(func(_ context.Context, d *entity.Device) (string, error) {
+					require.Equal(t, tt.want, d.ConnectionType)
+
+					return "", nil
+				})
+			repo.EXPECT().
+				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+				Return(&entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ConnectionType: tt.want}, nil)
+
+			in := tt.in
+
+			got, err := useCase.Insert(context.Background(), &in)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got.ConnectionType)
+		})
+	}
+
+	t.Run("rejects an unknown value before touching the repository", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, _, _ := devicesTest(t)
+
+		_, err := useCase.Insert(context.Background(), &dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ConnectionType: "bogus"})
+
+		var validationErr devices.ValidationError
+
+		require.ErrorAs(t, err, &validationErr)
+		require.Contains(t, validationErr.Console.FriendlyMessage(), "connectionType must be CIRA or Direct")
+	})
+}
+
+// TestUpdate_ConnectionType covers the rule on PATCH: a request that omits
+// connectionType re-derives it from the merged MPS credentials (backfilling
+// legacy rows), an explicit value is canonicalized, and unknown values fail.
+func TestUpdate_ConnectionType(t *testing.T) {
+	t.Parallel()
+
+	stored := func() *entity.Device {
+		return &entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", MPSUsername: "admin", Password: "encrypted"}
+	}
+
+	tests := []struct {
+		name   string
+		in     dto.Device
+		fields map[string]bool
+		want   string
+	}{
+		{
+			name:   "omitted connectionType is derived from stored mpsusername",
+			in:     dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", Hostname: "renamed"},
+			fields: map[string]bool{"hostname": true},
+			want:   entity.ConnectionTypeCIRA,
+		},
+		{
+			name:   "clearing mpsusername flips the derived value to Direct",
+			in:     dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"},
+			fields: map[string]bool{"mpsusername": true},
+			want:   entity.ConnectionTypeDirect,
+		},
+		{
+			name:   "explicit value is canonicalized",
+			in:     dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ConnectionType: "direct"},
+			fields: map[string]bool{"connectiontype": true},
+			want:   entity.ConnectionTypeDirect,
+		},
+	}
+
+	for _, tt := range tests {
+		tt := tt
+
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, management := devicesTest(t)
+
+			repo.EXPECT().
+				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+				Return(stored(), nil)
+			repo.EXPECT().
+				Update(context.Background(), gomock.Any()).
+				DoAndReturn(func(_ context.Context, d *entity.Device) (bool, error) {
+					require.Equal(t, tt.want, d.ConnectionType)
+
+					return true, nil
+				})
+			repo.EXPECT().
+				GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+				Return(&entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ConnectionType: tt.want}, nil)
+			management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+			in := tt.in
+
+			got, err := useCase.Update(context.Background(), &in, tt.fields)
+			require.NoError(t, err)
+			require.Equal(t, tt.want, got.ConnectionType)
+		})
+	}
+
+	t.Run("rejects an unknown value", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(stored(), nil)
+
+		in := dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456", ConnectionType: "bogus"}
+
+		_, err := useCase.Update(context.Background(), &in, map[string]bool{"connectiontype": true})
+
+		var validationErr devices.ValidationError
+
+		require.ErrorAs(t, err, &validationErr)
+	})
 }

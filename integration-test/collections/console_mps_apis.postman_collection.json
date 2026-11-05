@@ -2212,6 +2212,14 @@
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false);\r",
 									"    pm.expect(jsonData.useTLS).to.be.equal(true);\r",
 									"    pm.expect(jsonData.allowSelfSigned).to.be.equal(true);\r",
+									"});\r",
+									"pm.test(\"connectionType is derived as CIRA when mpsusername is set\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.connectionType).to.be.equal(\"CIRA\");\r",
+									"    pm.expect(jsonData.productType).to.be.equal(\"vPro\");\r",
+									"    pm.expect(jsonData.id).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.createdDate).to.be.a(\"string\").and.not.empty;\r",
+									"    pm.expect(jsonData.lastUpdated).to.be.equal(jsonData.createdDate);\r",
 									"})"
 								],
 								"type": "text/javascript",
@@ -2224,7 +2232,53 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyName\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [],\r\n    \"mpsusername\": \"admin\",\r\n    \"deviceInfo\": {\r\n        \"fwVersion\": \"16.1.30\",\r\n        \"fwBuild\": \"3400\",\r\n        \"fwSku\": \"11\",\r\n        \"discovered\": true,\r\n        \"firstDiscovered\": \"2026-05-20T00:00:00Z\",\r\n        \"currentMode\": \"Admin\",\r\n        \"features\": \"SOL,IDER,KVM\",\r\n        \"ipAddress\": \"10.0.0.12\",\r\n        \"lastSynced\": \"2026-05-21T00:00:00Z\",\r\n        \"tlsMode\": \"TLS 1.2\",\r\n        \"upid\": {\r\n            \"oemPlatformIdType\": \"Not Set (0)\",\r\n            \"oemId\": \"\",\r\n            \"csmeId\": \"4A45A39C5ED9462082510000\"\r\n        },\r\n        \"amtEnabledInBIOS\": true,\r\n        \"meInterfaceVersion\": \"16.1.25.2124\",\r\n        \"dhcpEnabled\": true,\r\n        \"certHashes\": [\r\n            \"a1b2c3\",\r\n            \"d4e5f6\"\r\n        ],\r\n        \"lmsInstalled\": true,\r\n        \"lmsVersion\": \"2410.5.0.0\",\r\n        \"osName\": \"linux\",\r\n        \"osVersion\": \"6.8.0-51-generic\",\r\n        \"osDistro\": \"Ubuntu 24.04 LTS\",\r\n        \"cpuModel\": \"Intel(R) Core(TM) Ultra 7 165H\",\r\n        \"osIpAddress\": \"10.49.76.163\",\r\n        \"ethernetAdapterCount\": 2,\r\n        \"monitorConnected\": true,\r\n        \"ieee8021xEnabled\": false,\r\n        \"isElevated\": false,\r\n        \"heciAvailable\": false\r\n    }\r\n}",
+							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174000\",\r\n    \"friendlyName\": \"friendlyName\",\r\n    \"hostname\": \"hostname\",\r\n    \"tags\": [],\r\n    \"mpsusername\": \"admin\",\r\n    \"deviceInfo\": {\r\n        \"fwVersion\": \"16.1.30\",\r\n        \"fwBuild\": \"3400\",\r\n        \"fwSku\": \"11\",\r\n        \"discovered\": true,\r\n        \"firstDiscovered\": \"2026-05-20T00:00:00Z\",\r\n        \"currentMode\": \"Admin\",\r\n        \"features\": \"SOL,IDER,KVM\",\r\n        \"ipAddress\": \"10.0.0.12\",\r\n        \"lastSynced\": \"2026-05-21T00:00:00Z\",\r\n        \"tlsMode\": \"TLS 1.2\",\r\n        \"upid\": {\r\n            \"oemPlatformIdType\": \"Not Set (0)\",\r\n            \"oemId\": \"\",\r\n            \"csmeId\": \"4A45A39C5ED9462082510000\"\r\n        },\r\n        \"amtEnabledInBIOS\": true,\r\n        \"meInterfaceVersion\": \"16.1.25.2124\",\r\n        \"dhcpEnabled\": true,\r\n        \"certHashes\": [\r\n            \"a1b2c3\",\r\n            \"d4e5f6\"\r\n        ],\r\n        \"lmsInstalled\": true,\r\n        \"lmsVersion\": \"2410.5.0.0\",\r\n        \"osName\": \"linux\",\r\n        \"osVersion\": \"6.8.0-51-generic\",\r\n        \"osDistro\": \"Ubuntu 24.04 LTS\",\r\n        \"cpuModel\": \"Intel(R) Core(TM) Ultra 7 165H\",\r\n        \"osIpAddress\": \"10.49.76.163\",\r\n        \"ethernetAdapterCount\": 2,\r\n        \"monitorConnected\": true,\r\n        \"ieee8021xEnabled\": false,\r\n        \"isElevated\": false,\r\n        \"heciAvailable\": false\r\n    },\r\n    \"productType\": \"vPro\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Create Device invalid connectionType",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"pm.test(\"Error names connectionType\", function () {\r",
+									"    pm.expect(pm.response.text()).to.include(\"connectionType must be CIRA or Direct\");\r",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"guid\": \"143e4567-e89b-12d3-a456-426614174099\",\r\n    \"hostname\": \"hostname\",\r\n    \"connectionType\": \"bogus\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -2450,11 +2504,12 @@
 									"    pm.expect(jsonData.dnsSuffix).to.be.equal(\"os.suffix.com\")\r",
 									"    pm.expect(jsonData.tags[0]).to.be.equal(\"acm\")\r",
 									"});\r",
-									"pm.test(\"lastUpdated is refreshed on PATCH\", function () {\r",
+									"pm.test(\"lastUpdated is refreshed and connectionType preserved on PATCH\", function () {\r",
 									"    var jsonData = pm.response.json();\r",
 									"    pm.expect(jsonData.lastUpdated).to.be.a(\"string\").and.not.empty;\r",
 									"    pm.expect(jsonData.createdDate).to.be.a(\"string\").and.not.empty;\r",
 									"    pm.expect(jsonData.lastUpdated).to.not.equal(jsonData.createdDate);\r",
+									"    pm.expect(jsonData.connectionType).to.be.equal(\"CIRA\");\r",
 									"})"
 								],
 								"type": "text/javascript",
@@ -2506,6 +2561,10 @@
 									"    pm.expect(jsonData.tags.length).to.be.equal(1)  \r",
 									"    pm.expect(jsonData.mpsInstance).to.be.equal(\"\")\r",
 									"    pm.expect(jsonData.connectionStatus).to.be.equal(false)\r",
+									"});\r",
+									"pm.test(\"connectionType is derived as Direct without mpsusername\", function () {\r",
+									"    var jsonData = pm.response.json();\r",
+									"    pm.expect(jsonData.connectionType).to.be.equal(\"Direct\");\r",
 									"})"
 								],
 								"type": "text/javascript",
