@@ -462,14 +462,12 @@ func (uc *UseCase) resolveGUID(ctx context.Context, d *dto.Device, stored *entit
 
 	client, err := uc.device.SetupWsmanClient(ctx, probe, false, true)
 	if err != nil {
-		return "", ValidationError{}.Wrap("Insert", "resolveGUID",
-			"could not connect to "+d.Hostname+" to read the AMT UUID; check that the device is reachable and the AMT credentials are correct: "+err.Error())
+		return "", ValidationError{}.Wrap("Insert", "resolveGUID", describeProbeFailure(d.Hostname, err))
 	}
 
 	amtUUID, err := client.GetUUID()
 	if err != nil {
-		return "", ValidationError{}.Wrap("Insert", "resolveGUID",
-			"could not read the AMT UUID from "+d.Hostname+"; check that the device is reachable and the AMT credentials are correct: "+err.Error())
+		return "", ValidationError{}.Wrap("Insert", "resolveGUID", describeProbeFailure(d.Hostname, err))
 	}
 
 	amtUUID = strings.ToLower(strings.TrimSpace(amtUUID))
@@ -478,4 +476,57 @@ func (uc *UseCase) resolveGUID(ctx context.Context, d *dto.Device, stored *entit
 	}
 
 	return amtUUID, nil
+}
+
+// probeFailureHints maps substrings of the raw lookup error to the sentence
+// shown first; the first match wins, and the raw error follows for support.
+var probeFailureHints = []struct {
+	markers  []string
+	guidance func(host string) string
+}{
+	{
+		markers: []string{"refused"},
+		guidance: func(host string) string {
+			return "AMT on " + host + " is not accepting direct connections on port 16992/16993. " +
+				"The device may not be activated yet, or it may be configured for CIRA; " +
+				"CIRA devices are registered by rpc-go during activation instead of being added here."
+		},
+	},
+	{
+		markers: []string{"401", "unauthorized", "authentication", "digest"},
+		guidance: func(host string) string {
+			return "AMT on " + host + " rejected the credentials. Check the AMT username and password."
+		},
+	},
+	{
+		markers: []string{"tls", "certificate", "x509", "handshake"},
+		guidance: func(host string) string {
+			return "The TLS handshake with " + host + " failed. " +
+				"Check the Use TLS and Allow Self-Signed Certificates settings against how the device was configured."
+		},
+	},
+	{
+		markers: []string{"timeout", "timed out", "no route", "unreachable", "no such host"},
+		guidance: func(host string) string {
+			return host + " is unreachable from Console. Check the hostname, the network path, and any firewall between Console and the device."
+		},
+	},
+}
+
+// describeProbeFailure turns the error from the AMT UUID lookup into a sentence
+// that names the likely cause and what to do about it. The raw error follows in
+// parentheses so support can still see exactly what the stack reported.
+func describeProbeFailure(host string, err error) string {
+	cause := strings.ToLower(err.Error())
+
+	for _, hint := range probeFailureHints {
+		for _, marker := range hint.markers {
+			if strings.Contains(cause, marker) {
+				return hint.guidance(host) + " (" + err.Error() + ")"
+			}
+		}
+	}
+
+	return "Console could not read the AMT UUID from " + host +
+		". Check that the device is reachable and the AMT credentials are correct. (" + err.Error() + ")"
 }
