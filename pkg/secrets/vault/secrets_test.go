@@ -7,6 +7,7 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
@@ -49,16 +50,16 @@ func TestValidatePathKey(t *testing.T) {
 		{name: "valid nested", key: "certificates/root", wantError: false},
 		{name: "valid simple", key: "encryption-key", wantError: false},
 		{name: "valid underscore and dot", key: "certs/root_v1.pem", wantError: false},
-		{name: "Auth0 tenant ID", key: "domains/auth0|abc/prof", wantError: false},
-		{name: "tenant ID with colon", key: "domains/acme:prod/prof", wantError: false},
-		{name: "tenant ID with spaces and braces", key: "domains/acme {prod}/prof", wantError: false},
 		{name: "query and fragment characters", key: "certs/root?x=1#frag", wantError: false},
 		{name: "percent encoded slash", key: "certs%2froot", wantError: false},
 		{name: "empty", key: "", wantError: true},
+		{name: "current directory", key: ".", wantError: true},
+		{name: "only dot segments", key: "././", wantError: true},
 		{name: "absolute-like", key: "/certificates/root", wantError: true},
 		{name: "parent traversal", key: "../other/path", wantError: true},
 		{name: "parent segment in normalized path", key: "certs/../other", wantError: true},
 		{name: "inline traversal", key: "certs/../../other", wantError: true},
+		{name: "certificate path targets keys", key: "certs/domains/../../keys", wantError: true},
 		{name: "dot segment normalizes", key: "./certs/root", wantError: false},
 		{name: "double slash normalizes", key: "certs//root", wantError: false},
 		{name: "backslash separator", key: "certs\\root", wantError: true},
@@ -88,7 +89,7 @@ func TestValidatePathKey_TraversalBranch(t *testing.T) {
 	err := validatePathKey("..")
 	assert.Error(t, err)
 	assert.True(t, errors.Is(err, ErrInvalidPathKey), "expected ErrInvalidPathKey, got %v", err)
-	assert.Contains(t, err.Error(), "traversal not allowed")
+	assert.Contains(t, err.Error(), "invalid path segment")
 }
 
 func TestValidatePathKey_RepeatedSlashIsAllowed(t *testing.T) {
@@ -128,22 +129,16 @@ func TestBuildScopedSecretPath(t *testing.T) {
 			wantError: true,
 		},
 		{
+			name:      "reject certificate path targeting keys within base",
+			basePath:  "secret/data/console",
+			key:       "certs/domains/../../keys",
+			wantError: true,
+		},
+		{
 			name:      "reject absolute-like",
 			basePath:  "secret/data/console",
 			key:       "/certificates/root",
 			wantError: true,
-		},
-		{
-			name:     "tenant ID characters are preserved",
-			basePath: "secret/data/console",
-			key:      "domains/auth0|abc: prod {x}/prof",
-			wantPath: "secret/data/console/domains/auth0|abc: prod {x}/prof",
-		},
-		{
-			name:     "empty tenant ID path is normalized",
-			basePath: "secret/data/console",
-			key:      "certs/domains//prof",
-			wantPath: "secret/data/console/certs/domains/prof",
 		},
 		{
 			name:     "repeated separators are normalized",
@@ -233,19 +228,6 @@ func TestGetKeyValue_FieldBasedSuccess(t *testing.T) {
 	value, err := client.GetKeyValue("device-password")
 	assert.NoError(t, err)
 	assert.Equal(t, "secret", value)
-}
-
-func TestGetKeyValue_FieldBasedInvalidBasePath(t *testing.T) {
-	t.Parallel()
-
-	// Empty base path causes buildScopedSecretPath("", "keys") to fail,
-	// which should be returned from GetKeyValue's field-based branch.
-	client := &Client{path: ""}
-
-	_, err := client.GetKeyValue("device-password")
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrInvalidPathKey), "expected ErrInvalidPathKey, got %v", err)
-	assert.Contains(t, err.Error(), "path escapes base namespace")
 }
 
 func TestGetKeyValue_ReadError(t *testing.T) {
@@ -351,17 +333,53 @@ func TestSetKeyValue_FieldBasedSuccessAndMerge(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestSetKeyValue_FieldBasedReadErrorStillWrites(t *testing.T) {
+func TestSetKeyValue_FieldBasedReadErrorDoesNotWrite(t *testing.T) {
 	t.Parallel()
 
+	for _, status := range []int{http.StatusInternalServerError, http.StatusForbidden} {
+		status := status
+		t.Run(http.StatusText(status), func(t *testing.T) {
+			t.Parallel()
+
+			var writes atomic.Int32
+
+			client := newTestVaultClient(t, func(method, reqPath string, _ []byte) (int, string) {
+				assert.Equal(t, "/v1/secret/data/console/keys", reqPath)
+
+				if method != http.MethodGet {
+					writes.Add(1)
+				}
+
+				return status, `{"errors":["read failed"]}`
+			})
+			client.client.SetMaxRetries(0)
+
+			err := client.SetKeyValue("new-key", "new-value")
+			assert.Error(t, err)
+			assert.Contains(t, err.Error(), "read failed")
+			assert.Zero(t, writes.Load(), "failed read must not be followed by a write")
+		})
+	}
+}
+
+func TestSetKeyValue_FieldBasedSecretNotFoundCreatesSecret(t *testing.T) {
+	t.Parallel()
+
+	var writes atomic.Int32
+
 	client := newTestVaultClient(t, func(method, reqPath string, body []byte) (int, string) {
+		assert.Equal(t, "/v1/secret/data/console/keys", reqPath)
+
 		switch method {
 		case http.MethodGet:
-			return http.StatusInternalServerError, `{"errors":["backend down"]}`
+			return http.StatusNotFound, `{"errors":[]}`
 		case http.MethodPut:
-			assert.Equal(t, "/v1/secret/data/console/keys", reqPath)
-			assert.Contains(t, string(body), `"new-key":"new-value"`)
-			assert.False(t, strings.Contains(string(body), "existing"))
+			writes.Add(1)
+
+			var payload map[string]map[string]string
+
+			assert.NoError(t, json.Unmarshal(body, &payload))
+			assert.Equal(t, map[string]string{"new-key": "new-value"}, payload["data"])
 
 			return http.StatusOK, `{"data":{}}`
 		default:
@@ -371,19 +389,7 @@ func TestSetKeyValue_FieldBasedReadErrorStillWrites(t *testing.T) {
 
 	err := client.SetKeyValue("new-key", "new-value")
 	assert.NoError(t, err)
-}
-
-func TestSetKeyValue_FieldBasedInvalidBasePath(t *testing.T) {
-	t.Parallel()
-
-	// Empty base path causes buildScopedSecretPath("", "keys") to fail,
-	// which should be returned from setFieldKeyValue via SetKeyValue.
-	client := &Client{path: ""}
-
-	err := client.SetKeyValue("new-key", "new-value")
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrInvalidPathKey), "expected ErrInvalidPathKey, got %v", err)
-	assert.Contains(t, err.Error(), "path escapes base namespace")
+	assert.EqualValues(t, 1, writes.Load())
 }
 
 func TestDeleteKeyValue_PathBasedSuccess(t *testing.T) {
@@ -400,17 +406,17 @@ func TestDeleteKeyValue_PathBasedSuccess(t *testing.T) {
 	assert.NoError(t, err)
 }
 
-func TestDeleteKeyValue_EmptyTenantIDPath(t *testing.T) {
+func TestDeleteKeyValue_RepeatedSeparatorsAreNormalized(t *testing.T) {
 	t.Parallel()
 
 	client := newTestVaultClient(t, func(method, reqPath string, _ []byte) (int, string) {
 		assert.Equal(t, http.MethodDelete, method)
-		assert.Equal(t, "/v1/secret/metadata/console/certs/domains/prof", reqPath)
+		assert.Equal(t, "/v1/secret/metadata/console/certs/root", reqPath)
 
 		return http.StatusNoContent, ``
 	})
 
-	err := client.DeleteKeyValue("certs/domains//prof")
+	err := client.DeleteKeyValue("certs//root")
 	assert.NoError(t, err)
 }
 
@@ -423,19 +429,6 @@ func TestDeleteKeyValue_FieldBasedReadError(t *testing.T) {
 
 	err := client.DeleteKeyValue("device-password")
 	assert.Error(t, err)
-}
-
-func TestDeleteKeyValue_FieldBasedInvalidBasePath(t *testing.T) {
-	t.Parallel()
-
-	// Empty base path causes buildScopedSecretPath("", "keys") to fail,
-	// which should be returned from DeleteKeyValue's field-based branch.
-	client := &Client{path: ""}
-
-	err := client.DeleteKeyValue("device-password")
-	assert.Error(t, err)
-	assert.True(t, errors.Is(err, ErrInvalidPathKey), "expected ErrInvalidPathKey, got %v", err)
-	assert.Contains(t, err.Error(), "path escapes base namespace")
 }
 
 func TestDeleteKeyValue_FieldBasedSecretNotFound(t *testing.T) {

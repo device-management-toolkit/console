@@ -42,9 +42,8 @@ func validatePathKey(key string) error {
 		return fmt.Errorf("%w: absolute path not allowed: %q", ErrInvalidPathKey, key)
 	}
 
-	cleanKey := path.Clean(key)
-	if cleanKey == "." || cleanKey == ".." || strings.HasPrefix(cleanKey, "../") {
-		return fmt.Errorf("%w: traversal not allowed: %q", ErrInvalidPathKey, key)
+	if path.Clean(key) == "." {
+		return fmt.Errorf("%w: key resolves to current directory: %q", ErrInvalidPathKey, key)
 	}
 
 	segments := strings.Split(key, "/")
@@ -65,7 +64,7 @@ func buildScopedSecretPath(basePath, key string) (string, error) {
 	}
 
 	base := path.Clean("/" + basePath)
-	joined := path.Clean(path.Join(base, key))
+	joined := path.Join(base, key)
 	prefix := base + "/"
 
 	if !strings.HasPrefix(joined, prefix) {
@@ -97,11 +96,7 @@ func (c *Client) GetKeyValue(key string) (string, error) {
 		dataKey = vaultValueField
 	} else {
 		// Key-based storage: {basePath}/keys with key as field name
-		secretPath, err = buildScopedSecretPath(c.path, "keys")
-		if err != nil {
-			return "", err
-		}
-
+		secretPath = strings.TrimPrefix(path.Join("/", c.path, "keys"), "/")
 		dataKey = key
 	}
 
@@ -165,16 +160,17 @@ func (c *Client) setPathBasedKeyValue(ctx context.Context, key, value string) er
 
 func (c *Client) setFieldKeyValue(ctx context.Context, key, value string) error {
 	// Key-based storage: {basePath}/keys with key as field name
-	secretPath, err := buildScopedSecretPath(c.path, "keys")
+	secretPath := strings.TrimPrefix(path.Join("/", c.path, "keys"), "/")
+
+	// Read existing secret to preserve other keys
+	secret, err := c.client.Logical().ReadWithContext(ctx, secretPath)
 	if err != nil {
 		return err
 	}
 
-	// Read existing secret to preserve other keys
-	secret, err := c.client.Logical().ReadWithContext(ctx, secretPath)
 	data := make(map[string]interface{})
 
-	if err == nil && secret != nil {
+	if secret != nil {
 		// Secret exists, preserve existing data
 		if d, ok := secret.Data[vaultDataField].(map[string]interface{}); ok {
 			data = d
@@ -216,10 +212,7 @@ func (c *Client) DeleteKeyValue(key string) error {
 	}
 
 	// Key-based storage: remove from {basePath}/keys
-	secretPath, err := buildScopedSecretPath(c.path, "keys")
-	if err != nil {
-		return err
-	}
+	secretPath := strings.TrimPrefix(path.Join("/", c.path, "keys"), "/")
 
 	// Read existing secret
 	secret, err := c.client.Logical().ReadWithContext(ctx, secretPath)
