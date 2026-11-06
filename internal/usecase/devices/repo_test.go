@@ -3,8 +3,10 @@ package devices_test
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"reflect"
+	"strings"
 	"testing"
 	"time"
 
@@ -16,6 +18,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/repoerrors"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
+	wsmanAPI "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -1634,5 +1637,146 @@ func TestInsert_RestoresSoftDeleted(t *testing.T) {
 
 		_, err := useCase.Insert(context.Background(), &dto.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"})
 		require.Error(t, err)
+	})
+}
+
+// TestInsert_ResolvesGUIDFromDevice: a device added without a guid is keyed by
+// the AMT UUID read from the hardware, so a later rpc-go registration or CIRA
+// connection matches the same record. The probe client is torn down after the
+// lookup, and the record is never written when the device cannot be reached.
+func TestInsert_ResolvesGUIDFromDevice(t *testing.T) {
+	t.Parallel()
+
+	const amtUUID = "4C4C4544-0046-3510-8050-C2C04F365033"
+
+	incoming := func() *dto.Device {
+		return &dto.Device{TenantID: "tenant-id-456", Hostname: "10.0.0.5", Username: "admin", Password: "P@ssw0rd"}
+	}
+
+	t.Run("uses the lowercased AMT UUID as the guid", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, management := devicesTest(t)
+		client := mocks.NewMockManagement(gomock.NewController(t))
+
+		var probeGUID string
+
+		management.EXPECT().
+			SetupWsmanClient(context.Background(), gomock.Any(), false, true).
+			DoAndReturn(func(_ context.Context, probe entity.Device, _, _ bool) (wsmanAPI.Management, error) {
+				require.NotEmpty(t, probe.GUID, "the probe client needs its own cache key")
+				require.Equal(t, "10.0.0.5", probe.Hostname)
+				require.Equal(t, "admin", probe.Username)
+				probeGUID = probe.GUID
+
+				return client, nil
+			})
+		client.EXPECT().GetUUID().Return(amtUUID, nil)
+		management.EXPECT().
+			DestroyWsmanClient(gomock.Any()).
+			Do(func(d dto.Device) { require.Equal(t, probeGUID, d.GUID, "the probe client must be evicted") })
+		repo.EXPECT().
+			Insert(context.Background(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, d *entity.Device) (string, error) {
+				require.Equal(t, strings.ToLower(amtUUID), d.GUID)
+
+				return "", nil
+			})
+		repo.EXPECT().
+			GetByID(context.Background(), strings.ToLower(amtUUID), "tenant-id-456").
+			Return(&entity.Device{GUID: strings.ToLower(amtUUID), TenantID: "tenant-id-456"}, nil)
+
+		got, err := useCase.Insert(context.Background(), incoming())
+		require.NoError(t, err)
+		require.Equal(t, strings.ToLower(amtUUID), got.GUID)
+	})
+
+	t.Run("fails without writing when the device cannot be reached", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, _, management := devicesTest(t)
+		client := mocks.NewMockManagement(gomock.NewController(t))
+
+		management.EXPECT().SetupWsmanClient(context.Background(), gomock.Any(), false, true).Return(client, nil)
+		client.EXPECT().GetUUID().Return("", errors.New("dial tcp 10.0.0.5:16992: i/o timeout"))
+		management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+		_, err := useCase.Insert(context.Background(), incoming())
+
+		var validationErr devices.ValidationError
+
+		require.ErrorAs(t, err, &validationErr)
+		require.Contains(t, validationErr.Console.FriendlyMessage(), "10.0.0.5")
+		require.Contains(t, validationErr.Console.FriendlyMessage(), "i/o timeout")
+	})
+
+	t.Run("fails when the client cannot be created", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, _, management := devicesTest(t)
+
+		management.EXPECT().
+			SetupWsmanClient(context.Background(), gomock.Any(), false, true).
+			Return(nil, errors.New("tls handshake failed"))
+		management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+		_, err := useCase.Insert(context.Background(), incoming())
+
+		var validationErr devices.ValidationError
+
+		require.ErrorAs(t, err, &validationErr)
+	})
+
+	t.Run("rejects an empty AMT UUID", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, _, management := devicesTest(t)
+		client := mocks.NewMockManagement(gomock.NewController(t))
+
+		management.EXPECT().SetupWsmanClient(context.Background(), gomock.Any(), false, true).Return(client, nil)
+		client.EXPECT().GetUUID().Return("  ", nil)
+		management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+		_, err := useCase.Insert(context.Background(), incoming())
+
+		var validationErr devices.ValidationError
+
+		require.ErrorAs(t, err, &validationErr)
+	})
+
+	t.Run("requires hostname and credentials before probing", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, _, _ := devicesTest(t)
+
+		_, err := useCase.Insert(context.Background(), &dto.Device{TenantID: "tenant-id-456", Hostname: "10.0.0.5"})
+
+		var validationErr devices.ValidationError
+
+		require.ErrorAs(t, err, &validationErr)
+		require.Contains(t, validationErr.Console.FriendlyMessage(), "guid was omitted")
+	})
+
+	t.Run("a client-supplied guid is used as-is", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, repo, _ := devicesTest(t)
+
+		repo.EXPECT().
+			Insert(context.Background(), gomock.Any()).
+			DoAndReturn(func(_ context.Context, d *entity.Device) (string, error) {
+				require.Equal(t, "device-guid-123", d.GUID)
+
+				return "", nil
+			})
+		repo.EXPECT().
+			GetByID(context.Background(), "device-guid-123", "tenant-id-456").
+			Return(&entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"}, nil)
+
+		d := incoming()
+		d.GUID = "device-guid-123"
+
+		_, err := useCase.Insert(context.Background(), d)
+		require.NoError(t, err)
 	})
 }

@@ -160,7 +160,9 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true. "+
 			"id, createdDate, and lastUpdated are server-generated and read-only. "+
 			"connectionType is CIRA or Direct; when omitted it is derived from the MPS credentials "+
-			"(CIRA when mpsusername is set, otherwise Direct). productType is optional client-supplied metadata."),
+			"(CIRA when mpsusername is set, otherwise Direct). productType is optional client-supplied metadata. "+
+			"When guid is omitted, Console connects to the device with the supplied hostname and AMT credentials, "+
+			"reads the AMT UUID, and uses it as the guid; the request fails with 400 if the device cannot be reached."),
 		fuego.OptionDefaultStatusCode(http.StatusCreated),
 		protectedRouteOptions(),
 	)

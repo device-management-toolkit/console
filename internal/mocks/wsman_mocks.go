@@ -663,6 +663,21 @@ func (mr *MockManagementMockRecorder) GetTLSSettingData() *gomock.Call {
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetTLSSettingData", reflect.TypeOf((*MockManagement)(nil).GetTLSSettingData))
 }
 
+// GetUUID mocks base method.
+func (m *MockManagement) GetUUID() (string, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "GetUUID")
+	ret0, _ := ret[0].(string)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// GetUUID indicates an expected call of GetUUID.
+func (mr *MockManagementMockRecorder) GetUUID() *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "GetUUID", reflect.TypeOf((*MockManagement)(nil).GetUUID))
+}
+
 // GetUserConsentCode mocks base method.
 func (m *MockManagement) GetUserConsentCode() (optin.Response, error) {
 	m.ctrl.T.Helper()
