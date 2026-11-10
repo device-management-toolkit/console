@@ -382,6 +382,18 @@ func TestValidate_SecretsAddrEmpty(t *testing.T) {
 	assert.NoError(t, cfg.Validate())
 }
 
+func TestValidate_RemoteHTTPSecretsAddrWithoutToken(t *testing.T) {
+	t.Parallel()
+
+	cfg := &Config{
+		Secrets: Secrets{
+			Address: "http://vault.corp.internal:8200",
+		},
+	}
+
+	require.NoError(t, cfg.Validate())
+}
+
 func TestValidate_SecretsAddrHTTPSNonLocalhost(t *testing.T) {
 	t.Parallel()
 
@@ -428,7 +440,7 @@ func TestValidate_SecretsAddrHTTPNonLocalhost(t *testing.T) {
 		t.Run(addr, func(t *testing.T) {
 			t.Parallel()
 
-			cfg := &Config{Secrets: Secrets{Address: addr}}
+			cfg := &Config{Secrets: Secrets{Address: addr, Token: "test-token"}}
 			require.ErrorIs(t, cfg.Validate(), ErrSecretsAddrInsecure)
 		})
 	}
@@ -511,6 +523,7 @@ func TestValidate_SecretsAddrInvalidURL(t *testing.T) {
 	cfg := &Config{
 		Secrets: Secrets{
 			Address: "://invalid",
+			Token:   "test-token",
 		},
 	}
 	err := cfg.Validate()
@@ -533,6 +546,7 @@ func TestValidate_SecretsAddrMissingScheme(t *testing.T) {
 			cfg := &Config{
 				Secrets: Secrets{
 					Address: addr,
+					Token:   "test-token",
 				},
 			}
 
@@ -546,7 +560,7 @@ func TestValidate_SecretsAddrMissingScheme(t *testing.T) {
 func TestValidate_SecretsAddrUnsupportedScheme(t *testing.T) {
 	t.Parallel()
 
-	cfg := &Config{Secrets: Secrets{Address: "ftp://vault.example.com:8200"}}
+	cfg := &Config{Secrets: Secrets{Address: "ftp://vault.example.com:8200", Token: "test-token"}}
 
 	require.ErrorIs(t, cfg.Validate(), ErrSecretsAddrInvalid)
 }
@@ -695,6 +709,7 @@ func TestValidate_CallsValidateSecretsAddr(t *testing.T) {
 	cfg := &Config{
 		Secrets: Secrets{
 			Address: "http://vault.example.com:8200", // Remote HTTP - should fail
+			Token:   "test-token",
 		},
 	}
 

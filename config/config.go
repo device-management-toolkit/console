@@ -597,8 +597,8 @@ func NewConfig() (*Config, error) {
 
 // Validate checks configuration for security and correctness issues.
 func (c *Config) Validate() error {
-	// Ensure non-localhost Vault addresses use HTTPS
-	if c.Secrets.Address != "" { //nolint:staticcheck // QF1008: explicit field reference is clearer
+	// Validate the Vault address only when Vault is configured for use.
+	if c.Secrets.Address != "" && c.Secrets.Token != "" { //nolint:staticcheck // QF1008: explicit field reference is clearer
 		if err := c.validateSecretsAddr(); err != nil {
 			return err
 		}
