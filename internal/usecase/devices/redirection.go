@@ -2,6 +2,7 @@ package devices
 
 import (
 	"context"
+	"errors"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
@@ -65,8 +66,18 @@ func (g *Redirector) RedirectConnect(_ context.Context, deviceConnection *Device
 	return nil
 }
 
-func (g *Redirector) RedirectSend(_ context.Context, deviceConnection *DeviceConnection, data []byte) error {
-	err := deviceConnection.wsmanMessages.Client.Send(data)
+// ErrRedirectionClosed is returned when the AMT connection is closed while a send or receive is in progress.
+// The wsman clients clear their connection after a nil check, so a concurrent close can dereference nil.
+var ErrRedirectionClosed = errors.New("redirection connection closed")
+
+func (g *Redirector) RedirectSend(_ context.Context, deviceConnection *DeviceConnection, data []byte) (err error) {
+	defer func() {
+		if recover() != nil {
+			err = ErrRedirectionClosed
+		}
+	}()
+
+	err = deviceConnection.wsmanMessages.Client.Send(data)
 	if err != nil {
 		return err
 	}
@@ -74,8 +85,14 @@ func (g *Redirector) RedirectSend(_ context.Context, deviceConnection *DeviceCon
 	return nil
 }
 
-func (g *Redirector) RedirectListen(_ context.Context, deviceConnection *DeviceConnection) ([]byte, error) {
-	data, err := deviceConnection.wsmanMessages.Client.Receive()
+func (g *Redirector) RedirectListen(_ context.Context, deviceConnection *DeviceConnection) (data []byte, err error) {
+	defer func() {
+		if recover() != nil {
+			data, err = nil, ErrRedirectionClosed
+		}
+	}()
+
+	data, err = deviceConnection.wsmanMessages.Client.Receive()
 	if err != nil {
 		return nil, err
 	}

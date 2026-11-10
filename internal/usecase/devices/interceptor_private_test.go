@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -845,7 +846,8 @@ func TestRandomValueHexErrorCase(t *testing.T) {
 // spyRedirection is a minimal Redirection stub whose RedirectListen returns
 // an error to simulate AMT dropping the TCP connection.
 type spyRedirection struct {
-	listenErr error
+	listenErr  error
+	closeCalls atomic.Int32
 }
 
 func (s *spyRedirection) SetupWsmanClient(_ context.Context, _ entity.Device, _, _ bool) (wsman.Messages, error) {
@@ -854,7 +856,11 @@ func (s *spyRedirection) SetupWsmanClient(_ context.Context, _ entity.Device, _,
 
 func (s *spyRedirection) RedirectConnect(_ context.Context, _ *DeviceConnection) error { return nil }
 
-func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error { return nil }
+func (s *spyRedirection) RedirectClose(_ context.Context, _ *DeviceConnection) error {
+	s.closeCalls.Add(1)
+
+	return nil
+}
 
 func (s *spyRedirection) RedirectSend(_ context.Context, _ *DeviceConnection, _ []byte) error {
 	return nil
@@ -921,6 +927,54 @@ func TestListenToDeviceClosesWebSocketOnAMTDisconnect(t *testing.T) {
 	require.True(t, spy.writeMessageCalled, "expected WriteMessage(CloseMessage) to be called on browser WebSocket")
 	require.Equal(t, websocket.CloseMessage, spy.writeMessageType)
 	require.True(t, spy.closeCalled, "expected Close() to be called on browser WebSocket")
+}
+
+func TestListenToBrowserClosesDeviceConnectionOnce(t *testing.T) {
+	t.Parallel()
+
+	ctx, cancel := context.WithCancel(context.Background())
+	t.Cleanup(cancel)
+
+	deviceConnection := &DeviceConnection{
+		Conn:   &spyWebSocketConn{},
+		Mode:   "kvm",
+		Device: entityDevice(),
+		ctx:    ctx,
+		cancel: cancel,
+	}
+
+	spy := &spyRedirection{}
+	uc := &UseCase{
+		redirection:      spy,
+		redirConnections: make(map[string]*DeviceConnection),
+		log:              logger.New("silent"),
+	}
+
+	// The browser leaving must close the AMT side right away, not after the device read returns
+	uc.ListenToBrowser(deviceConnection)
+
+	require.Error(t, ctx.Err())
+	require.Equal(t, int32(1), spy.closeCalls.Load())
+
+	uc.closeDeviceConnection(deviceConnection)
+	require.Equal(t, int32(1), spy.closeCalls.Load())
+}
+
+func TestUntrackConnectionKeepsNewerSession(t *testing.T) {
+	t.Parallel()
+
+	const key = "test-guid-kvm"
+
+	previous := &DeviceConnection{}
+	current := &DeviceConnection{}
+	uc := &UseCase{redirConnections: map[string]*DeviceConnection{key: current}}
+
+	// A closing session must not untrack the one that replaced it
+	uc.untrackConnection(key, previous)
+	require.Same(t, current, uc.redirConnections[key])
+
+	uc.untrackConnection(key, current)
+	require.NotContains(t, uc.redirConnections, key)
 }
 
 func entityDevice() entity.Device {

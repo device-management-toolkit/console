@@ -265,3 +265,24 @@ func TestRedirectClose(t *testing.T) {
 		})
 	}
 }
+
+func TestRedirectSendReceiveClosedConcurrently(t *testing.T) {
+	t.Parallel()
+
+	// The wsman clients dereference their cleared connection when it is closed between their nil check and use
+	closedMidCall := func(mock.Arguments) { panic("nil connection") }
+
+	mockClient := new(MockClient)
+	mockClient.On("Receive").Run(closedMidCall).Return([]byte(nil), nil)
+	mockClient.On("Send", []byte("data")).Run(closedMidCall).Return(nil)
+
+	deviceConnection := &DeviceConnection{wsmanMessages: wsman.Messages{Client: mockClient}}
+	redirector := NewRedirector(security.Crypto{})
+
+	data, err := redirector.RedirectListen(context.Background(), deviceConnection)
+	require.Nil(t, data)
+	require.ErrorIs(t, err, ErrRedirectionClosed)
+
+	err = redirector.RedirectSend(context.Background(), deviceConnection, []byte("data"))
+	require.ErrorIs(t, err, ErrRedirectionClosed)
+}

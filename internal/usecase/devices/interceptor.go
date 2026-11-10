@@ -27,7 +27,6 @@ const (
 	ContentLengthPadding       = 8
 	RedirectSessionLengthBytes = 13
 	RedirectionSessionReply    = 4
-	ConnectionTimeout          = 5 * time.Minute
 	InactivityTimeout          = 30 * time.Second // Close connection if no data for 30 seconds
 	HeartbeatInterval          = 30 * time.Second // Check connection health every 30 seconds
 	SlowReceiveThreshold       = 100              // Milliseconds threshold for slow device receive
@@ -47,6 +46,7 @@ type DeviceConnection struct {
 	lastDataRecv  time.Time // Track last data received from device
 	mu            sync.RWMutex
 	healthTicker  *time.Ticker
+	closeOnce     sync.Once
 }
 
 func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode string) error {
@@ -67,7 +67,9 @@ func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode 
 
 	key := device.GUID + "-" + mode
 
-	deviceConnection, err := uc.getOrCreateConnection(c, conn, key, device)
+	// Every websocket gets its own AMT session. Reusing a tracked one could hand a reconnecting
+	// browser a socket that is still closing, or one whose redirection session is already authenticated.
+	deviceConnection, err := uc.createNewConnection(c, conn, key, device)
 	if err != nil {
 		return err
 	}
@@ -81,47 +83,15 @@ func (uc *UseCase) Redirect(c context.Context, conn *websocket.Conn, guid, mode 
 
 	if err != nil {
 		deviceConnection.cancel()
-
-		uc.redirMutex.Lock()
-		delete(uc.redirConnections, key)
-		uc.redirMutex.Unlock()
+		uc.untrackConnection(key, deviceConnection)
 
 		return err
 	}
 
 	uc.updateConnectionActivity(deviceConnection)
-	uc.startConnectionGoroutines(c, deviceConnection, key)
+	uc.startConnectionGoroutines(deviceConnection, key)
 
 	return nil
-}
-
-func (uc *UseCase) getOrCreateConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
-	uc.redirMutex.RLock()
-	existingConn, ok := uc.redirConnections[key]
-	uc.redirMutex.RUnlock()
-
-	if ok {
-		// Check if existing connection is still valid
-		existingConn.mu.RLock()
-		isExpired := time.Since(existingConn.lastActivity) > ConnectionTimeout
-		existingConn.mu.RUnlock()
-
-		if isExpired {
-			// Clean up expired connection
-			existingConn.cancel()
-			uc.redirection.RedirectClose(c, existingConn)
-
-			uc.redirMutex.Lock()
-			delete(uc.redirConnections, key)
-			uc.redirMutex.Unlock()
-		} else {
-			existingConn.Conn = conn // Update websocket connection
-
-			return existingConn, nil
-		}
-	}
-
-	return uc.createNewConnection(c, conn, key, device)
 }
 
 func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, key string, device *entity.Device) (*DeviceConnection, error) {
@@ -157,10 +127,35 @@ func (uc *UseCase) createNewConnection(c context.Context, conn *websocket.Conn, 
 	}
 
 	uc.redirMutex.Lock()
+	if _, ok := uc.redirConnections[key]; ok {
+		uc.log.Debug("redirection: previous session still closing, opening a new one", "key", key)
+	}
+
 	uc.redirConnections[key] = deviceConnection
 	uc.redirMutex.Unlock()
 
 	return deviceConnection, nil
+}
+
+// untrackConnection removes the connection unless a newer session for the same key replaced it.
+func (uc *UseCase) untrackConnection(key string, deviceConnection *DeviceConnection) {
+	uc.redirMutex.Lock()
+	if uc.redirConnections[key] == deviceConnection {
+		delete(uc.redirConnections, key)
+	}
+	uc.redirMutex.Unlock()
+}
+
+// closeDeviceConnection closes the AMT side as soon as either side of the relay ends. This frees AMT's single
+// redirection session for the next connection and unblocks a device read that would otherwise wait for AMT.
+func (uc *UseCase) closeDeviceConnection(deviceConnection *DeviceConnection) {
+	deviceConnection.closeOnce.Do(func() {
+		deviceConnection.cancel()
+
+		if err := uc.redirection.RedirectClose(context.WithoutCancel(deviceConnection.ctx), deviceConnection); err != nil {
+			uc.log.Debug("redirection: closing device connection", "guid", deviceConnection.Device.GUID, "error", err)
+		}
+	})
 }
 
 func (uc *UseCase) updateConnectionActivity(deviceConnection *DeviceConnection) {
@@ -169,7 +164,7 @@ func (uc *UseCase) updateConnectionActivity(deviceConnection *DeviceConnection) 
 	deviceConnection.mu.Unlock()
 }
 
-func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection *DeviceConnection, key string) {
+func (uc *UseCase) startConnectionGoroutines(deviceConnection *DeviceConnection, key string) {
 	var wg sync.WaitGroup
 
 	const numGoroutines = 3 // Device listener, Browser listener, Health monitor
@@ -202,12 +197,8 @@ func (uc *UseCase) startConnectionGoroutines(c context.Context, deviceConnection
 			deviceConnection.healthTicker.Stop()
 		}
 
-		deviceConnection.cancel()
-		uc.redirection.RedirectClose(c, deviceConnection)
-
-		uc.redirMutex.Lock()
-		delete(uc.redirConnections, key)
-		uc.redirMutex.Unlock()
+		uc.closeDeviceConnection(deviceConnection)
+		uc.untrackConnection(key, deviceConnection)
 	}()
 }
 
@@ -324,7 +315,7 @@ func (uc *UseCase) observeBrowserToDeviceSend(deviceConnection *DeviceConnection
 }
 
 func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
-	defer deviceConnection.cancel()
+	defer uc.closeDeviceConnection(deviceConnection)
 
 	for {
 		select {
@@ -397,11 +388,8 @@ func (uc *UseCase) MonitorConnectionHealth(deviceConnection *DeviceConnection, k
 			// Check if device has been inactive for too long
 			if time.Since(lastDataTime) > InactivityTimeout {
 				// Device appears unresponsive, force close connection
-				deviceConnection.cancel()
-
-				uc.redirMutex.Lock()
-				delete(uc.redirConnections, key)
-				uc.redirMutex.Unlock()
+				uc.closeDeviceConnection(deviceConnection)
+				uc.untrackConnection(key, deviceConnection)
 
 				return
 			}
