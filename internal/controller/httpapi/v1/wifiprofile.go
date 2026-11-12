@@ -8,6 +8,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 )
@@ -48,6 +49,14 @@ func (r *deviceManagementRoutes) addWirelessProfile(c *gin.Context) {
 
 		if errors.Is(err, wsman.ErrNoWiFiPort) {
 			c.JSON(http.StatusNotFound, gin.H{
+				errorKey: "Add Wireless Profile failed for guid: " + guid + ". - " + err.Error(),
+			})
+
+			return
+		}
+
+		if errors.Is(err, devices.ErrWirelessProfileLimitReached) {
+			c.JSON(http.StatusConflict, gin.H{
 				errorKey: "Add Wireless Profile failed for guid: " + guid + ". - " + err.Error(),
 			})
 

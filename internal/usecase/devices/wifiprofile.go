@@ -26,11 +26,17 @@ const (
 	resourceCIMWiFiEndpointSettings = "CIM_WiFiEndpointSettings"
 	resourceCIMIEEE8021xSettings    = "CIM_IEEE8021xSettings"
 	selectorNameInstanceID          = "InstanceID"
+	// MaxWirelessProfiles is the number of user-defined wireless profiles AMT can store.
+	MaxWirelessProfiles = 8
 )
 
 var (
 	errInvalidAuthenticationMethod = errors.New("invalid authentication method")
 	errInvalidEncryptionMethod     = errors.New("invalid encryption method")
+
+	// ErrWirelessProfileLimitReached is returned when a device already stores
+	// MaxWirelessProfiles wireless profiles. The HTTP layer maps it to 409 Conflict.
+	ErrWirelessProfileLimitReached = errors.New("device already has the maximum of 8 wireless profiles; delete a profile before adding a new one")
 )
 
 type IEEE8021xCertHandles struct {
@@ -79,6 +85,12 @@ func (uc *UseCase) AddWirelessProfile(c context.Context, guid, tenantID string, 
 
 	if _, found := findWirelessSettingByPriority(settings, profile.Priority); found {
 		return wirelessProfilePriorityAlreadyExists(profile.Priority)
+	}
+
+	// Check the limit before any certificate is added, so a rejected request
+	// leaves nothing behind on the device.
+	if countWirelessProfiles(settings) >= MaxWirelessProfiles {
+		return ErrWirelessProfileLimitReached
 	}
 
 	preparedProfile, needsPauseBeforeApply, err := prepareWirelessProfileForApply(device, profile)
@@ -258,6 +270,22 @@ func findWirelessSettingByProfileName(settings []wifi.WiFiEndpointSettingsRespon
 	}
 
 	return wifi.WiFiEndpointSettingsResponse{}, false
+}
+
+// countWirelessProfiles counts the user-defined profiles, skipping the
+// "User Settings" entries that AMT reports alongside them.
+func countWirelessProfiles(settings []wifi.WiFiEndpointSettingsResponse) int {
+	count := 0
+
+	for i := range settings {
+		if settings[i].InstanceID == "" || isUserSettingsInstanceID(settings[i].InstanceID) {
+			continue
+		}
+
+		count++
+	}
+
+	return count
 }
 
 func findWirelessSettingByPriority(settings []wifi.WiFiEndpointSettingsResponse, priority int) (wifi.WiFiEndpointSettingsResponse, bool) {
