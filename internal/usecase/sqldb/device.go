@@ -28,13 +28,13 @@ var (
 
 const (
 	// activatedWhere is retained as the internal/API predicate name for managed
-	// devices: it matches everything not currently flagged as still-in-discovery
-	// pre-provisioning, including legacy rows with no discovery or control-mode
-	// information.
-	activatedWhere = "(discovered IS NOT TRUE OR (currentmode IS NOT NULL AND currentmode <> '' AND LOWER(currentmode) <> 'not activated'))"
-	// discoveredWhere requires the persisted discovery flag and a pre-provisioning
-	// control mode. A device that has since entered ACM/CCM remains managed.
-	discoveredWhere = "(discovered = ? AND (currentmode IS NULL OR currentmode = '' OR LOWER(currentmode) = 'not activated'))"
+	// devices: everything the user has not left in Discovered, including legacy
+	// rows with no discovery information. Activation state does not matter; a
+	// device found by discovery stays Discovered until it is adopted.
+	activatedWhere = "(discovered IS NOT TRUE)"
+	// discoveredWhere matches devices found by discovery and not yet adopted,
+	// whatever their AMT activation state.
+	discoveredWhere = "(discovered = ?)"
 )
 
 // New -.
@@ -138,12 +138,12 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 	return devices, nil
 }
 
-// GetActivated returns devices that have been provisioned into an AMT control mode.
+// GetActivated returns managed devices: anything not left in Discovered.
 func (r *DeviceRepo) GetActivated(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	return r.getFiltered("GetActivated", activatedWhere, nil, top, skip, tenantID)
 }
 
-// GetDiscovered returns devices that have not yet been activated (currentmode empty/NULL).
+// GetDiscovered returns devices found by discovery that have not been adopted.
 func (r *DeviceRepo) GetDiscovered(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	return r.getFiltered("GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
 }

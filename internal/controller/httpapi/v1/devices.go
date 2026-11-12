@@ -3,6 +3,7 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -47,6 +48,7 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 		h.GET("tags", r.getTags)
 		h.POST("", r.insert)
 		h.PATCH("", r.update)
+		h.POST(":guid/adopt", r.adopt)
 		h.DELETE(":guid", r.delete)
 	}
 }
@@ -150,9 +152,8 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	case tags != "":
 		items, err = dr.getByColumnOrTags(c, "Tags", tags, odata.Top, odata.Skip, tenantID)
 
-	// "activated" means managed: any device not currently flagged as still-in-
-	// discovery pre-provisioning, including legacy devices with no recorded
-	// control mode.
+	// "activated" means managed: any device not left in Discovered, including
+	// legacy devices with no discovery information.
 	case activated == "true":
 		items, err = dr.t.GetActivated(ctx, odata.Top, odata.Skip, tenantID)
 
@@ -376,6 +377,38 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updatedDevice)
+}
+
+var errAdoptCredentialsRequired = errors.New("username and password are required")
+
+type adoptRequest struct {
+	Username string `json:"username"`
+	Password string `json:"password"`
+}
+
+func (dr *deviceRoutes) adopt(c *gin.Context) {
+	var req adoptRequest
+	if err := BindJSON(c, &req); err != nil {
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	if req.Username == "" || req.Password == "" {
+		ErrorResponse(c, wrapRequestBindingError(errAdoptCredentialsRequired))
+
+		return
+	}
+
+	adopted, err := dr.t.Adopt(c.Request.Context(), c.Param("guid"), middleware.TenantID(c), req.Username, req.Password)
+	if err != nil {
+		dr.l.Error(err, "http - devices - v1 - adopt")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, adopted)
 }
 
 func (dr *deviceRoutes) delete(c *gin.Context) {

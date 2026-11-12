@@ -51,3 +51,29 @@ func TestGetDeviceByID_ExampleIncludesSerialNumber(t *testing.T) {
 	require.NotNil(t, device.DeviceInfo)
 	require.Equal(t, "PF4ABCDE", device.DeviceInfo.SerialNumber)
 }
+
+func TestRegisterDeviceRoutes_IncludesAdoptEndpoint(t *testing.T) {
+	t.Parallel()
+
+	f := newTestAdapter()
+	f.RegisterDeviceRoutes()
+
+	specBytes, err := f.GetOpenAPISpec()
+	require.NoError(t, err)
+
+	var spec map[string]interface{}
+	require.NoError(t, json.Unmarshal(specBytes, &spec))
+
+	paths, ok := spec["paths"].(map[string]interface{})
+	require.True(t, ok)
+
+	adoptPath, ok := paths["/api/v1/devices/{guid}/adopt"].(map[string]interface{})
+	require.True(t, ok, "adopt route should be registered")
+
+	adopt, ok := adoptPath["post"].(map[string]interface{})
+	require.True(t, ok, "adopt POST operation should be registered")
+
+	responses, ok := adopt["responses"].(map[string]interface{})
+	require.True(t, ok)
+	require.Contains(t, responses, "403", "rejected credentials should be documented as 403")
+}

@@ -379,9 +379,8 @@ func (r *DeviceRepo) GetByColumn(ctx context.Context, columnName, queryValue, te
 }
 
 // activatedFilter is retained as the internal/API predicate name for managed
-// devices: it matches everything not currently flagged as still-in-discovery
-// pre-provisioning, including legacy rows with no discovery or control-mode
-// information.
+// devices: everything the user has not left in Discovered, including legacy
+// rows with no discovery information.
 func activatedFilter(tenantID string) bson.M {
 	return bson.M{
 		fieldTenantID: tenantID,
@@ -389,17 +388,10 @@ func activatedFilter(tenantID string) bson.M {
 	}
 }
 
-// discoveredStateFilter identifies a device still in pre-provisioning state
-// after RPC discovery. A later ACM/CCM sync moves it to the managed result set.
+// discoveredStateFilter identifies a device found by discovery and not yet
+// adopted, whatever its AMT activation state.
 func discoveredStateFilter() bson.M {
-	return bson.M{
-		fieldDiscovered: true,
-		opOr: bson.A{
-			bson.M{fieldCurrentMode: bson.M{opExists: false}},
-			bson.M{fieldCurrentMode: bson.M{opIn: bson.A{"", nil}}},
-			bson.M{fieldCurrentMode: bson.Regex{Pattern: "^not activated$", Options: "i"}},
-		},
-	}
+	return bson.M{fieldDiscovered: true}
 }
 
 // discoveredFilter applies discoveredStateFilter within a tenant.
@@ -410,7 +402,7 @@ func discoveredFilter(tenantID string) bson.M {
 	return filter
 }
 
-// GetActivated returns devices that have been provisioned into an AMT control mode.
+// GetActivated returns managed devices: anything not left in Discovered.
 func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
 		return []entity.Device{}, nil
@@ -419,7 +411,7 @@ func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID s
 	return r.findFiltered(ctx, "GetActivated", activatedFilter(tenantID), top, skip)
 }
 
-// GetDiscovered returns devices that have not yet been activated (currentmode empty/null/missing).
+// GetDiscovered returns devices found by discovery that have not been adopted.
 func (r *DeviceRepo) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
 		return []entity.Device{}, nil

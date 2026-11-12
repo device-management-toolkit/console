@@ -965,6 +965,8 @@ func TestUpdatePartial(t *testing.T) {
 		Username:     "amtadmin",
 		MPSPassword:  "encrypted",
 		MEBXPassword: "encrypted",
+		// The stored record has no control mode, so it reads as not activated.
+		Adoption: &dto.Adoption{Reason: "notActivated"},
 	}
 
 	t.Run("preserves untouched fields", func(t *testing.T) {
@@ -1294,4 +1296,112 @@ func TestUpdateLastSeen(t *testing.T) {
 			require.IsType(t, tc.err, err)
 		})
 	}
+}
+
+// discoveredEntity is a stored record that discovery found and nobody has adopted.
+func discoveredEntity() *entity.Device {
+	discovered := true
+
+	return &entity.Device{
+		GUID:       "device-guid-123",
+		TenantID:   "tenant-id-456",
+		DeviceInfo: `{"discovered":true,"currentMode":"admin control mode"}`,
+		Discovered: &discovered,
+	}
+}
+
+func TestUpdateWithCredentialsAdoptsDiscoveredDevice(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name         string
+		fields       map[string]bool
+		password     string
+		wantManaged  bool
+		wantDiscover bool
+	}{
+		{name: "profile activation supplies credentials", fields: map[string]bool{"username": true, "password": true}, password: "pw", wantManaged: true},
+		{name: "discovery sync without credentials stays discovered", fields: map[string]bool{"deviceinfo": true, "deviceinfo.lastsynced": true}, wantDiscover: true},
+		{name: "empty password does not adopt", fields: map[string]bool{"password": true}, password: "", wantDiscover: true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, repo, management := devicesTest(t)
+			existing := discoveredEntity()
+
+			repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(existing, nil).Times(2)
+			repo.EXPECT().
+				Update(context.Background(), gomock.Any()).
+				DoAndReturn(func(_ context.Context, actual *entity.Device) (bool, error) {
+					var info dto.DeviceInfo
+					require.NoError(t, json.Unmarshal([]byte(actual.DeviceInfo), &info))
+					require.NotNil(t, info.Discovered)
+					require.Equal(t, tc.wantDiscover, *info.Discovered)
+					require.NotNil(t, actual.Discovered)
+					require.Equal(t, tc.wantDiscover, *actual.Discovered)
+
+					return true, nil
+				})
+			management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+			_, err := useCase.Update(context.Background(), &dto.Device{
+				GUID: "device-guid-123", TenantID: "tenant-id-456", Username: "admin", Password: tc.password,
+				DeviceInfo: &dto.DeviceInfo{},
+			}, tc.fields)
+			require.NoError(t, err)
+		})
+	}
+}
+
+func TestInsertOnDiscoveredGUIDAdoptsExistingRecord(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo, management := devicesTest(t)
+
+	// No repo.Insert expectation: a duplicate record must not be created.
+	repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(discoveredEntity(), nil).Times(3)
+	repo.EXPECT().
+		Update(context.Background(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, actual *entity.Device) (bool, error) {
+			require.NotNil(t, actual.Discovered)
+			require.False(t, *actual.Discovered)
+			// Discovery data on the stored record is kept.
+			require.Contains(t, actual.DeviceInfo, "admin control mode")
+
+			return true, nil
+		})
+	management.EXPECT().DestroyWsmanClient(gomock.Any())
+
+	got, err := useCase.Insert(context.Background(), &dto.Device{
+		GUID: "device-guid-123", TenantID: "tenant-id-456", Username: "admin", Password: "pw",
+	})
+	require.NoError(t, err)
+	require.Equal(t, "device-guid-123", got.GUID)
+}
+
+func TestInsertWithCredentialsIsManaged(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo, _ := devicesTest(t)
+
+	repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(nil, nil)
+	repo.EXPECT().
+		Insert(context.Background(), gomock.Any()).
+		DoAndReturn(func(_ context.Context, actual *entity.Device) (string, error) {
+			require.NotNil(t, actual.Discovered)
+			require.False(t, *actual.Discovered)
+
+			return "id", nil
+		})
+	repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(&entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"}, nil)
+
+	// Reported mode alone would default this to Discovered.
+	_, err := useCase.Insert(context.Background(), &dto.Device{
+		GUID: "device-guid-123", TenantID: "tenant-id-456", Password: "pw",
+		DeviceInfo: &dto.DeviceInfo{CurrentMode: "not activated"},
+	})
+	require.NoError(t, err)
 }
