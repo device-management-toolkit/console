@@ -7,6 +7,7 @@ import (
 	"io"
 	"math"
 	"strings"
+	"sync/atomic"
 	"testing"
 	"time"
 
@@ -927,5 +928,122 @@ func entityDevice() entity.Device {
 	return entity.Device{
 		GUID:     "test-guid",
 		Username: "admin",
+	}
+}
+
+// keepAliveWebSocketConn feeds the relay a fixed number of browser messages
+// (e.g. SOL keep-alives) and then blocks until the test releases it.
+type keepAliveWebSocketConn struct {
+	msgs    chan []byte
+	release chan struct{}
+	reads   atomic.Int32
+}
+
+func (k *keepAliveWebSocketConn) WriteMessage(_ int, _ []byte) error { return nil }
+
+func (k *keepAliveWebSocketConn) ReadMessage() (messageType int, p []byte, err error) {
+	k.reads.Add(1)
+
+	select {
+	case msg := <-k.msgs:
+		return websocket.BinaryMessage, msg, nil
+	case <-k.release:
+		return 0, nil, io.EOF
+	}
+}
+
+func (k *keepAliveWebSocketConn) Close() error { return nil }
+
+func TestMonitorConnectionHealth(t *testing.T) {
+	t.Parallel()
+
+	solKeepAlive := []byte{0x2B, 0, 0, 0, 1, 0, 0, 0}
+
+	tests := []struct {
+		name          string
+		browserMsgs   int
+		wantCancelled bool
+	}{
+		{
+			// AMT sends nothing while a SOL console sits idle (e.g. a static
+			// BIOS menu), but the browser keeps the session alive.
+			name:          "device silent but browser traffic forwarded keeps session open",
+			browserMsgs:   1,
+			wantCancelled: false,
+		},
+		{
+			name:          "no traffic in either direction closes session",
+			browserMsgs:   0,
+			wantCancelled: true,
+		},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			conn := &keepAliveWebSocketConn{msgs: make(chan []byte, 1), release: make(chan struct{})}
+			ctx, cancel := context.WithCancel(context.Background())
+			stale := time.Now().Add(-2 * InactivityTimeout)
+
+			deviceConnection := &DeviceConnection{
+				Conn:         conn,
+				Mode:         "sol",
+				Device:       entityDevice(),
+				Direct:       true,
+				ctx:          ctx,
+				cancel:       cancel,
+				lastActivity: stale,
+				lastDataRecv: stale,
+				healthTicker: time.NewTicker(time.Millisecond),
+			}
+
+			uc := &UseCase{
+				redirection:      &spyRedirection{},
+				redirConnections: map[string]*DeviceConnection{"test-guid-sol": deviceConnection},
+				log:              logger.New("silent"),
+			}
+
+			browserDone := make(chan struct{})
+
+			go func() {
+				defer close(browserDone)
+
+				uc.ListenToBrowser(deviceConnection)
+			}()
+
+			t.Cleanup(func() {
+				close(conn.release)
+				<-browserDone
+				cancel()
+				deviceConnection.healthTicker.Stop()
+			})
+
+			for range tc.browserMsgs {
+				conn.msgs <- solKeepAlive
+			}
+
+			// Wait until the relay has forwarded the browser traffic and is
+			// blocked reading the next message.
+			require.Eventually(t, func() bool { return int(conn.reads.Load()) > tc.browserMsgs }, time.Second, time.Millisecond)
+
+			monitorDone := make(chan struct{})
+
+			go func() {
+				defer close(monitorDone)
+
+				uc.MonitorConnectionHealth(deviceConnection, "test-guid-sol")
+			}()
+
+			select {
+			case <-monitorDone:
+			case <-time.After(50 * time.Millisecond):
+			}
+
+			require.Equal(t, tc.wantCancelled, ctx.Err() != nil)
+
+			cancel()
+			<-monitorDone
+		})
 	}
 }
