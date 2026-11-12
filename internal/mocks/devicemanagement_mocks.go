@@ -554,6 +554,21 @@ func (mr *MockDeviceManagementFeatureMockRecorder) AddWirelessProfile(c, guid, t
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddWirelessProfile", reflect.TypeOf((*MockDeviceManagementFeature)(nil).AddWirelessProfile), c, guid, tenantID, profile)
 }
 
+// Adopt mocks base method.
+func (m *MockDeviceManagementFeature) Adopt(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error) {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "Adopt", ctx, guid, tenantID, username, password)
+	ret0, _ := ret[0].(*dto.Device)
+	ret1, _ := ret[1].(error)
+	return ret0, ret1
+}
+
+// Adopt indicates an expected call of Adopt.
+func (mr *MockDeviceManagementFeatureMockRecorder) Adopt(ctx, guid, tenantID, username, password any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Adopt", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Adopt), ctx, guid, tenantID, username, password)
+}
+
 // CancelUserConsent mocks base method.
 func (m *MockDeviceManagementFeature) CancelUserConsent(ctx context.Context, guid, tenantID string) (dto.UserConsentMessage, error) {
 	m.ctrl.T.Helper()

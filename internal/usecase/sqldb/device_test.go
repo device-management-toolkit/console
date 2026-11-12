@@ -1470,17 +1470,26 @@ func TestDeviceRepo_GetActivated(t *testing.T) {
 	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> not activated
 	seedMode(t, dbConn, "guid-nullmode", "tenant1", nil)                        // NULL -> not activated
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
-	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?)`, "guid-notactivated", "guid-notactivated-caps", "guid-empty", "guid-nullmode")
+	seedMode(t, dbConn, "guid-discovered-activated", "tenant1", &adminMode) // activated, but found by discovery and not adopted
+	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid = ?`, "guid-discovered-activated")
+	require.NoError(t, err)
+	// Managed regardless of mode: not discovered, whether pre-provisioning or activated.
+	_, err = dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = false WHERE guid IN (?, ?, ?, ?)`, "guid-notactivated", "guid-notactivated-caps", "guid-empty", "guid-nullmode")
 	require.NoError(t, err)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
 	result, err := repo.GetActivated(context.Background(), 0, 0, "tenant1")
 	require.NoError(t, err)
-	require.Len(t, result, 2)
 
-	guids := []string{result[0].GUID, result[1].GUID}
-	assert.ElementsMatch(t, []string{"guid-admin", "guid-client"}, guids)
+	guids := make([]string, len(result))
+	for i, d := range result {
+		guids[i] = d.GUID
+	}
+
+	assert.ElementsMatch(t, []string{
+		"guid-admin", "guid-client", "guid-notactivated", "guid-notactivated-caps", "guid-empty", "guid-nullmode",
+	}, guids)
 }
 
 func TestDeviceRepo_GetDiscovered(t *testing.T) {
@@ -1497,26 +1506,29 @@ func TestDeviceRepo_GetDiscovered(t *testing.T) {
 	seedMode(t, dbConn, "guid-null", "tenant1", nil)                            // NULL -> discovered
 	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> discovered
 	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive
-	seedMode(t, dbConn, "guid-activated", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-discovered-activated", "tenant1", &adminMode)     // activated devices stay Discovered until adopted
+	seedMode(t, dbConn, "guid-adopted", "tenant1", &adminMode)
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &notActivated)
 
 	_, err := dbConn.ExecContext(context.Background(),
-		`UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?)`,
-		"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps")
+		`UPDATE devices SET discovered = true WHERE guid IN (?, ?, ?, ?, ?)`,
+		"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps", "guid-discovered-activated")
 	require.NoError(t, err)
 
 	repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
 
 	result, err := repo.GetDiscovered(context.Background(), 0, 0, "tenant1")
 	require.NoError(t, err)
-	require.Len(t, result, 4)
+	require.Len(t, result, 5)
 
 	guids := make([]string, len(result))
 	for i, d := range result {
 		guids[i] = d.GUID
 	}
 
-	assert.ElementsMatch(t, []string{"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps"}, guids)
+	assert.ElementsMatch(t, []string{
+		"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps", "guid-discovered-activated",
+	}, guids)
 }
 
 func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {
