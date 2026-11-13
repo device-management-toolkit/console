@@ -194,6 +194,7 @@ var deviceInfoFieldSetters = map[string]func(dst, src *dto.DeviceInfo){
 	"osdistro":             func(dst, src *dto.DeviceInfo) { dst.OSDistro = src.OSDistro },
 	"dnssuffixos":          func(dst, src *dto.DeviceInfo) { dst.DNSSuffixOS = src.DNSSuffixOS },
 	"cpumodel":             func(dst, src *dto.DeviceInfo) { dst.CPUModel = src.CPUModel },
+	"serialnumber":         func(dst, src *dto.DeviceInfo) { dst.SerialNumber = src.SerialNumber },
 	"osipaddress":          func(dst, src *dto.DeviceInfo) { dst.OSIPAddress = src.OSIPAddress },
 	"ethernetadaptercount": func(dst, src *dto.DeviceInfo) { dst.EthernetAdapterCount = src.EthernetAdapterCount },
 	"monitorconnected":     func(dst, src *dto.DeviceInfo) { dst.MonitorConnected = src.MonitorConnected },
