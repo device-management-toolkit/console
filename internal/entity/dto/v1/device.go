@@ -72,6 +72,7 @@ type DeviceInfo struct {
 	OSDistro             string                     `json:"osDistro,omitempty"`
 	DNSSuffixOS          string                     `json:"dnsSuffixOS,omitempty"`
 	CPUModel             string                     `json:"cpuModel,omitempty"`
+	SerialNumber         string                     `json:"serialNumber,omitempty"`
 	OSIPAddress          string                     `json:"osIpAddress,omitempty"`
 	EthernetAdapterCount *int                       `json:"ethernetAdapterCount,omitempty"`
 	MonitorConnected     *bool                      `json:"monitorConnected,omitempty"`
