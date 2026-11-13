@@ -333,7 +333,18 @@ func (uc *UseCase) adoptExisting(ctx context.Context, d *dto.Device) (adopted *d
 		return nil, false, ErrDatabase.Wrap("Insert", "uc.repo.GetByID", err)
 	}
 
-	if existing == nil || existing.Discovered == nil || !*existing.Discovered {
+	if existing == nil {
+		return nil, false, nil
+	}
+
+	// Read the flag from the stored DeviceInfo: the SQL GetByID does not select
+	// the discovered mirror column, so existing.Discovered is unreliable there.
+	info, err := unmarshalDeviceInfo(existing.DeviceInfo, existing.GUID)
+	if err != nil {
+		return nil, false, err
+	}
+
+	if info == nil || info.Discovered == nil || !*info.Discovered {
 		return nil, false, nil
 	}
 
@@ -357,6 +368,12 @@ func (uc *UseCase) Adopt(ctx context.Context, guid, tenantID, username, password
 		return nil, err
 	}
 
+	// Only a Discovered device can be adopted; adopting a managed one would
+	// re-verify and overwrite its stored credentials.
+	if existing.DeviceInfo == nil || existing.DeviceInfo.Discovered == nil || !*existing.DeviceInfo.Discovered {
+		return nil, ErrAdoptNotEligible
+	}
+
 	if !adoptionFor(existing.DeviceInfo).Eligible {
 		return nil, ErrAdoptNotEligible
 	}
@@ -370,7 +387,7 @@ func (uc *UseCase) Adopt(ctx context.Context, guid, tenantID, username, password
 		return nil, err
 	}
 
-	if err := uc.verifyCredentials(ctx, entityDevice); err != nil {
+	if err := uc.verifyCredentials(entityDevice); err != nil {
 		return nil, err
 	}
 
@@ -382,21 +399,12 @@ func (uc *UseCase) Adopt(ctx context.Context, guid, tenantID, username, password
 	}, adoptCredentialFields)
 }
 
-// verifyCredentials makes one authenticated call to the device. The connection
-// is dropped afterwards so a wrong password is never cached for later requests.
-func (uc *UseCase) verifyCredentials(ctx context.Context, d *entity.Device) error {
-	defer uc.device.DestroyWsmanClient(dto.Device{GUID: d.GUID, TenantID: d.TenantID})
-
-	client, err := uc.device.SetupWsmanClient(ctx, *d, false, true)
-	if err != nil {
-		return wrapCredentialError(err)
-	}
-
-	if _, err := client.GetAMTVersion(); err != nil {
-		return wrapCredentialError(err)
-	}
-
-	return nil
+// verifyCredentials makes one authenticated call to the device through an
+// isolated client, so the shared connection cache is neither reused (which could
+// verify the stored password instead) nor modified (a wrong password is never
+// cached for later requests).
+func (uc *UseCase) verifyCredentials(d *entity.Device) error {
+	return wrapCredentialError(uc.device.VerifyCredentials(*d))
 }
 
 // ErrInvalidCredentials is returned when the device rejects the AMT credentials.
@@ -405,7 +413,11 @@ var ErrInvalidCredentials = errors.New("the device rejected the AMT username or 
 // wrapCredentialError maps an HTTP 401 from the device to ErrInvalidCredentials
 // and leaves every other failure (unreachable, timeout) untouched.
 func wrapCredentialError(err error) error {
-	if strings.Contains(err.Error(), "401") {
+	if err == nil {
+		return nil
+	}
+
+	if strings.Contains(err.Error(), "received: 401") {
 		return fmt.Errorf("%w: %w", ErrInvalidCredentials, err)
 	}
 

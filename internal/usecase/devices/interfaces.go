@@ -20,6 +20,7 @@ type (
 	WSMAN interface {
 		SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsmanAPI.Management, error)
 		DestroyWsmanClient(device dto.Device)
+		VerifyCredentials(device entity.Device) error
 		Worker()
 	}
 

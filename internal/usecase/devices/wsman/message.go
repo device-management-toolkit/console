@@ -135,6 +135,45 @@ func (g GoWSMANMessages) DestroyWsmanClient(device dto.Device) {
 	RemoveConnection(device.GUID)
 }
 
+// VerifyCredentials proves the device's username and password with a fresh,
+// uncached client. It never reads or writes the shared connection cache, and
+// for CIRA devices it leaves the entry's own WsmanMessages untouched, so a
+// wrong or unsaved password can never leak into later requests.
+func (g GoWSMANMessages) VerifyCredentials(device entity.Device) error {
+	password, err := g.safeRequirements.Decrypt(device.Password)
+	if err != nil {
+		return err
+	}
+
+	device.Password = password
+
+	cp := directClientParams(device, false, true)
+
+	if device.MPSUsername != "" {
+		connection := GetConnectionEntry(device.GUID)
+		if connection == nil {
+			return ErrCIRADeviceNotConnected
+		}
+
+		cp = client.Parameters{
+			Target:            device.GUID,
+			Username:          device.Username,
+			Password:          password,
+			SelfSignedAllowed: true,
+			UseDigest:         true,
+			LogAMTMessages:    true,
+			IsCIRA:            true,
+			CIRAManager:       connection,
+		}
+	}
+
+	isolated := &ConnectionEntry{WsmanMessages: wsman.NewMessages(cp)}
+
+	_, err = isolated.GetAMTVersion()
+
+	return err
+}
+
 func (g GoWSMANMessages) Worker() {
 	for {
 		select {
@@ -234,7 +273,9 @@ func (g GoWSMANMessages) SetupWsmanClient(ctx context.Context, device entity.Dev
 	}
 }
 
-func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) (conn *ConnectionEntry, awaitAuth func(context.Context) (*ConnectionEntry, error)) {
+// directClientParams builds the client settings for a device reached over the
+// network (not through a CIRA tunnel). device.Password must already be decrypted.
+func directClientParams(device entity.Device, isRedirection, logAMTMessages bool) client.Parameters {
 	clientParams := client.Parameters{
 		Target:                    device.Hostname,
 		Username:                  device.Username,
@@ -250,6 +291,12 @@ func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedire
 	if device.CertHash != nil && *device.CertHash != "" {
 		clientParams.PinnedCert = *device.CertHash
 	}
+
+	return clientParams
+}
+
+func (g GoWSMANMessages) setupWsmanClientInternal(device entity.Device, isRedirection, logAMTMessages bool) (conn *ConnectionEntry, awaitAuth func(context.Context) (*ConnectionEntry, error)) {
+	clientParams := directClientParams(device, isRedirection, logAMTMessages)
 
 	timer := time.AfterFunc(expireAfter, func() {
 		RemoveConnection(device.GUID)

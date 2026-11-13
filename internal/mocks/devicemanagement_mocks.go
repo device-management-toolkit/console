@@ -77,6 +77,20 @@ func (mr *MockWSMANMockRecorder) SetupWsmanClient(ctx, device, isRedirection, lo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupWsmanClient", reflect.TypeOf((*MockWSMAN)(nil).SetupWsmanClient), ctx, device, isRedirection, logMessages)
 }
 
+// VerifyCredentials mocks base method.
+func (m *MockWSMAN) VerifyCredentials(device entity.Device) error {
+	m.ctrl.T.Helper()
+	ret := m.ctrl.Call(m, "VerifyCredentials", device)
+	ret0, _ := ret[0].(error)
+	return ret0
+}
+
+// VerifyCredentials indicates an expected call of VerifyCredentials.
+func (mr *MockWSMANMockRecorder) VerifyCredentials(device any) *gomock.Call {
+	mr.mock.ctrl.T.Helper()
+	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyCredentials", reflect.TypeOf((*MockWSMAN)(nil).VerifyCredentials), device)
+}
+
 // Worker mocks base method.
 func (m *MockWSMAN) Worker() {
 	m.ctrl.T.Helper()
