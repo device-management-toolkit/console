@@ -22,27 +22,34 @@ const (
 var ErrAdoptNotEligible = errors.New("the device cannot be adopted: it must be activated and support ISM or vPro")
 
 // adoptionFor reports whether a device can be adopted and, if not, why. The
-// result is computed on read and never stored.
+// result is computed on read and never stored. A SKU that lacks ISM and vPro
+// wins over the control mode: such a device can never be managed, so telling the
+// user to activate it would send them down a dead end.
 func adoptionFor(info *dto.DeviceInfo) *dto.Adoption {
 	if info == nil {
 		return &dto.Adoption{Reason: adoptReasonUnknown}
 	}
 
-	mode := controlModeOf(info.CurrentMode)
-	if mode == adoptReasonNotActivated {
-		return &dto.Adoption{Reason: adoptReasonNotActivated}
-	}
-
-	sku, err := strconv.Atoi(info.FWSku)
-	if err != nil {
-		return &dto.Adoption{Reason: adoptReasonUnknown}
-	}
-
-	if sku&(fwSkuISMBit|fwSkuVProBit) == 0 {
+	sku, skuErr := strconv.Atoi(info.FWSku)
+	if skuErr == nil && sku&(fwSkuISMBit|fwSkuVProBit) == 0 {
 		return &dto.Adoption{Reason: adoptReasonUnsupported}
 	}
 
-	if mode == "" {
+	mode := controlModeOf(info.CurrentMode)
+	if mode == adoptReasonNotActivated && strings.TrimSpace(info.CurrentMode) != "" {
+		return &dto.Adoption{Reason: adoptReasonNotActivated}
+	}
+
+	// No SKU means discovery learned nothing about AMT (no MEI access, or no AMT
+	// at all), so neither "not activated" nor "unsupported" can be claimed.
+	if skuErr != nil {
+		return &dto.Adoption{Reason: adoptReasonUnknown}
+	}
+
+	switch mode {
+	case adoptReasonNotActivated:
+		return &dto.Adoption{Reason: adoptReasonNotActivated}
+	case "":
 		return &dto.Adoption{Reason: adoptReasonUnknown}
 	}
 

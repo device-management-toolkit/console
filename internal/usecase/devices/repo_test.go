@@ -965,8 +965,8 @@ func TestUpdatePartial(t *testing.T) {
 		Username:     "amtadmin",
 		MPSPassword:  "encrypted",
 		MEBXPassword: "encrypted",
-		// The stored record has no control mode, so it reads as not activated.
-		Adoption: &dto.Adoption{Reason: "notActivated"},
+		// The stored record has no SKU or control mode, so what Console can tell about AMT is unknown.
+		Adoption: &dto.Adoption{Reason: "unknown"},
 	}
 
 	t.Run("preserves untouched fields", func(t *testing.T) {
@@ -1299,14 +1299,13 @@ func TestUpdateLastSeen(t *testing.T) {
 }
 
 // discoveredEntity is a stored record that discovery found and nobody has adopted.
+// Discovered is left nil on purpose: the SQL GetByID does not select that column,
+// so the DeviceInfo JSON is the only place the flag is reliably available.
 func discoveredEntity() *entity.Device {
-	discovered := true
-
 	return &entity.Device{
 		GUID:       "device-guid-123",
 		TenantID:   "tenant-id-456",
 		DeviceInfo: `{"discovered":true,"currentMode":"admin control mode"}`,
-		Discovered: &discovered,
 	}
 }
 
