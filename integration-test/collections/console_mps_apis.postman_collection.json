@@ -2377,6 +2377,102 @@
 					"response": []
 				},
 				{
+					"name": "Adopt Device not found",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 404\", function () {\r",
+									"    pm.response.to.have.status(404);\r",
+									"});\r",
+									"pm.test(\"Expect not found error\", function () {\r\r",
+									"    pm.expect(pm.response.json().error).to.be.equal(\"Error not found\")\r\r",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"admin\",\r\n    \"password\": \"P@ssw0rd\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/143e4567-e89b-12d3-a456-426614174001/adopt",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"143e4567-e89b-12d3-a456-426614174001",
+								"adopt"
+							]
+						}
+					},
+					"response": []
+				},
+				{
+					"name": "Adopt Device rejects missing password",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Status code is 400\", function () {\r",
+									"    pm.response.to.have.status(400);\r",
+									"});\r",
+									"pm.test(\"Expect an error message\", function () {\r\r",
+									"    pm.expect(pm.response.json().error).to.be.a(\"string\").and.not.empty\r\r",
+									"})"
+								],
+								"type": "text/javascript",
+								"packages": {}
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"username\": \"admin\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices/143e4567-e89b-12d3-a456-426614174001/adopt",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices",
+								"143e4567-e89b-12d3-a456-426614174001",
+								"adopt"
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Update Device not found",
 					"event": [
 						{

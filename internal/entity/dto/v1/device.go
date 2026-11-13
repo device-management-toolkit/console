@@ -37,6 +37,15 @@ type Device struct {
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+	// Adoption is computed on read for every device and is never stored.
+	Adoption *Adoption `json:"adoption,omitempty"`
+}
+
+// Adoption says whether a discovered device can be adopted. Reason is one of
+// notActivated, unsupported or unknown when Eligible is false.
+type Adoption struct {
+	Eligible bool   `json:"eligible"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 // MarshalJSON leaves the password properties out of the JSON output.

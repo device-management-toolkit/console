@@ -36,6 +36,8 @@ const (
 	// MinAMTVersion - minimum AMT version required for certain features in power capabilities.
 	MinAMTVersion = 9
 
+	usernameFieldKey      = "username"
+	passwordFieldKey      = "password"
 	deviceInfoFieldKey    = "deviceinfo"
 	deviceInfoFieldPrefix = deviceInfoFieldKey + "."
 )
@@ -160,8 +162,8 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"lastconnected":    func(dst, src *dto.Device) { dst.LastConnected = src.LastConnected },
 	"lastseen":         func(dst, src *dto.Device) { dst.LastSeen = src.LastSeen },
 	"lastdisconnected": func(dst, src *dto.Device) { dst.LastDisconnected = src.LastDisconnected },
-	"username":         func(dst, src *dto.Device) { dst.Username = src.Username },
-	"password":         func(dst, src *dto.Device) { dst.Password = src.Password },
+	usernameFieldKey:   func(dst, src *dto.Device) { dst.Username = src.Username },
+	passwordFieldKey:   func(dst, src *dto.Device) { dst.Password = src.Password },
 	"mpspassword":      func(dst, src *dto.Device) { dst.MPSPassword = src.MPSPassword },
 	"mebxpassword":     func(dst, src *dto.Device) { dst.MEBXPassword = src.MEBXPassword },
 	"usetls":           func(dst, src *dto.Device) { dst.UseTLS = src.UseTLS },
@@ -237,7 +239,24 @@ func syncDiscoveryState(info *dto.DeviceInfo) {
 	}
 }
 
+// adoptWhenCredentialed moves a Discovered device to Managed when the caller
+// supplies AMT credentials for it. Console then holds the credentials, so the
+// user has chosen to manage it (Add Device, profile-based activation, adopt).
+// This is the only place the write-once discovered flag is cleared.
+func adoptWhenCredentialed(dst, src *dto.Device, fields map[string]bool) {
+	if !fields[passwordFieldKey] || src.Password == "" {
+		return
+	}
+
+	if dst.DeviceInfo != nil && dst.DeviceInfo.Discovered != nil && *dst.DeviceInfo.Discovered {
+		managed := false
+		dst.DeviceInfo.Discovered = &managed
+	}
+}
+
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
+	defer adoptWhenCredentialed(dst, src, fields)
+
 	for key := range fields {
 		if key == deviceInfoFieldKey || strings.HasPrefix(key, deviceInfoFieldPrefix) {
 			continue
@@ -335,6 +354,10 @@ func (uc *UseCase) entityToDTO(d *entity.Device) (*dto.Device, error) {
 		Username:         d.Username,
 		UseTLS:           d.UseTLS,
 		AllowSelfSigned:  d.AllowSelfSigned,
+	}
+
+	if deviceInfo != nil && deviceInfo.Discovered != nil && *deviceInfo.Discovered {
+		d1.Adoption = adoptionFor(deviceInfo)
 	}
 
 	if d.CertHash != nil {

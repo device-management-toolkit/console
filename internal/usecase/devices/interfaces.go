@@ -20,6 +20,7 @@ type (
 	WSMAN interface {
 		SetupWsmanClient(ctx context.Context, device entity.Device, isRedirection, logMessages bool) (wsmanAPI.Management, error)
 		DestroyWsmanClient(device dto.Device)
+		VerifyCredentials(device entity.Device) error
 		Worker()
 	}
 
@@ -47,9 +48,8 @@ type (
 		Update(ctx context.Context, d *entity.Device) (bool, error)
 		Insert(ctx context.Context, d *entity.Device) (string, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]entity.Device, error)
-		// GetActivated returns every managed device: anything not currently flagged
-		// as still-in-discovery pre-provisioning, including legacy rows with no
-		// recorded control mode.
+		// GetActivated returns every managed device: anything not left in Discovered,
+		// including legacy rows with no discovery information.
 		GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
 		GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error)
 		GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error)
@@ -71,10 +71,12 @@ type (
 		Delete(ctx context.Context, guid, tenantID string) error
 		Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error)
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)
+		// Adopt verifies the AMT credentials against the device, then moves a
+		// Discovered device to Managed.
+		Adopt(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error)
 		GetByColumn(ctx context.Context, columnName, queryValue, tenantID string) ([]dto.Device, error)
-		// GetActivated returns every managed device: anything not currently flagged
-		// as still-in-discovery pre-provisioning, including legacy rows with no
-		// recorded control mode.
+		// GetActivated returns every managed device: anything not left in Discovered,
+		// including legacy rows with no discovery information.
 		GetActivated(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 		GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]dto.Device, error)
 		GetDeviceStateCounts(ctx context.Context, tenantID string) (activated, discovered int, err error)
