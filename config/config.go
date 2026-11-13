@@ -30,6 +30,7 @@ var (
 	ErrMaxTokenTTLInvalid              = errors.New("config: package.max_token_ttl must be at least 1 minute (e.g. 24h), or 0 to use the default")
 	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
+	ErrGatewayEnforcedWithAuthDisabled = errors.New("config: auth.gatewayEnforced requires auth.disabled to be false — the gateway needs Console to sign login tokens")
 )
 
 const defaultHost = "localhost"
@@ -125,7 +126,9 @@ type (
 	// the body and the Authorization header still wins, so REST clients are
 	// unaffected.
 	Auth struct {
-		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
+		Disabled bool `yaml:"disabled" env:"AUTH_DISABLED"`
+		// GatewayEnforced skips Console's own /api JWT check; only safe behind a gateway that verifies it.
+		GatewayEnforced          bool          `yaml:"gatewayEnforced" env:"AUTH_GATEWAY_ENFORCED"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
 		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
@@ -529,7 +532,16 @@ func (c *Config) validate() error {
 		return ErrAllowedOriginsEmpty
 	}
 
+	if c.Disabled && c.GatewayEnforced {
+		return ErrGatewayEnforcedWithAuthDisabled
+	}
+
 	return nil
+}
+
+// APIVerifiesJWT reports whether Console itself checks the JWT on /api routes.
+func (c *Config) APIVerifiesJWT() bool {
+	return !c.Disabled && !c.GatewayEnforced
 }
 
 // NewConfig returns app config.
