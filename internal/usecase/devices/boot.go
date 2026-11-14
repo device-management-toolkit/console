@@ -4,6 +4,8 @@ import (
 	"context"
 	"errors"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/amt/boot"
+
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	deviceManagement "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -72,22 +74,34 @@ func (uc *UseCase) GetRemoteEraseStatus(c context.Context, guid, tenantID string
 		return dtov2.RemoteEraseStatus{}, err
 	}
 
-	result := dtov2.RemoteEraseStatus{Status: "unknown", Message: "BIOS erase outcome is unconfirmed."}
-	if len(data.BIOSLastStatus) < biosStatusWordCount {
-		return result, nil
+	return remoteEraseStatusFromBIOS(data.BIOSLastStatus), nil
+}
+
+func remoteEraseStatusFromBIOS(status []uint16) dtov2.RemoteEraseStatus {
+	result := dtov2.RemoteEraseStatus{Status: dtov2.RemoteEraseStateUnknown, Message: "BIOS erase outcome is unconfirmed."}
+	if len(status) > 0 {
+		result.BIOSStatus = &status[0]
 	}
 
-	switch data.BIOSLastStatus[0] {
-	case biosStatusSuccess:
-		if data.BIOSLastStatus[1] == biosDetailSuccess {
-			result.Status, result.Message = "succeeded", "BIOS reported that the erase completed successfully."
-		}
-	case biosStatusInProgress, biosStatusNotUpdated:
-		result.Status, result.Message = "pending", "Waiting for the BIOS erase result."
-	case biosStatusFailed:
-		result.Status, result.Message = "failed", "BIOS reported that the erase failed."
+	if len(status) < biosStatusWordCount {
+		return result
+	}
 
-		switch data.BIOSLastStatus[1] {
+	result.BIOSDetail = &status[1]
+
+	switch status[0] {
+	case biosStatusSuccess:
+		if status[1] == biosDetailSuccess {
+			result.Status, result.Message = dtov2.RemoteEraseStateSucceeded, "BIOS reported the last boot completed without error. This does not confirm completion of the current erase request."
+		}
+	case biosStatusInProgress:
+		result.Status, result.Message = dtov2.RemoteEraseStatePending, "Waiting for the BIOS erase result."
+	case biosStatusNotUpdated:
+		result.Message = "BIOS status has not been updated. Completion of the requested erase is unconfirmed."
+	case biosStatusFailed:
+		result.Status, result.Message = dtov2.RemoteEraseStateFailed, "BIOS reported that the erase failed."
+
+		switch status[1] {
 		case biosDetailDriveFailure:
 			result.Message = "BIOS erase failed: general drive failure."
 		case biosDetailAuthenticationFailure:
@@ -97,12 +111,12 @@ func (uc *UseCase) GetRemoteEraseStatus(c context.Context, guid, tenantID string
 		}
 	}
 
-	return result, nil
+	return result
 }
 
 func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid, tenantID string, req dto.RemoteEraseRequest) error {
-	if len(req.SSDPassword) > deviceManagement.RPECredentialMaxBytes || len(req.PSID) > deviceManagement.RPECredentialMaxBytes {
-		return ValidationError{}.Wrap("SetRemoteEraseOptions", "check RPE credentials", deviceManagement.ErrRPECredentialTooLong.Error())
+	if err := validateRemoteEraseCredentials(req); err != nil {
+		return err
 	}
 
 	item, err := uc.repo.GetByID(c, guid, tenantID)
@@ -142,12 +156,27 @@ func (uc *UseCase) SetRemoteEraseOptions(c context.Context, guid, tenantID strin
 		req.UnconfigureCSME,
 	)
 
-	if err := device.SetRemoteEraseOptions(eraseMask, req.SSDPassword, req.PSID); err != nil {
+	if err := device.SetRemoteEraseOptions(eraseMask, deviceManagement.RPECredentials{
+		SSDPassword: req.SSDPassword,
+		PSID:        req.PSID,
+	}); err != nil {
 		if errors.Is(err, deviceManagement.ErrRPENotEnabled) {
 			return NotSupportedError{Console: consoleerrors.CreateConsoleError("Remote Platform Erase is not enabled by the BIOS on this device")}
 		}
 
 		return err
+	}
+
+	return nil
+}
+
+func validateRemoteEraseCredentials(req dto.RemoteEraseRequest) error {
+	if len(req.SSDPassword) > boot.RPEMaxSizes[boot.RPE_SSD_MASTER_PASSWORD] || len(req.PSID) > boot.RPEMaxSizes[boot.RPE_PSID] {
+		return ValidationError{}.Wrap("SetRemoteEraseOptions", "check RPE credentials", deviceManagement.ErrRPECredentialTooLong.Error())
+	}
+
+	if !req.SecureEraseAllSSDs && (req.SSDPassword != "" || req.PSID != "") {
+		return ValidationError{}.Wrap("SetRemoteEraseOptions", "check RPE credentials", "ssdPassword and psid require secureEraseAllSSDs to be selected")
 	}
 
 	return nil

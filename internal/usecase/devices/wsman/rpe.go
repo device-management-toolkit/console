@@ -2,7 +2,6 @@ package wsman
 
 import (
 	"encoding/base64"
-	"encoding/binary"
 	"errors"
 	"fmt"
 
@@ -10,11 +9,12 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
 )
 
-// TLV constants for the RPE UefiBootParametersArray.
+type RPECredentials struct {
+	SSDPassword string
+	PSID        string
+}
+
 const (
-	intelVendorPrefix     = 0x8086 // Intel PCI vendor ID used as TLV vendor prefix
-	rpeTLVValueLen        = 4      // TLV value length (uint32 bitmask)
-	RPECredentialMaxBytes = 64
 	// RPEConfigurationDataResetSignalBit is the API eraseMask signal for
 	// "Unconfigure Intel CSME Firmware". Although this numeric value matches
 	// AMT_BootCapabilities.PlatformErase bit 16 (OEM Custom Action), this code
@@ -28,7 +28,10 @@ var (
 	ErrRPENotEnabled = errors.New("remote platform erase is not enabled by the BIOS on this device")
 	// ErrInvalidEraseMask is returned when an eraseMask is negative.
 	ErrInvalidEraseMask     = errors.New("eraseMask must be non-negative")
-	ErrRPECredentialTooLong = errors.New("RPE SSD master password must not exceed 64 UTF-8 bytes; PSID must not exceed 64 bytes")
+	ErrRPECredentialTooLong = fmt.Errorf(
+		"RPE SSD master password must not exceed %d UTF-8 bytes; PSID must not exceed %d bytes",
+		boot.RPEMaxSizes[boot.RPE_SSD_MASTER_PASSWORD], boot.RPEMaxSizes[boot.RPE_PSID],
+	)
 	// ErrRPEPlatformEraseNotLatched is returned when the PlatformErase flag did not latch after PUT.
 	ErrRPEPlatformEraseNotLatched = errors.New("remote erase: PlatformErase did not latch; aborting to avoid reboot with erase disabled")
 	// ErrRPEConfigurationDataResetNotLatched is returned when ConfigurationDataReset did not latch after PUT.
@@ -66,13 +69,30 @@ func (c *ConnectionEntry) SetRPEEnabled(enabled bool) error {
 	return err
 }
 
-func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword, psid string) error {
+func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, credentials RPECredentials) error {
 	if eraseMask < 0 {
 		return ErrInvalidEraseMask
 	}
 
-	if len(ssdPassword) > RPECredentialMaxBytes || len(psid) > RPECredentialMaxBytes {
+	if len(credentials.SSDPassword) > boot.RPEMaxSizes[boot.RPE_SSD_MASTER_PASSWORD] || len(credentials.PSID) > boot.RPEMaxSizes[boot.RPE_PSID] {
 		return ErrRPECredentialTooLong
+	}
+
+	wantCSMEReset := eraseMask&RPEConfigurationDataResetSignalBit != 0
+	tlvMask := eraseMask &^ RPEConfigurationDataResetSignalBit
+
+	var (
+		encodedParams     string
+		uefiBootNumParams int
+	)
+
+	if tlvMask != 0 {
+		var err error
+
+		encodedParams, uefiBootNumParams, err = buildRPETLVParams(tlvMask, credentials)
+		if err != nil {
+			return err
+		}
 	}
 
 	// Step 0: Return boot service to idle (32768) so AMT_BootSettingData.Put is allowed.
@@ -98,13 +118,6 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword, psid
 		return ErrRPENotEnabled
 	}
 
-	// Separate the CSME-unconfigure signal from the hardware TLV targets early so step 1a
-	// can be skipped for hardware-only operations (TPM, SSDs, BIOS NVM, ...).
-	// RPEConfigurationDataResetSignalBit is NOT a valid TLV device-bitmask bit; it tells
-	// us to set ConfigurationDataReset=true (AMT NV provisioning wipe) in the PUT request.
-	wantCSMEReset := eraseMask&RPEConfigurationDataResetSignalBit != 0
-	tlvMask := eraseMask &^ RPEConfigurationDataResetSignalBit // hardware targets only
-
 	// Step 1a (CSME path only): Clear any active boot source override before
 	// configuring the CSME reset flags.  An existing boot source (e.g. from a prior OCR
 	// session) will take priority and must be cleared first (equivalent to ClearBootOptions
@@ -120,15 +133,6 @@ func (c *ConnectionEntry) SetRemoteEraseOptions(eraseMask int, ssdPassword, psid
 	const rpeEnabledState = 32770 // OCR disabled, RPE enabled
 
 	_, _ = c.WsmanMessages.CIM.BootService.RequestStateChange(rpeEnabledState)
-
-	var (
-		encodedParams     string
-		uefiBootNumParams int
-	)
-
-	if tlvMask != 0 {
-		encodedParams, uefiBootNumParams = buildRPETLVParams(tlvMask, ssdPassword, psid)
-	}
 
 	// Step 3: PUT the erase flags.
 	// ConfigurationDataReset=true resets AMT's NV provisioning state (= AMT unprovision).
@@ -229,36 +233,19 @@ func (c *ConnectionEntry) verifyPutLatched(putErr error, wantCSMEReset bool, tlv
 	return nil
 }
 
-// buildRPETLVParams encodes the hardware-target device bitmask and optional RPE credentials.
-// Format per Intel AMT spec: [vendor:2 LE][typeID:2 LE][length:4 LE][value:length bytes].
-func buildRPETLVParams(tlvMask int, ssdPassword, psid string) (encodedParams string, numParams int) {
-	const rpeTLVLen = 12
-
-	tlvBuf := make([]byte, 0, rpeTLVLen)
-	tlvBuf = binary.LittleEndian.AppendUint16(tlvBuf, intelVendorPrefix)
-	tlvBuf = binary.LittleEndian.AppendUint16(tlvBuf, 1)
-	tlvBuf = binary.LittleEndian.AppendUint32(tlvBuf, rpeTLVValueLen)
-	tlvBuf = binary.LittleEndian.AppendUint32(tlvBuf, uint32(tlvMask)) //nolint:gosec // non-negative, CSME bit already stripped
-
-	numParams = 1
-
-	for _, param := range []struct {
-		typeID uint16
-		value  string
-	}{
-		{uint16(boot.RPE_PSID), psid},
-		{uint16(boot.RPE_SSD_MASTER_PASSWORD), ssdPassword},
-	} {
-		if param.value == "" {
-			continue
-		}
-
-		tlvBuf = binary.LittleEndian.AppendUint16(tlvBuf, intelVendorPrefix)
-		tlvBuf = binary.LittleEndian.AppendUint16(tlvBuf, param.typeID)
-		tlvBuf = binary.LittleEndian.AppendUint32(tlvBuf, uint32(len(param.value))) //nolint:gosec // credentials are limited to 64 bytes before encoding
-		tlvBuf = append(tlvBuf, param.value...)
-		numParams++
+func buildRPETLVParams(tlvMask int, credentials RPECredentials) (encodedParams string, numParams int, err error) {
+	parameters, err := boot.BuildRPEParameters(uint32(tlvMask), map[boot.ParameterType]string{ //nolint:gosec // non-negative hardware mask, CSME signal stripped by caller
+		boot.RPE_PSID:                credentials.PSID,
+		boot.RPE_SSD_MASTER_PASSWORD: credentials.SSDPassword,
+	})
+	if err != nil {
+		return "", 0, fmt.Errorf("buildRPETLVParams: build RPE parameters: %w", err)
 	}
 
-	return base64.StdEncoding.EncodeToString(tlvBuf), numParams
+	buffer, err := boot.CreateRPETLVBuffer(parameters)
+	if err != nil {
+		return "", 0, fmt.Errorf("buildRPETLVParams: encode RPE parameters: %w", err)
+	}
+
+	return base64.StdEncoding.EncodeToString(buffer), len(parameters), nil
 }

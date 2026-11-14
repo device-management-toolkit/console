@@ -37,19 +37,28 @@ func TestGetRemoteEraseStatus_ReturnsEmptyResponse(t *testing.T) {
 	require.Equal(t, dtov2.RemoteEraseStatus{}, resp)
 }
 
-func TestGetAlarmOccurrences_ReturnsEmptyArray(t *testing.T) {
+func TestRemoteEraseStatusSchemaEnum(t *testing.T) {
 	t.Parallel()
 
 	f := newTestAdapter()
+	f.RegisterDeviceManagementRoutes()
 
-	resp, err := f.getAlarmOccurrences(nil)
+	spec, err := f.GetOpenAPISpec()
 	require.NoError(t, err)
-	require.NotNil(t, resp)
-	require.Empty(t, resp)
 
-	body, err := json.Marshal(resp)
-	require.NoError(t, err)
-	require.JSONEq(t, "[]", string(body))
+	var document struct {
+		Components struct {
+			Schemas map[string]struct {
+				Properties map[string]struct {
+					Enum []string `json:"enum"`
+				} `json:"properties"`
+			} `json:"schemas"`
+		} `json:"components"`
+	}
+
+	require.NoError(t, json.Unmarshal(spec, &document))
+	require.Equal(t, []string{"pending", "succeeded", "failed", "unknown"},
+		document.Components.Schemas["RemoteEraseStatus"].Properties["status"].Enum)
 }
 
 func TestRegisterPowerRoutes_IncludesBootEndpoints(t *testing.T) {
