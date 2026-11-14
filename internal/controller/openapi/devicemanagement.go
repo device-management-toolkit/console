@@ -349,7 +349,7 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		f.server, "/api/v1/amt/boot/remoteErase/{guid}", f.setRemoteEraseOptions,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Set Remote Erase Options"),
-		fuego.OptionDescription("Submit Remote Platform Erase; a successful response confirms submission, not BIOS erase completion. At least one erase option must be selected. Optional ssdPassword (SSD master password) is limited to 64 UTF-8 bytes with no separate character limit; optional psid (Pyrite drive revert/clear) is limited to 64 bytes."),
+		fuego.OptionDescription("Submit Remote Platform Erase; a successful response confirms submission, not BIOS erase completion. At least one erase option must be selected. Nonempty ssdPassword or psid requires secureEraseAllSSDs=true; otherwise the request returns 400. Optional ssdPassword (SSD master password) is limited to 64 UTF-8 bytes with no separate character limit; optional psid (Pyrite drive revert/clear) is limited to 64 bytes."),
 		fuego.OptionPath("guid", "Device GUID"),
 		protectedRouteOptions(),
 	)
@@ -358,7 +358,7 @@ func (f *FuegoAdapter) registerPowerRoutes() {
 		f.server, "/api/v2/amt/boot/remoteErase/{guid}/status", f.getRemoteEraseStatus,
 		fuego.OptionTags("Device Management"),
 		fuego.OptionSummary("Get Last BIOS Erase Status"),
-		fuego.OptionDescription("Read BIOSLastStatus: pending, succeeded, failed, or unknown, with a diagnostic message. This is the last boot result, not an operation-specific result. Observe pending after submission before attributing a terminal result to that request. Missing or unrecognized status is unknown; connectivity errors do not imply success."),
+		fuego.OptionDescription("Read BIOSLastStatus: pending, succeeded, failed, or unknown, with a diagnostic message and optional raw biosStatus/biosDetail words (including zero). Only In Progress (1) maps to pending; Not Updated (2) maps to unknown. This is the last boot result, not an operation-specific result. A succeeded status means BIOS reported the last boot completed without error; it does not confirm completion of the current erase request. Missing or unrecognized status is unknown; connectivity errors do not imply success."),
 		fuego.OptionPath("guid", "Device GUID"),
 		protectedRouteOptions(),
 	)

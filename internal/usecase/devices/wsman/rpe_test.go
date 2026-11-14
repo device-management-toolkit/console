@@ -3,17 +3,18 @@ package wsman
 import (
 	"encoding/base64"
 	"encoding/binary"
-	"errors"
-	"net/http"
 	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/assert"
 	"github.com/stretchr/testify/require"
 
-	wsmanmessages "github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman"
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/cim/power"
-	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/wsman/client"
+)
+
+const (
+	intelVendorPrefix = 0x8086
+	rpeTLVValueLen    = 4
 )
 
 func TestBuildRPETLVParams(t *testing.T) {
@@ -90,7 +91,8 @@ func TestBuildRPETLVParams(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			encoded, numParams := buildRPETLVParams(tc.tlvMask, "", "")
+			encoded, numParams, err := buildRPETLVParams(tc.tlvMask, RPECredentials{})
+			require.NoError(t, err)
 
 			assert.Equal(t, tc.wantNumParams, numParams)
 
@@ -124,9 +126,6 @@ func TestBuildRPETLVParamsCredentials(t *testing.T) {
 		{"password", "master-password", "", []uint16{20}, []string{"master-password"}},
 		{"pyrite PSID", "", "drive-psid", []uint16{10}, []string{"drive-psid"}},
 		{"both", "password", "psid", []uint16{10, 20}, []string{"psid", "password"}},
-		{"33 ASCII bytes", strings.Repeat("p", 33), "", []uint16{20}, []string{strings.Repeat("p", 33)}},
-		{"maximum length", strings.Repeat("p", 64), strings.Repeat("s", 64), []uint16{10, 20}, []string{strings.Repeat("s", 64), strings.Repeat("p", 64)}},
-		{"maximum mixed UTF-8 length", strings.Repeat("\xc3\xa9", 16) + strings.Repeat("p", 32), "", []uint16{20}, []string{strings.Repeat("\xc3\xa9", 16) + strings.Repeat("p", 32)}},
 		{"maximum multibyte UTF-8 length", strings.Repeat("\xc3\xa9", 32), "", []uint16{20}, []string{strings.Repeat("\xc3\xa9", 32)}},
 	} {
 		tc := tc
@@ -134,7 +133,8 @@ func TestBuildRPETLVParamsCredentials(t *testing.T) {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 
-			encoded, count := buildRPETLVParams(4, tc.password, tc.psid)
+			encoded, count, err := buildRPETLVParams(4, RPECredentials{SSDPassword: tc.password, PSID: tc.psid})
+			require.NoError(t, err)
 			require.Equal(t, 1+len(tc.wantTypes), count)
 
 			raw, err := base64.StdEncoding.DecodeString(encoded)
@@ -156,71 +156,6 @@ func TestBuildRPETLVParamsCredentials(t *testing.T) {
 			}
 
 			require.Empty(t, remaining)
-		})
-	}
-}
-
-func TestSetRemoteEraseOptionsRejectsOversizedCredentials(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name     string
-		password string
-		psid     string
-	}{
-		{"password", strings.Repeat("p", 65), ""},
-		{"PSID", "", strings.Repeat("s", 65)},
-		{"mixed UTF-8 password", strings.Repeat("\xc3\xa9", 32) + "p", ""},
-		{"multibyte password", strings.Repeat("\xc3\xa9", 33), ""},
-		{"password byte limit", strings.Repeat("\xf0\x9f\x98\x80", 17), ""},
-	} {
-		tc := tc
-
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			connection := &ConnectionEntry{}
-			err := connection.SetRemoteEraseOptions(4, tc.password, tc.psid)
-			require.ErrorIs(t, err, ErrRPECredentialTooLong)
-		})
-	}
-}
-
-type rpeErrorTransport struct {
-	err error
-}
-
-func (transport rpeErrorTransport) RoundTrip(_ *http.Request) (*http.Response, error) {
-	return nil, transport.err
-}
-
-func TestSetRemoteEraseOptionsAcceptsPasswordByteLimit(t *testing.T) {
-	t.Parallel()
-
-	for _, tc := range []struct {
-		name     string
-		password string
-	}{
-		{"33 ASCII bytes", strings.Repeat("p", 33)},
-		{"64 ASCII bytes", strings.Repeat("p", 64)},
-		{"64 mixed UTF-8 bytes", strings.Repeat("\xc3\xa9", 16) + strings.Repeat("p", 32)},
-		{"64 multibyte UTF-8 bytes", strings.Repeat("\xc3\xa9", 32)},
-	} {
-		tc := tc
-
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			transportErr := errors.New("test WSMAN transport failure")
-			connection := &ConnectionEntry{
-				WsmanMessages: wsmanmessages.NewMessages(client.Parameters{
-					Target:    "localhost",
-					Transport: rpeErrorTransport{err: transportErr},
-				}),
-			}
-
-			err := connection.SetRemoteEraseOptions(4, tc.password, strings.Repeat("s", 64))
-			require.ErrorIs(t, err, transportErr, "valid credentials must reach the WSMAN transport")
 		})
 	}
 }

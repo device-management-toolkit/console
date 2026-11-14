@@ -68,15 +68,32 @@ func TestDeviceManagement(t *testing.T) {
 		response     interface{}
 	}{
 		{
+			name:   "getRemoteEraseStatus - last boot success is not erase confirmation",
+			url:    "/api/v2/amt/boot/remoteErase/valid-guid/status",
+			method: http.MethodGet,
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().GetRemoteEraseStatus(context.Background(), "valid-guid", "").
+					Return(dtov2.RemoteEraseStatus{
+						Status:  dtov2.RemoteEraseStateSucceeded,
+						Message: "BIOS reported the last boot completed without error. This does not confirm completion of the current erase request.",
+					}, nil)
+			},
+			expectedCode: http.StatusOK,
+			response: dtov2.RemoteEraseStatus{
+				Status:  dtov2.RemoteEraseStateSucceeded,
+				Message: "BIOS reported the last boot completed without error. This does not confirm completion of the current erase request.",
+			},
+		},
+		{
 			name:   "getRemoteEraseStatus - BIOS authentication failure",
 			url:    "/api/v2/amt/boot/remoteErase/valid-guid/status",
 			method: http.MethodGet,
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().GetRemoteEraseStatus(context.Background(), "valid-guid", "").
-					Return(dtov2.RemoteEraseStatus{Status: "failed", Message: "Drive password/authentication failure"}, nil)
+					Return(dtov2.RemoteEraseStatus{Status: dtov2.RemoteEraseStateFailed, Message: "Drive password/authentication failure"}, nil)
 			},
 			expectedCode: http.StatusOK,
-			response:     dtov2.RemoteEraseStatus{Status: "failed", Message: "Drive password/authentication failure"},
+			response:     dtov2.RemoteEraseStatus{Status: dtov2.RemoteEraseStateFailed, Message: "Drive password/authentication failure"},
 		},
 		{
 			name:   "getRemoteEraseStatus - unavailable",
