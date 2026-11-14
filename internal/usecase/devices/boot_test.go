@@ -2,6 +2,7 @@ package devices_test
 
 import (
 	"context"
+	"strings"
 	"testing"
 
 	"github.com/stretchr/testify/require"
@@ -11,6 +12,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	devices "github.com/device-management-toolkit/console/internal/usecase/devices"
 	devicewsman "github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -144,6 +146,71 @@ func TestGetRemoteEraseCapabilities(t *testing.T) {
 	}
 }
 
+func TestGetRemoteEraseStatus(t *testing.T) {
+	t.Parallel()
+
+	useCase, wsmanMock, management, repo := initInfoTest(t)
+	ctx := context.Background()
+	device := &entity.Device{GUID: "device-guid", TenantID: "tenant"}
+	repo.EXPECT().GetByID(ctx, device.GUID, device.TenantID).Return(device, nil)
+	wsmanMock.EXPECT().SetupWsmanClient(ctx, *device, false, true).Return(management, nil)
+	management.EXPECT().GetBootData().Return(boot.BootSettingDataResponse{BIOSLastStatus: []uint16{0xffff, 2}}, nil)
+
+	result, err := useCase.GetRemoteEraseStatus(ctx, device.GUID, device.TenantID)
+	require.NoError(t, err)
+
+	status, detail := uint16(0xffff), uint16(2)
+	require.Equal(t, dtov2.RemoteEraseStatus{
+		Status:     dtov2.RemoteEraseStateFailed,
+		Message:    "BIOS erase failed: drive password/authentication failure.",
+		BIOSStatus: &status,
+		BIOSDetail: &detail,
+	}, result)
+}
+
+func TestGetRemoteEraseStatusErrors(t *testing.T) {
+	t.Parallel()
+
+	device := &entity.Device{GUID: "device-guid", TenantID: "tenant"}
+	tests := []struct {
+		name     string
+		item     *entity.Device
+		repoErr  error
+		setupErr error
+		bootErr  error
+		wantErr  error
+	}{
+		{name: "repository error", repoErr: ErrGeneral, wantErr: ErrGeneral},
+		{name: "nil device", wantErr: devices.ErrNotFound},
+		{name: "empty GUID", item: &entity.Device{TenantID: device.TenantID}, wantErr: devices.ErrNotFound},
+		{name: "client setup error", item: device, setupErr: ErrGeneral, wantErr: ErrGeneral},
+		{name: "boot data error", item: device, bootErr: ErrGeneral, wantErr: ErrGeneral},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initInfoTest(t)
+			ctx := context.Background()
+			repo.EXPECT().GetByID(ctx, device.GUID, device.TenantID).Return(tc.item, tc.repoErr)
+
+			if tc.repoErr == nil && tc.item != nil && tc.item.GUID != "" {
+				wsmanMock.EXPECT().SetupWsmanClient(ctx, *tc.item, false, true).Return(management, tc.setupErr)
+
+				if tc.setupErr == nil {
+					management.EXPECT().GetBootData().Return(boot.BootSettingDataResponse{}, tc.bootErr)
+				}
+			}
+
+			result, err := useCase.GetRemoteEraseStatus(ctx, device.GUID, device.TenantID)
+			require.ErrorIs(t, err, tc.wantErr)
+			require.Equal(t, dtov2.RemoteEraseStatus{}, result)
+		})
+	}
+}
+
 func TestSetRemoteEraseOptions(t *testing.T) {
 	t.Parallel()
 
@@ -188,7 +255,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x44, "").
+					SetRemoteEraseOptions(0x44, devicewsman.RPECredentials{}).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -209,7 +276,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x4000000, "").
+					SetRemoteEraseOptions(0x4000000, devicewsman.RPECredentials{}).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -248,7 +315,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 0, ConfigurationDataReset: true}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x10000, "").
+					SetRemoteEraseOptions(0x10000, devicewsman.RPECredentials{}).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -269,7 +336,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(4, "").
+					SetRemoteEraseOptions(4, devicewsman.RPECredentials{}).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -356,7 +423,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x04, ""). // platformEraseSecureErase
+					SetRemoteEraseOptions(0x04, devicewsman.RPECredentials{}). // platformEraseSecureErase
 					Return(ErrGeneral)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -377,7 +444,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 0x01}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x10000, "").
+					SetRemoteEraseOptions(0x10000, devicewsman.RPECredentials{}).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -398,28 +465,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x10000, "").
-					Return(nil)
-			},
-			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
-				repo.EXPECT().
-					GetByID(context.Background(), device.GUID, device.TenantID).
-					Return(device, nil)
-			},
-			err: nil,
-		},
-		{
-			name: "success - SSD password forwarded to wsman",
-			req:  dto.RemoteEraseRequest{SecureEraseAllSSDs: true, SSDPassword: "s3cr3t"},
-			manMock: func(man *mocks.MockWSMAN, man2 *mocks.MockManagement) {
-				man.EXPECT().
-					SetupWsmanClient(gomock.Any(), gomock.Any(), false, true).
-					Return(man2, nil)
-				man2.EXPECT().
-					GetPowerCapabilities().
-					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
-				man2.EXPECT().
-					SetRemoteEraseOptions(4, "s3cr3t").
+					SetRemoteEraseOptions(0x10000, devicewsman.RPECredentials{}).
 					Return(nil)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -458,7 +504,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					GetPowerCapabilities().
 					Return(boot.BootCapabilitiesResponse{PlatformErase: 3}, nil)
 				man2.EXPECT().
-					SetRemoteEraseOptions(0x04, "").
+					SetRemoteEraseOptions(0x04, devicewsman.RPECredentials{}).
 					Return(devicewsman.ErrRPENotEnabled)
 			},
 			repoMock: func(repo *mocks.MockDeviceManagementRepository) {
@@ -482,6 +528,77 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 
 			err := useCase.SetRemoteEraseOptions(context.Background(), device.GUID, device.TenantID, tc.req)
 			require.Equal(t, tc.err, err)
+		})
+	}
+}
+
+func TestSetRemoteEraseOptionsCredentialsRequireSSDErase(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name string
+		req  dto.RemoteEraseRequest
+	}{
+		{"TPM only with password", dto.RemoteEraseRequest{TPMClear: true, SSDPassword: "password"}},
+		{"TPM only with PSID", dto.RemoteEraseRequest{TPMClear: true, PSID: "drive-psid"}},
+		{"CSME only with password", dto.RemoteEraseRequest{UnconfigureCSME: true, SSDPassword: "password"}},
+		{"CSME only with PSID", dto.RemoteEraseRequest{UnconfigureCSME: true, PSID: "drive-psid"}},
+		{"BIOS only with credentials", dto.RemoteEraseRequest{RestoreBIOSToEOM: true, SSDPassword: "password", PSID: "drive-psid"}},
+		{"no targets with credentials", dto.RemoteEraseRequest{SSDPassword: "password", PSID: "drive-psid"}},
+	} {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, _, _, _ := initInfoTest(t)
+			err := useCase.SetRemoteEraseOptions(context.Background(), "device-guid", "tenant-id", tc.req)
+			require.Equal(t, devices.ValidationError{}.Wrap(
+				"SetRemoteEraseOptions", "check RPE credentials",
+				"ssdPassword and psid require secureEraseAllSSDs to be selected",
+			), err)
+		})
+	}
+}
+
+func TestSetRemoteEraseOptionsCredentialByteLimits(t *testing.T) {
+	t.Parallel()
+
+	for _, tc := range []struct {
+		name        string
+		credentials devicewsman.RPECredentials
+		valid       bool
+	}{
+		{"33 ASCII password bytes", devicewsman.RPECredentials{SSDPassword: strings.Repeat("p", 33)}, true},
+		{"64-byte password and PSID", devicewsman.RPECredentials{SSDPassword: strings.Repeat("p", 64), PSID: strings.Repeat("s", 64)}, true},
+		{"64 multibyte password bytes", devicewsman.RPECredentials{SSDPassword: strings.Repeat("\xc3\xa9", 32), PSID: "drive-psid"}, true},
+		{"65 ASCII password bytes", devicewsman.RPECredentials{SSDPassword: strings.Repeat("p", 65)}, false},
+		{"66 multibyte password bytes", devicewsman.RPECredentials{SSDPassword: strings.Repeat("\xc3\xa9", 33)}, false},
+		{"65 PSID bytes", devicewsman.RPECredentials{PSID: strings.Repeat("s", 65)}, false},
+	} {
+		tc := tc
+
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			useCase, wsmanMock, management, repo := initInfoTest(t)
+			ctx := context.Background()
+			device := entity.Device{GUID: "device-guid", TenantID: "tenant-id"}
+			req := dto.RemoteEraseRequest{SecureEraseAllSSDs: true, SSDPassword: tc.credentials.SSDPassword, PSID: tc.credentials.PSID}
+
+			if tc.valid {
+				repo.EXPECT().GetByID(ctx, device.GUID, device.TenantID).Return(&device, nil)
+				wsmanMock.EXPECT().SetupWsmanClient(ctx, device, false, true).Return(management, nil)
+				management.EXPECT().GetPowerCapabilities().Return(boot.BootCapabilitiesResponse{PlatformErase: 4}, nil)
+				management.EXPECT().SetRemoteEraseOptions(4, tc.credentials).Return(nil)
+			}
+
+			err := useCase.SetRemoteEraseOptions(ctx, device.GUID, device.TenantID, req)
+			if tc.valid {
+				require.NoError(t, err)
+			} else {
+				require.Equal(t, devices.ValidationError{}.Wrap("SetRemoteEraseOptions", "check RPE credentials", devicewsman.ErrRPECredentialTooLong.Error()), err)
+			}
 		})
 	}
 }

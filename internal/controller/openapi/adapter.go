@@ -3,6 +3,7 @@ package openapi
 import (
 	"encoding/json"
 	"net/http"
+	"reflect"
 	"strings"
 
 	"github.com/getkin/kin-openapi/openapi3"
@@ -10,6 +11,7 @@ import (
 	"github.com/go-fuego/fuego"
 
 	"github.com/device-management-toolkit/console/config"
+	dtov2 "github.com/device-management-toolkit/console/internal/entity/dto/v2"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
@@ -35,6 +37,7 @@ func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdap
 	server := fuego.NewServer(
 		fuego.WithoutStartupMessages(),
 		fuego.WithSecurity(securitySchemes()),
+		fuego.WithEngineOptions(fuego.WithOpenAPIGeneratorSchemaCustomizer(remoteEraseStateSchema)),
 	)
 
 	return &FuegoAdapter{
@@ -42,6 +45,19 @@ func NewFuegoAdapter(usecases usecase.Usecases, log logger.Interface) *FuegoAdap
 		usecases: usecases,
 		logger:   log,
 	}
+}
+
+func remoteEraseStateSchema(_ string, t reflect.Type, _ reflect.StructTag, schema *openapi3.Schema) error {
+	if t == reflect.TypeFor[dtov2.RemoteEraseState]() {
+		schema.Enum = []any{
+			dtov2.RemoteEraseStatePending,
+			dtov2.RemoteEraseStateSucceeded,
+			dtov2.RemoteEraseStateFailed,
+			dtov2.RemoteEraseStateUnknown,
+		}
+	}
+
+	return nil
 }
 
 // securitySchemes declares only the mechanisms the server actually accepts, so

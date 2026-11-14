@@ -1873,7 +1873,23 @@
 					"response": []
 				},
 				{
+					"name": "Get Last BIOS Erase Status",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"description": "Status is one of pending, succeeded, failed, or unknown. Optional biosStatus and biosDetail expose the raw BIOS words, including zero. In Progress (1) maps to pending; Not Updated (2) maps to unknown. Last BIOS boot result, not operation-specific. A succeeded status means BIOS reported the last boot completed without error; it does not confirm completion of the current erase request. Password/authentication failures are reported as failed; unknown or unreachable does not mean success.",
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v2/amt/boot/remoteErase/{{deviceId}}/status",
+							"protocol": "{{protocol}}",
+							"host": ["{{host}}"],
+							"path": ["api", "v2", "amt", "boot", "remoteErase", "{{deviceId}}", "status"]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Set Remote Erase Options",
+					"description": "Nonempty ssdPassword or psid requires secureEraseAllSSDs=true; otherwise the request returns 400. SSD master passwords are limited to 64 UTF-8 bytes with no separate character limit; PSID remains limited to 64 bytes.",
 					"event": [
 						{
 							"listen": "test",
@@ -1899,7 +1915,7 @@
 						"header": [],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"secureEraseAllSSDs\": true,\r\n    \"tpmClear\": false,\r\n    \"restoreBIOSToEOM\": false,\r\n    \"unconfigureCSME\": false,\r\n    \"ssdPassword\": \"\"\r\n}",
+							"raw": "{\r\n    \"secureEraseAllSSDs\": true,\r\n    \"tpmClear\": false,\r\n    \"restoreBIOSToEOM\": false,\r\n    \"unconfigureCSME\": false,\r\n    \"ssdPassword\": \"\",\r\n    \"psid\": \"\"\r\n}",
 							"options": {
 								"raw": {
 									"language": "json"
@@ -1921,6 +1937,75 @@
 								"{{deviceId}}"
 							]
 						}
+					},
+					"response": []
+				}
+			]
+		},
+		{
+			"name": "Remote Erase Credential Validation",
+			"item": [
+				{
+					"name": "Reject SSD Password Without SSD Erase",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Credentials without SSD erase return 400 before device lookup\", function () {",
+									"    pm.response.to.have.status(400);",
+									"    pm.expect(pm.response.json().error).to.include(\"ssdPassword and psid require secureEraseAllSSDs to be selected\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"secureEraseAllSSDs\": false,\r\n    \"tpmClear\": true,\r\n    \"ssdPassword\": \"test-password\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{protocol}}://{{host}}/api/v1/amt/boot/remoteErase/{{deviceId}}"
+					},
+					"response": []
+				},
+				{
+					"name": "Reject PSID Without SSD Erase",
+					"event": [
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test(\"Credentials without SSD erase return 400 before device lookup\", function () {",
+									"    pm.response.to.have.status(400);",
+									"    pm.expect(pm.response.json().error).to.include(\"ssdPassword and psid require secureEraseAllSSDs to be selected\");",
+									"});"
+								],
+								"type": "text/javascript"
+							}
+						}
+					],
+					"request": {
+						"method": "POST",
+						"header": [],
+						"body": {
+							"mode": "raw",
+							"raw": "{\r\n    \"secureEraseAllSSDs\": false,\r\n    \"unconfigureCSME\": true,\r\n    \"psid\": \"test-psid\"\r\n}",
+							"options": {
+								"raw": {
+									"language": "json"
+								}
+							}
+						},
+						"url": "{{protocol}}://{{host}}/api/v1/amt/boot/remoteErase/{{deviceId}}"
 					},
 					"response": []
 				}

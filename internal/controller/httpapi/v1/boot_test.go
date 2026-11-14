@@ -12,6 +12,7 @@ import (
 
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
+	"github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
 func TestGetRemoteEraseCapabilities(t *testing.T) {
@@ -94,6 +95,7 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 				RestoreBIOSToEOM:   true,
 				UnconfigureCSME:    true,
 				SSDPassword:        "s3cr3t",
+				PSID:               "drive-psid",
 			},
 			mock: func(m *mocks.MockDeviceManagementFeature) {
 				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", "", dto.RemoteEraseRequest{
@@ -102,10 +104,26 @@ func TestSetRemoteEraseOptions(t *testing.T) {
 					RestoreBIOSToEOM:   true,
 					UnconfigureCSME:    true,
 					SSDPassword:        "s3cr3t",
+					PSID:               "drive-psid",
 				}).
 					Return(nil)
 			},
 			expectedCode: http.StatusOK,
+		},
+		{
+			name:        "setRemoteEraseOptions - credentials without SSD erase",
+			requestBody: dto.RemoteEraseRequest{UnconfigureCSME: true, SSDPassword: "password", PSID: "drive-psid"},
+			mock: func(m *mocks.MockDeviceManagementFeature) {
+				m.EXPECT().SetRemoteEraseOptions(context.Background(), "valid-guid", "", dto.RemoteEraseRequest{
+					UnconfigureCSME: true,
+					SSDPassword:     "password",
+					PSID:            "drive-psid",
+				}).Return(devices.ValidationError{}.Wrap(
+					"SetRemoteEraseOptions", "check RPE credentials",
+					"ssdPassword and psid require secureEraseAllSSDs to be selected",
+				))
+			},
+			expectedCode: http.StatusBadRequest,
 		},
 		{
 			name:        "setRemoteEraseOptions - invalid JSON payload",

@@ -89,6 +89,7 @@ type (
 		GetPowerState(ctx context.Context, guid, tenantID string) (dto.PowerState, error)
 		GetPowerCapabilities(ctx context.Context, guid, tenantID string) (dto.PowerCapabilities, error)
 		GetRemoteEraseCapabilities(ctx context.Context, guid, tenantID string) (dto.BootCapabilities, error)
+		GetRemoteEraseStatus(ctx context.Context, guid, tenantID string) (dtov2.RemoteEraseStatus, error)
 		SetRemoteEraseOptions(ctx context.Context, guid, tenantID string, req dto.RemoteEraseRequest) error
 		GetGeneralSettings(ctx context.Context, guid, tenantID string) (dto.GeneralSettings, error)
 		CancelUserConsent(ctx context.Context, guid, tenantID string) (dto.UserConsentMessage, error)
