@@ -300,9 +300,8 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
 }
 
+//nolint:paralleltest // mutates shared config.ConsoleConfig via newAuthTestEngine
 func TestLogin_ConfigBackendAcceptsPBKDF2LookingLiteralPassword(t *testing.T) {
-	t.Parallel()
-
 	literalPassword, err := secrets.GeneratePBKDF2Hash("password-preimage")
 	require.NoError(t, err)
 
@@ -456,4 +455,40 @@ func TestLogin_EmptyConfiguredPasswordRejected(t *testing.T) {
 	engine.ServeHTTP(w, req)
 
 	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
+//nolint:paralleltest // shared global config.ConsoleConfig
+func TestLogin_FailedAttemptsDoNotThrottleAuthentication(t *testing.T) {
+	const failedAttempts = 6
+
+	for _, backend := range []string{"config", "keyring"} {
+		cfg := cookieAuthTestConfig(t)
+		cfg.SecretBackend = backend
+
+		if backend == "config" {
+			cfg.AdminPassword = testAdminPass
+		}
+
+		engine := newAuthTestEngine(t, cfg)
+
+		for attempt := 0; attempt <= failedAttempts; attempt++ {
+			body := `{"username":"admin","password":"wrong-password"}`
+			expectedStatus := http.StatusUnauthorized
+
+			if attempt == failedAttempts {
+				body = testCredsBody
+				expectedStatus = http.StatusOK
+			}
+
+			req, err := http.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(body))
+			require.NoError(t, err)
+			req.Header.Set("Content-Type", "application/json")
+			req.RemoteAddr = "203.0.113.1:12345"
+
+			response := httptest.NewRecorder()
+			engine.ServeHTTP(response, req)
+
+			require.Equal(t, expectedStatus, response.Code, "backend %s, attempt %d", backend, attempt)
+		}
+	}
 }
