@@ -137,6 +137,7 @@ func TestPBKDF2HashFormat(t *testing.T) {
 	salt, err := base64.StdEncoding.DecodeString(parts[1])
 	require.NoError(t, err)
 	assert.Len(t, salt, pbkdf2SaltSize)
+
 	derivedHash, err := base64.StdEncoding.DecodeString(parts[2])
 	require.NoError(t, err)
 	assert.Len(t, derivedHash, pbkdf2HashSize)
