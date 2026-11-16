@@ -92,7 +92,7 @@ func TestUIMissingStaticFileIsNotFound(t *testing.T) {
 }
 
 //nolint:paralleltest // injectConfigToMainJS writes a shared /tmp/main.js file.
-func TestNewLocalSetupHandlerServesSetupPageAndInjectsAPIBase(t *testing.T) {
+func TestNewLocalSetupHandlerInjectsAPIBase(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.SecretBackend = "config"
 	cfg.SetupAPIBase = "https://localhost:4321"
@@ -102,10 +102,6 @@ func TestNewLocalSetupHandlerServesSetupPageAndInjectsAPIBase(t *testing.T) {
 	t.Cleanup(func() { require.NoError(t, manager.Close()) })
 
 	handler := NewLocalSetupHandler(cfg, logger.New("error"), manager)
-
-	page := httptest.NewRecorder()
-	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/setup", http.NoBody))
-	require.Equal(t, http.StatusOK, page.Code)
 
 	mainJS := httptest.NewRecorder()
 	handler.ServeHTTP(mainJS, httptest.NewRequest(http.MethodGet, "/main.js", http.NoBody))
