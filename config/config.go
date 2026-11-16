@@ -39,6 +39,7 @@ var (
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 	ErrAuthSecretBackendInvalid        = errors.New("config: auth.secretBackend must be config or keyring")
 	errAuthConfigNotMapping            = errors.New("config: auth must be a mapping to persist auth.jwtKey")
+	ErrConfigFlagValueMissing          = errors.New("config: missing value for --config")
 )
 
 const (
@@ -156,6 +157,10 @@ type (
 		CookieSecure             bool          `yaml:"cookieSecure" env:"AUTH_COOKIE_SECURE"`
 		CookieSameSite           string        `yaml:"cookieSameSite" env:"AUTH_COOKIE_SAME_SITE"`
 		UI                       UIAuthConfig  `yaml:"ui"`
+		StatePath                string        `yaml:"-" env:"-"`
+		SetupAPIBase             string        `yaml:"-" env:"-"`
+		SetupToken               string        `yaml:"-" env:"-"`
+		SetupListener            net.Listener  `yaml:"-" env:"-"`
 	}
 
 	// UIAuthConfig -.
@@ -439,6 +444,54 @@ func writeConfig(configPath string, cfg *Config) error {
 	return encoder.Encode(cfg)
 }
 
+func ResolveConfigPathFromArgs(args []string) (string, error) {
+	for i, arg := range args {
+		switch {
+		case arg == "--config" || arg == "-config":
+			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" {
+				return "", ErrConfigFlagValueMissing
+			}
+
+			return resolveConfigPath(args[i+1])
+		case strings.HasPrefix(arg, "--config="):
+			if value := strings.TrimPrefix(arg, "--config="); strings.TrimSpace(value) != "" {
+				return resolveConfigPath(value)
+			}
+
+			return "", ErrConfigFlagValueMissing
+		case strings.HasPrefix(arg, "-config="):
+			if value := strings.TrimPrefix(arg, "-config="); strings.TrimSpace(value) != "" {
+				return resolveConfigPath(value)
+			}
+
+			return "", ErrConfigFlagValueMissing
+		}
+	}
+
+	return resolveConfigPath("")
+}
+
+// ReadAdminCredentialsFromFile reads the persisted standalone administrator
+// credentials without applying environment overrides.
+func ReadAdminCredentialsFromFile(configPath string) (username, password string, err error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read config file: %w", err)
+	}
+
+	var fileConfig struct {
+		Auth struct {
+			AdminUsername string `yaml:"adminUsername"`
+			AdminPassword string `yaml:"adminPassword"`
+		} `yaml:"auth"`
+	}
+	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
+		return "", "", fmt.Errorf("parse admin credentials: %w", err)
+	}
+
+	return fileConfig.Auth.AdminUsername, fileConfig.Auth.AdminPassword, nil
+}
+
 // SaveAdminPassword persists adminPassword to auth.adminPassword in config.yml
 // without touching any other field. It re-reads the file directly (bypassing the
 // env-var overlay applied by cleanenv) so env-only secrets like APP_ENCRYPTION_KEY,
@@ -686,6 +739,8 @@ func NewConfig() (*Config, error) {
 
 		return nil, err
 	}
+
+	ConsoleConfig.StatePath = configPath + ".auth-state.db"
 
 	if err := validatePort(ConsoleConfig.Port); err != nil {
 		return nil, err

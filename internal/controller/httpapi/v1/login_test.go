@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"sync"
 	"testing"
 	"time"
@@ -12,7 +13,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/stretchr/testify/require"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/secrets"
 )
@@ -344,6 +348,122 @@ func TestChangePasswordRejectsEnvironmentManagedPassword(t *testing.T) {
 	require.Equal(t, testAdminPass, cfg.AdminPassword)
 }
 
+func TestPasswordChangeRevokesSessionsAcrossRestart(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Auth: config.Auth{
+		AdminUsername: testAdminUser,
+		JWTKey:        testJWTKey,
+		JWTExpiration: time.Hour,
+		SecretBackend: secretBackendKeyring,
+	}}
+	initialHash, err := secrets.GeneratePBKDF2Hash(testAdminPass)
+	require.NoError(t, err)
+
+	store := &loginCredentialStore{values: map[string]string{
+		"admin-username":      testAdminUser,
+		"admin-password-hash": initialHash,
+	}}
+
+	statePath := filepath.Join(t.TempDir(), "auth-state.db")
+	cfg.StatePath = statePath
+	manager, err := authsetup.NewManagerWithStore(cfg, statePath, store)
+	require.NoError(t, err)
+
+	route := NewLoginRoute(cfg, manager)
+	route.SaveAdminPassword = func(hash string) error {
+		return store.SetKeyValue("admin-password-hash", hash)
+	}
+	engine := gin.New()
+	engine.POST(testAuthorizeURL, route.Login)
+	engine.POST(testPasswordChangeURL, route.JWTAuthMiddleware(), route.ChangePassword)
+	engine.GET(testProtectedURL, route.JWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusOK) })
+
+	oldToken := loginWithCredentials(t, engine, testAdminPass, "192.0.2.201:1234")
+	require.Equal(t, http.StatusOK, requestProtected(t, engine, oldToken))
+
+	change := httptest.NewRequest(http.MethodPost, testPasswordChangeURL,
+		bytes.NewBufferString(`{"currentPassword":"secret","newPassword":"new-secret-123","confirmPassword":"new-secret-123"}`))
+	change.RemoteAddr = "192.0.2.202:1234"
+	change.Header.Set(authorizationHeader, bearerPrefix+oldToken)
+
+	changeResponse := httptest.NewRecorder()
+	engine.ServeHTTP(changeResponse, change)
+	require.Equal(t, http.StatusOK, changeResponse.Code)
+	require.Equal(t, http.StatusUnauthorized, requestProtected(t, engine, oldToken))
+
+	newToken := loginWithCredentials(t, engine, "new-secret-123", "192.0.2.203:1234")
+	require.Equal(t, http.StatusOK, requestProtected(t, engine, newToken))
+	require.NoError(t, manager.Close())
+
+	restartedManager, err := authsetup.NewManagerWithStore(cfg, statePath, store)
+	require.NoError(t, err)
+
+	defer restartedManager.Close()
+
+	restartedRoute := NewLoginRoute(cfg, restartedManager)
+	restartedEngine := gin.New()
+	restartedEngine.GET(testProtectedURL, restartedRoute.JWTAuthMiddleware(), func(c *gin.Context) { c.Status(http.StatusOK) })
+	require.Equal(t, http.StatusUnauthorized, requestProtected(t, restartedEngine, oldToken))
+	require.Equal(t, http.StatusOK, requestProtected(t, restartedEngine, newToken))
+}
+
+type loginCredentialStore struct {
+	values map[string]string
+}
+
+func (s *loginCredentialStore) GetKeyValue(key string) (string, error) {
+	value, ok := s.values[key]
+	if !ok {
+		return "", security.ErrKeyNotFound
+	}
+
+	return value, nil
+}
+
+func (s *loginCredentialStore) SetKeyValue(key, value string) error {
+	s.values[key] = value
+
+	return nil
+}
+
+func (s *loginCredentialStore) DeleteKeyValue(key string) error {
+	delete(s.values, key)
+
+	return nil
+}
+
+func loginWithCredentials(t *testing.T, engine *gin.Engine, password, remoteAddr string) string {
+	t.Helper()
+
+	body, err := json.Marshal(dto.Credentials{Username: testAdminUser, Password: password})
+	require.NoError(t, err)
+
+	req := httptest.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewReader(body))
+	req.RemoteAddr = remoteAddr
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, req)
+	require.Equal(t, http.StatusOK, response.Code, response.Body.String())
+
+	var result map[string]string
+	require.NoError(t, json.Unmarshal(response.Body.Bytes(), &result))
+	require.NotEmpty(t, result[tokenKey])
+
+	return result[tokenKey]
+}
+
+func requestProtected(t *testing.T, engine *gin.Engine, token string) int {
+	t.Helper()
+
+	req := httptest.NewRequest(http.MethodGet, testProtectedURL, http.NoBody)
+	req.Header.Set(authorizationHeader, bearerPrefix+token)
+
+	response := httptest.NewRecorder()
+	engine.ServeHTTP(response, req)
+
+	return response.Code
+}
+
 func TestChangePasswordConfigBackendPreservesLiteralHashPassword(t *testing.T) {
 	t.Parallel()
 
@@ -651,12 +771,14 @@ func TestNewLoginRoute(t *testing.T) {
 	t.Run("TLSSkipVerify trusts self-signed IdP", func(t *testing.T) {
 		srv := oidcDiscoveryServer(t)
 
-		config.ConsoleConfig = &config.Config{}
-		config.ConsoleConfig.ClientID = "test-client"
-		config.ConsoleConfig.Issuer = srv.URL
-		config.ConsoleConfig.TLSSkipVerify = true
+		cfg := &config.Config{
+			ClientID:      "test-client",
+			Issuer:        srv.URL,
+			TLSSkipVerify: true,
+		}
+		config.ConsoleConfig = cfg
 
-		lr := NewLoginRoute(&config.Config{})
+		lr := NewLoginRoute(cfg)
 
 		require.NotNil(t, lr, "expected provider discovery to succeed with TLSSkipVerify=true")
 		require.NotNil(t, lr.Verifier)
@@ -665,12 +787,13 @@ func TestNewLoginRoute(t *testing.T) {
 	t.Run("default TLS verify rejects self-signed IdP", func(t *testing.T) {
 		srv := oidcDiscoveryServer(t)
 
-		config.ConsoleConfig = &config.Config{}
-		config.ConsoleConfig.ClientID = "test-client"
-		config.ConsoleConfig.Issuer = srv.URL
-		config.ConsoleConfig.TLSSkipVerify = false
+		cfg := &config.Config{
+			ClientID: "test-client",
+			Issuer:   srv.URL,
+		}
+		config.ConsoleConfig = cfg
 
-		lr := NewLoginRoute(&config.Config{})
+		lr := NewLoginRoute(cfg)
 
 		require.Nil(t, lr, "expected provider discovery to fail against self-signed cert without skip verify")
 	})

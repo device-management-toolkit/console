@@ -42,7 +42,8 @@ func (f *FuegoAdapter) registerDeviceAuthRoutes() {
 			"the current password. Requires matching confirmation and at least eight characters with four distinct "+
 			"characters. Available only with standalone authentication enabled. Keyring passwords are hashed; "+
 			"config-backed passwords are saved to the configuration file. Environment-managed passwords must "+
-			"be changed in AUTH_ADMIN_PASSWORD and require a restart."),
+			"be changed in AUTH_ADMIN_PASSWORD and require a restart. A successful change revokes all previously "+
+			"issued standalone access tokens across clients and restarts."),
 		protectedRouteOptions(),
 		fuego.OptionAddResponse(http.StatusBadRequest, "Invalid password or confirmation", fuego.Response{Type: ErrorResponse{}}),
 		fuego.OptionAddResponse(http.StatusUnauthorized, "Invalid session or current password", fuego.Response{Type: ErrorResponse{}}),

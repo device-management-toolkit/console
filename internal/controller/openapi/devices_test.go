@@ -23,6 +23,8 @@ func TestRegisterDeviceRoutes_IncludesExportEndpoint(t *testing.T) {
 	require.True(t, ok)
 
 	require.Contains(t, paths, "/api/v1/devices/export", "device export route should be registered")
+	require.NotContains(t, paths, "/api/v1/auth/setup")
+	require.NotContains(t, paths, "/api/v1/auth/setup/status")
 
 	exportPath, ok := paths["/api/v1/devices/export"].(map[string]interface{})
 	require.True(t, ok)

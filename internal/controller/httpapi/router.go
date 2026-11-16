@@ -11,6 +11,7 @@ import (
 	ginprometheus "github.com/zsais/go-gin-prometheus"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
 	v1 "github.com/device-management-toolkit/console/internal/controller/httpapi/v1"
 	v2 "github.com/device-management-toolkit/console/internal/controller/httpapi/v2"
@@ -22,7 +23,7 @@ import (
 )
 
 // NewRouter -.
-func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config) {
+func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg *config.Config, authState ...*authsetup.Manager) {
 	// Options
 	handler.Use(gin.Logger())
 	handler.Use(gin.Recovery())
@@ -40,7 +41,7 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	fuegoAdapter.AddToGinRouter(handler)
 
 	// Public routes
-	login := v1.NewLoginRoute(cfg)
+	login := v1.NewLoginRoute(cfg, authState...)
 	handler.POST("/api/v1/authorize", login.Login)
 	// Public so an expired session can still clear its cookies.
 	handler.POST("/api/v1/authorize/logout", login.Logout)
