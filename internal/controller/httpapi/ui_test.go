@@ -5,7 +5,7 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
-	"path/filepath"
+	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -14,7 +14,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
-	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -92,21 +91,15 @@ func TestUIMissingStaticFileIsNotFound(t *testing.T) {
 }
 
 //nolint:paralleltest // injectConfigToMainJS writes a shared /tmp/main.js file.
-func TestNewLocalSetupHandlerInjectsAPIBase(t *testing.T) {
+func TestInjectSetupAPIBaseIntoMainJS(t *testing.T) {
 	cfg := &config.Config{}
 	cfg.SecretBackend = "config"
 	cfg.SetupAPIBase = "https://localhost:4321"
 
-	manager, err := authsetup.NewManagerWithStore(cfg, filepath.Join(t.TempDir(), "auth-state.db"), nil)
+	mainJSPath := injectConfigToMainJS(logger.New("error"), cfg)
+	mainJS, err := os.ReadFile(mainJSPath)
 	require.NoError(t, err)
-	t.Cleanup(func() { require.NoError(t, manager.Close()) })
-
-	handler := NewLocalSetupHandler(cfg, logger.New("error"), manager)
-
-	mainJS := httptest.NewRecorder()
-	handler.ServeHTTP(mainJS, httptest.NewRequest(http.MethodGet, "/main.js", http.NoBody))
-	require.Equal(t, http.StatusOK, mainJS.Code)
-	require.Contains(t, mainJS.Body.String(), `window.__CONSOLE_SETUP_API__="https://localhost:4321";`)
+	require.Contains(t, string(mainJS), `window.__CONSOLE_SETUP_API__="https://localhost:4321";`)
 }
 
 func TestConsoleServerAPIBase(t *testing.T) {
