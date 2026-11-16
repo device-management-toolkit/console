@@ -12,7 +12,7 @@ import (
 )
 
 const (
-	pbkdf2Prefix        = "$pbkdf2$"
+	pbkdf2Prefix        = "$pbkdf2-sha256$"
 	pbkdf2Iterations    = 600000
 	pbkdf2MaxIterations = 10000000
 	pbkdf2SaltSize      = 16
@@ -20,9 +20,9 @@ const (
 	pbkdf2PartsCount    = 3
 )
 
-// GeneratePBKDF2Hash generates a PBKDF2 hash from a password string.
+// GeneratePBKDF2Hash generates a PBKDF2-HMAC-SHA256 hash from a password string.
 // The resulting hash includes the iterations, salt, and hash in the format:
-// $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>.
+// $pbkdf2-sha256$<iterations>$<base64(salt)>$<base64(hash)>.
 func GeneratePBKDF2Hash(password string) (string, error) {
 	salt := make([]byte, pbkdf2SaltSize)
 
@@ -36,7 +36,7 @@ func GeneratePBKDF2Hash(password string) (string, error) {
 		return "", fmt.Errorf("failed to generate PBKDF2 hash: %w", err)
 	}
 
-	// Format: $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>
+	// Format: $pbkdf2-sha256$<iterations>$<base64(salt)>$<base64(hash)>
 	formatted := fmt.Sprintf("%s%d$%s$%s",
 		pbkdf2Prefix,
 		pbkdf2Iterations,
@@ -47,7 +47,7 @@ func GeneratePBKDF2Hash(password string) (string, error) {
 	return formatted, nil
 }
 
-// VerifyPBKDF2Hash verifies a password against a PBKDF2 hash.
+// VerifyPBKDF2Hash verifies a password against a PBKDF2-HMAC-SHA256 hash.
 // Returns true if the password matches the hash, false otherwise.
 func VerifyPBKDF2Hash(hashedPassword, password string) bool {
 	parsed, ok := parsePBKDF2Hash(hashedPassword)
@@ -74,14 +74,14 @@ func IsPBKDF2Hash(value string) bool {
 	return ok
 }
 
-// parsedPBKDF2Hash holds the decoded fields of a $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)> value.
+// parsedPBKDF2Hash holds the decoded fields of a $pbkdf2-sha256$<iterations>$<base64(salt)>$<base64(hash)> value.
 type parsedPBKDF2Hash struct {
 	iterations int
 	salt       []byte
 	hash       []byte
 }
 
-// parsePBKDF2Hash parses and validates the $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>
+// parsePBKDF2Hash parses and validates the $pbkdf2-sha256$<iterations>$<base64(salt)>$<base64(hash)>
 // format, returning ok=false for anything that doesn't fully match.
 func parsePBKDF2Hash(value string) (parsedPBKDF2Hash, bool) {
 	if !strings.HasPrefix(value, pbkdf2Prefix) {
