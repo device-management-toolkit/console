@@ -129,7 +129,7 @@ type (
 		Disabled bool `yaml:"disabled" env:"AUTH_DISABLED"`
 		// GatewayEnforced skips Console's own /api JWT check; only safe behind a gateway that verifies it.
 		GatewayEnforced bool `yaml:"gatewayEnforced" env:"AUTH_GATEWAY_ENFORCED"`
-		// ServiceToken gates RPS-only routes (e.g. profile secrets); empty means they always reject.
+		// ServiceToken gates RPS-facing routes (profile secrets, device writes, RPS's config reads); empty means they always reject.
 		ServiceToken             string        `yaml:"serviceToken" env:"AUTH_SERVICE_TOKEN"`
 		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
 		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`

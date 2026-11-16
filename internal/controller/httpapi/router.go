@@ -61,7 +61,8 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 	// Protected routes using JWT middleware
 	var protected *gin.RouterGroup
 	if cfg.APIVerifiesJWT() {
-		protected = handler.Group("/api", login.JWTAuthMiddleware())
+		// The service token stands in for the JWT on the RPS-facing routes only; see IsServiceRoute.
+		protected = handler.Group("/api", middleware.RequireJWTOrServiceToken(cfg.Auth.ServiceToken, login.JWTAuthMiddleware()))
 	} else {
 		if cfg.GatewayEnforced {
 			l.Warn("auth.gatewayEnforced: /api JWT verification is delegated to the gateway; the HTTP port must not be reachable directly")
