@@ -40,6 +40,11 @@ authenticated session and independently verifies the current password. In
 `dmt-console` keyring service. In `config` mode, it is saved to the configured
 Console config file.
 
+Keyring hashes use
+`$pbkdf2-sha256$<iterations>$<base64(salt)>$<base64(hash)>`.
+The earlier development-only `$pbkdf2$` prefix is not accepted; installations
+with those entries must use the keyring recovery procedure below.
+
 If `AUTH_ADMIN_PASSWORD` is set, the endpoint rejects changes with HTTP 409.
 Update the password in the deployment environment and restart Console instead;
 an API change to the config file would otherwise be overridden on restart.
