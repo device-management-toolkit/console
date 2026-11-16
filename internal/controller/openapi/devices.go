@@ -405,6 +405,7 @@ func exampleDeviceInfo() *dto.DeviceInfo {
 		OSVersion:            "6.8.0-51-generic",
 		OSDistro:             "Ubuntu 24.04 LTS",
 		CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
+		SerialNumber:         "PF4ABCDE",
 		OSIPAddress:          "10.49.76.163",
 		EthernetAdapterCount: &ethernetAdapterCount,
 		MonitorConnected:     &monitorConnected,
