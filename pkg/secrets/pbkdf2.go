@@ -5,7 +5,7 @@ import (
 	"crypto/rand"
 	"crypto/sha256"
 	"crypto/subtle"
-	"encoding/hex"
+	"encoding/base64"
 	"fmt"
 	"strconv"
 	"strings"
@@ -22,7 +22,7 @@ const (
 
 // GeneratePBKDF2Hash generates a PBKDF2 hash from a password string.
 // The resulting hash includes the iterations, salt, and hash in the format:
-// $pbkdf2$<iterations>$<hex(salt)>$<hex(hash)>.
+// $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>.
 func GeneratePBKDF2Hash(password string) (string, error) {
 	salt := make([]byte, pbkdf2SaltSize)
 
@@ -36,12 +36,12 @@ func GeneratePBKDF2Hash(password string) (string, error) {
 		return "", fmt.Errorf("failed to generate PBKDF2 hash: %w", err)
 	}
 
-	// Format: $pbkdf2$<iterations>$<hex(salt)>$<hex(hash)>
+	// Format: $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>
 	formatted := fmt.Sprintf("%s%d$%s$%s",
 		pbkdf2Prefix,
 		pbkdf2Iterations,
-		hex.EncodeToString(salt),
-		hex.EncodeToString(hash),
+		base64.StdEncoding.EncodeToString(salt),
+		base64.StdEncoding.EncodeToString(hash),
 	)
 
 	return formatted, nil
@@ -74,14 +74,14 @@ func IsPBKDF2Hash(value string) bool {
 	return ok
 }
 
-// parsedPBKDF2Hash holds the decoded fields of a $pbkdf2$<iterations>$<hex(salt)>$<hex(hash)> value.
+// parsedPBKDF2Hash holds the decoded fields of a $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)> value.
 type parsedPBKDF2Hash struct {
 	iterations int
 	salt       []byte
 	hash       []byte
 }
 
-// parsePBKDF2Hash parses and validates the $pbkdf2$<iterations>$<hex(salt)>$<hex(hash)>
+// parsePBKDF2Hash parses and validates the $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>
 // format, returning ok=false for anything that doesn't fully match.
 func parsePBKDF2Hash(value string) (parsedPBKDF2Hash, bool) {
 	if !strings.HasPrefix(value, pbkdf2Prefix) {
@@ -98,12 +98,12 @@ func parsePBKDF2Hash(value string) (parsedPBKDF2Hash, bool) {
 		return parsedPBKDF2Hash{}, false
 	}
 
-	salt, err := hex.DecodeString(parts[1])
+	salt, err := base64.StdEncoding.DecodeString(parts[1])
 	if err != nil || len(salt) != pbkdf2SaltSize {
 		return parsedPBKDF2Hash{}, false
 	}
 
-	hash, err := hex.DecodeString(parts[2])
+	hash, err := base64.StdEncoding.DecodeString(parts[2])
 	if err != nil || len(hash) != pbkdf2HashSize {
 		return parsedPBKDF2Hash{}, false
 	}

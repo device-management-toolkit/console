@@ -1,6 +1,7 @@
 package secrets
 
 import (
+	"encoding/base64"
 	"strconv"
 	"strings"
 	"testing"
@@ -111,8 +112,8 @@ func TestIsPBKDF2Hash_IterationBounds(t *testing.T) {
 
 	hashForIterations := func(iterations int) string {
 		return "$pbkdf2$" + strconv.Itoa(iterations) + "$" +
-			strings.Repeat("ab", pbkdf2SaltSize) + "$" +
-			strings.Repeat("cd", pbkdf2HashSize)
+			base64.StdEncoding.EncodeToString(make([]byte, pbkdf2SaltSize)) + "$" +
+			base64.StdEncoding.EncodeToString(make([]byte, pbkdf2HashSize))
 	}
 
 	assert.True(t, IsPBKDF2Hash(hashForIterations(pbkdf2Iterations)))
@@ -128,9 +129,17 @@ func TestPBKDF2HashFormat(t *testing.T) {
 	hash, err := GeneratePBKDF2Hash(password)
 	require.NoError(t, err)
 
-	// Verify hash format: $pbkdf2$<iterations>$<hex(salt)>$<hex(hash)>
+	// Verify hash format: $pbkdf2$<iterations>$<base64(salt)>$<base64(hash)>
 	assert.True(t, IsPBKDF2Hash(hash))
 	assert.Contains(t, hash, "$pbkdf2$600000$")
+	parts := strings.Split(strings.TrimPrefix(hash, pbkdf2Prefix), "$")
+	require.Len(t, parts, pbkdf2PartsCount)
+	salt, err := base64.StdEncoding.DecodeString(parts[1])
+	require.NoError(t, err)
+	assert.Len(t, salt, pbkdf2SaltSize)
+	derivedHash, err := base64.StdEncoding.DecodeString(parts[2])
+	require.NoError(t, err)
+	assert.Len(t, derivedHash, pbkdf2HashSize)
 }
 
 func TestPBKDF2Consistency(t *testing.T) {
