@@ -89,6 +89,7 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 		OSVersion:            "6.8.0-51-generic",
 		OSDistro:             "Ubuntu 24.04 LTS",
 		CPUModel:             "Intel(R) Core(TM) Ultra 7 165H",
+		SerialNumber:         "PF4ABCDE",
 		OSIPAddress:          "10.49.76.163",
 		EthernetAdapterCount: &ethernetAdapterCount,
 		MonitorConnected:     &monitorConnected,
@@ -107,6 +108,8 @@ func TestDeviceInfoJSONRoundTrip(t *testing.T) {
 	require.Equal(t, info.MEInterfaceVersion, decoded.MEInterfaceVersion)
 	require.Equal(t, info.CertHashes, decoded.CertHashes)
 	require.Equal(t, info.LMSVersion, decoded.LMSVersion)
+	require.Equal(t, info.SerialNumber, decoded.SerialNumber)
+	require.Contains(t, string(encoded), `"serialNumber":"PF4ABCDE"`)
 	require.NotNil(t, decoded.Discovered)
 	require.Equal(t, *info.Discovered, *decoded.Discovered)
 	require.NotNil(t, decoded.LMSInstalled)

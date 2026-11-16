@@ -40,3 +40,14 @@ func TestExportDevices_ReturnsExampleRecord(t *testing.T) {
 	require.Len(t, resp.Data, 1)
 	require.Equal(t, exampleDeviceGUID, resp.Data[0].GUID)
 }
+
+func TestGetDeviceByID_ExampleIncludesSerialNumber(t *testing.T) {
+	t.Parallel()
+
+	f := newTestAdapter()
+
+	device, err := f.getDeviceByID(nil)
+	require.NoError(t, err)
+	require.NotNil(t, device.DeviceInfo)
+	require.Equal(t, "PF4ABCDE", device.DeviceInfo.SerialNumber)
+}
