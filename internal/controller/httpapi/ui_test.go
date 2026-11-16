@@ -5,6 +5,7 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
+	"path/filepath"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -13,6 +14,8 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
+	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 const testUIShell = "<app-root></app-root>"
@@ -86,6 +89,28 @@ func TestUIMissingStaticFileIsNotFound(t *testing.T) {
 			require.Equal(t, http.StatusNotFound, w.Code)
 		})
 	}
+}
+
+//nolint:paralleltest // injectConfigToMainJS writes a shared /tmp/main.js file.
+func TestNewLocalSetupHandlerServesSetupPageAndInjectsAPIBase(t *testing.T) {
+	cfg := &config.Config{}
+	cfg.SecretBackend = "config"
+	cfg.SetupAPIBase = "https://localhost:4321"
+
+	manager, err := authsetup.NewManagerWithStore(cfg, filepath.Join(t.TempDir(), "auth-state.db"), nil)
+	require.NoError(t, err)
+	t.Cleanup(func() { require.NoError(t, manager.Close()) })
+
+	handler := NewLocalSetupHandler(cfg, logger.New("error"), manager)
+
+	page := httptest.NewRecorder()
+	handler.ServeHTTP(page, httptest.NewRequest(http.MethodGet, "/setup", http.NoBody))
+	require.Equal(t, http.StatusOK, page.Code)
+
+	mainJS := httptest.NewRecorder()
+	handler.ServeHTTP(mainJS, httptest.NewRequest(http.MethodGet, "/main.js", http.NoBody))
+	require.Equal(t, http.StatusOK, mainJS.Code)
+	require.Contains(t, mainJS.Body.String(), `window.__CONSOLE_SETUP_API__="https://localhost:4321";`)
 }
 
 func TestConsoleServerAPIBase(t *testing.T) {
