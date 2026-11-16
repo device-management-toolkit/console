@@ -12,7 +12,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
-func TestAdopt(t *testing.T) {
+func TestManage(t *testing.T) {
 	t.Parallel()
 
 	discovered := true
@@ -40,7 +40,7 @@ func TestAdopt(t *testing.T) {
 			return true, nil
 		})
 
-		_, err := useCase.Adopt(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
 		require.NoError(t, err)
 	})
 
@@ -55,8 +55,8 @@ func TestAdopt(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(notActivated, nil)
 
-		_, err := useCase.Adopt(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
-		require.ErrorIs(t, err, devices.ErrAdoptNotEligible)
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
+		require.ErrorIs(t, err, devices.ErrManageNotEligible)
 	})
 
 	t.Run("refuses a device that is already managed without contacting it", func(t *testing.T) {
@@ -70,8 +70,8 @@ func TestAdopt(t *testing.T) {
 		}
 		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(managed, nil)
 
-		_, err := useCase.Adopt(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
-		require.ErrorIs(t, err, devices.ErrAdoptNotEligible)
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
+		require.ErrorIs(t, err, devices.ErrManageNotEligible)
 	})
 
 	t.Run("rejects wrong credentials without saving them", func(t *testing.T) {
@@ -82,7 +82,7 @@ func TestAdopt(t *testing.T) {
 		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(stored(), nil)
 		wsmanMock.EXPECT().VerifyCredentials(gomock.Any()).Return(errors.New("wsman.Client post received: 401 Unauthorized"))
 
-		_, err := useCase.Adopt(context.Background(), "device-guid-123", "tenant", "admin", "wrong")
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "wrong")
 		require.ErrorIs(t, err, devices.ErrInvalidCredentials)
 	})
 
@@ -95,7 +95,7 @@ func TestAdopt(t *testing.T) {
 		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(stored(), nil)
 		wsmanMock.EXPECT().VerifyCredentials(gomock.Any()).Return(unreachable)
 
-		_, err := useCase.Adopt(context.Background(), "device-guid-123", "tenant", "admin", "pw")
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "pw")
 		require.ErrorIs(t, err, unreachable)
 		require.NotErrorIs(t, err, devices.ErrInvalidCredentials)
 	})
@@ -109,7 +109,7 @@ func TestAdopt(t *testing.T) {
 		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(stored(), nil)
 		wsmanMock.EXPECT().VerifyCredentials(gomock.Any()).Return(other)
 
-		_, err := useCase.Adopt(context.Background(), "device-guid-123", "tenant", "admin", "pw")
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "pw")
 		require.NotErrorIs(t, err, devices.ErrInvalidCredentials)
 	})
 
@@ -120,7 +120,7 @@ func TestAdopt(t *testing.T) {
 
 		repo.EXPECT().GetByID(gomock.Any(), "missing", "tenant").Return(nil, nil)
 
-		_, err := useCase.Adopt(context.Background(), "missing", "tenant", "admin", "pw")
+		_, err := useCase.Manage(context.Background(), "missing", "tenant", "admin", "pw")
 		require.ErrorIs(t, err, devices.ErrNotFound)
 	})
 }

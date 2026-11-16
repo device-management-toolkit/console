@@ -313,17 +313,17 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 	return d2, nil
 }
 
-// adoptFields are the user-supplied values applied when Add Device targets a GUID
+// manageExistingFields are the user-supplied values applied when Add Device targets a GUID
 // that discovery already recorded. Discovery data on the stored record is kept.
-var adoptFields = map[string]bool{
+var manageExistingFields = map[string]bool{
 	usernameFieldKey: true, passwordFieldKey: true, "usetls": true, "allowselfsigned": true,
 	"certhash": true, "friendlyname": true, "tags": true,
 }
 
-// adoptExisting handles Add Device for a GUID that is already Discovered: it
+// manageExisting handles Add Device for a GUID that is already Discovered: it
 // updates that record instead of creating a duplicate. ok is false when there is
-// nothing to adopt and the caller should insert normally.
-func (uc *UseCase) adoptExisting(ctx context.Context, d *dto.Device) (adopted *dto.Device, ok bool, err error) {
+// nothing to manage and the caller should insert normally.
+func (uc *UseCase) manageExisting(ctx context.Context, d *dto.Device) (managed *dto.Device, ok bool, err error) {
 	if d.GUID == "" || d.Password == "" {
 		return nil, false, nil
 	}
@@ -348,34 +348,34 @@ func (uc *UseCase) adoptExisting(ctx context.Context, d *dto.Device) (adopted *d
 		return nil, false, nil
 	}
 
-	adopted, err = uc.Update(ctx, d, adoptFields)
+	managed, err = uc.Update(ctx, d, manageExistingFields)
 	if err != nil {
 		return nil, false, err
 	}
 
-	return adopted, true, nil
+	return managed, true, nil
 }
 
-// adoptCredentialFields are the only fields Adopt writes: the stored connection
+// manageCredentialFields are the only fields Manage writes: the stored connection
 // settings (TLS, certificate hash, tags) of the discovered record are kept.
-var adoptCredentialFields = map[string]bool{usernameFieldKey: true, passwordFieldKey: true}
+var manageCredentialFields = map[string]bool{usernameFieldKey: true, passwordFieldKey: true}
 
-// Adopt moves a Discovered device to Managed. It proves the supplied AMT
+// Manage moves a Discovered device to Managed. It proves the supplied AMT
 // credentials by connecting to the device with them; only then are they saved.
-func (uc *UseCase) Adopt(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error) {
+func (uc *UseCase) Manage(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error) {
 	existing, err := uc.GetByID(ctx, guid, tenantID, false)
 	if err != nil {
 		return nil, err
 	}
 
-	// Only a Discovered device can be adopted; adopting a managed one would
-	// re-verify and overwrite its stored credentials.
+	// Only a Discovered device can be managed this way; doing it to a managed one
+	// would re-verify and overwrite its stored credentials.
 	if existing.DeviceInfo == nil || existing.DeviceInfo.Discovered == nil || !*existing.DeviceInfo.Discovered {
-		return nil, ErrAdoptNotEligible
+		return nil, ErrManageNotEligible
 	}
 
-	if !adoptionFor(existing.DeviceInfo).Eligible {
-		return nil, ErrAdoptNotEligible
+	if !managementFor(existing.DeviceInfo).Eligible {
+		return nil, ErrManageNotEligible
 	}
 
 	candidate := *existing
@@ -396,7 +396,7 @@ func (uc *UseCase) Adopt(ctx context.Context, guid, tenantID, username, password
 		TenantID: existing.TenantID,
 		Username: username,
 		Password: password,
-	}, adoptCredentialFields)
+	}, manageCredentialFields)
 }
 
 // verifyCredentials makes one authenticated call to the device through an
@@ -425,8 +425,8 @@ func wrapCredentialError(err error) error {
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, error) {
-	if adopted, ok, err := uc.adoptExisting(ctx, d); err != nil || ok {
-		return adopted, err
+	if managed, ok, err := uc.manageExisting(ctx, d); err != nil || ok {
+		return managed, err
 	}
 
 	// A device added with credentials is managed from the start, even if its

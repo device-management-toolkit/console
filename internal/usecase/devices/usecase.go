@@ -240,11 +240,11 @@ func syncDiscoveryState(info *dto.DeviceInfo) {
 	}
 }
 
-// adoptWhenCredentialed moves a Discovered device to Managed when the caller
+// manageWhenCredentialed moves a Discovered device to Managed when the caller
 // supplies AMT credentials for it. Console then holds the credentials, so the
-// user has chosen to manage it (Add Device, profile-based activation, adopt).
+// user has chosen to manage it (Add Device, profile-based activation, manage).
 // This is the only place the write-once discovered flag is cleared.
-func adoptWhenCredentialed(dst, src *dto.Device, fields map[string]bool) {
+func manageWhenCredentialed(dst, src *dto.Device, fields map[string]bool) {
 	if !fields[passwordFieldKey] || src.Password == "" {
 		return
 	}
@@ -256,7 +256,7 @@ func adoptWhenCredentialed(dst, src *dto.Device, fields map[string]bool) {
 }
 
 func mergeDeviceFields(dst, src *dto.Device, fields map[string]bool) {
-	defer adoptWhenCredentialed(dst, src, fields)
+	defer manageWhenCredentialed(dst, src, fields)
 
 	for key := range fields {
 		if key == deviceInfoFieldKey || strings.HasPrefix(key, deviceInfoFieldPrefix) {
@@ -358,7 +358,7 @@ func (uc *UseCase) entityToDTO(d *entity.Device) (*dto.Device, error) {
 	}
 
 	if deviceInfo != nil && deviceInfo.Discovered != nil && *deviceInfo.Discovered {
-		d1.Adoption = adoptionFor(deviceInfo)
+		d1.Management = managementFor(deviceInfo)
 	}
 
 	if d.CertHash != nil {

@@ -52,7 +52,7 @@ func TestGetDeviceByID_ExampleIncludesSerialNumber(t *testing.T) {
 	require.Equal(t, "PF4ABCDE", device.DeviceInfo.SerialNumber)
 }
 
-func TestRegisterDeviceRoutes_IncludesAdoptEndpoint(t *testing.T) {
+func TestRegisterDeviceRoutes_IncludesManageEndpoint(t *testing.T) {
 	t.Parallel()
 
 	f := newTestAdapter()
@@ -67,13 +67,13 @@ func TestRegisterDeviceRoutes_IncludesAdoptEndpoint(t *testing.T) {
 	paths, ok := spec["paths"].(map[string]interface{})
 	require.True(t, ok)
 
-	adoptPath, ok := paths["/api/v1/devices/{guid}/adopt"].(map[string]interface{})
-	require.True(t, ok, "adopt route should be registered")
+	managePath, ok := paths["/api/v1/devices/{guid}/manage"].(map[string]interface{})
+	require.True(t, ok, "manage route should be registered")
 
-	adopt, ok := adoptPath["post"].(map[string]interface{})
-	require.True(t, ok, "adopt POST operation should be registered")
+	manage, ok := managePath["post"].(map[string]interface{})
+	require.True(t, ok, "manage POST operation should be registered")
 
-	responses, ok := adopt["responses"].(map[string]interface{})
+	responses, ok := manage["responses"].(map[string]interface{})
 	require.True(t, ok)
 	require.Contains(t, responses, "403", "rejected credentials should be documented as 403")
 }

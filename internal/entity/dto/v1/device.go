@@ -37,13 +37,13 @@ type Device struct {
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
-	// Adoption is computed on read for every device and is never stored.
-	Adoption *Adoption `json:"adoption,omitempty"`
+	// Management is computed on read for every device and is never stored.
+	Management *Management `json:"management,omitempty"`
 }
 
-// Adoption says whether a discovered device can be adopted. Reason is one of
+// Management says whether a discovered device can be managed. Reason is one of
 // notActivated, unsupported or unknown when Eligible is false.
-type Adoption struct {
+type Management struct {
 	Eligible bool   `json:"eligible"`
 	Reason   string `json:"reason,omitempty"`
 }

@@ -1470,7 +1470,7 @@ func TestDeviceRepo_GetActivated(t *testing.T) {
 	seedMode(t, dbConn, "guid-empty", "tenant1", &empty)                        // empty -> not activated
 	seedMode(t, dbConn, "guid-nullmode", "tenant1", nil)                        // NULL -> not activated
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &adminMode)
-	seedMode(t, dbConn, "guid-discovered-activated", "tenant1", &adminMode) // activated, but found by discovery and not adopted
+	seedMode(t, dbConn, "guid-discovered-activated", "tenant1", &adminMode) // activated, but found by discovery and not moved to Managed
 	_, err := dbConn.ExecContext(context.Background(), `UPDATE devices SET discovered = true WHERE guid = ?`, "guid-discovered-activated")
 	require.NoError(t, err)
 	// Managed regardless of mode: not discovered, whether pre-provisioning or activated.
@@ -1506,8 +1506,8 @@ func TestDeviceRepo_GetDiscovered(t *testing.T) {
 	seedMode(t, dbConn, "guid-null", "tenant1", nil)                            // NULL -> discovered
 	seedMode(t, dbConn, "guid-notactivated", "tenant1", &notActivated)          // pre-provisioning -> discovered
 	seedMode(t, dbConn, "guid-notactivated-caps", "tenant1", &notActivatedCaps) // case-insensitive
-	seedMode(t, dbConn, "guid-discovered-activated", "tenant1", &adminMode)     // activated devices stay Discovered until adopted
-	seedMode(t, dbConn, "guid-adopted", "tenant1", &adminMode)
+	seedMode(t, dbConn, "guid-discovered-activated", "tenant1", &adminMode)     // activated devices stay Discovered until managed
+	seedMode(t, dbConn, "guid-managed", "tenant1", &adminMode)
 	seedMode(t, dbConn, "guid-othertenant", "tenant2", &notActivated)
 
 	_, err := dbConn.ExecContext(context.Background(),

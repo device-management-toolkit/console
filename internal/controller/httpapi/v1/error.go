@@ -237,8 +237,8 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 		c.AbortWithStatusJSON(http.StatusForbidden, response{Error: msg, Message: msg})
 
 		return true
-	case errors.Is(err, devices.ErrAdoptNotEligible):
-		msg := devices.ErrAdoptNotEligible.Error()
+	case errors.Is(err, devices.ErrManageNotEligible):
+		msg := devices.ErrManageNotEligible.Error()
 		c.AbortWithStatusJSON(http.StatusConflict, response{Error: msg, Message: msg})
 
 		return true

@@ -30,9 +30,9 @@ const (
 	// activatedWhere is retained as the internal/API predicate name for managed
 	// devices: everything the user has not left in Discovered, including legacy
 	// rows with no discovery information. Activation state does not matter; a
-	// device found by discovery stays Discovered until it is adopted.
+	// device found by discovery stays Discovered until it is moved to Managed.
 	activatedWhere = "(discovered IS NOT TRUE)"
-	// discoveredWhere matches devices found by discovery and not yet adopted,
+	// discoveredWhere matches devices found by discovery and not yet moved to Managed,
 	// whatever their AMT activation state.
 	discoveredWhere = "(discovered = ?)"
 )
@@ -143,7 +143,7 @@ func (r *DeviceRepo) GetActivated(_ context.Context, top, skip int, tenantID str
 	return r.getFiltered("GetActivated", activatedWhere, nil, top, skip, tenantID)
 }
 
-// GetDiscovered returns devices found by discovery that have not been adopted.
+// GetDiscovered returns devices found by discovery that have not been moved to Managed.
 func (r *DeviceRepo) GetDiscovered(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	return r.getFiltered("GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
 }

@@ -14,17 +14,17 @@ import (
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 )
 
-func TestAdoptRoute(t *testing.T) {
+func TestManageRoute(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
 		name         string
 		body         string
-		adoptErr     error
-		callsAdopt   bool
+		manageErr    error
+		callsManage  bool
 		expectedCode int
 	}{
-		{"adopts with valid credentials", `{"username":"admin","password":"pw"}`, nil, true, http.StatusOK},
+		{"manages with valid credentials", `{"username":"admin","password":"pw"}`, nil, true, http.StatusOK},
 		{"rejects a missing password", `{"username":"admin"}`, nil, false, http.StatusBadRequest},
 		{"maps rejected credentials to 403", `{"username":"admin","password":"bad"}`, devices.ErrInvalidCredentials, true, http.StatusForbidden},
 		{"maps an unknown device to 404", `{"username":"admin","password":"pw"}`, devices.ErrNotFound, true, http.StatusNotFound},
@@ -36,14 +36,14 @@ func TestAdoptRoute(t *testing.T) {
 
 			device, engine := devicesTest(t)
 
-			if tc.callsAdopt {
+			if tc.callsManage {
 				device.EXPECT().
-					Adopt(context.Background(), "guid", "", "admin", gomock.Any()).
-					Return(&dto.Device{GUID: "guid"}, tc.adoptErr)
+					Manage(context.Background(), "guid", "", "admin", gomock.Any()).
+					Return(&dto.Device{GUID: "guid"}, tc.manageErr)
 			}
 
 			w := httptest.NewRecorder()
-			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices/guid/adopt", strings.NewReader(tc.body))
+			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/devices/guid/manage", strings.NewReader(tc.body))
 			require.NoError(t, err)
 			req.Header.Set("Content-Type", "application/json")
 			engine.ServeHTTP(w, req)

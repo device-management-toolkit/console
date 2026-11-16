@@ -83,7 +83,7 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		fuego.OptionQuery("hostname", "Filter devices by host name"),
 		fuego.OptionQuery("friendlyName", "Filter devices by friendly name"),
 		fuego.OptionQueryBool("activated", "Return managed devices: every device not left in Discovered, whatever its AMT control mode"),
-		fuego.OptionQueryBool("discovered", "Return discovered devices that have not been adopted, including ones already activated. Use the adopt endpoint to manage them"),
+		fuego.OptionQueryBool("discovered", "Return discovered devices that have not been moved to Managed, including ones already activated. Use the manage endpoint to manage them"),
 		protectedRouteOptions(),
 	)
 
@@ -163,18 +163,17 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		protectedRouteOptions(),
 	)
 
-	// net/http's mux rejects "/devices/{guid}/adopt" next to "/devices/cert/{guid}" as
+	// net/http's mux rejects "/devices/{guid}/manage" next to "/devices/cert/{guid}" as
 	// ambiguous, though the real router does not. A second server with its own mux
 	// shares this server's OpenAPI engine, so the route still lands in the same spec.
-	adoptServer := fuego.NewServer(fuego.WithoutStartupMessages())
-	adoptServer.Engine = f.server.Engine
+	manageServer := fuego.NewServer(fuego.WithoutStartupMessages())
+	manageServer.Engine = f.server.Engine
 
 	fuego.Post(
-		adoptServer, "/api/v1/devices/{guid}/adopt", f.adoptDevice,
+		manageServer, "/api/v1/devices/{guid}/manage", f.manageDevice,
 		fuego.OptionTags("Devices"),
-		fuego.OptionSummary("Adopt Discovered Device"),
-		fuego.OptionDescription("Move a discovered device to managed using its existing AMT credentials.\n\n"+
-			"Console connects to the device with the supplied credentials first. Only if that succeeds are they "+
+		fuego.OptionSummary("Move a discovered device to Managed using its existing AMT credentials"),
+		fuego.OptionDescription("Console connects to the device with the supplied credentials first. Only if that succeeds are they "+
 			"stored and the device moved to managed. Nothing is stored on failure.\n\n"+
 			"A wrong username or password returns 403, not 401, so a client does not treat it as an expired session."),
 		fuego.OptionPath("guid", "Device GUID"),
@@ -451,13 +450,13 @@ func (f *FuegoAdapter) createDevice(c fuego.ContextWithBody[dto.Device]) (dto.De
 	return device, nil
 }
 
-// AdoptDeviceRequest holds the AMT credentials used to adopt a discovered device.
-type AdoptDeviceRequest struct {
+// ManageDeviceRequest holds the AMT credentials used to manage a discovered device.
+type ManageDeviceRequest struct {
 	Username string `json:"username" example:"admin" description:"AMT admin username"`
 	Password string `json:"password" example:"P@ssw0rd" description:"AMT admin password"`
 }
 
-func (f *FuegoAdapter) adoptDevice(c fuego.ContextWithBody[AdoptDeviceRequest]) (dto.Device, error) {
+func (f *FuegoAdapter) manageDevice(c fuego.ContextWithBody[ManageDeviceRequest]) (dto.Device, error) {
 	if _, err := c.Body(); err != nil {
 		return dto.Device{}, err
 	}

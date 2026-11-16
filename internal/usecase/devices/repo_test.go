@@ -966,7 +966,7 @@ func TestUpdatePartial(t *testing.T) {
 		MPSPassword:  "encrypted",
 		MEBXPassword: "encrypted",
 		// The stored record has no SKU or control mode, so what Console can tell about AMT is unknown.
-		Adoption: &dto.Adoption{Reason: "unknown"},
+		Management: &dto.Management{Reason: "unknown"},
 	}
 
 	t.Run("preserves untouched fields", func(t *testing.T) {
@@ -1298,7 +1298,7 @@ func TestUpdateLastSeen(t *testing.T) {
 	}
 }
 
-// discoveredEntity is a stored record that discovery found and nobody has adopted.
+// discoveredEntity is a stored record that discovery found and nobody has moved to Managed.
 // Discovered is left nil on purpose: the SQL GetByID does not select that column,
 // so the DeviceInfo JSON is the only place the flag is reliably available.
 func discoveredEntity() *entity.Device {
@@ -1309,7 +1309,7 @@ func discoveredEntity() *entity.Device {
 	}
 }
 
-func TestUpdateWithCredentialsAdoptsDiscoveredDevice(t *testing.T) {
+func TestUpdateWithCredentialsManagesDiscoveredDevice(t *testing.T) {
 	t.Parallel()
 
 	tests := []struct {
@@ -1321,7 +1321,7 @@ func TestUpdateWithCredentialsAdoptsDiscoveredDevice(t *testing.T) {
 	}{
 		{name: "profile activation supplies credentials", fields: map[string]bool{"username": true, "password": true}, password: "pw", wantManaged: true},
 		{name: "discovery sync without credentials stays discovered", fields: map[string]bool{"deviceinfo": true, "deviceinfo.lastsynced": true}, wantDiscover: true},
-		{name: "empty password does not adopt", fields: map[string]bool{"password": true}, password: "", wantDiscover: true},
+		{name: "empty password does not manage", fields: map[string]bool{"password": true}, password: "", wantDiscover: true},
 	}
 
 	for _, tc := range tests {
@@ -1355,7 +1355,7 @@ func TestUpdateWithCredentialsAdoptsDiscoveredDevice(t *testing.T) {
 	}
 }
 
-func TestInsertOnDiscoveredGUIDAdoptsExistingRecord(t *testing.T) {
+func TestInsertOnDiscoveredGUIDManagesExistingRecord(t *testing.T) {
 	t.Parallel()
 
 	useCase, repo, management := devicesTest(t)

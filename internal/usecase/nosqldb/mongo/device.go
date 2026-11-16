@@ -389,7 +389,7 @@ func activatedFilter(tenantID string) bson.M {
 }
 
 // discoveredStateFilter identifies a device found by discovery and not yet
-// adopted, whatever its AMT activation state.
+// moved to Managed, whatever its AMT activation state.
 func discoveredStateFilter() bson.M {
 	return bson.M{fieldDiscovered: true}
 }
@@ -411,7 +411,7 @@ func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID s
 	return r.findFiltered(ctx, "GetActivated", activatedFilter(tenantID), top, skip)
 }
 
-// GetDiscovered returns devices found by discovery that have not been adopted.
+// GetDiscovered returns devices found by discovery that have not been moved to Managed.
 func (r *DeviceRepo) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
 		return []entity.Device{}, nil
