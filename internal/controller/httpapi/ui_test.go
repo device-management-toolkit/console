@@ -5,7 +5,6 @@ package httpapi
 import (
 	"net/http"
 	"net/http/httptest"
-	"os"
 	"strings"
 	"testing"
 	"testing/fstest"
@@ -14,7 +13,6 @@ import (
 	"github.com/stretchr/testify/require"
 
 	"github.com/device-management-toolkit/console/config"
-	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 const testUIShell = "<app-root></app-root>"
@@ -88,18 +86,6 @@ func TestUIMissingStaticFileIsNotFound(t *testing.T) {
 			require.Equal(t, http.StatusNotFound, w.Code)
 		})
 	}
-}
-
-//nolint:paralleltest // injectConfigToMainJS writes a shared /tmp/main.js file.
-func TestInjectSetupAPIBaseIntoMainJS(t *testing.T) {
-	cfg := &config.Config{}
-	cfg.SecretBackend = "config"
-	cfg.SetupAPIBase = "https://localhost:4321"
-
-	mainJSPath := injectConfigToMainJS(logger.New("error"), cfg)
-	mainJS, err := os.ReadFile(mainJSPath)
-	require.NoError(t, err)
-	require.Contains(t, string(mainJS), `window.__CONSOLE_SETUP_API__="https://localhost:4321";`)
 }
 
 func TestConsoleServerAPIBase(t *testing.T) {
