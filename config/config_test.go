@@ -2,7 +2,6 @@ package config
 
 import (
 	"bytes"
-	"encoding/base64"
 	"errors"
 	"log"
 	"os"
@@ -771,8 +770,6 @@ func TestValidateSecretsAddr_NoHost(t *testing.T) {
 	t.Parallel()
 
 	for _, addr := range []string{"https://:8200", "http://", "http://:8200"} {
-		addr := addr
-
 		t.Run(addr, func(t *testing.T) {
 			t.Parallel()
 
@@ -866,9 +863,7 @@ func TestEnsureJWTKey(t *testing.T) {
 				return
 			}
 
-			decoded, err := base64.StdEncoding.DecodeString(cfg.JWTKey)
-			require.NoError(t, err)
-			assert.GreaterOrEqual(t, len(decoded), aes192KeySize, "generated key must contain at least 24 random bytes")
+			assert.Len(t, cfg.JWTKey, 44, "32 random bytes as base64, same as the encryption key")
 			assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey)
 
 			// A restart must reuse the persisted key rather than rotate it.
