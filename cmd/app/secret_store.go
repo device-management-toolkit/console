@@ -28,12 +28,13 @@ var (
 	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete Console's administrator credentials from the OS keyring and restart Console")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete Console's administrator credentials from the OS keyring and restart Console")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
-	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain at least 4 distinct characters; restart Console to try again")
+	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain at least 4 distinct characters")
 )
 
 const (
 	minAdminPasswordLength        = 8
 	minAdminPasswordDistinctChars = 4
+	maxPasswordAttempts           = 3
 )
 
 const maxPasswordConfirmationAttempts = 3
@@ -105,10 +106,10 @@ func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) erro
 func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore) error {
 	reader := bufio.NewReader(os.Stdin)
 	username := promptForCredential(reader, "Enter Console admin username: ")
-	password := promptForSecret(reader, "Enter Console admin password: ")
 
-	if len(password) < minAdminPasswordLength || distinctCharCount(password) < minAdminPasswordDistinctChars {
-		return errWeakAdminPassword
+	password, err := promptForAdminPassword(reader)
+	if err != nil {
+		return err
 	}
 
 	confirmed := false
@@ -151,6 +152,21 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 	cfg.AdminPassword = hash
 
 	return nil
+}
+
+func promptForAdminPassword(reader *bufio.Reader) (string, error) {
+	for attempt := 0; attempt < maxPasswordAttempts; attempt++ {
+		password := promptForSecret(reader, "Enter Console admin password: ")
+		if len(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+			return password, nil
+		}
+
+		if attempt+1 < maxPasswordAttempts {
+			log.Printf("%v. Please try again.", errWeakAdminPassword)
+		}
+	}
+
+	return "", fmt.Errorf("%w; failed after %d attempts; restart Console to try again", errWeakAdminPassword, maxPasswordAttempts)
 }
 
 func distinctCharCount(s string) int {
