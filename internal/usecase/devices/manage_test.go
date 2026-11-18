@@ -44,16 +44,16 @@ func TestManage(t *testing.T) {
 		require.NoError(t, err)
 	})
 
-	t.Run("refuses a device that is not eligible without contacting it", func(t *testing.T) {
+	t.Run("refuses a device without ISM or vPro support without contacting it", func(t *testing.T) {
 		t.Parallel()
 
 		useCase, _, _, repo := initInfoTest(t)
 
-		notActivated := &entity.Device{
+		unsupported := &entity.Device{
 			GUID: "device-guid-123", TenantID: "tenant", Discovered: &discovered,
-			DeviceInfo: `{"discovered":true,"fwSku":"16392","currentMode":"Not Activated"}`,
+			DeviceInfo: `{"discovered":true,"fwSku":"1","currentMode":"Not Activated"}`,
 		}
-		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(notActivated, nil)
+		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(unsupported, nil)
 
 		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
 		require.ErrorIs(t, err, devices.ErrManageNotEligible)

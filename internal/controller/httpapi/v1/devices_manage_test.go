@@ -27,6 +27,9 @@ func TestManageRoute(t *testing.T) {
 		{"manages with valid credentials", `{"username":"admin","password":"pw"}`, nil, true, http.StatusOK},
 		{"rejects a missing password", `{"username":"admin"}`, nil, false, http.StatusBadRequest},
 		{"maps rejected credentials to 403", `{"username":"admin","password":"bad"}`, devices.ErrInvalidCredentials, true, http.StatusForbidden},
+		{"maps an unreachable device to 504", `{"username":"admin","password":"pw"}`, devices.ErrDeviceUnreachable, true, http.StatusGatewayTimeout},
+		{"maps a TLS failure to 502", `{"username":"admin","password":"pw"}`, devices.ErrTLSFailure, true, http.StatusBadGateway},
+		{"maps a non-AMT endpoint to 422", `{"username":"admin","password":"pw"}`, devices.ErrNotAMT, true, http.StatusUnprocessableEntity},
 		{"maps an unknown device to 404", `{"username":"admin","password":"pw"}`, devices.ErrNotFound, true, http.StatusNotFound},
 	}
 

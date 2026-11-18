@@ -2,7 +2,6 @@ package devices
 
 import (
 	"context"
-	"errors"
 	"fmt"
 	"strings"
 
@@ -405,23 +404,6 @@ func (uc *UseCase) Manage(ctx context.Context, guid, tenantID, username, passwor
 // cached for later requests).
 func (uc *UseCase) verifyCredentials(d *entity.Device) error {
 	return wrapCredentialError(uc.device.VerifyCredentials(*d))
-}
-
-// ErrInvalidCredentials is returned when the device rejects the AMT credentials.
-var ErrInvalidCredentials = errors.New("the device rejected the AMT username or password")
-
-// wrapCredentialError maps an HTTP 401 from the device to ErrInvalidCredentials
-// and leaves every other failure (unreachable, timeout) untouched.
-func wrapCredentialError(err error) error {
-	if err == nil {
-		return nil
-	}
-
-	if strings.Contains(err.Error(), "received: 401") {
-		return fmt.Errorf("%w: %w", ErrInvalidCredentials, err)
-	}
-
-	return err
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, error) {
