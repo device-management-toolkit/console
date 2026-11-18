@@ -38,10 +38,14 @@ var (
 	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 	ErrAuthSecretBackendInvalid        = errors.New("config: auth.secretBackend must be config or keyring")
-	ErrConfigFlagValueMissing          = errors.New("config: missing value for --config")
+	errAuthConfigNotMapping            = errors.New("config: auth must be a mapping to persist auth.jwtKey")
 )
 
-const defaultHost = "localhost"
+const (
+	defaultHost     = "localhost"
+	yamlAuthKey     = "auth"
+	yamlJWTKeyField = "jwtKey"
+)
 
 const secretBackendConfig = "config"
 
@@ -439,6 +443,9 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 		return cleanenv.ReadConfig(configPath, cfg)
 	}
 
+	// OIDC and keyring modes must not parse standalone credentials from config:
+	// keyring is exclusive, and stale or malformed config credentials must not
+	// block startup when those credentials are not the selected auth source.
 	sanitized, err := withoutStandaloneCredentials(data)
 	if err != nil {
 		return err
@@ -454,7 +461,7 @@ func withoutStandaloneCredentials(data []byte) ([]byte, error) {
 	}
 
 	for i := range configEntries {
-		if configEntries[i].Key != "auth" {
+		if configEntries[i].Key != yamlAuthKey {
 			continue
 		}
 
@@ -526,33 +533,6 @@ func writeConfig(configPath string, cfg *Config) error {
 	return encoder.Encode(cfg)
 }
 
-func ResolveConfigPathFromArgs(args []string) (string, error) {
-	for i, arg := range args {
-		switch {
-		case arg == "--config" || arg == "-config":
-			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" {
-				return "", ErrConfigFlagValueMissing
-			}
-
-			return resolveConfigPath(args[i+1])
-		case strings.HasPrefix(arg, "--config="):
-			if value := strings.TrimPrefix(arg, "--config="); strings.TrimSpace(value) != "" {
-				return resolveConfigPath(value)
-			}
-
-			return "", ErrConfigFlagValueMissing
-		case strings.HasPrefix(arg, "-config="):
-			if value := strings.TrimPrefix(arg, "-config="); strings.TrimSpace(value) != "" {
-				return resolveConfigPath(value)
-			}
-
-			return "", ErrConfigFlagValueMissing
-		}
-	}
-
-	return resolveConfigPath("")
-}
-
 // SaveAdminPassword persists the config backend's generated password.
 func SaveAdminPassword(adminPassword string) error {
 	var configPathFlag string
@@ -597,7 +577,7 @@ func ensureJWTKey(configPath string, cfg *Config) error {
 
 	key := security.Crypto{}.GenerateKey()
 
-	if err := updateConfigFile(configPath, func(c *Config) { c.JWTKey = key }); err != nil {
+	if err := saveGeneratedJWTKey(configPath, key); err != nil {
 		return fmt.Errorf("config: persisting generated auth.jwtKey to %s (set AUTH_JWT_KEY to provide one instead): %w", configPath, err)
 	}
 
@@ -611,6 +591,68 @@ func ensureJWTKey(configPath string, cfg *Config) error {
 	)
 
 	return nil
+}
+
+func saveGeneratedJWTKey(configPath, key string) error {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	var configEntries yaml.MapSlice
+	if err := yaml.Unmarshal(data, &configEntries); err != nil {
+		return err
+	}
+
+	configEntries, err = withGeneratedJWTKey(configEntries, key)
+	if err != nil {
+		return err
+	}
+
+	updated, err := yaml.Marshal(configEntries)
+	if err != nil {
+		return err
+	}
+
+	if err := os.WriteFile(configPath, updated, configFilePerm); err != nil {
+		return err
+	}
+
+	return os.Chmod(configPath, configFilePerm)
+}
+
+func withGeneratedJWTKey(configEntries yaml.MapSlice, key string) (yaml.MapSlice, error) {
+	for i := range configEntries {
+		if configEntries[i].Key != yamlAuthKey {
+			continue
+		}
+
+		authEntries, ok := configEntries[i].Value.(yaml.MapSlice)
+		if !ok {
+			return nil, errAuthConfigNotMapping
+		}
+
+		configEntries[i].Value = withYAMLValue(authEntries, yamlJWTKeyField, key)
+
+		return configEntries, nil
+	}
+
+	return append(configEntries, yaml.MapItem{
+		Key:   yamlAuthKey,
+		Value: yaml.MapSlice{{Key: yamlJWTKeyField, Value: key}},
+	}), nil
+}
+
+func withYAMLValue(entries yaml.MapSlice, key string, value interface{}) yaml.MapSlice {
+	for i := range entries {
+		if entries[i].Key == key {
+			entries[i].Value = value
+
+			return entries
+		}
+	}
+
+	return append(entries, yaml.MapItem{Key: key, Value: value})
 }
 
 // loadConfig layers the file (created with defaults on first run) and the
@@ -641,7 +683,7 @@ func loadConfig(configPath string, cfg *Config) error {
 		return err
 	}
 
-	return nil
+	return cfg.validate()
 }
 
 // validate checks that all Config values are sane.
@@ -733,12 +775,6 @@ func NewConfig() (*Config, error) {
 	}
 
 	if err := validateAndSetEncryptionKey(ConsoleConfig.EncryptionKey); err != nil {
-		return nil, err
-	}
-
-	if err := ConsoleConfig.validate(); err != nil {
-		ConsoleConfig = nil
-
 		return nil, err
 	}
 

@@ -300,6 +300,24 @@ func TestLogin_InvalidCredentialsReturnsMessage(t *testing.T) {
 	require.Equal(t, "Incorrect Username and/or Password!", got["message"])
 }
 
+func TestLogin_KeyringRejectsPlaintextStoredPassword(t *testing.T) { //nolint:paralleltest // does not mutate shared config
+	engine := gin.New()
+	route := LoginRoute{Config: &config.Config{Auth: config.Auth{
+		AdminUsername: "admin",
+		AdminPassword: "secret",
+		SecretBackend: "keyring",
+	}}}
+	engine.POST(testAuthorizeURL, route.Login)
+
+	req := httptest.NewRequest(http.MethodPost, testAuthorizeURL, bytes.NewBufferString(testCredsBody))
+	req.Header.Set("Content-Type", "application/json")
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusUnauthorized, w.Code)
+}
+
 //nolint:paralleltest // mutates shared config.ConsoleConfig via newAuthTestEngine
 func TestLogin_ConfigBackendAcceptsPBKDF2LookingLiteralPassword(t *testing.T) {
 	literalPassword, err := secrets.GeneratePBKDF2Hash("password-preimage")

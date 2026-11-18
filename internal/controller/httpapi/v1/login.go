@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -107,12 +108,18 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
-	passwordMatches := creds.Password == lr.Config.AdminPassword
-	if lr.Config.SecretBackend == "keyring" && secrets.IsPBKDF2Hash(lr.Config.AdminPassword) {
+	var passwordMatches bool
+
+	switch lr.Config.SecretBackend {
+	case "config":
+		passwordMatches = subtle.ConstantTimeCompare([]byte(creds.Password), []byte(lr.Config.AdminPassword)) == 1
+	case "keyring":
 		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
 	}
 
-	if !passwordMatches || creds.Username != lr.Config.AdminUsername {
+	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(lr.Config.AdminUsername)) == 1
+
+	if !passwordMatches || !usernameMatches {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return

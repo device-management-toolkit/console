@@ -126,6 +126,7 @@ func TestGenerateRandomPassword_ShellSafe(t *testing.T) {
 	for range 100 {
 		password, err := generateRandomPassword(adminPasswordLength)
 		require.NoError(t, err)
+		assert.True(t, isStrongAdminPassword(password))
 		assert.NotContains(t, password, "$")
 		assert.NotContains(t, password, "!")
 		assert.False(t, strings.ContainsAny(password, unsafeChars), "generated %q contains an unsafe character", password)
@@ -248,7 +249,7 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	oldStdin := os.Stdin
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = writer.WriteString("admin\npassword\npassword\n")
+	_, err = writer.WriteString(" admin \n\n secret \nwrong\n secret \n")
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 
@@ -265,15 +266,34 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	cfg := &config.Config{Auth: config.Auth{SecretBackend: "keyring"}}
 	handleAdminCredentials(cfg)
 
-	assert.Equal(t, "admin", cfg.AdminUsername)
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "password"))
-	assert.Equal(t, "admin", store.values[keyringAdminUsername])
+	assert.Equal(t, " admin ", cfg.AdminUsername)
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, " secret "))
+	assert.Equal(t, " admin ", store.values[keyringAdminUsername])
 	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
 	assert.Len(t, store.values, 2)
 
 	configData, err := os.ReadFile(configFile)
 	require.NoError(t, err)
 	assert.Equal(t, initialConfig, configData, "keyring setup must not modify config.yml")
+}
+
+//nolint:paralleltest // mutates os.Stdin
+func TestBootstrapKeyringAdminCredentialsFailsAfterConfirmationRetries(t *testing.T) {
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = writer.WriteString("admin\npassword\nwrong-1\nwrong-2\nwrong-3\n")
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	os.Stdin = reader
+
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	store := &mockCredentialStore{values: map[string]string{}}
+	err = bootstrapKeyringAdminCredentials(&config.Config{}, store)
+	require.ErrorIs(t, err, errPasswordConfirmation)
+	assert.Empty(t, store.values, "credentials must not be stored after failed confirmation")
 }
 
 //nolint:paralleltest // mutates the global newKeyringStorageFunc
