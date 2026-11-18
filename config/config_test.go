@@ -157,6 +157,13 @@ func TestReadOrInitConfig_PreservesExistingLoader(t *testing.T) {
 			backend:   "config",
 			wantError: true,
 		},
+		{
+			name:      "keyring keeps credential parsing errors",
+			filename:  "config.yml",
+			content:   "auth:\n  secretBackend: keyring\n  adminPassword: [stale]\n",
+			backend:   "keyring",
+			wantError: true,
+		},
 	}
 
 	for _, tt := range tests {
@@ -996,7 +1003,7 @@ func TestLoadConfig_KeyringJWTGenerationPreservesStandaloneCredentials(t *testin
 	t.Setenv("AUTH_SECRET_BACKEND", "keyring")
 
 	path := filepath.Join(t.TempDir(), "config.yml")
-	content := []byte("auth:\n  secretBackend: keyring\n  adminPassword:\n    - stale\n")
+	content := []byte("auth:\n  secretBackend: keyring\n  adminPassword: stale-password\n")
 	require.NoError(t, os.WriteFile(path, content, 0o600))
 
 	cfg := defaultConfig()
@@ -1014,7 +1021,7 @@ func TestLoadConfig_KeyringJWTGenerationPreservesStandaloneCredentials(t *testin
 	auth, ok := entries["auth"].(map[any]any)
 	require.True(t, ok)
 	assert.NotContains(t, auth, "adminUsername")
-	assert.Equal(t, []any{"stale"}, auth["adminPassword"])
+	assert.Equal(t, "stale-password", auth["adminPassword"])
 	assert.Equal(t, cfg.JWTKey, auth["jwtKey"])
 }
 

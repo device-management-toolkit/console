@@ -402,101 +402,17 @@ func seedConfig(src, dst string) error {
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
 func readOrInitConfig(configPath string, cfg *Config) error {
-	var authMode struct {
-		Auth struct {
-			SecretBackend string `yaml:"secretBackend" env:"AUTH_SECRET_BACKEND"`
-			ClientID      string `yaml:"clientId" env:"AUTH_CLIENT_ID"`
-		} `yaml:"auth"`
+	err := cleanenv.ReadConfig(configPath, cfg)
+	if err == nil {
+		return nil
 	}
 
-	err := cleanenv.ReadConfig(configPath, &authMode)
-	if err != nil {
-		var pathErr *os.PathError
-		if !errors.As(err, &pathErr) || !os.IsNotExist(err) {
-			return err
-		}
-
-		if err := writeConfig(configPath, cfg); err != nil {
-			return err
-		}
-
-		if err := cleanenv.ReadConfig(configPath, &authMode); err != nil {
-			return err
-		}
+	var pathErr *os.PathError
+	if errors.As(err, &pathErr) && os.IsNotExist(err) {
+		return writeConfig(configPath, cfg)
 	}
 
-	if strings.TrimSpace(authMode.Auth.ClientID) != "" || authMode.Auth.SecretBackend != "keyring" {
-		return cleanenv.ReadConfig(configPath, cfg)
-	}
-
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	// Only standalone keyring mode excludes config credentials before decoding.
-	// All other modes retain the existing cleanenv loading behavior.
-	sanitized, err := withoutStandaloneCredentials(data)
-	if err != nil {
-		return err
-	}
-
-	return readSanitizedConfig(sanitized, cfg)
-}
-
-func withoutStandaloneCredentials(data []byte) ([]byte, error) {
-	var configEntries yaml.MapSlice
-	if err := yaml.Unmarshal(data, &configEntries); err != nil {
-		return nil, err
-	}
-
-	for i := range configEntries {
-		if configEntries[i].Key != yamlAuthKey {
-			continue
-		}
-
-		authEntries, ok := configEntries[i].Value.(yaml.MapSlice)
-		if !ok {
-			break
-		}
-
-		filtered := make(yaml.MapSlice, 0, len(authEntries))
-		for _, entry := range authEntries {
-			if entry.Key == "adminUsername" || entry.Key == "adminPassword" {
-				continue
-			}
-
-			filtered = append(filtered, entry)
-		}
-
-		configEntries[i].Value = filtered
-
-		break
-	}
-
-	return yaml.Marshal(configEntries)
-}
-
-func readSanitizedConfig(data []byte, cfg *Config) error {
-	file, err := os.CreateTemp("", "dmt-console-config-*.yml")
-	if err != nil {
-		return err
-	}
-
-	path := file.Name()
-	defer os.Remove(path)
-
-	if _, err := file.Write(data); err != nil {
-		file.Close()
-
-		return err
-	}
-
-	if err := file.Close(); err != nil {
-		return err
-	}
-
-	return cleanenv.ReadConfig(path, cfg)
+	return err
 }
 
 // writeConfig serializes cfg to configPath, creating the parent directory if needed.

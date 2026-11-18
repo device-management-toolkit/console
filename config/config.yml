@@ -59,6 +59,8 @@ auth:
   disabled: false
   # config (default) uses auth.adminUsername/auth.adminPassword and the
   # corresponding AUTH_ADMIN_* environment variables. keyring is opt-in.
+  # In keyring mode, config credentials are decoded but discarded, not used.
+  # All config fields must still have valid types.
   secretBackend: config
   adminUsername: standalone
   adminPassword: ""
