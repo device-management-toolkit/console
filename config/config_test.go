@@ -930,6 +930,32 @@ func TestEnsureJWTKey(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_KeyringJWTGenerationPreservesStandaloneCredentials(t *testing.T) {
+	t.Setenv("AUTH_SECRET_BACKEND", "keyring")
+
+	path := filepath.Join(t.TempDir(), "config.yml")
+	content := []byte("auth:\n  secretBackend: keyring\n  adminPassword:\n    - stale\n")
+	require.NoError(t, os.WriteFile(path, content, 0o600))
+
+	cfg := defaultConfig()
+	require.NoError(t, loadConfig(path, cfg))
+
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
+	assert.NotEmpty(t, cfg.JWTKey)
+
+	data, err := os.ReadFile(path)
+	require.NoError(t, err)
+
+	var entries map[any]any
+	require.NoError(t, yaml.Unmarshal(data, &entries))
+	auth, ok := entries["auth"].(map[any]any)
+	require.True(t, ok)
+	assert.NotContains(t, auth, "adminUsername")
+	assert.Equal(t, []any{"stale"}, auth["adminPassword"])
+	assert.Equal(t, cfg.JWTKey, auth["jwtKey"])
+}
+
 func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:paralleltest // rebinds the global log output
 	var buf bytes.Buffer
 

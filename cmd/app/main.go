@@ -7,7 +7,9 @@ import (
 	"log"
 	"math/big"
 	"os"
+	"regexp"
 	"strings"
+	"unicode/utf8"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -32,6 +34,13 @@ const adminPasswordLength = 16
 // adminPasswordMinLength is the floor, in runes, for the warning and the generator.
 // No ceiling: this password is only compared against the login request in httpapi/v1.
 const adminPasswordMinLength = 8
+
+var adminPasswordComplexity = []*regexp.Regexp{
+	regexp.MustCompile(`[a-z]`),
+	regexp.MustCompile(`[A-Z]`),
+	regexp.MustCompile(`\d`),
+	regexp.MustCompile(`[^a-zA-Z0-9]`),
+}
 
 // Classes used to generate a password. Only @ and * survive being pasted verbatim:
 // $ ! expand in sh, # truncates in make (-include .env), % ^ & break cmd.exe's set.
@@ -87,9 +96,7 @@ func main() {
 
 	handleEncryptionKey(cfg)
 
-	if cfg.ClientID == "" {
-		handleAdminCredentials(cfg)
-	}
+	handleAdminCredentials(cfg)
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
@@ -347,7 +354,7 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 }
 
 // generateRandomPassword returns a cryptographically secure password of exactly
-// length characters.
+// length characters that satisfies isStrongAdminPassword.
 func generateRandomPassword(length int) (string, error) {
 	if length < adminPasswordMinLength {
 		return "", ErrPasswordLengthTooShort
@@ -378,6 +385,20 @@ func generateRandomPassword(length int) (string, error) {
 	}
 
 	return string(password), nil
+}
+
+func isStrongAdminPassword(password string) bool {
+	if utf8.RuneCountInString(password) < adminPasswordMinLength {
+		return false
+	}
+
+	for _, rule := range adminPasswordComplexity {
+		if !rule.MatchString(password) {
+			return false
+		}
+	}
+
+	return true
 }
 
 // randomChar avoids the modulo bias of reducing a random byte.

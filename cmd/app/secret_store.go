@@ -27,8 +27,10 @@ var (
 	errKeystoreUnavailable     = errors.New("keystore is unavailable")
 	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete both dmt-console entries and restart")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both dmt-console entries and restart")
-	errPasswordConfirmation    = errors.New("password confirmation does not match; restart Console to try again")
+	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
 )
+
+const maxPasswordConfirmationAttempts = 3
 
 type credentialStore interface {
 	GetKeyValue(key string) (string, error)
@@ -123,8 +125,22 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 	username := promptForCredential(reader, "Enter Console admin username: ")
 	password := promptForSecret(reader, "Enter Console admin password: ")
 
-	confirmation := promptForSecret(reader, "Confirm Console admin password: ")
-	if password != confirmation {
+	confirmed := false
+
+	for attempt := 0; attempt < maxPasswordConfirmationAttempts; attempt++ {
+		confirmation := promptForSecret(reader, "Confirm Console admin password: ")
+		if password == confirmation {
+			confirmed = true
+
+			break
+		}
+
+		if attempt+1 < maxPasswordConfirmationAttempts {
+			log.Print("Password confirmation did not match. Please try again.")
+		}
+	}
+
+	if !confirmed {
 		return errPasswordConfirmation
 	}
 
@@ -145,34 +161,26 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 		return fmt.Errorf("storing administrator password hash: %w", err)
 	}
 
-	warnIfWeakAdminPassword(password)
-
 	cfg.AdminUsername = username
 	cfg.AdminPassword = hash
 
 	return nil
 }
 
-const (
-	minAdminPasswordLength        = 8
-	minAdminPasswordDistinctChars = 4
-)
-
 func warnIfWeakAdminPassword(password string) {
-	if len(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+	if isStrongAdminPassword(password) {
 		return
 	}
 
-	log.Print("Warning: configured admin password is weak (short or low character variety); consider using a longer, more varied password")
-}
-
-func distinctCharCount(s string) int {
-	seen := make(map[rune]struct{})
-	for _, r := range s {
-		seen[r] = struct{}{}
-	}
-
-	return len(seen)
+	log.Printf(
+		"WARNING: the configured admin password is weak. It should be at least %d characters and "+
+			"contain a lowercase letter, an uppercase letter, a digit, and a symbol; longer is better. "+
+			"Console is starting anyway, but set a stronger password in auth.adminPassword in "+
+			"config.yml, or via AUTH_ADMIN_PASSWORD in the environment. In .env, single-quote the "+
+			"value so docker compose does not expand $, and avoid # altogether: make reads .env too, "+
+			"and it cuts the value at # regardless of quoting.",
+		adminPasswordMinLength,
+	)
 }
 
 func promptForCredential(reader *bufio.Reader, prompt string) string {
@@ -188,8 +196,8 @@ func promptForCredential(reader *bufio.Reader, prompt string) string {
 			log.Fatalf("failed to read credential from console: %v", err)
 		}
 
-		value := strings.TrimSpace(input)
-		if value != "" {
+		value := removePromptLineEnding(input)
+		if strings.TrimSpace(value) != "" {
 			return value
 		}
 
@@ -210,8 +218,8 @@ func promptForSecret(reader *bufio.Reader, prompt string) string {
 				log.Fatalf("failed to read credential from console: %v", err)
 			}
 
-			value := strings.TrimSpace(string(input))
-			if value != "" {
+			value := string(input)
+			if strings.TrimSpace(value) != "" {
 				return value
 			}
 
@@ -229,11 +237,17 @@ func promptForSecret(reader *bufio.Reader, prompt string) string {
 			log.Fatalf("failed to read credential from console: %v", err)
 		}
 
-		value := strings.TrimSpace(input)
-		if value != "" {
+		value := removePromptLineEnding(input)
+		if strings.TrimSpace(value) != "" {
 			return value
 		}
 
 		log.Println("Value cannot be empty.")
 	}
+}
+
+func removePromptLineEnding(input string) string {
+	input = strings.TrimSuffix(input, "\n")
+
+	return strings.TrimSuffix(input, "\r")
 }
