@@ -334,7 +334,7 @@ func TestBootstrapKeyringAdminCredentialsRejectsPasswordMismatch(t *testing.T) {
 	oldStdin := os.Stdin
 	stdinReader, stdinWriter, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = stdinWriter.WriteString("admin\nfirst-password\nsecond-password\n")
+	_, err = stdinWriter.WriteString("admin\nfirst-password\nsecond-password\nsecond-password\nsecond-password\n")
 	require.NoError(t, err)
 	require.NoError(t, stdinWriter.Close())
 
@@ -371,7 +371,7 @@ func TestBootstrapKeyringAdminCredentialsRejectsWeakPassword(t *testing.T) {
 			oldStdin := os.Stdin
 			stdinReader, stdinWriter, err := os.Pipe()
 			require.NoError(t, err)
-			_, err = stdinWriter.WriteString("admin\n" + password + "\n" + password + "\n")
+			_, err = stdinWriter.WriteString("admin\n" + strings.Repeat(password+"\n", maxPasswordAttempts))
 			require.NoError(t, err)
 			require.NoError(t, stdinWriter.Close())
 
@@ -401,6 +401,27 @@ func TestBootstrapKeyringAdminCredentialsRejectsWeakPassword(t *testing.T) {
 			assert.Empty(t, cfg.AdminPassword)
 		})
 	}
+}
+
+//nolint:paralleltest // temporarily replaces process stdin
+func TestBootstrapKeyringAdminCredentialsRetriesWeakPassword(t *testing.T) {
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = writer.WriteString("admin\nweak\naaaaaaaa\nvalid-password\nvalid-password\n")
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	os.Stdin = reader
+
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	cfg := &config.Config{}
+	store := &mockCredentialStore{values: map[string]string{}}
+	require.NoError(t, bootstrapKeyringAdminCredentials(cfg, store))
+	assert.Equal(t, "admin", cfg.AdminUsername)
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "valid-password"))
+	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
 }
 
 //nolint:paralleltest // mutates global config and flag state

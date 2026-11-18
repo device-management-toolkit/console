@@ -61,6 +61,7 @@ auth:
   # corresponding AUTH_ADMIN_* environment variables. keyring is opt-in.
   # In keyring mode, config credentials are decoded but discarded, not used.
   # All config fields must still have valid types.
+  # Terminal keyring setup allows 3 password-policy attempts and 3 confirmations.
   secretBackend: config
   adminUsername: standalone
   adminPassword: ""
