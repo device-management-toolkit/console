@@ -402,7 +402,14 @@ func seedConfig(src, dst string) error {
 
 // readOrInitConfig attempts to read the config file; if it doesn't exist, writes the provided cfg to disk.
 func readOrInitConfig(configPath string, cfg *Config) error {
-	data, err := os.ReadFile(configPath)
+	var authMode struct {
+		Auth struct {
+			SecretBackend string `yaml:"secretBackend" env:"AUTH_SECRET_BACKEND"`
+			ClientID      string `yaml:"clientId" env:"AUTH_CLIENT_ID"`
+		} `yaml:"auth"`
+	}
+
+	err := cleanenv.ReadConfig(configPath, &authMode)
 	if err != nil {
 		var pathErr *os.PathError
 		if !errors.As(err, &pathErr) || !os.IsNotExist(err) {
@@ -413,39 +420,22 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 			return err
 		}
 
-		data, err = os.ReadFile(configPath)
-		if err != nil {
+		if err := cleanenv.ReadConfig(configPath, &authMode); err != nil {
 			return err
 		}
 	}
 
-	var authMode struct {
-		Auth struct {
-			SecretBackend string `yaml:"secretBackend"`
-			ClientID      string `yaml:"clientId"`
-		} `yaml:"auth"`
-	}
-	if err := yaml.Unmarshal(data, &authMode); err != nil {
-		return err
-	}
-
-	secretBackend := authMode.Auth.SecretBackend
-	if value, ok := os.LookupEnv("AUTH_SECRET_BACKEND"); ok {
-		secretBackend = value
-	}
-
-	clientID := authMode.Auth.ClientID
-	if value, ok := os.LookupEnv("AUTH_CLIENT_ID"); ok {
-		clientID = value
-	}
-
-	if strings.TrimSpace(clientID) == "" && secretBackend != "keyring" {
+	if strings.TrimSpace(authMode.Auth.ClientID) != "" || authMode.Auth.SecretBackend != "keyring" {
 		return cleanenv.ReadConfig(configPath, cfg)
 	}
 
-	// OIDC and keyring modes must not parse standalone credentials from config:
-	// keyring is exclusive, and stale or malformed config credentials must not
-	// block startup when those credentials are not the selected auth source.
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return err
+	}
+
+	// Only standalone keyring mode excludes config credentials before decoding.
+	// All other modes retain the existing cleanenv loading behavior.
 	sanitized, err := withoutStandaloneCredentials(data)
 	if err != nil {
 		return err
