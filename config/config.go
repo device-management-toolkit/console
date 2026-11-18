@@ -80,10 +80,19 @@ type (
 
 	// HTTP -.
 	HTTP struct {
-		Host             string   `yaml:"host" env:"HTTP_HOST"`
-		Port             string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
-		AllowedOrigins   []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
-		AllowedHeaders   []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		Host           string   `yaml:"host" env:"HTTP_HOST"`
+		Port           string   `env-required:"true" yaml:"port" env:"HTTP_PORT"`
+		AllowedOrigins []string `env-required:"true" yaml:"allowed_origins" env:"HTTP_ALLOWED_ORIGINS"`
+		AllowedHeaders []string `env-required:"true" yaml:"allowed_headers" env:"HTTP_ALLOWED_HEADERS"`
+		// TrustedProxies lists the reverse proxy/gateway IPs or CIDRs allowed to
+		// set X-Forwarded-For/X-Real-IP for c.ClientIP() (used by login rate
+		// limiting and audit logs). Empty (the default) trusts none, so
+		// ClientIP() always reads the direct connection's RemoteAddr — safe
+		// against header spoofing, but means every client behind an untrusted
+		// proxy is grouped under that proxy's single address. Deployments that
+		// sit behind a real reverse proxy should list it here to get accurate
+		// per-client addresses instead.
+		TrustedProxies   []string `yaml:"trusted_proxies" env:"HTTP_TRUSTED_PROXIES"`
 		AllowCredentials bool     `yaml:"allow_credentials" env:"HTTP_ALLOW_CREDENTIALS"`
 		WSCompression    bool     `yaml:"ws_compression" env:"WS_COMPRESSION"`
 		TLS              TLS      `yaml:"tls"`

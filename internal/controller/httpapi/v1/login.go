@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
@@ -29,7 +30,66 @@ const (
 var (
 	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
 	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+
+	loginAttempts = make(map[string]*loginAttemptEntry)
+	loginMutex    sync.Mutex
+	janitorOnce   sync.Once
+
+	maxFailedLoginAttempts = 5
+	rateLimitWindow        = 15 * time.Minute
 )
+
+type loginAttemptEntry struct {
+	count       int
+	windowStart time.Time
+}
+
+// Reserve before credential verification so concurrent requests cannot exceed the limit.
+func reserveLoginAttempt(clientIP string) bool {
+	loginMutex.Lock()
+	defer loginMutex.Unlock()
+
+	now := time.Now()
+
+	entry := loginAttempts[clientIP]
+	if entry == nil || now.Sub(entry.windowStart) > rateLimitWindow {
+		entry = &loginAttemptEntry{windowStart: now}
+		loginAttempts[clientIP] = entry
+	}
+
+	if entry.count >= maxFailedLoginAttempts {
+		return false
+	}
+
+	entry.count++
+
+	return true
+}
+
+func startLoginAttemptJanitor() {
+	janitorOnce.Do(func() {
+		window := rateLimitWindow
+
+		go func() {
+			ticker := time.NewTicker(window)
+			defer ticker.Stop()
+
+			for range ticker.C {
+				now := time.Now()
+
+				loginMutex.Lock()
+
+				for ip, entry := range loginAttempts {
+					if now.Sub(entry.windowStart) > window {
+						delete(loginAttempts, ip)
+					}
+				}
+
+				loginMutex.Unlock()
+			}
+		}()
+	})
+}
 
 type LoginRoute struct {
 	Config   *config.Config
@@ -38,6 +98,8 @@ type LoginRoute struct {
 
 // NewVersionRoute creates a new version route
 func NewLoginRoute(configData *config.Config) *LoginRoute {
+	startLoginAttemptJanitor()
+
 	lr := &LoginRoute{
 		Config: configData,
 	}
@@ -85,18 +147,30 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
+	// Auth-disabled requests must not consume the login allowance.
+	if lr.Config.Disabled {
+		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
+
+		return
+	}
+
+	clientIP := c.ClientIP()
+
+	if !reserveLoginAttempt(clientIP) {
+		c.JSON(http.StatusTooManyRequests, gin.H{errorKey: "rate_limited", messageKey: "Too many failed login attempts. Please try again later."})
+
+		return
+	}
+
 	if !lr.credentialsAccepted(creds) {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
 
 		return
 	}
 
-	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
-	if lr.Config.Disabled {
-		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
-
-		return
-	}
+	loginMutex.Lock()
+	delete(loginAttempts, clientIP)
+	loginMutex.Unlock()
 
 	// Create JWT token
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
