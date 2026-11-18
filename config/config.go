@@ -39,7 +39,6 @@ var (
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 	ErrAuthSecretBackendInvalid        = errors.New("config: auth.secretBackend must be config or keyring")
 	errAuthConfigNotMapping            = errors.New("config: auth must be a mapping to persist auth.jwtKey")
-	ErrConfigFlagValueMissing          = errors.New("config: missing value for --config")
 )
 
 const (
@@ -442,33 +441,6 @@ func writeConfig(configPath string, cfg *Config) error {
 	defer encoder.Close()
 
 	return encoder.Encode(cfg)
-}
-
-func ResolveConfigPathFromArgs(args []string) (string, error) {
-	for i, arg := range args {
-		switch {
-		case arg == "--config" || arg == "-config":
-			if i+1 >= len(args) || strings.TrimSpace(args[i+1]) == "" {
-				return "", ErrConfigFlagValueMissing
-			}
-
-			return resolveConfigPath(args[i+1])
-		case strings.HasPrefix(arg, "--config="):
-			if value := strings.TrimPrefix(arg, "--config="); strings.TrimSpace(value) != "" {
-				return resolveConfigPath(value)
-			}
-
-			return "", ErrConfigFlagValueMissing
-		case strings.HasPrefix(arg, "-config="):
-			if value := strings.TrimPrefix(arg, "-config="); strings.TrimSpace(value) != "" {
-				return resolveConfigPath(value)
-			}
-
-			return "", ErrConfigFlagValueMissing
-		}
-	}
-
-	return resolveConfigPath("")
 }
 
 // ReadAdminCredentialsFromFile reads the persisted standalone administrator

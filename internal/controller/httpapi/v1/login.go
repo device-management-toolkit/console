@@ -278,7 +278,8 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 			return version, err
 		}
 
-		if username != creds.Username || !matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) {
+		usernameMatches := subtle.ConstantTimeCompare([]byte(username), []byte(creds.Username)) == 1
+		if !usernameMatches || !matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) {
 			return version, nil
 		}
 
@@ -328,8 +329,10 @@ func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
 
 	username, storedPassword, err := lr.currentCredentials()
 
+	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(username)) == 1
+
 	return err == nil && matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) &&
-		creds.Username == username
+		usernameMatches
 }
 
 func (lr LoginRoute) currentCredentials() (username, password string, err error) {
@@ -351,11 +354,14 @@ func (lr LoginRoute) withAuthVersion(fn func(uint64) (uint64, error)) error {
 }
 
 func matchesStoredPassword(backend, storedPassword, suppliedPassword string) bool {
-	if backend == secretBackendKeyring {
+	switch backend {
+	case secretBackendKeyring:
 		return secrets.IsPBKDF2Hash(storedPassword) && secrets.VerifyPBKDF2Hash(storedPassword, suppliedPassword)
+	case "config":
+		return storedPassword != "" && subtle.ConstantTimeCompare([]byte(suppliedPassword), []byte(storedPassword)) == 1
+	default:
+		return false
 	}
-
-	return storedPassword != "" && suppliedPassword == storedPassword
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can
