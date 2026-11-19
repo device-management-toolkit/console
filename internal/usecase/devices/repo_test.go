@@ -1355,38 +1355,11 @@ func TestUpdateWithCredentialsManagesDiscoveredDevice(t *testing.T) {
 	}
 }
 
-func TestInsertOnDiscoveredGUIDManagesExistingRecord(t *testing.T) {
-	t.Parallel()
-
-	useCase, repo, management := devicesTest(t)
-
-	// No repo.Insert expectation: a duplicate record must not be created.
-	repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(discoveredEntity(), nil).Times(3)
-	repo.EXPECT().
-		Update(context.Background(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, actual *entity.Device) (bool, error) {
-			require.NotNil(t, actual.Discovered)
-			require.False(t, *actual.Discovered)
-			// Discovery data on the stored record is kept.
-			require.Contains(t, actual.DeviceInfo, "admin control mode")
-
-			return true, nil
-		})
-	management.EXPECT().DestroyWsmanClient(gomock.Any())
-
-	got, err := useCase.Insert(context.Background(), &dto.Device{
-		GUID: "device-guid-123", TenantID: "tenant-id-456", Username: "admin", Password: "pw",
-	})
-	require.NoError(t, err)
-	require.Equal(t, "device-guid-123", got.GUID)
-}
-
 func TestInsertWithCredentialsIsManaged(t *testing.T) {
 	t.Parallel()
 
 	useCase, repo, _ := devicesTest(t)
 
-	repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(nil, nil)
 	repo.EXPECT().
 		Insert(context.Background(), gomock.Any()).
 		DoAndReturn(func(_ context.Context, actual *entity.Device) (string, error) {

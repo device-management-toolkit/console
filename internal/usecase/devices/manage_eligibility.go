@@ -47,38 +47,20 @@ func classifyManagement(info *dto.DeviceInfo) *dto.Management {
 		return &dto.Management{Reason: manageReasonUnsupported}
 	}
 
-	mode := controlModeOf(info.CurrentMode)
-	if mode == manageReasonNotActivated && strings.TrimSpace(info.CurrentMode) != "" {
-		return &dto.Management{Reason: manageReasonNotActivated}
-	}
-
-	// No SKU means discovery learned nothing about AMT (no MEI access, or no AMT
-	// at all), so neither "not activated" nor "unsupported" can be claimed.
-	if skuErr != nil {
-		return &dto.Management{Reason: manageReasonUnknown}
-	}
-
-	switch mode {
-	case manageReasonNotActivated:
-		return &dto.Management{Reason: manageReasonNotActivated}
-	case "":
-		return &dto.Management{Reason: manageReasonUnknown}
-	}
-
-	return &dto.Management{}
-}
-
-// controlModeOf returns notActivated, or "activated" for admin/client control
-// mode, or "" when the mode is not recognized.
-func controlModeOf(currentMode string) string {
-	normalized := strings.ToLower(strings.TrimSpace(currentMode))
+	mode := strings.ToLower(strings.TrimSpace(info.CurrentMode))
 
 	switch {
-	case normalized == "" || normalized == "not activated" || normalized == "pre-provisioning state":
-		return manageReasonNotActivated
-	case strings.Contains(normalized, "admin"), strings.Contains(normalized, "client"):
-		return "activated"
+	case mode == "not activated" || mode == "pre-provisioning state":
+		return &dto.Management{Reason: manageReasonNotActivated}
+	// No SKU means discovery learned nothing about AMT (no MEI access, or no AMT
+	// at all), so an empty mode cannot be read as "not activated".
+	case skuErr != nil:
+		return &dto.Management{Reason: manageReasonUnknown}
+	case mode == "":
+		return &dto.Management{Reason: manageReasonNotActivated}
+	case strings.Contains(mode, "admin"), strings.Contains(mode, "client"):
+		return &dto.Management{}
 	default:
-		return ""
+		return &dto.Management{Reason: manageReasonUnknown}
 	}
 }

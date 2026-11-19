@@ -242,7 +242,7 @@ func syncDiscoveryState(info *dto.DeviceInfo) {
 
 // manageWhenCredentialed moves a Discovered device to Managed when the caller
 // supplies AMT credentials for it. Console then holds the credentials, so the
-// user has chosen to manage it (Add Device, profile-based activation, manage).
+// user has chosen to manage it (profile-based activation, an edit, manage).
 // This is the only place the write-once discovered flag is cleared.
 func manageWhenCredentialed(dst, src *dto.Device, fields map[string]bool) {
 	if !fields[passwordFieldKey] || src.Password == "" {

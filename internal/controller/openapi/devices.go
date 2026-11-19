@@ -156,9 +156,7 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		f.server, "/api/v1/devices", f.createDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Create Device"),
-		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true.\n\n"+
-			"If the GUID already exists as a discovered device, that record is updated instead of a duplicate "+
-			"being created, and supplying a password moves it to managed."),
+		fuego.OptionDescription("Create a new device. If useTLS is omitted, it defaults to true."),
 		fuego.OptionDefaultStatusCode(http.StatusCreated),
 		protectedRouteOptions(),
 	)

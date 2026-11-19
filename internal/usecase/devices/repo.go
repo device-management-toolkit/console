@@ -312,49 +312,6 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 	return d2, nil
 }
 
-// manageExistingFields are the user-supplied values applied when Add Device targets a GUID
-// that discovery already recorded. Discovery data on the stored record is kept.
-var manageExistingFields = map[string]bool{
-	usernameFieldKey: true, passwordFieldKey: true, "usetls": true, "allowselfsigned": true,
-	"certhash": true, "friendlyname": true, "tags": true,
-}
-
-// manageExisting handles Add Device for a GUID that is already Discovered: it
-// updates that record instead of creating a duplicate. ok is false when there is
-// nothing to manage and the caller should insert normally.
-func (uc *UseCase) manageExisting(ctx context.Context, d *dto.Device) (managed *dto.Device, ok bool, err error) {
-	if d.GUID == "" || d.Password == "" {
-		return nil, false, nil
-	}
-
-	existing, err := uc.repo.GetByID(ctx, strings.ToLower(d.GUID), d.TenantID)
-	if err != nil {
-		return nil, false, ErrDatabase.Wrap("Insert", "uc.repo.GetByID", err)
-	}
-
-	if existing == nil {
-		return nil, false, nil
-	}
-
-	// Read the flag from the stored DeviceInfo: the SQL GetByID does not select
-	// the discovered mirror column, so existing.Discovered is unreliable there.
-	info, err := unmarshalDeviceInfo(existing.DeviceInfo, existing.GUID)
-	if err != nil {
-		return nil, false, err
-	}
-
-	if info == nil || info.Discovered == nil || !*info.Discovered {
-		return nil, false, nil
-	}
-
-	managed, err = uc.Update(ctx, d, manageExistingFields)
-	if err != nil {
-		return nil, false, err
-	}
-
-	return managed, true, nil
-}
-
 // manageCredentialFields are the only fields Manage writes: the stored connection
 // settings (TLS, certificate hash, tags) of the discovered record are kept.
 var manageCredentialFields = map[string]bool{usernameFieldKey: true, passwordFieldKey: true}
@@ -407,10 +364,6 @@ func (uc *UseCase) verifyCredentials(d *entity.Device) error {
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, error) {
-	if managed, ok, err := uc.manageExisting(ctx, d); err != nil || ok {
-		return managed, err
-	}
-
 	// A device added with credentials is managed from the start, even if its
 	// reported mode would otherwise default it to Discovered.
 	if d.Password != "" && d.DeviceInfo != nil && d.DeviceInfo.Discovered == nil {
