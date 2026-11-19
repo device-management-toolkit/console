@@ -999,6 +999,22 @@ func TestEnsureJWTKey(t *testing.T) {
 	}
 }
 
+func TestLoadConfig_GeneratesJWTKeyWithEmptyAuthSection(t *testing.T) {
+	t.Setenv("AUTH_JWT_KEY", "")
+	t.Setenv("AUTH_DISABLED", "false")
+	t.Setenv("AUTH_SECRET_BACKEND", "config")
+
+	for _, contents := range []string{"auth:\n", "auth: null\n"} {
+		path := filepath.Join(t.TempDir(), "config.yml")
+		require.NoError(t, os.WriteFile(path, []byte(contents), 0o600))
+
+		cfg := defaultConfig()
+		require.NoError(t, loadConfig(path, cfg), "config %q", contents)
+		require.NotEmpty(t, cfg.JWTKey, "config %q", contents)
+		assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey, "config %q", contents)
+	}
+}
+
 func TestLoadConfig_KeyringJWTGenerationPreservesStandaloneCredentials(t *testing.T) {
 	t.Setenv("AUTH_SECRET_BACKEND", "keyring")
 
