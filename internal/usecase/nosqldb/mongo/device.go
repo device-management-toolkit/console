@@ -25,6 +25,10 @@ type deviceFilter struct {
 }
 
 type deviceUpdateFields struct {
+	LastUpdate       string  `bson:"lastupdate"`
+	IsDeleted        bool    `bson:"isdeleted"`
+	ProductType      string  `bson:"producttype"`
+	ConnectionType   string  `bson:"connectiontype"`
 	GUID             string  `bson:"guid"`
 	Hostname         string  `bson:"hostname"`
 	Tags             string  `bson:"tags"`
@@ -280,6 +284,11 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 			CertHash:         d.CertHash,
 			CurrentMode:      d.CurrentMode,
 			Discovered:       d.Discovered,
+			// Refreshed on record edits; identity and creation/deletion dates stay immutable.
+			LastUpdate:     d.LastUpdate,
+			IsDeleted:      d.IsDeleted,
+			ProductType:    d.ProductType,
+			ConnectionType: d.ConnectionType,
 		}},
 	)
 	if err != nil {
@@ -289,6 +298,8 @@ func (r *DeviceRepo) Update(ctx context.Context, d *entity.Device) (bool, error)
 	return res.MatchedCount > 0, nil
 }
 
+// UpdateConnectionStatus must not touch lastupdate (that tracks record edits,
+// not connection churn).
 func (r *DeviceRepo) UpdateConnectionStatus(ctx context.Context, guid string, status bool) error {
 	if !identifierRegex.MatchString(guid) {
 		return errDeviceDatabase.Wrap("UpdateConnectionStatus", "validate", nil)
@@ -311,6 +322,8 @@ func (r *DeviceRepo) UpdateConnectionStatus(ctx context.Context, guid string, st
 	return nil
 }
 
+// UpdateLastSeen fires on every CIRA heartbeat, so it touches only lastseen —
+// never lastupdate (would amplify writes at scale).
 func (r *DeviceRepo) UpdateLastSeen(ctx context.Context, guid string) error {
 	if !identifierRegex.MatchString(guid) {
 		return errDeviceDatabase.Wrap("UpdateLastSeen", "validate", nil)
