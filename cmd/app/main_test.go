@@ -698,7 +698,7 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
 	assert.NotEqual(t, plaintextPassword, store.values[keyringAdminPassword])
 	assert.Len(t, store.values, 2)
-	assert.False(t, bytes.Contains(stdout, []byte(plaintextPassword)))
+	assert.NotContains(t, stdout, plaintextPassword)
 	assert.NotContains(t, logOutput.String(), plaintextPassword)
 
 	configData, err := os.ReadFile(configFile)
