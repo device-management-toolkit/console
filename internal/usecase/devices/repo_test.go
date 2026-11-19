@@ -965,8 +965,8 @@ func TestUpdatePartial(t *testing.T) {
 		Username:     "amtadmin",
 		MPSPassword:  "encrypted",
 		MEBXPassword: "encrypted",
-		// The stored record has no SKU or control mode, so what Console can tell about AMT is unknown.
-		Management: &dto.Management{Eligible: true, Reason: "unknown"},
+		// The stored record has no SKU or control mode, so Console treats it as having no AMT.
+		Management: &dto.Management{Reason: "unsupported"},
 	}
 
 	t.Run("preserves untouched fields", func(t *testing.T) {

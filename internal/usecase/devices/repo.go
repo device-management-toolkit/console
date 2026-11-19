@@ -4,6 +4,7 @@ import (
 	"context"
 	"fmt"
 	"strings"
+	"sync"
 
 	"github.com/google/uuid"
 
@@ -319,6 +320,17 @@ var manageCredentialFields = map[string]bool{usernameFieldKey: true, passwordFie
 // Manage moves a Discovered device to Managed. It proves the supplied AMT
 // credentials by connecting to the device with them; only then are they saved.
 func (uc *UseCase) Manage(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error) {
+	// AMT firmware rejects concurrent digest logins from one client, so two Manage calls
+	// for the same device would make correct credentials look wrong. Run them one at a
+	// time; a call that waited re-reads the device below and gets ErrManageNotEligible if
+	// the first one already moved it to Managed.
+	lock, _ := uc.manageLocks.LoadOrStore(tenantID+"/"+guid, &sync.Mutex{})
+
+	mu, _ := lock.(*sync.Mutex)
+
+	mu.Lock()
+	defer mu.Unlock()
+
 	existing, err := uc.GetByID(ctx, guid, tenantID, false)
 	if err != nil {
 		return nil, err

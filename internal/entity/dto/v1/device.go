@@ -41,10 +41,9 @@ type Device struct {
 	Management *Management `json:"management,omitempty"`
 }
 
-// Management says whether a discovered device can be managed. Only a device that
-// does not support ISM or vPro is not Eligible (Reason unsupported). Reason may
-// also be notActivated or unknown on an Eligible device, as a hint that the
-// credentials may be rejected; Manage verifies them against the device.
+// Management says whether a discovered device can be managed. It is Eligible only
+// when it supports ISM or vPro and is activated. Otherwise Reason says why:
+// unsupported, notActivated, or unknown (discovery reported no AMT data).
 type Management struct {
 	Eligible bool   `json:"eligible"`
 	Reason   string `json:"reason,omitempty"`

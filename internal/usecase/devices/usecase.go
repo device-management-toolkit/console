@@ -51,6 +51,7 @@ type UseCase struct {
 	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
+	manageLocks      sync.Map // tenantID/guid -> *sync.Mutex, serializes Manage per device
 }
 
 var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}

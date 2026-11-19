@@ -3,7 +3,9 @@ package devices_test
 import (
 	"context"
 	"errors"
+	"sync/atomic"
 	"testing"
+	"time"
 
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
@@ -44,6 +46,71 @@ func TestManage(t *testing.T) {
 		require.NoError(t, err)
 	})
 
+	t.Run("runs concurrent manages of one device one at a time, so only the first verifies", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, wsmanMock, _, repo := initInfoTest(t)
+
+		var (
+			moved    atomic.Bool
+			inFlight atomic.Int32
+			verifies atomic.Int32
+		)
+
+		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").DoAndReturn(
+			func(context.Context, string, string) (*entity.Device, error) {
+				d := stored()
+
+				if moved.Load() {
+					managed := false
+					d.Discovered = &managed
+					d.DeviceInfo = `{"discovered":false,"fwSku":"16392","currentMode":"Admin Control Mode"}`
+				}
+
+				return d, nil
+			}).AnyTimes()
+		wsmanMock.EXPECT().VerifyCredentials(gomock.Any()).DoAndReturn(func(entity.Device) error {
+			require.EqualValues(t, 1, inFlight.Add(1), "two verifications overlapped")
+			defer inFlight.Add(-1)
+
+			verifies.Add(1)
+			time.Sleep(20 * time.Millisecond)
+
+			return nil
+		}).AnyTimes()
+		wsmanMock.EXPECT().DestroyWsmanClient(gomock.Any()).AnyTimes()
+		repo.EXPECT().Update(gomock.Any(), gomock.Any()).DoAndReturn(func(context.Context, *entity.Device) (bool, error) {
+			moved.Store(true)
+
+			return true, nil
+		}).AnyTimes()
+
+		const callers = 5
+
+		errs := make(chan error, callers)
+
+		for range callers {
+			go func() {
+				_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
+				errs <- err
+			}()
+		}
+
+		succeeded, refused := 0, 0
+
+		for range callers {
+			if err := <-errs; err == nil {
+				succeeded++
+			} else if errors.Is(err, devices.ErrManageNotEligible) {
+				refused++
+			}
+		}
+
+		require.Equal(t, 1, succeeded)
+		require.Equal(t, callers-1, refused)
+		require.EqualValues(t, 1, verifies.Load())
+	})
+
 	t.Run("refuses a device without ISM or vPro support without contacting it", func(t *testing.T) {
 		t.Parallel()
 
@@ -54,6 +121,21 @@ func TestManage(t *testing.T) {
 			DeviceInfo: `{"discovered":true,"fwSku":"1","currentMode":"Not Activated"}`,
 		}
 		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(unsupported, nil)
+
+		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
+		require.ErrorIs(t, err, devices.ErrManageNotEligible)
+	})
+
+	t.Run("refuses a device that is not activated without contacting it", func(t *testing.T) {
+		t.Parallel()
+
+		useCase, _, _, repo := initInfoTest(t)
+
+		notActivated := &entity.Device{
+			GUID: "device-guid-123", TenantID: "tenant", Discovered: &discovered,
+			DeviceInfo: `{"discovered":true,"fwSku":"16392","currentMode":"Not Activated"}`,
+		}
+		repo.EXPECT().GetByID(gomock.Any(), "device-guid-123", "tenant").Return(notActivated, nil)
 
 		_, err := useCase.Manage(context.Background(), "device-guid-123", "tenant", "admin", "P@ssw0rd")
 		require.ErrorIs(t, err, devices.ErrManageNotEligible)
