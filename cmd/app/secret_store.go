@@ -8,6 +8,7 @@ import (
 	"log"
 	"os"
 	"strings"
+	"unicode/utf8"
 
 	"golang.org/x/term"
 
@@ -28,8 +29,10 @@ var (
 	errKeystoreUnavailable     = errors.New("OS keyring is unavailable; ensure a supported keyring is installed, unlocked, and accessible to this user before restarting Console")
 	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete Console's administrator credentials from the OS keyring and restart Console")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both device-management-toolkit entries and restart")
+	errInvalidAdminUsername    = errors.New("administrator username must be 1-64 ASCII letters, digits, dots, underscores, or hyphens, and start with a letter or digit")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
 	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain at least 4 distinct characters")
+	errAdminPasswordWhitespace = errors.New("administrator password must not have leading or trailing whitespace")
 )
 
 const (
@@ -126,7 +129,7 @@ func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) erro
 
 func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore) error {
 	reader := bufio.NewReader(os.Stdin)
-	username := promptForCredential(reader, "Enter Console admin username: ")
+	username := promptForAdminUsername(reader)
 
 	password, err := promptForAdminPassword(reader)
 	if err != nil {
@@ -176,18 +179,53 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 }
 
 func promptForAdminPassword(reader *bufio.Reader) (string, error) {
+	var validationErr error
+
 	for attempt := 0; attempt < maxPasswordAttempts; attempt++ {
 		password := promptForSecret(reader, "Enter Console admin password: ")
-		if len(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+		if strings.TrimSpace(password) != password {
+			validationErr = errAdminPasswordWhitespace
+		} else if utf8.RuneCountInString(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
 			return password, nil
+		} else {
+			validationErr = errWeakAdminPassword
 		}
 
 		if attempt+1 < maxPasswordAttempts {
-			log.Printf("%v. Please try again.", errWeakAdminPassword)
+			log.Printf("%v. Please try again.", validationErr)
 		}
 	}
 
-	return "", fmt.Errorf("%w; failed after %d attempts; restart Console to try again", errWeakAdminPassword, maxPasswordAttempts)
+	return "", fmt.Errorf("%w; failed after %d attempts; restart Console to try again", validationErr, maxPasswordAttempts)
+}
+
+func promptForAdminUsername(reader *bufio.Reader) string {
+	for {
+		username := promptForCredential(reader, "Enter Console admin username: ")
+		if isValidAdminUsername(username) {
+			return username
+		}
+
+		log.Print(errInvalidAdminUsername)
+	}
+}
+
+func isValidAdminUsername(username string) bool {
+	if utf8.RuneCountInString(username) == 0 || utf8.RuneCountInString(username) > 64 {
+		return false
+	}
+
+	for index, char := range username {
+		isLetterOrDigit := char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9'
+		if index == 0 && !isLetterOrDigit {
+			return false
+		}
+		if !isLetterOrDigit && char != '.' && char != '_' && char != '-' {
+			return false
+		}
+	}
+
+	return true
 }
 
 func warnIfWeakAdminPassword(password string) {
