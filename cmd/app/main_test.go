@@ -486,6 +486,7 @@ func TestBootstrapKeyringAdminCredentialsRollsBackUsernameOnPasswordWriteFailure
 func TestLoadKeyringAdminCredentialsReusesStoredCredentialsWithoutPrompting(t *testing.T) {
 	hash, err := secrets.GeneratePBKDF2Hash("valid-password")
 	require.NoError(t, err)
+
 	store := &mockCredentialStore{values: map[string]string{
 		keyringAdminUsername: "valid_user",
 		keyringAdminPassword: hash,
@@ -521,6 +522,7 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	})
 
 	const plaintextPassword = "secret"
+
 	finishStdio := withStdio(t, "admin\n\n"+plaintextPassword+"\nwrong\n"+plaintextPassword+"\n")
 
 	var logOutput bytes.Buffer
