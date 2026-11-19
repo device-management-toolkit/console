@@ -59,6 +59,12 @@ func Connect(ctx context.Context, uri string, log logger.Interface) (*mongo.Clie
 		return nil, nil, fmt.Errorf("mongo.Connect: ensureIndexes: %w", err)
 	}
 
+	if err := MigrateDiscoveredActivatedToManaged(ctx, db, log); err != nil {
+		_ = client.Disconnect(ctx)
+
+		return nil, nil, fmt.Errorf("mongo.Connect: %w", err)
+	}
+
 	log.Info("mongo connected: db=%s", DatabaseName)
 
 	return client, db, nil
