@@ -221,8 +221,10 @@ func TestLoadKeyringAdminCredentialsReadErrorHasRecoveryGuidance(t *testing.T) {
 	t.Parallel()
 
 	const lockedError = "keyring locked"
+
 	hash, err := secrets.GeneratePBKDF2Hash("stored-password")
 	require.NoError(t, err)
+
 	initialValues := map[string]string{
 		keyringAdminUsername: "keyring-user",
 		keyringAdminPassword: hash,
@@ -281,6 +283,7 @@ func TestLoadKeyringAdminCredentialsUnavailableServiceDoesNotBootstrap(t *testin
 	serviceErr := errors.New("secret service unavailable: D-Bus session is not available")
 	hash, err := secrets.GeneratePBKDF2Hash("stored-password")
 	require.NoError(t, err)
+
 	initialValues := map[string]string{
 		keyringAdminUsername: "stored-user",
 		keyringAdminPassword: hash,
