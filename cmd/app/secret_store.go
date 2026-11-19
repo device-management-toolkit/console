@@ -162,11 +162,12 @@ func promptForAdminPassword(reader *bufio.Reader) (string, error) {
 
 	for attempt := 0; attempt < maxPasswordAttempts; attempt++ {
 		password := promptForSecret(reader, "Enter Console admin password: ")
-		if strings.TrimSpace(password) != password {
+		switch {
+		case strings.TrimSpace(password) != password:
 			validationErr = errAdminPasswordWhitespace
-		} else if utf8.RuneCountInString(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars {
+		case utf8.RuneCountInString(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars:
 			return password, nil
-		} else {
+		default:
 			validationErr = errWeakAdminPassword
 		}
 
@@ -199,6 +200,7 @@ func isValidAdminUsername(username string) bool {
 		if index == 0 && !isLetterOrDigit {
 			return false
 		}
+
 		if !isLetterOrDigit && char != '.' && char != '_' && char != '-' {
 			return false
 		}
