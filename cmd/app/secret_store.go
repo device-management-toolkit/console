@@ -21,6 +21,7 @@ const (
 	keyringServiceName   = "device-management-toolkit"
 	keyringAdminUsername = "admin-username"
 	keyringAdminPassword = "admin-password-hash"
+	keyringRecoveryGuide = "https://github.com/device-management-toolkit/console/wiki/ADR-Centralize-secret-storage-and-harden-admin-credentials-Architecture"
 )
 
 var (
