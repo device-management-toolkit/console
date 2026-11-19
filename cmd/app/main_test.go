@@ -72,12 +72,13 @@ func withStdio(t *testing.T, input string) func() string {
 
 	stdinReader, stdinWriter, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = io.WriteString(stdinWriter, input)
+	_, err = stdinWriter.WriteString(input)
 	require.NoError(t, err)
 	require.NoError(t, stdinWriter.Close())
 
 	stdoutReader, stdoutWriter, err := os.Pipe()
 	require.NoError(t, err)
+
 	oldStdin, oldStdout := os.Stdin, os.Stdout
 	os.Stdin, os.Stdout = stdinReader, stdoutWriter
 
@@ -86,16 +87,19 @@ func withStdio(t *testing.T, input string) func() string {
 		if finished {
 			return ""
 		}
+
 		finished = true
 		os.Stdin, os.Stdout = oldStdin, oldStdout
 		_ = stdoutWriter.Close()
 		output, err := io.ReadAll(stdoutReader)
 		require.NoError(t, err)
+
 		_ = stdinReader.Close()
 		_ = stdoutReader.Close()
 
 		return string(output)
 	}
+
 	t.Cleanup(func() {
 		if !finished {
 			finish()
@@ -587,7 +591,7 @@ func TestIsValidAdminUsername(t *testing.T) {
 		{name: "empty", username: "", want: false},
 		{name: "too long", username: strings.Repeat("a", 65), want: false},
 		{name: "whitespace", username: "admin user", want: false},
-		{name: "non-ASCII", username: "administrátor", want: false},
+		{name: "non-ASCII", username: "管理员", want: false},
 		{name: "invalid leading character", username: ".admin", want: false},
 	}
 	for _, tt := range tests {
@@ -694,7 +698,8 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
 	assert.NotEqual(t, plaintextPassword, store.values[keyringAdminPassword])
 	assert.Len(t, store.values, 2)
-	assert.NotContains(t, string(stdout)+logOutput.String(), plaintextPassword)
+	assert.False(t, bytes.Contains(stdout, []byte(plaintextPassword)))
+	assert.NotContains(t, logOutput.String(), plaintextPassword)
 
 	configData, err := os.ReadFile(configFile)
 	require.NoError(t, err)
