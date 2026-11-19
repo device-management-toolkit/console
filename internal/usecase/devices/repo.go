@@ -4,7 +4,6 @@ import (
 	"context"
 	"fmt"
 	"strings"
-	"sync"
 
 	"github.com/google/uuid"
 
@@ -313,76 +312,7 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Device, fields map[string]
 	return d2, nil
 }
 
-// manageCredentialFields are the only fields Manage writes: the stored connection
-// settings (TLS, certificate hash, tags) of the discovered record are kept.
-var manageCredentialFields = map[string]bool{usernameFieldKey: true, passwordFieldKey: true}
-
-// Manage moves a Discovered device to Managed. It proves the supplied AMT
-// credentials by connecting to the device with them; only then are they saved.
-func (uc *UseCase) Manage(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error) {
-	// AMT firmware rejects concurrent digest logins from one client, so two Manage calls
-	// for the same device would make correct credentials look wrong. Run them one at a
-	// time; a call that waited re-reads the device below and gets ErrManageNotEligible if
-	// the first one already moved it to Managed.
-	lock, _ := uc.manageLocks.LoadOrStore(tenantID+"/"+guid, &sync.Mutex{})
-
-	mu, _ := lock.(*sync.Mutex)
-
-	mu.Lock()
-	defer mu.Unlock()
-
-	existing, err := uc.GetByID(ctx, guid, tenantID, false)
-	if err != nil {
-		return nil, err
-	}
-
-	// Only a Discovered device can be managed this way; doing it to a managed one
-	// would re-verify and overwrite its stored credentials.
-	if existing.DeviceInfo == nil || existing.DeviceInfo.Discovered == nil || !*existing.DeviceInfo.Discovered {
-		return nil, ErrManageNotEligible
-	}
-
-	if !managementFor(existing.DeviceInfo).Eligible {
-		return nil, ErrManageNotEligible
-	}
-
-	candidate := *existing
-	candidate.Username = username
-	candidate.Password = password
-
-	entityDevice, err := uc.dtoToEntity(&candidate)
-	if err != nil {
-		return nil, err
-	}
-
-	if err := uc.verifyCredentials(entityDevice); err != nil {
-		return nil, err
-	}
-
-	return uc.Update(ctx, &dto.Device{
-		GUID:     existing.GUID,
-		TenantID: existing.TenantID,
-		Username: username,
-		Password: password,
-	}, manageCredentialFields)
-}
-
-// verifyCredentials makes one authenticated call to the device through an
-// isolated client, so the shared connection cache is neither reused (which could
-// verify the stored password instead) nor modified (a wrong password is never
-// cached for later requests).
-func (uc *UseCase) verifyCredentials(d *entity.Device) error {
-	return wrapCredentialError(uc.device.VerifyCredentials(*d))
-}
-
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Device) (*dto.Device, error) {
-	// A device added with credentials is managed from the start, even if its
-	// reported mode would otherwise default it to Discovered.
-	if d.Password != "" && d.DeviceInfo != nil && d.DeviceInfo.Discovered == nil {
-		managed := false
-		d.DeviceInfo.Discovered = &managed
-	}
-
 	d1, err := uc.dtoToEntity(d)
 	if err != nil {
 		return nil, err

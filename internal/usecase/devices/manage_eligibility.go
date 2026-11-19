@@ -1,7 +1,6 @@
 package devices
 
 import (
-	"errors"
 	"strconv"
 	"strings"
 
@@ -17,17 +16,13 @@ const (
 	fwSkuVProBit = 0x08
 )
 
-// ErrManageNotEligible is returned when a device cannot be managed: it is already
-// managed, or it is not activated or does not support Intel Standard Manageability (ISM) or Intel vPro.
-var ErrManageNotEligible = errors.New("the device cannot be managed: it must be activated, support ISM or vPro, and be in the Discovered state")
-
 // managementFor reports whether a device can be managed. The result is computed
 // on read and never stored. A device is eligible only when discovery shows it
 // supports ISM or vPro and is activated (admin or client control mode). A device
 // that is not activated, reported no AMT data, or lacks ISM and vPro is not
-// eligible: Manage could only fail for it, so the UI must not offer it. Reason
-// says why, and a device that was deactivated and re-discovered is reported as
-// not activated until it is activated again and synced.
+// eligible: Console could not connect to it with credentials, so the UI must not
+// offer Adopt for it. Reason says why, and a device that was deactivated and
+// re-discovered is reported as not activated until it is activated again and synced.
 func managementFor(info *dto.DeviceInfo) *dto.Management {
 	m := classifyManagement(info)
 	m.Eligible = m.Reason == ""

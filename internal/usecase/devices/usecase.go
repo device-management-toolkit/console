@@ -36,7 +36,6 @@ const (
 	// MinAMTVersion - minimum AMT version required for certain features in power capabilities.
 	MinAMTVersion = 9
 
-	usernameFieldKey      = "username"
 	passwordFieldKey      = "password"
 	deviceInfoFieldKey    = "deviceinfo"
 	deviceInfoFieldPrefix = deviceInfoFieldKey + "."
@@ -51,7 +50,6 @@ type UseCase struct {
 	redirMutex       sync.RWMutex // Protects redirConnections map
 	log              logger.Interface
 	safeRequirements security.Cryptor
-	manageLocks      sync.Map // tenantID/guid -> *sync.Mutex, serializes Manage per device
 }
 
 var ErrAMT = AMTError{Console: consoleerrors.CreateConsoleError("DevicesUseCase")}
@@ -163,7 +161,7 @@ var deviceFieldSetters = map[string]func(dst, src *dto.Device){
 	"lastconnected":    func(dst, src *dto.Device) { dst.LastConnected = src.LastConnected },
 	"lastseen":         func(dst, src *dto.Device) { dst.LastSeen = src.LastSeen },
 	"lastdisconnected": func(dst, src *dto.Device) { dst.LastDisconnected = src.LastDisconnected },
-	usernameFieldKey:   func(dst, src *dto.Device) { dst.Username = src.Username },
+	"username":         func(dst, src *dto.Device) { dst.Username = src.Username },
 	passwordFieldKey:   func(dst, src *dto.Device) { dst.Password = src.Password },
 	"mpspassword":      func(dst, src *dto.Device) { dst.MPSPassword = src.MPSPassword },
 	"mebxpassword":     func(dst, src *dto.Device) { dst.MEBXPassword = src.MEBXPassword },
@@ -243,7 +241,7 @@ func syncDiscoveryState(info *dto.DeviceInfo) {
 
 // manageWhenCredentialed moves a Discovered device to Managed when the caller
 // supplies AMT credentials for it. Console then holds the credentials, so the
-// user has chosen to manage it (profile-based activation, an edit, manage).
+// user has chosen to manage it (profile-based activation, the edit device dialog).
 // This is the only place the write-once discovered flag is cleared.
 func manageWhenCredentialed(dst, src *dto.Device, fields map[string]bool) {
 	if !fields[passwordFieldKey] || src.Password == "" {

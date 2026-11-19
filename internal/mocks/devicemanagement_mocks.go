@@ -77,20 +77,6 @@ func (mr *MockWSMANMockRecorder) SetupWsmanClient(ctx, device, isRedirection, lo
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "SetupWsmanClient", reflect.TypeOf((*MockWSMAN)(nil).SetupWsmanClient), ctx, device, isRedirection, logMessages)
 }
 
-// VerifyCredentials mocks base method.
-func (m *MockWSMAN) VerifyCredentials(device entity.Device) error {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "VerifyCredentials", device)
-	ret0, _ := ret[0].(error)
-	return ret0
-}
-
-// VerifyCredentials indicates an expected call of VerifyCredentials.
-func (mr *MockWSMANMockRecorder) VerifyCredentials(device any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "VerifyCredentials", reflect.TypeOf((*MockWSMAN)(nil).VerifyCredentials), device)
-}
-
 // Worker mocks base method.
 func (m *MockWSMAN) Worker() {
 	m.ctrl.T.Helper()
@@ -566,21 +552,6 @@ func (m *MockDeviceManagementFeature) AddWirelessProfile(c context.Context, guid
 func (mr *MockDeviceManagementFeatureMockRecorder) AddWirelessProfile(c, guid, tenantID, profile any) *gomock.Call {
 	mr.mock.ctrl.T.Helper()
 	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "AddWirelessProfile", reflect.TypeOf((*MockDeviceManagementFeature)(nil).AddWirelessProfile), c, guid, tenantID, profile)
-}
-
-// Manage mocks base method.
-func (m *MockDeviceManagementFeature) Manage(ctx context.Context, guid, tenantID, username, password string) (*dto.Device, error) {
-	m.ctrl.T.Helper()
-	ret := m.ctrl.Call(m, "Manage", ctx, guid, tenantID, username, password)
-	ret0, _ := ret[0].(*dto.Device)
-	ret1, _ := ret[1].(error)
-	return ret0, ret1
-}
-
-// Manage indicates an expected call of Manage.
-func (mr *MockDeviceManagementFeatureMockRecorder) Manage(ctx, guid, tenantID, username, password any) *gomock.Call {
-	mr.mock.ctrl.T.Helper()
-	return mr.mock.ctrl.RecordCallWithMethodType(mr.mock, "Manage", reflect.TypeOf((*MockDeviceManagementFeature)(nil).Manage), ctx, guid, tenantID, username, password)
 }
 
 // CancelUserConsent mocks base method.

@@ -1354,26 +1354,3 @@ func TestUpdateWithCredentialsManagesDiscoveredDevice(t *testing.T) {
 		})
 	}
 }
-
-func TestInsertWithCredentialsIsManaged(t *testing.T) {
-	t.Parallel()
-
-	useCase, repo, _ := devicesTest(t)
-
-	repo.EXPECT().
-		Insert(context.Background(), gomock.Any()).
-		DoAndReturn(func(_ context.Context, actual *entity.Device) (string, error) {
-			require.NotNil(t, actual.Discovered)
-			require.False(t, *actual.Discovered)
-
-			return "id", nil
-		})
-	repo.EXPECT().GetByID(context.Background(), "device-guid-123", "tenant-id-456").Return(&entity.Device{GUID: "device-guid-123", TenantID: "tenant-id-456"}, nil)
-
-	// Reported mode alone would default this to Discovered.
-	_, err := useCase.Insert(context.Background(), &dto.Device{
-		GUID: "device-guid-123", TenantID: "tenant-id-456", Password: "pw",
-		DeviceInfo: &dto.DeviceInfo{CurrentMode: "not activated"},
-	})
-	require.NoError(t, err)
-}

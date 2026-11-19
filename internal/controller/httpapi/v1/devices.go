@@ -3,7 +3,6 @@ package v1
 import (
 	"bytes"
 	"encoding/json"
-	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -48,7 +47,6 @@ func NewDeviceRoutes(handler *gin.RouterGroup, t devices.Feature, l logger.Inter
 		h.GET("tags", r.getTags)
 		h.POST("", r.insert)
 		h.PATCH("", r.update)
-		h.POST(":guid/manage", r.manage)
 		h.DELETE(":guid", r.delete)
 	}
 }
@@ -377,38 +375,6 @@ func (dr *deviceRoutes) update(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusOK, updatedDevice)
-}
-
-var errManageCredentialsRequired = errors.New("username and password are required")
-
-type manageRequest struct {
-	Username string `json:"username"`
-	Password string `json:"password"`
-}
-
-func (dr *deviceRoutes) manage(c *gin.Context) {
-	var req manageRequest
-	if err := BindJSON(c, &req); err != nil {
-		ErrorResponse(c, err)
-
-		return
-	}
-
-	if req.Username == "" || req.Password == "" {
-		ErrorResponse(c, wrapRequestBindingError(errManageCredentialsRequired))
-
-		return
-	}
-
-	managed, err := dr.t.Manage(c.Request.Context(), c.Param("guid"), middleware.TenantID(c), req.Username, req.Password)
-	if err != nil {
-		dr.l.Error(err, "http - devices - v1 - manage")
-		ErrorResponse(c, err)
-
-		return
-	}
-
-	c.JSON(http.StatusOK, managed)
 }
 
 func (dr *deviceRoutes) delete(c *gin.Context) {

@@ -231,32 +231,6 @@ func handleSentinelErrors(c *gin.Context, err error) bool {
 		c.AbortWithStatusJSON(http.StatusServiceUnavailable, response{Error: msg, Message: msg})
 
 		return true
-	case errors.Is(err, devices.ErrInvalidCredentials):
-		// 403, not 401: the UI treats a 401 as an expired session and logs out.
-		msg := devices.ErrInvalidCredentials.Error()
-		c.AbortWithStatusJSON(http.StatusForbidden, response{Error: msg, Message: msg})
-
-		return true
-	case errors.Is(err, devices.ErrDeviceUnreachable):
-		msg := devices.ErrDeviceUnreachable.Error()
-		c.AbortWithStatusJSON(http.StatusGatewayTimeout, response{Error: msg, Message: msg})
-
-		return true
-	case errors.Is(err, devices.ErrTLSFailure):
-		msg := devices.ErrTLSFailure.Error()
-		c.AbortWithStatusJSON(http.StatusBadGateway, response{Error: msg, Message: msg})
-
-		return true
-	case errors.Is(err, devices.ErrNotAMT):
-		msg := devices.ErrNotAMT.Error()
-		c.AbortWithStatusJSON(http.StatusUnprocessableEntity, response{Error: msg, Message: msg})
-
-		return true
-	case errors.Is(err, devices.ErrManageNotEligible):
-		msg := devices.ErrManageNotEligible.Error()
-		c.AbortWithStatusJSON(http.StatusConflict, response{Error: msg, Message: msg})
-
-		return true
 	case errors.Is(err, packaging.ErrAssetNotFound):
 		msg := err.Error()
 		c.AbortWithStatusJSON(http.StatusNotFound, response{Error: msg, Message: msg})
