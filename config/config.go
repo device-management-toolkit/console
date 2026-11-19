@@ -534,7 +534,7 @@ func withGeneratedJWTKey(configEntries yaml.MapSlice, key string) (yaml.MapSlice
 		}
 
 		authEntries, ok := configEntries[i].Value.(yaml.MapSlice)
-		if !ok {
+		if !ok && configEntries[i].Value != nil {
 			return nil, errAuthConfigNotMapping
 		}
 
@@ -596,8 +596,8 @@ func loadConfig(configPath string, cfg *Config) error {
 // It returns an error for any setting that would cause a runtime failure or
 // deny all service to legitimate users (e.g. zero/negative JWT expiration).
 func (c *Config) validate() error {
-	if strings.TrimSpace(c.ClientID) == "" && c.SecretBackend != secretBackendConfig && c.SecretBackend != "keyring" {
-		return ErrAuthSecretBackendInvalid
+	if err := c.validateAuthBackend(); err != nil {
+		return err
 	}
 
 	if c.JWTExpiration < time.Minute {
@@ -630,6 +630,14 @@ func (c *Config) validate() error {
 		if err := c.validateSecretsAddr(); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Config) validateAuthBackend() error {
+	if strings.TrimSpace(c.ClientID) == "" && c.SecretBackend != secretBackendConfig && c.SecretBackend != "keyring" {
+		return ErrAuthSecretBackendInvalid
 	}
 
 	return nil
