@@ -6,10 +6,12 @@ import (
 	"fmt"
 	"log"
 	"net"
+	"net/url"
 	"os"
 	"path/filepath"
 	"runtime"
 	"strconv"
+	"strings"
 	"time"
 
 	"github.com/ilyakaznacheev/cleanenv"
@@ -23,7 +25,12 @@ var ConsoleConfig *Config
 // TrayMode indicates whether to run with system tray UI.
 var TrayMode bool
 
+// Validation errors for configuration.
 var (
+	ErrSecretsAddrInsecure             = errors.New("SECRETS_ADDR must use HTTPS for non-localhost addresses")
+	ErrSecretsAddrInvalid              = errors.New("invalid SECRETS_ADDR")
+	ErrSecretsAddrMissingScheme        = errors.New("SECRETS_ADDR missing scheme (use https:// for remote hosts or http:// for localhost)")
+	ErrSecretsAddrNoHost               = errors.New("SECRETS_ADDR contains no host")
 	ErrJWTExpirationInvalid            = errors.New("config: auth.jwtExpiration must be at least 1 minute (e.g. 24h) — very short expirations render tokens unusable")
 	ErrRedirectionJWTExpirationInvalid = errors.New("config: auth.redirectionJWTExpiration must be at least 1 minute (e.g. 5m) — very short expirations render redirection tokens unusable")
 	ErrAllowedOriginsEmpty             = errors.New("config: http.allowed_origins must list at least one origin (e.g. https://localhost:8181) — an empty list disables CORS outright and aborts startup")
@@ -96,9 +103,10 @@ type (
 
 	// Secrets -.
 	Secrets struct {
-		Address string `yaml:"address" env:"SECRETS_ADDR"`
-		Token   string `yaml:"token" env:"SECRETS_TOKEN"`
-		Path    string `yaml:"path" env:"SECRETS_PATH"`
+		Address      string `yaml:"address" env:"SECRETS_ADDR"`
+		Token        string `yaml:"token" env:"SECRETS_TOKEN"`
+		Path         string `yaml:"path" env:"SECRETS_PATH"`
+		RequireHTTPS bool   `yaml:"require_https" env:"SECRETS_REQUIRE_HTTPS"`
 	}
 
 	// DB -.
@@ -247,9 +255,10 @@ func defaultConfig() *Config {
 			Level: "info",
 		},
 		Secrets: Secrets{
-			Address: "http://localhost:8200",
-			Token:   "",
-			Path:    "secret/data/console",
+			Address:      "http://localhost:8200",
+			Token:        "",
+			Path:         "secret/data/console",
+			RequireHTTPS: false,
 		},
 		DB: DB{
 			Provider: "sqlite",
@@ -529,6 +538,12 @@ func (c *Config) validate() error {
 		return ErrAllowedOriginsEmpty
 	}
 
+	if c.Address != "" && c.Token != "" {
+		if err := c.validateSecretsAddr(); err != nil {
+			return err
+		}
+	}
+
 	return nil
 }
 
@@ -584,6 +599,42 @@ func NewConfig() (*Config, error) {
 	return ConsoleConfig, nil
 }
 
+// validateSecretsAddr validates the Vault address and warns about remote HTTP.
+func (c *Config) validateSecretsAddr() error {
+	addr := c.Address
+
+	schemeDelimiter := strings.Index(addr, "://")
+	if schemeDelimiter < 0 || strings.IndexAny(addr, "/?#") < schemeDelimiter {
+		return fmt.Errorf("%w: %q", ErrSecretsAddrMissingScheme, addr)
+	}
+
+	parsed, err := url.Parse(addr)
+	if err != nil {
+		return fmt.Errorf("%w: %w", ErrSecretsAddrInvalid, err)
+	}
+
+	// Check for valid scheme (must be http or https)
+	if parsed.Scheme != "http" && parsed.Scheme != "https" {
+		return fmt.Errorf("%w: unsupported scheme %q in %q", ErrSecretsAddrInvalid, parsed.Scheme, addr)
+	}
+
+	// Check host is present before checking HTTPS requirement
+	hostname := parsed.Hostname()
+	if hostname == "" {
+		return fmt.Errorf("%w: %q", ErrSecretsAddrNoHost, addr)
+	}
+
+	if parsed.Scheme == "http" && !isLocalhost(hostname) {
+		if c.RequireHTTPS {
+			return fmt.Errorf("%w: %q", ErrSecretsAddrInsecure, addr)
+		}
+
+		log.Print("WARNING: SECRETS_ADDR uses HTTP for a non-localhost Vault; traffic including the Vault token is unencrypted. Set SECRETS_REQUIRE_HTTPS=true to enforce HTTPS.")
+	}
+
+	return nil
+}
+
 // Sentinel errors for port validation.
 var (
 	ErrPortNotNumeric = errors.New("HTTP port (HTTP_PORT) must be a decimal integer")
@@ -602,6 +653,18 @@ func validatePort(port string) error {
 	}
 
 	return nil
+}
+
+func isLocalhost(host string) bool {
+	if strings.EqualFold(strings.TrimSuffix(host, "."), defaultHost) {
+		return true
+	}
+
+	if ip := net.ParseIP(host); ip != nil {
+		return ip.IsLoopback()
+	}
+
+	return false
 }
 
 func validateAndSetEncryptionKey(encryptionKey string) error {
