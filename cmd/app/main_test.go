@@ -221,6 +221,12 @@ func TestLoadKeyringAdminCredentialsReadErrorHasRecoveryGuidance(t *testing.T) {
 	t.Parallel()
 
 	const lockedError = "keyring locked"
+	hash, err := secrets.GeneratePBKDF2Hash("stored-password")
+	require.NoError(t, err)
+	initialValues := map[string]string{
+		keyringAdminUsername: "keyring-user",
+		keyringAdminPassword: hash,
+	}
 
 	tests := []struct {
 		name        string
@@ -245,21 +251,61 @@ func TestLoadKeyringAdminCredentialsReadErrorHasRecoveryGuidance(t *testing.T) {
 
 			store := &mockCredentialStore{
 				values: map[string]string{
-					keyringAdminUsername: "keyring-user",
-					keyringAdminPassword: "$pbkdf2$test",
+					keyringAdminUsername: initialValues[keyringAdminUsername],
+					keyringAdminPassword: initialValues[keyringAdminPassword],
 				},
 				errMap: map[string]error{
 					tt.key: errors.New(lockedError),
 				},
 			}
 
-			err := loadKeyringAdminCredentials(&config.Config{}, store)
+			cfg := &config.Config{Auth: config.Auth{
+				AdminUsername: "config-user",
+				AdminPassword: "config-password",
+			}}
+			err := loadKeyringAdminCredentials(cfg, store)
 			require.Error(t, err)
 			assert.Contains(t, err.Error(), tt.wantMessage)
 			assert.Contains(t, err.Error(), "available and unlocked")
 			assert.ErrorContains(t, err, lockedError)
+			assert.Equal(t, "config-user", cfg.AdminUsername)
+			assert.Equal(t, "config-password", cfg.AdminPassword)
+			assert.Equal(t, initialValues, store.values)
 		})
 	}
+}
+
+func TestLoadKeyringAdminCredentialsUnavailableServiceDoesNotBootstrap(t *testing.T) {
+	t.Parallel()
+
+	serviceErr := errors.New("secret service unavailable: D-Bus session is not available")
+	hash, err := secrets.GeneratePBKDF2Hash("stored-password")
+	require.NoError(t, err)
+	initialValues := map[string]string{
+		keyringAdminUsername: "stored-user",
+		keyringAdminPassword: hash,
+	}
+	store := &mockCredentialStore{
+		values: map[string]string{
+			keyringAdminUsername: initialValues[keyringAdminUsername],
+			keyringAdminPassword: initialValues[keyringAdminPassword],
+		},
+		errMap: map[string]error{
+			keyringAdminUsername: serviceErr,
+			keyringAdminPassword: serviceErr,
+		},
+	}
+	cfg := &config.Config{Auth: config.Auth{
+		AdminUsername: "config-user",
+		AdminPassword: "config-password",
+	}}
+
+	err = loadKeyringAdminCredentials(cfg, store)
+	require.ErrorIs(t, err, serviceErr)
+	assert.Contains(t, err.Error(), "ensure the keyring is available and unlocked")
+	assert.Equal(t, "config-user", cfg.AdminUsername)
+	assert.Equal(t, "config-password", cfg.AdminPassword)
+	assert.Equal(t, initialValues, store.values)
 }
 
 func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
