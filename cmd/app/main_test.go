@@ -671,7 +671,7 @@ func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testin
 		_ = flag.Set("config", oldConfigValue)
 	})
 
-	const plaintextPassword = "secret"
+	const plaintextPassword = "Valid-Setup9"
 
 	finishStdio := withStdio(t, "admin\n\n"+plaintextPassword+"\nwrong\n"+plaintextPassword+"\n")
 
