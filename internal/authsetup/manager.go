@@ -15,7 +15,11 @@ import (
 )
 
 const (
-	keyringServiceName   = "dmt-console"
+	// KeyringServiceName is the single OS keyring service name admin credentials are
+	// stored under; cmd/app and internal/controller/httpapi/v1 both reuse it so a
+	// keyring-mode password change can never write to a different service namespace
+	// than the one credentials were originally bootstrapped under.
+	KeyringServiceName   = "device-management-toolkit"
 	keyringAdminUsername = "admin-username"
 	keyringAdminPassword = "admin-password-hash"
 	SecretBackendKeyring = "keyring"
@@ -25,7 +29,7 @@ const (
 
 var (
 	ErrAlreadyConfigured            = errors.New("administrator credentials are already configured")
-	ErrIncompleteStore              = errors.New("partial or invalid administrator credentials are present; delete both dmt-console entries and restart")
+	ErrIncompleteStore              = errors.New("partial or invalid administrator credentials are present; delete both device-management-toolkit entries and restart")
 	ErrSetupRequired                = errors.New("administrator setup required; use the local setup page")
 	errCredentialVerificationFailed = errors.New("stored administrator credentials do not match the requested values")
 	errAuthVersionCannotDecrease    = errors.New("auth version cannot decrease")
@@ -47,7 +51,7 @@ type Manager struct {
 }
 
 func NewManager(cfg *config.Config, statePath string) (*Manager, error) {
-	return NewManagerWithStore(cfg, statePath, security.NewKeyRingStorage(keyringServiceName))
+	return NewManagerWithStore(cfg, statePath, security.NewKeyRingStorage(KeyringServiceName))
 }
 
 func NewManagerWithStore(cfg *config.Config, statePath string, store CredentialStore) (*Manager, error) {

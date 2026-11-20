@@ -33,7 +33,6 @@ const (
 	bearerPrefix                = "Bearer "
 	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
 	loginFailureError           = "invalid credentials"
-	keyringServiceName          = "dmt-console"
 	keyringAdminPassword        = "admin-password-hash"
 	secretBackendKeyring        = "keyring"
 )
@@ -58,7 +57,7 @@ func NewLoginRoute(configData *config.Config, authState ...*authsetup.Manager) *
 	saveAdminPassword := config.SaveAdminPassword
 
 	if configData.SecretBackend == secretBackendKeyring {
-		store := security.NewKeyRingStorage(keyringServiceName)
+		store := security.NewKeyRingStorage(authsetup.KeyringServiceName)
 		saveAdminPassword = func(passwordHash string) error {
 			return store.SetKeyValue(keyringAdminPassword, passwordHash)
 		}

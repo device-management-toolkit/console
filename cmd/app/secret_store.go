@@ -14,7 +14,6 @@ import (
 )
 
 const (
-	keyringServiceName   = "device-management-toolkit"
 	keyringAdminUsername = "admin-username"
 	keyringAdminPassword = "admin-password-hash"
 )
@@ -32,7 +31,7 @@ type credentialStore interface {
 }
 
 var newKeyringStorageFunc = func() credentialStore {
-	return security.NewKeyRingStorage(keyringServiceName)
+	return security.NewKeyRingStorage(authsetup.KeyringServiceName)
 }
 
 func handleAdminCredentials(cfg *config.Config) {
