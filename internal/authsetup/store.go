@@ -12,6 +12,7 @@ import (
 	"net/url"
 	"os"
 	"path/filepath"
+	"strings"
 	"time"
 
 	// Required to register the SQLite driver with database/sql.
@@ -49,7 +50,17 @@ func openStateStore(path string) (*stateStore, error) {
 		return nil, fmt.Errorf("close auth state database file: %w", err)
 	}
 
-	dsn := url.URL{Scheme: "file", Path: filepath.ToSlash(path)}
+	absPath, err := filepath.Abs(path)
+	if err != nil {
+		return nil, fmt.Errorf("resolve auth state database path: %w", err)
+	}
+
+	urlPath := filepath.ToSlash(absPath)
+	if !strings.HasPrefix(urlPath, "/") {
+		urlPath = "/" + urlPath
+	}
+
+	dsn := url.URL{Scheme: "file", Path: urlPath}
 	query := dsn.Query()
 	query.Add("_pragma", "busy_timeout(5000)")
 	query.Add("_pragma", "journal_mode(WAL)")

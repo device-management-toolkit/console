@@ -348,15 +348,18 @@ func TestChangePasswordRejectsEnvironmentManagedPassword(t *testing.T) {
 	require.Equal(t, testAdminPass, cfg.AdminPassword)
 }
 
+//nolint:paralleltest // shared global config.ConsoleConfig
 func TestPasswordChangeRevokesSessionsAcrossRestart(t *testing.T) {
-	t.Parallel()
-
 	cfg := &config.Config{Auth: config.Auth{
 		AdminUsername: testAdminUser,
 		JWTKey:        testJWTKey,
 		JWTExpiration: time.Hour,
 		SecretBackend: secretBackendKeyring,
 	}}
+
+	prev := config.ConsoleConfig
+	t.Cleanup(func() { config.ConsoleConfig = prev })
+	config.ConsoleConfig = cfg
 	initialHash, err := secrets.GeneratePBKDF2Hash(testAdminPass)
 	require.NoError(t, err)
 

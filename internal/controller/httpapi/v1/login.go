@@ -215,8 +215,23 @@ func (lr LoginRoute) persistPasswordChange(request dto.PasswordChangeRequest) (p
 
 		return version + 1, nil
 	})
+	// Only the auth_version bump (not the preceding keyring/config write) can
+	// fail at this point, since passwordStored is already true. Re-entering
+	// withAuthVersion keeps the rollback write serialized against every other
+	// credential read/write the same way the original write was, instead of a
+	// bare call that could interleave with a concurrent change.
+	//
+	// This still cannot make the keyring write and the SQLite commit atomic: a
+	// crash between the two leaves the keyring holding the new password while
+	// auth_version reverts to its pre-change value on restart, so a JWT issued
+	// before the change remains valid. Closing that gap fully would need a
+	// credential-derived tag embedded in the token, or a single transactional
+	// store for both — out of scope here.
 	if err != nil && passwordStored {
-		if rollbackErr := lr.SaveAdminPassword(previousPassword); rollbackErr != nil {
+		rollbackErr := lr.withAuthVersion(func(version uint64) (uint64, error) {
+			return version, lr.SaveAdminPassword(previousPassword)
+		})
+		if rollbackErr != nil {
 			return result, errors.Join(errPasswordRollbackFailed, err, rollbackErr)
 		}
 	}
@@ -266,36 +281,40 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
-	var tokenString string
+	adminCredentialsMutex.RLock()
+	username, storedPassword, err := lr.currentCredentials()
+	adminCredentialsMutex.RUnlock()
 
-	var expirationTime time.Time
-
-	authenticated := false
-
-	err := lr.withAuthVersion(func(version uint64) (uint64, error) {
-		username, storedPassword, err := lr.currentCredentials()
-		if err != nil {
-			return version, err
-		}
-
-		usernameMatches := subtle.ConstantTimeCompare([]byte(username), []byte(creds.Username)) == 1
-		if !usernameMatches || !matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) {
-			return version, nil
-		}
-
-		authenticated = true
-		tokenString, expirationTime, err = lr.createSessionToken(version)
-
-		return version, err
-	})
 	if err != nil {
 		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "authentication state is unavailable"})
 
 		return
 	}
 
-	if !authenticated {
+	// PBKDF2 verification (expensive by design) runs here, outside the
+	// SQLite-backed auth-state lock, so a flood of failed login attempts
+	// can't serialize every other request that needs that lock (token
+	// verification, password changes).
+	usernameMatches := subtle.ConstantTimeCompare([]byte(username), []byte(creds.Username)) == 1
+	if !usernameMatches || !matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	var tokenString string
+
+	var expirationTime time.Time
+
+	err = lr.withAuthVersion(func(version uint64) (uint64, error) {
+		var tokenErr error
+
+		tokenString, expirationTime, tokenErr = lr.createSessionToken(version)
+
+		return version, tokenErr
+	})
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "authentication state is unavailable"})
 
 		return
 	}
