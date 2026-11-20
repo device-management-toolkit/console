@@ -38,16 +38,12 @@ var (
 	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
 	ErrAuthSecretBackendInvalid        = errors.New("config: auth.secretBackend must be config or keyring")
-	errAuthConfigNotMapping            = errors.New("config: auth must be a mapping to persist auth.jwtKey")
 )
 
 const (
-	defaultHost     = "localhost"
-	yamlAuthKey     = "auth"
-	yamlJWTKeyField = "jwtKey"
+	defaultHost         = "localhost"
+	secretBackendConfig = "config"
 )
-
-const secretBackendConfig = "config"
 
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
@@ -281,7 +277,7 @@ func defaultConfig() *Config {
 		},
 		Auth: Auth{
 			AdminUsername:            "standalone",
-			AdminPassword:            "",
+			AdminPassword:            "", // Generated and stored in config on first run if not provided
 			SecretBackend:            secretBackendConfig,
 			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
@@ -454,9 +450,7 @@ func SaveAdminPassword(adminPassword string) error {
 		return err
 	}
 
-	return updateConfigFile(configPath, func(fileCfg *Config) {
-		fileCfg.AdminPassword = adminPassword
-	})
+	return updateConfigFile(configPath, func(c *Config) { c.AdminPassword = adminPassword })
 }
 
 // updateConfigFile applies mutate to the file's own contents, never to the env-overlaid Config.
@@ -486,7 +480,7 @@ func ensureJWTKey(configPath string, cfg *Config) error {
 
 	key := security.Crypto{}.GenerateKey()
 
-	if err := saveGeneratedJWTKey(configPath, key); err != nil {
+	if err := updateConfigFile(configPath, func(c *Config) { c.JWTKey = key }); err != nil {
 		return fmt.Errorf("config: persisting generated auth.jwtKey to %s (set AUTH_JWT_KEY to provide one instead): %w", configPath, err)
 	}
 
@@ -500,68 +494,6 @@ func ensureJWTKey(configPath string, cfg *Config) error {
 	)
 
 	return nil
-}
-
-func saveGeneratedJWTKey(configPath, key string) error {
-	data, err := os.ReadFile(configPath)
-	if err != nil {
-		return err
-	}
-
-	var configEntries yaml.MapSlice
-	if err := yaml.Unmarshal(data, &configEntries); err != nil {
-		return err
-	}
-
-	configEntries, err = withGeneratedJWTKey(configEntries, key)
-	if err != nil {
-		return err
-	}
-
-	updated, err := yaml.Marshal(configEntries)
-	if err != nil {
-		return err
-	}
-
-	if err := os.WriteFile(configPath, updated, configFilePerm); err != nil {
-		return err
-	}
-
-	return os.Chmod(configPath, configFilePerm)
-}
-
-func withGeneratedJWTKey(configEntries yaml.MapSlice, key string) (yaml.MapSlice, error) {
-	for i := range configEntries {
-		if configEntries[i].Key != yamlAuthKey {
-			continue
-		}
-
-		authEntries, ok := configEntries[i].Value.(yaml.MapSlice)
-		if !ok && configEntries[i].Value != nil {
-			return nil, errAuthConfigNotMapping
-		}
-
-		configEntries[i].Value = withYAMLValue(authEntries, yamlJWTKeyField, key)
-
-		return configEntries, nil
-	}
-
-	return append(configEntries, yaml.MapItem{
-		Key:   yamlAuthKey,
-		Value: yaml.MapSlice{{Key: yamlJWTKeyField, Value: key}},
-	}), nil
-}
-
-func withYAMLValue(entries yaml.MapSlice, key string, value interface{}) yaml.MapSlice {
-	for i := range entries {
-		if entries[i].Key == key {
-			entries[i].Value = value
-
-			return entries
-		}
-	}
-
-	return append(entries, yaml.MapItem{Key: key, Value: value})
 }
 
 // loadConfig layers the file (created with defaults on first run) and the

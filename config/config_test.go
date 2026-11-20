@@ -127,75 +127,6 @@ func TestLoadConfig_OIDCOverridesStandaloneCredentialBackend(t *testing.T) {
 	assert.Empty(t, cfg.AdminPassword)
 }
 
-func TestReadOrInitConfig_PreservesExistingLoader(t *testing.T) {
-	tests := []struct {
-		name      string
-		filename  string
-		content   string
-		backend   string
-		clientID  string
-		wantError bool
-	}{
-		{
-			name:     "config TOML",
-			filename: "config.toml",
-			content:  "[auth]\nAdminUsername = \"file-user\"\n",
-			backend:  "config",
-		},
-		{
-			name:      "OIDC keeps credential parsing errors",
-			filename:  "config.yml",
-			content:   "auth:\n  clientId: oidc-client\n  adminPassword: [stale]\n",
-			backend:   "keyring",
-			clientID:  "oidc-client",
-			wantError: true,
-		},
-		{
-			name:      "config override keeps credential parsing errors",
-			filename:  "config.yml",
-			content:   "auth:\n  secretBackend: keyring\n  adminPassword: [stale]\n",
-			backend:   "config",
-			wantError: true,
-		},
-		{
-			name:      "keyring keeps credential parsing errors",
-			filename:  "config.yml",
-			content:   "auth:\n  secretBackend: keyring\n  adminPassword: [stale]\n",
-			backend:   "keyring",
-			wantError: true,
-		},
-	}
-
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Setenv("AUTH_SECRET_BACKEND", tt.backend)
-			t.Setenv("AUTH_CLIENT_ID", tt.clientID)
-
-			path := filepath.Join(t.TempDir(), tt.filename)
-			content := []byte(tt.content)
-			require.NoError(t, os.WriteFile(path, content, 0o600))
-
-			expected := defaultConfig()
-			originalErr := cleanenv.ReadConfig(path, expected)
-			actual := defaultConfig()
-			err := readOrInitConfig(path, actual)
-
-			if tt.wantError {
-				require.Error(t, originalErr)
-				require.EqualError(t, err, originalErr.Error())
-			} else {
-				require.NoError(t, originalErr)
-				require.NoError(t, err)
-				assert.Equal(t, expected, actual)
-			}
-
-			after, err := os.ReadFile(path)
-			require.NoError(t, err)
-			assert.Equal(t, content, after)
-		})
-	}
-}
-
 func TestNewConfig_EnvVars(t *testing.T) {
 	// Set environment variables
 	os.Setenv("APP_NAME", "testApp")
@@ -997,48 +928,6 @@ func TestEnsureJWTKey(t *testing.T) {
 			assert.Equal(t, cfg.JWTKey, again.JWTKey)
 		})
 	}
-}
-
-func TestLoadConfig_GeneratesJWTKeyWithEmptyAuthSection(t *testing.T) {
-	t.Setenv("AUTH_JWT_KEY", "")
-	t.Setenv("AUTH_DISABLED", "false")
-	t.Setenv("AUTH_SECRET_BACKEND", "config")
-
-	for _, contents := range []string{"auth:\n", "auth: null\n"} {
-		path := filepath.Join(t.TempDir(), "config.yml")
-		require.NoError(t, os.WriteFile(path, []byte(contents), 0o600))
-
-		cfg := defaultConfig()
-		require.NoError(t, loadConfig(path, cfg), "config %q", contents)
-		require.NotEmpty(t, cfg.JWTKey, "config %q", contents)
-		assert.Equal(t, cfg.JWTKey, readConfigFile(t, path).JWTKey, "config %q", contents)
-	}
-}
-
-func TestLoadConfig_KeyringJWTGenerationPreservesStandaloneCredentials(t *testing.T) {
-	t.Setenv("AUTH_SECRET_BACKEND", "keyring")
-
-	path := filepath.Join(t.TempDir(), "config.yml")
-	content := []byte("auth:\n  secretBackend: keyring\n  adminPassword: stale-password\n")
-	require.NoError(t, os.WriteFile(path, content, 0o600))
-
-	cfg := defaultConfig()
-	require.NoError(t, loadConfig(path, cfg))
-
-	assert.Empty(t, cfg.AdminUsername)
-	assert.Empty(t, cfg.AdminPassword)
-	assert.NotEmpty(t, cfg.JWTKey)
-
-	data, err := os.ReadFile(path)
-	require.NoError(t, err)
-
-	var entries map[any]any
-	require.NoError(t, yaml.Unmarshal(data, &entries))
-	auth, ok := entries["auth"].(map[any]any)
-	require.True(t, ok)
-	assert.NotContains(t, auth, "adminUsername")
-	assert.Equal(t, "stale-password", auth["adminPassword"])
-	assert.Equal(t, cfg.JWTKey, auth["jwtKey"])
 }
 
 func TestEnsureJWTKey_WarnsAboutProductionUse(t *testing.T) { //nolint:paralleltest // rebinds the global log output

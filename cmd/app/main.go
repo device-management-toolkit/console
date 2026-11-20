@@ -97,7 +97,6 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-
 	handleAdminCredentials(cfg)
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
@@ -412,6 +411,59 @@ func shufflePassword(password []byte) error {
 	}
 
 	return nil
+}
+
+// handleAdminPassword ensures cfg.AdminPassword is set, generating one and
+// persisting it to config.yml on first run if nothing was provided via config
+// or environment. When auth is disabled, LoginRoute.credentialsAccepted lets
+// any credentials through, so there is no admin credential to generate.
+func handleAdminPassword(cfg *config.Config) {
+	if cfg.Disabled {
+		return
+	}
+
+	if cfg.AdminPassword != "" {
+		warnOnWeakAdminPassword(cfg.AdminPassword)
+
+		return
+	}
+
+	password, err := generateRandomPassword(adminPasswordLength)
+	if err != nil {
+		log.Fatalf("Failed to generate admin password: %v", err)
+	}
+
+	cfg.AdminPassword = password
+
+	if err := config.SaveAdminPassword(cfg.AdminPassword); err != nil {
+		log.Fatalf(
+			"Generated admin password but failed to persist it to config (%v).\n"+
+				"Refusing to start with an unsaved credential that would vanish on restart.\n"+
+				"Set AUTH_ADMIN_PASSWORD in the environment (or auth.adminPassword in config) "+
+				"to provide the admin password directly.",
+			err,
+		)
+	}
+
+	log.Printf("Generated new admin password and persisted to config; see auth.adminPassword in config.yml.")
+}
+
+// warnOnWeakAdminPassword warns but does not stop startup: migrated MPS/RPS
+// credentials predate this policy, and refusing to boot would lock operators out.
+func warnOnWeakAdminPassword(password string) {
+	if isStrongAdminPassword(password) {
+		return
+	}
+
+	log.Printf(
+		"WARNING: the configured admin password is weak. It should be at least %d characters and "+
+			"contain a lowercase letter, an uppercase letter, a digit, and a symbol; longer is better. "+
+			"Console is starting anyway, but set a stronger password in auth.adminPassword in "+
+			"config.yml, or via AUTH_ADMIN_PASSWORD in the environment. In .env, single-quote the "+
+			"value so docker compose does not expand $, and avoid # altogether: make reads .env too, "+
+			"and it cuts the value at # regardless of quoting.",
+		adminPasswordMinLength,
+	)
 }
 
 func isStrongAdminPassword(password string) bool {

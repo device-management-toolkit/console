@@ -63,7 +63,7 @@ auth:
   # All config fields must still have valid types.
   secretBackend: config
   adminUsername: standalone
-  adminPassword: ""
+  adminPassword: 
   jwtKey: ""
   jwtExpiration: 24h0m0s
   redirectionJWTExpiration: 5m0s
@@ -87,3 +87,4 @@ ui:
 package:
   rpc_repo: device-management-toolkit/rpc-go
   local_dir: ""
+

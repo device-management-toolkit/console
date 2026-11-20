@@ -57,7 +57,7 @@ func handleAdminCredentials(cfg *config.Config) {
 
 	switch cfg.SecretBackend {
 	case "config":
-		handleConfigAdminCredentials(cfg)
+		handleAdminPassword(cfg)
 	case "keyring":
 		if err := loadKeyringAdminCredentials(cfg, newKeyringStorageFunc()); err != nil {
 			log.Fatalf("keyring admin credentials: %v", err)
@@ -65,26 +65,6 @@ func handleAdminCredentials(cfg *config.Config) {
 	default:
 		log.Fatalf("%v", config.ErrAuthSecretBackendInvalid)
 	}
-}
-
-func handleConfigAdminCredentials(cfg *config.Config) {
-	if cfg.AdminPassword != "" {
-		warnIfWeakAdminPassword(cfg.AdminPassword)
-
-		return
-	}
-
-	password, err := generateRandomPassword(adminPasswordLength)
-	if err != nil {
-		log.Fatalf("failed to generate admin password: %v", err)
-	}
-
-	cfg.AdminPassword = password
-	if err := config.SaveAdminPassword(password); err != nil {
-		log.Fatalf("generated admin password but could not persist it to config: %v", err)
-	}
-
-	log.Print("Generated new admin password and persisted it to config.yml.")
 }
 
 func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) error {
@@ -161,22 +141,6 @@ func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore)
 	cfg.AdminPassword = hash
 
 	return nil
-}
-
-func warnIfWeakAdminPassword(password string) {
-	if isStrongAdminPassword(password) {
-		return
-	}
-
-	log.Printf(
-		"WARNING: the configured admin password is weak. It should be at least %d characters and "+
-			"contain a lowercase letter, an uppercase letter, a digit, and a symbol; longer is better. "+
-			"Console is starting anyway, but set a stronger password in auth.adminPassword in "+
-			"config.yml, or via AUTH_ADMIN_PASSWORD in the environment. In .env, single-quote the "+
-			"value so docker compose does not expand $, and avoid # altogether: make reads .env too, "+
-			"and it cuts the value at # regardless of quoting.",
-		adminPasswordMinLength,
-	)
 }
 
 func promptForCredential(reader *bufio.Reader, prompt string) string {
