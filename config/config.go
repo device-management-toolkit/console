@@ -156,6 +156,10 @@ type (
 		CookieSecure             bool          `yaml:"cookieSecure" env:"AUTH_COOKIE_SECURE"`
 		CookieSameSite           string        `yaml:"cookieSameSite" env:"AUTH_COOKIE_SAME_SITE"`
 		UI                       UIAuthConfig  `yaml:"ui"`
+		StatePath                string        `yaml:"-" env:"-"`
+		SetupAPIBase             string        `yaml:"-" env:"-"`
+		SetupToken               string        `yaml:"-" env:"-"`
+		SetupListener            net.Listener  `yaml:"-" env:"-"`
 	}
 
 	// UIAuthConfig -.
@@ -439,6 +443,27 @@ func writeConfig(configPath string, cfg *Config) error {
 	return encoder.Encode(cfg)
 }
 
+// ReadAdminCredentialsFromFile reads the persisted standalone administrator
+// credentials without applying environment overrides.
+func ReadAdminCredentialsFromFile(configPath string) (username, password string, err error) {
+	data, err := os.ReadFile(configPath)
+	if err != nil {
+		return "", "", fmt.Errorf("read config file: %w", err)
+	}
+
+	var fileConfig struct {
+		Auth struct {
+			AdminUsername string `yaml:"adminUsername"`
+			AdminPassword string `yaml:"adminPassword"`
+		} `yaml:"auth"`
+	}
+	if err := yaml.Unmarshal(data, &fileConfig); err != nil {
+		return "", "", fmt.Errorf("parse admin credentials: %w", err)
+	}
+
+	return fileConfig.Auth.AdminUsername, fileConfig.Auth.AdminPassword, nil
+}
+
 // SaveAdminPassword persists adminPassword to auth.adminPassword in config.yml
 // without touching any other field. It re-reads the file directly (bypassing the
 // env-var overlay applied by cleanenv) so env-only secrets like APP_ENCRYPTION_KEY,
@@ -686,6 +711,8 @@ func NewConfig() (*Config, error) {
 
 		return nil, err
 	}
+
+	ConsoleConfig.StatePath = configPath + ".auth-state.db"
 
 	if err := validatePort(ConsoleConfig.Port); err != nil {
 		return nil, err
