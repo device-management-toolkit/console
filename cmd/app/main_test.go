@@ -68,6 +68,7 @@ func (m *mockCredentialStore) DeleteKeyValue(key string) error {
 func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying env variables.
 	os.Setenv("GIN_MODE", "debug")
 
+	// Mock functions
 	initializeConfigFunc = func() (*config.Config, error) {
 		return &config.Config{
 			HTTP: config.HTTP{Port: "8080"},
@@ -83,6 +84,7 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 
 	runAppFunc = func(_ *config.Config, _ logger.Interface) {}
 
+	// Mock certificate functions
 	loadOrGenerateRootCertFunc = func(_ security.Storager, _ bool, _, _, _ string, _ bool) (*x509.Certificate, *rsa.PrivateKey, error) {
 		return &x509.Certificate{}, &rsa.PrivateKey{}, nil
 	}
@@ -91,9 +93,11 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 		return &x509.Certificate{}, &rsa.PrivateKey{}, nil
 	}
 
+	// Call the main function
 	main()
 }
 
+// TestGenerateRandomPassword tests the password generation function.
 func TestGenerateRandomPassword(t *testing.T) {
 	t.Parallel()
 
@@ -117,6 +121,20 @@ func TestGenerateRandomPassword(t *testing.T) {
 	}
 }
 
+// TestGenerateRandomPassword_SatisfiesPolicy locks the generator to the checker:
+// a per-class miss would otherwise surface as a rare flake rather than a failure.
+func TestGenerateRandomPassword_SatisfiesPolicy(t *testing.T) {
+	t.Parallel()
+
+	for _, length := range []int{adminPasswordMinLength, adminPasswordLength, 64} {
+		for range 100 {
+			password, err := generateRandomPassword(length)
+			require.NoError(t, err)
+			assert.True(t, isStrongAdminPassword(password), "generated %q fails the policy", password)
+		}
+	}
+}
+
 // TestGenerateRandomPassword_ShellSafe guards the accept-wide/generate-narrow split.
 func TestGenerateRandomPassword_ShellSafe(t *testing.T) {
 	t.Parallel()
@@ -126,7 +144,6 @@ func TestGenerateRandomPassword_ShellSafe(t *testing.T) {
 	for range 100 {
 		password, err := generateRandomPassword(adminPasswordLength)
 		require.NoError(t, err)
-		assert.True(t, isStrongAdminPassword(password))
 		assert.NotContains(t, password, "$")
 		assert.NotContains(t, password, "!")
 		assert.False(t, strings.ContainsAny(password, unsafeChars), "generated %q contains an unsafe character", password)
@@ -150,6 +167,7 @@ func TestGenerateRandomPassword_Uniqueness(t *testing.T) {
 		password, err := generateRandomPassword(16)
 		require.NoError(t, err)
 		assert.False(t, passwords[password], "generated duplicate password")
+
 		passwords[password] = true
 	}
 }
@@ -185,6 +203,138 @@ func TestCheckStoredEncryptionKey(t *testing.T) { //nolint:paralleltest // rebin
 			}
 		})
 	}
+}
+
+// TestHandleAdminPassword_AlreadyConfigured tests when password is already set.
+func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Auth: config.Auth{
+			AdminPassword: "already-set",
+		},
+	}
+
+	handleAdminPassword(cfg)
+
+	assert.Equal(t, "already-set", cfg.AdminPassword)
+}
+
+func TestIsStrongAdminPassword(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		password string
+		want     bool
+	}{
+		{"meets every rule", "P@ssw0rdd", true},
+		{"exactly min length", "P@ssw0rd", true},
+		{"empty", "", false},
+		{"one under min length", "P@ss0rd", false},
+		{"no lowercase", "P@SSW0RD", false},
+		{"no uppercase", "p@ssw0rd", false},
+		{"no digit", "P@ssword", false},
+		{"no symbol", "Passw0rdd", false},
+		// AMT requires the special to come from !@#$%^&*; these do not, but the
+		// admin password never reaches AMT, so they count as a symbol here.
+		{"symbol AMT would not accept as its special", "Passw0rd(", true},
+		{"hyphen counts as a symbol", "Passw0rd-x", true},
+		{"underscore counts as a symbol", "Passw0rd_x", true},
+		// No upper length bound: a long passphrase must not be reported as weak.
+		{"long passphrase", "P@ssw0rd" + strings.Repeat("a", 40), true},
+		{"length counts runes not bytes", "P@ssw0ré", true},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			assert.Equal(t, tc.want, isStrongAdminPassword(tc.password))
+		})
+	}
+}
+
+func TestWarnOnWeakAdminPassword(t *testing.T) { //nolint:paralleltest // rebinds the global log output.
+	tests := []struct {
+		name     string
+		password string
+		wantLog  string
+	}{
+		{
+			name:     "weak password warns",
+			password: "weak",
+			wantLog:  "WARNING: the configured admin password is weak",
+		},
+		{
+			name:     "long but not complex still warns",
+			password: "alllowercaseletters",
+			wantLog:  "WARNING: the configured admin password is weak",
+		},
+		{
+			name:     "compliant password is silent",
+			password: "P@ssw0rdd",
+			wantLog:  "",
+		},
+	}
+
+	for _, tc := range tests { //nolint:paralleltest // rebinds the global log output.
+		t.Run(tc.name, func(t *testing.T) {
+			var buf bytes.Buffer
+
+			orig := log.Writer()
+
+			log.SetOutput(&buf)
+			t.Cleanup(func() { log.SetOutput(orig) })
+
+			warnOnWeakAdminPassword(tc.password)
+
+			if tc.wantLog == "" {
+				assert.Empty(t, buf.String())
+
+				return
+			}
+
+			assert.Contains(t, buf.String(), tc.wantLog)
+		})
+	}
+}
+
+func TestHandleAdminPassword_WeakConfiguredPasswordStillStarts(t *testing.T) { //nolint:paralleltest // rebinds the global log output.
+	var buf bytes.Buffer
+
+	orig := log.Writer()
+
+	log.SetOutput(&buf)
+	t.Cleanup(func() { log.SetOutput(orig) })
+
+	cfg := &config.Config{
+		Auth: config.Auth{
+			AdminPassword: "weak",
+		},
+	}
+
+	handleAdminPassword(cfg)
+
+	assert.Equal(t, "weak", cfg.AdminPassword)
+	assert.Contains(t, buf.String(), "Console is starting anyway")
+}
+
+// TestHandleAdminPassword_AuthDisabled verifies no password is generated (and
+// nothing is persisted to config.yml) when authentication is turned off.
+func TestHandleAdminPassword_AuthDisabled(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{
+		Auth: config.Auth{
+			Disabled:      true,
+			AdminPassword: "",
+		},
+	}
+
+	handleAdminPassword(cfg)
+
+	assert.Empty(t, cfg.AdminPassword)
 }
 
 func TestLoadKeyringAdminCredentialsUsesOnlyKeyring(t *testing.T) {
