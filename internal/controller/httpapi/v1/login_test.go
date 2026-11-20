@@ -358,8 +358,11 @@ func TestPasswordChangeRevokesSessionsAcrossRestart(t *testing.T) {
 	}}
 
 	prev := config.ConsoleConfig
+
 	t.Cleanup(func() { config.ConsoleConfig = prev })
+
 	config.ConsoleConfig = cfg
+
 	initialHash, err := secrets.GeneratePBKDF2Hash(testAdminPass)
 	require.NoError(t, err)
 

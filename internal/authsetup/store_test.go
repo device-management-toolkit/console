@@ -22,6 +22,7 @@ func TestOpenStateStoreRelativePath(t *testing.T) {
 
 	store, err := openStateStore(filepath.Join("subdir", "auth-state.db"))
 	require.NoError(t, err)
+
 	defer store.close()
 
 	_, err = store.authVersion()
@@ -29,10 +30,13 @@ func TestOpenStateStoreRelativePath(t *testing.T) {
 }
 
 func TestOpenStateStoreAbsolutePath(t *testing.T) {
+	t.Parallel()
+
 	path := filepath.Join(t.TempDir(), "auth-state.db")
 
 	store, err := openStateStore(path)
 	require.NoError(t, err)
+
 	defer store.close()
 
 	_, err = store.authVersion()

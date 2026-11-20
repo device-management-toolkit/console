@@ -282,7 +282,9 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	}
 
 	adminCredentialsMutex.RLock()
+
 	username, storedPassword, err := lr.currentCredentials()
+
 	adminCredentialsMutex.RUnlock()
 
 	if err != nil {
