@@ -18,15 +18,15 @@ import (
 )
 
 const (
-	keyringServiceName   = "dmt-console"
+	keyringServiceName   = "device-management-toolkit"
 	keyringAdminUsername = "admin-username"
 	keyringAdminPassword = "admin-password-hash"
 )
 
 var (
 	errKeystoreUnavailable     = errors.New("keystore is unavailable")
-	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete both dmt-console entries and restart")
-	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both dmt-console entries and restart")
+	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete both device-management-toolkit entries and restart")
+	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both device-management-toolkit entries and restart")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
 )
 
