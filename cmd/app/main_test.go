@@ -4,8 +4,10 @@ import (
 	"bytes"
 	"crypto/rsa"
 	"crypto/x509"
+	"flag"
 	"log"
 	"os"
+	"path/filepath"
 	"strings"
 	"testing"
 
@@ -17,7 +19,51 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	"github.com/device-management-toolkit/console/pkg/secrets"
 )
+
+type mockCredentialStore struct {
+	values      map[string]string
+	errMap      map[string]error
+	deletedKeys []string
+}
+
+func (m *mockCredentialStore) GetKeyValue(key string) (string, error) {
+	if err, ok := m.errMap[key]; ok {
+		return "", err
+	}
+
+	if v, ok := m.values[key]; ok {
+		return v, nil
+	}
+
+	return "", security.ErrKeyNotFound
+}
+
+func (m *mockCredentialStore) SetKeyValue(key, value string) error {
+	if err, ok := m.errMap[key+":set"]; ok {
+		return err
+	}
+
+	if m.values == nil {
+		m.values = map[string]string{}
+	}
+
+	m.values[key] = value
+
+	return nil
+}
+
+func (m *mockCredentialStore) DeleteKeyValue(key string) error {
+	if err, ok := m.errMap[key+":delete"]; ok {
+		return err
+	}
+
+	m.deletedKeys = append(m.deletedKeys, key)
+	delete(m.values, key)
+
+	return nil
+}
 
 func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying env variables.
 	os.Setenv("GIN_MODE", "debug")
@@ -28,7 +74,7 @@ func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simul
 			HTTP: config.HTTP{Port: "8080"},
 			App:  config.App{EncryptionKey: "test"},
 			Log:  config.Log{Level: "info"},
-			Auth: config.Auth{AdminPassword: "test"},
+			Auth: config.Auth{Disabled: true},
 		}, nil
 	}
 
@@ -289,4 +335,162 @@ func TestHandleAdminPassword_AuthDisabled(t *testing.T) {
 	handleAdminPassword(cfg)
 
 	assert.Empty(t, cfg.AdminPassword)
+}
+
+func TestLoadKeyringAdminCredentialsUsesOnlyKeyring(t *testing.T) {
+	t.Parallel()
+
+	hash, err := secrets.GeneratePBKDF2Hash("keyring-password")
+	require.NoError(t, err)
+
+	cfg := &config.Config{Auth: config.Auth{
+		AdminUsername: "config-user",
+		AdminPassword: "config-password",
+	}}
+	store := &mockCredentialStore{values: map[string]string{
+		keyringAdminUsername: "keyring-user",
+		keyringAdminPassword: hash,
+	}}
+
+	require.NoError(t, loadKeyringAdminCredentials(cfg, store))
+	assert.Equal(t, "keyring-user", cfg.AdminUsername)
+	assert.Equal(t, hash, cfg.AdminPassword)
+}
+
+func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{Auth: config.Auth{
+		AdminUsername: "config-user",
+		AdminPassword: "config-password",
+	}}
+	store := &mockCredentialStore{values: map[string]string{
+		keyringAdminUsername: "keyring-user",
+	}}
+
+	err := loadKeyringAdminCredentials(cfg, store)
+	require.Error(t, err)
+	assert.Contains(t, err.Error(), "partial")
+	assert.Equal(t, "config-user", cfg.AdminUsername)
+	assert.Equal(t, "config-password", cfg.AdminPassword)
+}
+
+//nolint:paralleltest // mutates global config and flag state
+func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testing.T) {
+	configFile := filepath.Join(t.TempDir(), "config.yml")
+	initialConfig := []byte("auth:\n  jwtExpiration: 24h\n")
+	require.NoError(t, os.WriteFile(configFile, initialConfig, 0o600))
+
+	flagValue := flag.Lookup("config")
+	if flagValue == nil {
+		flag.String("config", "", "path to config file")
+
+		flagValue = flag.Lookup("config")
+	}
+
+	oldConfigValue := flagValue.Value.String()
+
+	require.NoError(t, flag.Set("config", configFile))
+
+	t.Cleanup(func() {
+		_ = flag.Set("config", oldConfigValue)
+	})
+
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = writer.WriteString(" admin \n\n secret \nwrong\n secret \n")
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	os.Stdin = reader
+
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	store := &mockCredentialStore{values: map[string]string{}}
+	origFunc := newKeyringStorageFunc
+	newKeyringStorageFunc = func() credentialStore { return store }
+
+	t.Cleanup(func() { newKeyringStorageFunc = origFunc })
+
+	cfg := &config.Config{Auth: config.Auth{SecretBackend: "keyring"}}
+	handleAdminCredentials(cfg)
+
+	assert.Equal(t, " admin ", cfg.AdminUsername)
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, " secret "))
+	assert.Equal(t, " admin ", store.values[keyringAdminUsername])
+	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
+	assert.Len(t, store.values, 2)
+
+	configData, err := os.ReadFile(configFile)
+	require.NoError(t, err)
+	assert.Equal(t, initialConfig, configData, "keyring setup must not modify config.yml")
+}
+
+//nolint:paralleltest // mutates os.Stdin
+func TestBootstrapKeyringAdminCredentialsFailsAfterConfirmationRetries(t *testing.T) {
+	oldStdin := os.Stdin
+	reader, writer, err := os.Pipe()
+	require.NoError(t, err)
+	_, err = writer.WriteString("admin\npassword\nwrong-1\nwrong-2\nwrong-3\n")
+	require.NoError(t, err)
+	require.NoError(t, writer.Close())
+
+	os.Stdin = reader
+
+	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
+
+	store := &mockCredentialStore{values: map[string]string{}}
+	err = bootstrapKeyringAdminCredentials(&config.Config{}, store)
+	require.ErrorIs(t, err, errPasswordConfirmation)
+	assert.Empty(t, store.values, "credentials must not be stored after failed confirmation")
+}
+
+//nolint:paralleltest // mutates the global newKeyringStorageFunc
+func TestHandleAdminCredentials_OAuthConfiguredSkipsBootstrap(t *testing.T) {
+	cfg := &config.Config{
+		Auth: config.Auth{
+			ClientID: "oauth-client-id",
+		},
+	}
+
+	var callCount int
+
+	origFunc := newKeyringStorageFunc
+	newKeyringStorageFunc = func() credentialStore {
+		callCount++
+
+		return nil
+	}
+
+	t.Cleanup(func() { newKeyringStorageFunc = origFunc })
+
+	handleAdminCredentials(cfg)
+	assert.Equal(t, 0, callCount, "keyring storage should not be accessed when OAuth2 is configured")
+}
+
+//nolint:paralleltest // mutates the global newKeyringStorageFunc
+func TestHandleAdminCredentials_ConfigBackendDoesNotUseKeyring(t *testing.T) {
+	cfg := &config.Config{Auth: config.Auth{
+		SecretBackend: "config",
+		AdminUsername: "config-user",
+		AdminPassword: "config-password",
+	}}
+
+	var callCount int
+
+	origFunc := newKeyringStorageFunc
+	newKeyringStorageFunc = func() credentialStore {
+		callCount++
+
+		return nil
+	}
+
+	t.Cleanup(func() { newKeyringStorageFunc = origFunc })
+
+	handleAdminCredentials(cfg)
+
+	assert.Zero(t, callCount)
+	assert.Equal(t, "config-user", cfg.AdminUsername)
+	assert.Equal(t, "config-password", cfg.AdminPassword)
 }

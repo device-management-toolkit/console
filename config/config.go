@@ -37,9 +37,13 @@ var (
 	ErrMaxTokenTTLInvalid              = errors.New("config: package.max_token_ttl must be at least 1 minute (e.g. 24h), or 0 to use the default")
 	ErrLocalDirRequired                = errors.New("config: package.local_dir is required when package.disable_fetch is true — set RPC_LOCAL_DIR or local_dir in config.yml")
 	ErrJWTKeyMissing                   = errors.New("config: auth.jwtKey is required — set AUTH_JWT_KEY environment variable or jwtKey in config.yml to a strong secret")
+	ErrAuthSecretBackendInvalid        = errors.New("config: auth.secretBackend must be config or keyring")
 )
 
-const defaultHost = "localhost"
+const (
+	defaultHost         = "localhost"
+	secretBackendConfig = "config"
+)
 
 // DefaultSessionCookieName names the HttpOnly cookie holding the session JWT.
 const DefaultSessionCookieName = "console_session"
@@ -134,8 +138,9 @@ type (
 	// unaffected.
 	Auth struct {
 		Disabled                 bool          `yaml:"disabled" env:"AUTH_DISABLED"`
-		AdminUsername            string        `yaml:"adminUsername" env:"AUTH_ADMIN_USERNAME"`
-		AdminPassword            string        `yaml:"adminPassword" env:"AUTH_ADMIN_PASSWORD"`
+		AdminUsername            string        `yaml:"adminUsername" env:"-"`
+		AdminPassword            string        `yaml:"adminPassword" env:"-"`
+		SecretBackend            string        `yaml:"secretBackend" env:"AUTH_SECRET_BACKEND"`
 		JWTKey                   string        `yaml:"jwtKey" env:"AUTH_JWT_KEY"`
 		JWTExpiration            time.Duration `yaml:"jwtExpiration" env:"AUTH_JWT_EXPIRATION"`
 		RedirectionJWTExpiration time.Duration `yaml:"redirectionJWTExpiration" env:"AUTH_REDIRECTION_JWT_EXPIRATION"`
@@ -273,6 +278,7 @@ func defaultConfig() *Config {
 		Auth: Auth{
 			AdminUsername:            "standalone",
 			AdminPassword:            "", // Generated and stored in config on first run if not provided
+			SecretBackend:            secretBackendConfig,
 			JWTKey:                   "",
 			JWTExpiration:            24 * time.Hour,
 			RedirectionJWTExpiration: 5 * time.Minute,
@@ -501,6 +507,19 @@ func loadConfig(configPath string, cfg *Config) error {
 		return err
 	}
 
+	if strings.TrimSpace(cfg.ClientID) == "" && cfg.SecretBackend == secretBackendConfig {
+		if value, ok := os.LookupEnv("AUTH_ADMIN_USERNAME"); ok {
+			cfg.AdminUsername = value
+		}
+
+		if value, ok := os.LookupEnv("AUTH_ADMIN_PASSWORD"); ok {
+			cfg.AdminPassword = value
+		}
+	} else {
+		cfg.AdminUsername = ""
+		cfg.AdminPassword = ""
+	}
+
 	if err := ensureJWTKey(configPath, cfg); err != nil {
 		return err
 	}
@@ -512,6 +531,10 @@ func loadConfig(configPath string, cfg *Config) error {
 // It returns an error for any setting that would cause a runtime failure or
 // deny all service to legitimate users (e.g. zero/negative JWT expiration).
 func (c *Config) validate() error {
+	if err := c.validateAuthBackend(); err != nil {
+		return err
+	}
+
 	if c.JWTExpiration < time.Minute {
 		return ErrJWTExpirationInvalid
 	}
@@ -542,6 +565,14 @@ func (c *Config) validate() error {
 		if err := c.validateSecretsAddr(); err != nil {
 			return err
 		}
+	}
+
+	return nil
+}
+
+func (c *Config) validateAuthBackend() error {
+	if strings.TrimSpace(c.ClientID) == "" && c.SecretBackend != secretBackendConfig && c.SecretBackend != "keyring" {
+		return ErrAuthSecretBackendInvalid
 	}
 
 	return nil
