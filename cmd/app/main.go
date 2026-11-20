@@ -35,6 +35,8 @@ const adminPasswordLength = 16
 // No ceiling: this password is only compared against the login request in httpapi/v1.
 const adminPasswordMinLength = 8
 
+// RE2 has no lookahead, so complexity is one regex per required class. The last is
+// "not a letter or digit", broader than the !@#$%^&* AMT profiles require.
 var adminPasswordComplexity = []*regexp.Regexp{
 	regexp.MustCompile(`[a-z]`),
 	regexp.MustCompile(`[A-Z]`),
@@ -387,20 +389,6 @@ func generateRandomPassword(length int) (string, error) {
 	return string(password), nil
 }
 
-func isStrongAdminPassword(password string) bool {
-	if utf8.RuneCountInString(password) < adminPasswordMinLength {
-		return false
-	}
-
-	for _, rule := range adminPasswordComplexity {
-		if !rule.MatchString(password) {
-			return false
-		}
-	}
-
-	return true
-}
-
 // randomChar avoids the modulo bias of reducing a random byte.
 func randomChar(set string) (byte, error) {
 	index, err := rand.Int(rand.Reader, big.NewInt(int64(len(set))))
@@ -424,4 +412,18 @@ func shufflePassword(password []byte) error {
 	}
 
 	return nil
+}
+
+func isStrongAdminPassword(password string) bool {
+	if utf8.RuneCountInString(password) < adminPasswordMinLength {
+		return false
+	}
+
+	for _, rule := range adminPasswordComplexity {
+		if !rule.MatchString(password) {
+			return false
+		}
+	}
+
+	return true
 }

@@ -68,10 +68,6 @@ func handleAdminCredentials(cfg *config.Config) {
 }
 
 func handleConfigAdminCredentials(cfg *config.Config) {
-	if cfg.AdminUsername == "" {
-		cfg.AdminUsername = "standalone"
-	}
-
 	if cfg.AdminPassword != "" {
 		warnIfWeakAdminPassword(cfg.AdminPassword)
 
