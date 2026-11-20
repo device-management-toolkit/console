@@ -150,9 +150,8 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	case tags != "":
 		items, err = dr.getByColumnOrTags(c, "Tags", tags, odata.Top, odata.Skip, tenantID)
 
-	// "activated" means managed: any device not currently flagged as still-in-
-	// discovery pre-provisioning, including legacy devices with no recorded
-	// control mode.
+	// "activated" means managed: any device not left in Discovered, including
+	// legacy devices with no discovery information.
 	case activated == "true":
 		items, err = dr.t.GetActivated(ctx, odata.Top, odata.Skip, tenantID)
 

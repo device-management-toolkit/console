@@ -37,6 +37,16 @@ type Device struct {
 	UseTLS           bool        `json:"useTLS"`
 	AllowSelfSigned  bool        `json:"allowSelfSigned"`
 	CertHash         string      `json:"certHash"`
+	// Management is computed on read for every device and is never stored.
+	Management *Management `json:"management,omitempty"`
+}
+
+// Management says whether a discovered device can be managed. It is Eligible only
+// when it supports ISM or vPro and is activated. Otherwise Reason says why:
+// unsupported, notActivated, or unknown (discovery reported no AMT data).
+type Management struct {
+	Eligible bool   `json:"eligible"`
+	Reason   string `json:"reason,omitempty"`
 }
 
 // MarshalJSON leaves the password properties out of the JSON output.

@@ -82,8 +82,8 @@ func (f *FuegoAdapter) registerDeviceQueryRoutes() {
 		fuego.OptionQuery("method", "Method to filter tags (any/all)"),
 		fuego.OptionQuery("hostname", "Filter devices by host name"),
 		fuego.OptionQuery("friendlyName", "Filter devices by friendly name"),
-		fuego.OptionQueryBool("activated", "Return devices activated into client or admin control mode"),
-		fuego.OptionQueryBool("discovered", "Return devices discovered on the network but not yet activated"),
+		fuego.OptionQueryBool("activated", "Return managed devices: every device not left in Discovered, whatever its AMT control mode"),
+		fuego.OptionQueryBool("discovered", "Return discovered devices that have not been moved to Managed, including ones already activated. PATCH /api/v1/devices with a password to manage them"),
 		protectedRouteOptions(),
 	)
 
@@ -165,7 +165,8 @@ func (f *FuegoAdapter) registerDeviceMutationRoutes() {
 		f.server, "/api/v1/devices", f.updateDevice,
 		fuego.OptionTags("Devices"),
 		fuego.OptionSummary("Update Device"),
-		fuego.OptionDescription("Update an existing device"),
+		fuego.OptionDescription("Update an existing device.\n\n"+
+			"Supplying a password for a discovered device moves it to managed."),
 		protectedRouteOptions(),
 	)
 
