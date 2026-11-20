@@ -25,7 +25,20 @@ func NewAmtRoutes(handler *gin.RouterGroup, d devices.Feature, l logger.Interfac
 		h.GET("version/:guid", r.getVersion)
 		h.GET("features/:guid", r.getFeatures)
 		h.POST("features/:guid", r.setFeatures)
+		h.GET("boot/remoteErase/:guid/status", r.getRemoteEraseStatus)
 	}
+}
+
+func (r *deviceManagementRoutes) getRemoteEraseStatus(c *gin.Context) {
+	result, err := r.d.GetRemoteEraseStatus(c.Request.Context(), c.Param("guid"), middleware.TenantID(c))
+	if err != nil {
+		r.l.Error(err, "http - v2 - getRemoteEraseStatus")
+		v1.ErrorResponse(c, err)
+
+		return
+	}
+
+	c.JSON(http.StatusOK, result)
 }
 
 func (r *deviceManagementRoutes) getVersion(c *gin.Context) {
