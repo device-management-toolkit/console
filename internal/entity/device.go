@@ -9,6 +9,11 @@ type Device struct {
 	MPSInstance      string     `bson:"mpsinstance"`
 	Hostname         string     `bson:"hostname"`
 	GUID             string     `bson:"guid"`
+	ID               string     `bson:"id"`             // app-generated surrogate key; stable, immutable
+	CreatedDate      string     `bson:"createddate"`    // server-set insert timestamp (RFC3339Nano UTC); immutable
+	LastUpdated      string     `bson:"lastupdated"`    // server-set on insert + refreshed on record edits (RFC3339Nano UTC); NOT touched by heartbeats
+	ProductType      string     `bson:"producttype"`    // manageability SKU (vPro/ISM)
+	ConnectionType   string     `bson:"connectiontype"` // device connection type (CIRA/Direct)
 	MPSUsername      string     `bson:"mpsusername"`
 	Tags             string     `bson:"tags"`
 	TenantID         string     `bson:"tenantid"`
