@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"errors"
 	"fmt"
