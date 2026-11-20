@@ -21,11 +21,11 @@ const (
 	keyringServiceName   = "device-management-toolkit"
 	keyringAdminUsername = "admin-username"
 	keyringAdminPassword = "admin-password-hash"
-	keyringRecoveryGuide = "https://github.com/device-management-toolkit/console/wiki/ADR-Centralize-secret-storage-and-harden-admin-credentials-Architecture"
 )
 
 var (
-	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete both device-management-toolkit entries and restart; see " + keyringRecoveryGuide + " for OS-specific recovery steps")
+	errKeystoreUnavailable     = errors.New("OS keyring is unavailable; ensure a supported keyring is installed, unlocked, and accessible to this user before restarting Console")
+	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete Console's administrator credentials from the OS keyring and restart Console")
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete both device-management-toolkit entries and restart")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
 )
