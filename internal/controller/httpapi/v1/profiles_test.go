@@ -9,10 +9,12 @@ import (
 	"testing"
 
 	"github.com/gin-gonic/gin"
+	"github.com/gin-gonic/gin/binding"
 	"github.com/stretchr/testify/require"
 	gomock "go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
+	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/profiles"
@@ -416,6 +418,55 @@ func TestProfilesUpdatePatchWithoutPasswords(t *testing.T) {
 	require.Equal(t, http.StatusOK, w.Code)
 }
 
+func TestProfilesUpdatePatchRejectsInvalidMergedProfile(t *testing.T) {
+	t.Parallel()
+
+	mockCtl := gomock.NewController(t)
+	repo := mocks.NewMockProfilesRepository(mockCtl)
+	profileWiFi := mocks.NewMockProfileWiFiConfigsFeature(mockCtl)
+
+	repo.EXPECT().GetByName(gomock.Any(), "newprofile", "").Return(&entity.Profile{
+		ProfileName: "newprofile",
+		Activation:  "ccmactivate",
+		AMTPassword: "encrypted",
+	}, nil)
+	profileWiFi.EXPECT().GetByProfileName(gomock.Any(), "newprofile", "").Return(nil, nil)
+
+	log := logger.New("error")
+	useCase := profiles.New(repo, nil, profileWiFi, nil, log, nil, nil, mocks.MockCrypto{}, false)
+	engine := gin.New()
+	NewProfileRoutes(engine.Group("/api/v1/admin"), useCase, log)
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPatch, "/api/v1/admin/profiles", bytes.NewBufferString(`{"profileName":"newprofile","activation":"invalid"}`))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Contains(t, w.Body.String(), "Activation")
+	require.Contains(t, w.Body.String(), "oneof")
+}
+
+func TestProfileRoutesRegisterValidations(t *testing.T) { //nolint:paralleltest // mutates the global Gin validator
+	previousValidator := binding.Validator
+	binding.Validator = ginBindValidator
+
+	t.Cleanup(func() { binding.Validator = previousValidator })
+
+	engine := gin.New()
+	NewProfileRoutes(engine.Group("/api/v1/admin"), nil, logger.New("error"))
+
+	req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBufferString(`{"profileName":"invalid/name","activation":"ccmactivate","amtPassword":"P@ssw0rd"}`))
+	require.NoError(t, err)
+
+	w := httptest.NewRecorder()
+	engine.ServeHTTP(w, req)
+
+	require.Equal(t, http.StatusBadRequest, w.Code)
+	require.Contains(t, w.Body.String(), "profilename")
+}
+
 func TestProfilesGetUsesTenantHeader(t *testing.T) {
 	t.Parallel()
 
@@ -491,7 +542,7 @@ func TestProfilesInsertWithoutPasswordFails(t *testing.T) {
 
 			profileFeature.EXPECT().
 				Insert(gomock.Any(), gomock.Any()).
-				Return(nil, profiles.ErrNotValid.Wrap("Insert", "validateProfileCreate", tc.wantErr))
+				Return(nil, profiles.ErrNotValid.Wrap("Insert", "validateProfilePasswords", tc.wantErr))
 
 			req, err := http.NewRequestWithContext(context.Background(), http.MethodPost, "/api/v1/admin/profiles", bytes.NewBuffer([]byte(tc.body)))
 			require.NoError(t, err)

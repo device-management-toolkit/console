@@ -8,6 +8,7 @@ import (
 	"go.uber.org/mock/gomock"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	local "github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity"
@@ -31,13 +32,13 @@ type test struct {
 	err         error
 }
 
-func profilesTest(t *testing.T) (*profiles.UseCase, *mocks.MockProfilesRepository, *mocks.MockWiFiConfigsRepository, *mocks.MockProfileWiFiConfigsFeature) {
+func profilesTest(t *testing.T, cryptors ...security.Cryptor) (*profiles.UseCase, *mocks.MockProfilesRepository, *mocks.MockWiFiConfigsRepository, *mocks.MockProfileWiFiConfigsFeature) {
 	t.Helper()
 
-	return newProfilesTest(t, false)
+	return newProfilesTest(t, false, cryptors...)
 }
 
-func newProfilesTest(t *testing.T, disableCIRA bool) (*profiles.UseCase, *mocks.MockProfilesRepository, *mocks.MockWiFiConfigsRepository, *mocks.MockProfileWiFiConfigsFeature) {
+func newProfilesTest(t *testing.T, disableCIRA bool, cryptors ...security.Cryptor) (*profiles.UseCase, *mocks.MockProfilesRepository, *mocks.MockWiFiConfigsRepository, *mocks.MockProfileWiFiConfigsFeature) {
 	t.Helper()
 
 	mockCtl := gomock.NewController(t)
@@ -49,11 +50,32 @@ func newProfilesTest(t *testing.T, disableCIRA bool) (*profiles.UseCase, *mocks.
 	ieeeMock := mocks.NewMockIEEE8021xConfigsFeature(mockCtl)
 	domains := mocks.NewMockDomainsFeature(mockCtl)
 	cira := mocks.NewMockCIRAConfigsRepository(mockCtl)
-	security := mocks.MockCrypto{}
+
+	var cryptor security.Cryptor = mocks.MockCrypto{}
+	if len(cryptors) > 0 {
+		cryptor = cryptors[0]
+	}
+
 	log := logger.New("error")
-	useCase := profiles.New(repo, wificonfigs, profilewificonfigs, ieeeMock, log, domains, cira, security, disableCIRA)
+	useCase := profiles.New(repo, wificonfigs, profilewificonfigs, ieeeMock, log, domains, cira, cryptor, disableCIRA)
 
 	return useCase, repo, wificonfigs, profilewificonfigs
+}
+
+type profilePatchCrypto struct {
+	mocks.MockCrypto
+}
+
+func (profilePatchCrypto) Decrypt(value string) (string, error) {
+	if value == "" {
+		return "", nil
+	}
+
+	return "P@ssw0rd", nil
+}
+
+func (profilePatchCrypto) Encrypt(value string) (string, error) {
+	return "encrypted:" + value, nil
 }
 
 func TestGetCount(t *testing.T) {
@@ -449,34 +471,129 @@ func TestUpdatePartialPatchMergesWithExisting(t *testing.T) {
 		ProfileName:    "example-profile",
 		TenantID:       tenantID,
 		Activation:     "acmactivate",
-		AMTPassword:    "encrypted",
-		MEBXPassword:   "encrypted",
+		AMTPassword:    "encrypted:P@ssw0rd",
+		MEBXPassword:   "encrypted:P@ssw0rd",
 		CIRAConfigName: &oldCira,
 		Tags:           "alpha",
 		DHCPEnabled:    true,
 		KVMEnabled:     true,
 	}
 
-	useCase, repo, _, profilewifi := profilesTest(t)
+	wifiConfig := dto.ProfileWiFiConfigs{
+		Priority:            1,
+		ProfileName:         "example-profile",
+		WirelessProfileName: "wireless-profile",
+		TenantID:            tenantID,
+	}
+	useCase, repo, wifi, profilewifi := profilesTest(t, profilePatchCrypto{})
 
 	repo.EXPECT().
 		GetByName(context.Background(), "example-profile", tenantID).
 		Return(oldEntity, nil)
 	profilewifi.EXPECT().
 		GetByProfileName(context.Background(), "example-profile", tenantID).
-		Return(nil, nil)
+		Return([]dto.ProfileWiFiConfigs{wifiConfig}, nil)
+	wifi.EXPECT().
+		CheckProfileExists(context.Background(), "wireless-profile", tenantID).
+		Return(true, nil)
 	repo.EXPECT().
 		Update(context.Background(), expected).
 		Return(true, nil)
 	profilewifi.EXPECT().
 		DeleteByProfileName(context.Background(), "example-profile", tenantID).
 		Return(nil)
+	profilewifi.EXPECT().Insert(context.Background(), &wifiConfig).Return(nil)
 	repo.EXPECT().
 		GetByName(context.Background(), "example-profile", tenantID).
 		Return(oldEntity, nil)
 
 	_, err := useCase.Update(context.Background(), payload, fields)
 	require.NoError(t, err)
+}
+
+func TestUpdatePartialPatchRejectsInvalidActivation(t *testing.T) {
+	t.Parallel()
+
+	useCase, repo, _, profileWiFi := profilesTest(t)
+	repo.EXPECT().GetByName(context.Background(), "example-profile", "tenant-id").Return(&entity.Profile{
+		ProfileName:            "example-profile",
+		TenantID:               "tenant-id",
+		Activation:             "ccmactivate",
+		GenerateRandomPassword: true,
+	}, nil)
+	profileWiFi.EXPECT().GetByProfileName(context.Background(), "example-profile", "tenant-id").Return(nil, nil)
+
+	_, err := useCase.Update(context.Background(), &dto.Profile{
+		ProfileName: "example-profile",
+		TenantID:    "tenant-id",
+		Activation:  "activate",
+	}, map[string]bool{"activation": true})
+
+	require.Error(t, err)
+}
+
+func TestUpdatePartialPatchValidatesMergedProfile(t *testing.T) {
+	t.Parallel()
+
+	ciraName := "cira"
+	ieeeName := "wired"
+	authProtocol := 2
+	wiredInterface := true
+	tests := []struct {
+		name   string
+		stored func(*entity.Profile)
+		wifi   []dto.ProfileWiFiConfigs
+		patch  dto.Profile
+		fields map[string]bool
+		want   string
+	}{
+		{name: "weak AMT password", patch: dto.Profile{AMTPassword: "Intel123"}, fields: map[string]bool{"amtpassword": true}, want: "amtpasswordcomplexity"},
+		{name: "weak MEBx password", patch: dto.Profile{MEBXPassword: "Intel123"}, fields: map[string]bool{"mebxpassword": true}, want: "amtpasswordcomplexity"},
+		{name: "missing AMT password", stored: func(profile *entity.Profile) { profile.AMTPassword = "" }, patch: dto.Profile{KVMEnabled: true}, fields: map[string]bool{"kvmenabled": true}, want: "amtPassword is required"},
+		{name: "missing MEBx password after ACM switch", patch: dto.Profile{Activation: "acmactivate"}, fields: map[string]bool{"activation": true}, want: "mebxPassword is required"},
+		{name: "stored CIRA and TLS", stored: func(profile *entity.Profile) { profile.CIRAConfigName = &ciraName }, patch: dto.Profile{TLSMode: 1}, fields: map[string]bool{"tlsmode": true}, want: "ciraortls"},
+		{name: "TLS above maximum", patch: dto.Profile{TLSMode: 5}, fields: map[string]bool{"tlsmode": true}, want: "max"},
+		{name: "negative TLS", patch: dto.Profile{TLSMode: -1}, fields: map[string]bool{"tlsmode": true}, want: "min"},
+		{name: "populated 802.1x is not PATCH input", stored: func(profile *entity.Profile) {
+			profile.IEEE8021xProfileName = &ieeeName
+			profile.AuthenticationProtocol = &authProtocol
+			profile.WiredInterface = &wiredInterface
+		}, patch: dto.Profile{Activation: "invalid"}, fields: map[string]bool{"activation": true}, want: "oneof"},
+		{name: "DHCP disabled with stored WiFi", wifi: []dto.ProfileWiFiConfigs{{Priority: 1, WirelessProfileName: "office"}}, patch: dto.Profile{DHCPEnabled: false}, fields: map[string]bool{"dhcpenabled": true}, want: "wifidhcp"},
+		{name: "WiFi added with DHCP disabled", stored: func(profile *entity.Profile) { profile.DHCPEnabled = false }, patch: dto.Profile{WiFiConfigs: []dto.ProfileWiFiConfigs{{Priority: 1, WirelessProfileName: "office"}}}, fields: map[string]bool{"wificonfigs": true}, want: "wifidhcp"},
+		{name: "WiFi priority too low", patch: dto.Profile{WiFiConfigs: []dto.ProfileWiFiConfigs{{Priority: 0, WirelessProfileName: "office"}}}, fields: map[string]bool{"wificonfigs": true}, want: "min"},
+		{name: "WiFi priority too high", patch: dto.Profile{WiFiConfigs: []dto.ProfileWiFiConfigs{{Priority: 256, WirelessProfileName: "office"}}}, fields: map[string]bool{"wificonfigs": true}, want: "max"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			stored := &entity.Profile{
+				ProfileName: "example-profile",
+				TenantID:    "tenant-id",
+				AMTPassword: "stored-password",
+				Activation:  "ccmactivate",
+				DHCPEnabled: true,
+			}
+			if tc.stored != nil {
+				tc.stored(stored)
+			}
+
+			tc.patch.ProfileName = stored.ProfileName
+			tc.patch.TenantID = stored.TenantID
+
+			useCase, repo, _, profileWiFi := profilesTest(t, profilePatchCrypto{})
+			repo.EXPECT().GetByName(context.Background(), stored.ProfileName, stored.TenantID).Return(stored, nil)
+			profileWiFi.EXPECT().GetByProfileName(context.Background(), stored.ProfileName, stored.TenantID).Return(tc.wifi, nil)
+
+			_, err := useCase.Update(context.Background(), &tc.patch, tc.fields)
+
+			var invalid dto.NotValidError
+			require.ErrorAs(t, err, &invalid)
+			require.Contains(t, err.Error(), tc.want)
+		})
+	}
 }
 
 func TestUpdateRejectsUnknownIEEE8021xProfile(t *testing.T) {

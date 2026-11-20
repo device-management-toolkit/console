@@ -8,6 +8,53 @@ import (
 	"github.com/stretchr/testify/require"
 )
 
+func TestRegisterProfileValidations(t *testing.T) {
+	t.Parallel()
+
+	ciraName := "cira"
+	tests := []struct {
+		name   string
+		change func(*Profile)
+		tag    string
+	}{
+		{name: "valid profile"},
+		{name: "profile name", change: func(profile *Profile) { profile.ProfileName = "bad/name" }, tag: "profilename"},
+		{name: "password complexity", change: func(profile *Profile) { profile.AMTPassword = "Intel123" }, tag: "amtpasswordcomplexity"},
+		{name: "password and random generation", change: func(profile *Profile) { profile.GenerateRandomPassword = true }, tag: "genpasswordwone"},
+		{name: "CIRA and TLS", change: func(profile *Profile) { profile.CIRAConfigName = &ciraName; profile.TLSMode = 1 }, tag: "ciraortls"},
+		{name: "WiFi and DHCP", change: func(profile *Profile) {
+			profile.DHCPEnabled = false
+			profile.WiFiConfigs = []ProfileWiFiConfigs{{Priority: 1}}
+		}, tag: "wifidhcp"},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			validate := validator.New()
+			validate.SetTagName("binding")
+			require.NoError(t, RegisterProfileValidations(validate))
+
+			profile := Profile{ProfileName: "profile", Activation: ActivationCCM, AMTPassword: "P@ssw0rd", DHCPEnabled: true}
+			if tc.change != nil {
+				tc.change(&profile)
+			}
+
+			err := validate.Struct(&profile)
+			if tc.tag == "" {
+				require.NoError(t, err)
+
+				return
+			}
+
+			var validationErrors validator.ValidationErrors
+			require.ErrorAs(t, err, &validationErrors)
+			require.Equal(t, tc.tag, validationErrors[0].Tag())
+		})
+	}
+}
+
 func TestValidateProfileName(t *testing.T) {
 	t.Parallel()
 
