@@ -439,7 +439,10 @@ func writeConfig(configPath string, cfg *Config) error {
 	return encoder.Encode(cfg)
 }
 
-// SaveAdminPassword persists the config backend's generated password.
+// SaveAdminPassword persists adminPassword to auth.adminPassword in config.yml
+// without touching any other field. It re-reads the file directly (bypassing the
+// env-var overlay applied by cleanenv) so env-only secrets like APP_ENCRYPTION_KEY,
+// SECRETS_TOKEN, DB_URL, EA_PASSWORD, and AUTH_JWT_KEY cannot leak to disk.
 func SaveAdminPassword(adminPassword string) error {
 	var configPathFlag string
 	if f := flag.Lookup("config"); f != nil {
