@@ -408,7 +408,7 @@ func readOrInitConfig(configPath string, cfg *Config) error {
 	}
 
 	var pathErr *os.PathError
-	if errors.As(err, &pathErr) && os.IsNotExist(err) {
+	if errors.As(err, &pathErr) {
 		return writeConfig(configPath, cfg)
 	}
 
