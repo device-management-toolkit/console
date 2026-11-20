@@ -137,6 +137,8 @@ func setupAuthBootstrap(cfg *config.Config, log logger.Interface) (*authsetup.Ma
 		cfg.SetupToken = manager.SetupToken()
 	}
 
+	log.Info("app - Run - administrator setup required; open " + cfg.SetupAPIBase + "/setup to configure credentials")
+
 	server := httpserver.New(
 		httpapi.NewLocalSetupHandler(cfg, log, manager),
 		httpserver.Listener(listener),

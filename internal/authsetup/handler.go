@@ -10,10 +10,11 @@ import (
 )
 
 const (
-	setupStatusPath = "/api/v1/auth/setup/status"
-	setupPath       = "/api/v1/auth/setup"
-	maxSetupBody    = 16 * 1024
-	responseCodeKey = "code"
+	setupStatusPath   = "/api/v1/auth/setup/status"
+	setupPath         = "/api/v1/auth/setup"
+	setupRedirectPath = "/setup/redirect"
+	maxSetupBody      = 16 * 1024
+	responseCodeKey   = "code"
 )
 
 type setupRequest struct {
@@ -27,6 +28,7 @@ func NewHandler(manager *Manager) http.Handler {
 	mux := http.NewServeMux()
 	mux.HandleFunc(setupStatusPath, handleSetupStatus(manager))
 	mux.HandleFunc(setupPath, handleSetup(manager))
+	mux.HandleFunc(setupRedirectPath, handleSetupRedirect(manager))
 
 	return mux
 }
@@ -89,6 +91,27 @@ func handleSetup(manager *Manager) http.HandlerFunc {
 
 		err := manager.Bootstrap(request.Token, request.Username, request.Password, request.ConfirmPassword)
 		writeSetupResult(w, err)
+	}
+}
+
+// handleSetupRedirect lets launchBrowser open a token-free URL instead of
+// passing the setup token as a CLI argument, where it would be visible to
+// any local user via the process list. The token only appears in the
+// Location header of this loopback-only response and the resulting
+// browser address bar, matching the exposure the setup page already has.
+func handleSetupRedirect(manager *Manager) http.HandlerFunc {
+	return func(w http.ResponseWriter, r *http.Request) {
+		if !allowLoopbackRequest(w, r) {
+			return
+		}
+
+		if r.Method != http.MethodGet {
+			w.WriteHeader(http.StatusMethodNotAllowed)
+
+			return
+		}
+
+		http.Redirect(w, r, "/setup#"+url.QueryEscape(manager.SetupToken()), http.StatusFound)
 	}
 }
 

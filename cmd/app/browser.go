@@ -6,7 +6,6 @@ import (
 	"context"
 	"log"
 	"net"
-	"net/url"
 	"os/exec"
 	"runtime"
 
@@ -24,8 +23,13 @@ func launchBrowser(cfg *config.Config) {
 	browserURL := scheme + "://" + net.JoinHostPort(host, cfg.Port)
 
 	logURL := browserURL
+
+	// The setup token is deliberately not embedded here: it would be visible
+	// to any local user via the process list for the launched browser. The
+	// loopback-only /setup/redirect handler looks it up server-side and
+	// redirects the browser to the token-bearing URL instead.
 	if cfg.SetupToken != "" && cfg.SetupAPIBase != "" {
-		browserURL = cfg.SetupAPIBase + "/setup#" + url.QueryEscape(cfg.SetupToken)
+		browserURL = cfg.SetupAPIBase + "/setup/redirect"
 		logURL = cfg.SetupAPIBase + "/setup"
 	}
 

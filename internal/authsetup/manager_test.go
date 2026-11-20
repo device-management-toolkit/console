@@ -193,6 +193,27 @@ func TestSetupHandlerRejectsNonLoopbackAndReportsAlreadyCompleted(t *testing.T) 
 	require.True(t, errors.Is(manager.Bootstrap(manager.SetupToken(), "admin", "Str0ng-password!", "Str0ng-password!"), ErrAlreadyConfigured))
 }
 
+func TestSetupRedirectRejectsNonLoopbackAndRedirectsWithToken(t *testing.T) {
+	t.Parallel()
+
+	store := &testCredentialStore{values: map[string]string{}}
+	manager := newTestManager(t, SecretBackendKeyring, filepath.Join(t.TempDir(), "auth-state.db"), store)
+	handler := NewHandler(manager)
+
+	req := httptest.NewRequest(http.MethodGet, setupRedirectPath, http.NoBody)
+	req.RemoteAddr = "192.0.2.1:1234"
+	response := httptest.NewRecorder()
+	handler.ServeHTTP(response, req)
+	require.Equal(t, http.StatusForbidden, response.Code)
+
+	req = httptest.NewRequest(http.MethodGet, setupRedirectPath, http.NoBody)
+	req.RemoteAddr = "127.0.0.1:1234"
+	response = httptest.NewRecorder()
+	handler.ServeHTTP(response, req)
+	require.Equal(t, http.StatusFound, response.Code)
+	require.Equal(t, "/setup#"+manager.SetupToken(), response.Header().Get("Location"))
+}
+
 func TestSetupHandlerValidatesMethodsOriginsAndPayloads(t *testing.T) {
 	t.Parallel()
 
