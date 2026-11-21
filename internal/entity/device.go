@@ -30,6 +30,18 @@ type Device struct {
 	Discovered  *bool  `bson:"discovered"`
 }
 
+// DeviceState narrows a device query to one tab of the device list.
+type DeviceState string
+
+const (
+	// DeviceStateAny applies no state filter.
+	DeviceStateAny DeviceState = ""
+	// DeviceStateActivated matches managed devices: anything not left in Discovered.
+	DeviceStateActivated DeviceState = "activated"
+	// DeviceStateDiscovered matches devices found by discovery and not yet moved to Managed.
+	DeviceStateDiscovered DeviceState = "discovered"
+)
+
 type Explorer struct {
 	XMLInput  string
 	XMLOutput string
