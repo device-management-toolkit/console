@@ -213,10 +213,10 @@ func (uc *UseCase) GetDistinctTags(ctx context.Context, tenantID string) ([]stri
 	return allTags, nil
 }
 
-func (uc *UseCase) GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error) {
+func (uc *UseCase) GetByTags(ctx context.Context, tags, method string, state entity.DeviceState, limit, offset int, tenantID string) ([]dto.Device, error) {
 	splitTags := strings.Split(tags, ",")
 
-	data, err := uc.repo.GetByTags(ctx, splitTags, method, limit, offset, tenantID)
+	data, err := uc.repo.GetByTags(ctx, splitTags, method, state, limit, offset, tenantID)
 	if err != nil {
 		return nil, fmt.Errorf("DevicesUseCase - GetByTags - uc.repo.GetByTags: %w", err)
 	}

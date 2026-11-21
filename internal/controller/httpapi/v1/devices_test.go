@@ -17,6 +17,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
+	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
@@ -142,6 +143,36 @@ func TestDevicesRoutes(t *testing.T) {
 				}}, nil)
 			},
 			response:     []dto.Device{{GUID: "guid", MPSUsername: "mpsusername", Username: "admin", Password: "password", ConnectionStatus: true, Hostname: "hostname"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get devices by tags",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?tags=lab",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetByTags(context.Background(), "lab", "", entity.DeviceStateAny, 25, 0, "").Return([]dto.Device{{GUID: "guid"}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get activated devices by tags",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?tags=lab&activated=true",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetByTags(context.Background(), "lab", "", entity.DeviceStateActivated, 25, 0, "").Return([]dto.Device{{GUID: "guid"}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid"}},
+			expectedCode: http.StatusOK,
+		},
+		{
+			name:   "get discovered devices by tags",
+			method: http.MethodGet,
+			url:    "/api/v1/devices?tags=lab&discovered=true&method=AND",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				device.EXPECT().GetByTags(context.Background(), "lab", "AND", entity.DeviceStateDiscovered, 25, 0, "").Return([]dto.Device{{GUID: "guid"}}, nil)
+			},
+			response:     []dto.Device{{GUID: "guid"}},
 			expectedCode: http.StatusOK,
 		},
 		{

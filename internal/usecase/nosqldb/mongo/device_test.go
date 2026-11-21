@@ -275,7 +275,7 @@ func TestDeviceRepo_GetByTags_OR(t *testing.T) {
 
 	repo := mongo.NewDeviceRepo(db)
 
-	rows, err := repo.GetByTags(context.Background(), []string{"lab"}, "OR", 10, 0, "t1")
+	rows, err := repo.GetByTags(context.Background(), []string{"lab"}, "OR", entity.DeviceStateAny, 10, 0, "t1")
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 	require.Equal(t, "g1", rows[0].GUID)
@@ -295,7 +295,7 @@ func TestDeviceRepo_GetByTags_AND(t *testing.T) {
 
 	repo := mongo.NewDeviceRepo(db)
 
-	rows, err := repo.GetByTags(context.Background(), []string{"lab", "gpu"}, "AND", 10, 0, "t1")
+	rows, err := repo.GetByTags(context.Background(), []string{"lab", "gpu"}, "AND", entity.DeviceStateAny, 10, 0, "t1")
 	require.NoError(t, err)
 	require.Len(t, rows, 1)
 }

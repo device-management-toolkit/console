@@ -13,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi/middleware"
+	"github.com/device-management-toolkit/console/internal/entity"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
@@ -130,8 +131,7 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	tags := c.Query("tags")
 	hostname := c.Query("hostname")
 	friendlyName := c.Query("friendlyName")
-	activated := c.Query("activated")
-	discovered := c.Query("discovered")
+	state := deviceState(c.Query("activated"), c.Query("discovered"))
 
 	var items []dto.Device
 
@@ -142,20 +142,20 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 
 	switch {
 	case hostname != "":
-		items, err = dr.getByColumnOrTags(c, "HostName", hostname, odata.Top, odata.Skip, tenantID)
+		items, err = dr.t.GetByColumn(ctx, "HostName", hostname, tenantID)
 
 	case friendlyName != "":
-		items, err = dr.getByColumnOrTags(c, "FriendlyName", friendlyName, odata.Top, odata.Skip, tenantID)
+		items, err = dr.t.GetByColumn(ctx, "FriendlyName", friendlyName, tenantID)
 
 	case tags != "":
-		items, err = dr.getByColumnOrTags(c, "Tags", tags, odata.Top, odata.Skip, tenantID)
+		items, err = dr.t.GetByTags(ctx, tags, c.Query("method"), state, odata.Top, odata.Skip, tenantID)
 
 	// "activated" means managed: any device not left in Discovered, including
 	// legacy devices with no discovery information.
-	case activated == "true":
+	case state == entity.DeviceStateActivated:
 		items, err = dr.t.GetActivated(ctx, odata.Top, odata.Skip, tenantID)
 
-	case discovered == "true":
+	case state == entity.DeviceStateDiscovered:
 		items, err = dr.t.GetDiscovered(ctx, odata.Top, odata.Skip, tenantID)
 
 	default:
@@ -189,23 +189,17 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 	}
 }
 
-func (dr *deviceRoutes) getByColumnOrTags(c *gin.Context, column, value string, limit, skip int, tenantID string) ([]dto.Device, error) {
-	var items []dto.Device
-
-	var err error
-
-	ctx := c.Request.Context()
-	if column == "Tags" {
-		items, err = dr.t.GetByTags(ctx, value, c.Query("method"), limit, skip, tenantID)
-	} else {
-		items, err = dr.t.GetByColumn(ctx, column, value, tenantID)
+// deviceState maps the activated/discovered query flags to a state filter.
+// activated wins when both are set, matching the switch in get.
+func deviceState(activated, discovered string) entity.DeviceState {
+	switch {
+	case activated == "true":
+		return entity.DeviceStateActivated
+	case discovered == "true":
+		return entity.DeviceStateDiscovered
+	default:
+		return entity.DeviceStateAny
 	}
-
-	if err != nil {
-		return nil, err
-	}
-
-	return items, nil
 }
 
 func (dr *deviceRoutes) getByID(c *gin.Context) {
