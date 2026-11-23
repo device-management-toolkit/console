@@ -3,6 +3,7 @@ package cira
 import (
 	"errors"
 	"net"
+	"strings"
 	"testing"
 	"time"
 
@@ -12,6 +13,7 @@ import (
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
 
+	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase/devices"
 	"github.com/device-management-toolkit/console/internal/usecase/devices/wsman"
@@ -217,6 +219,109 @@ func verifyConnectionRemoved(t *testing.T, authenticated bool, deviceID string) 
 
 		assert.False(t, exists, "Connection should be removed from map")
 	}
+}
+
+// Username mismatches aren't covered by the TestOnAuthRequest* cases in
+// handler_test.go, which only exercise a bad password.
+func TestAPFHandler_validateCredentials_UsernameMismatch(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+	mockDevices.EXPECT().GetByGUID(gomock.Any(), "device-123", true).Return(&dto.Device{
+		MPSUsername: "admin",
+		MPSPassword: "s3cret",
+	}, nil).AnyTimes()
+
+	handler := NewAPFHandler(mockDevices, logger.New("debug"))
+	require.NoError(t, handler.OnProtocolVersion(apf.ProtocolVersionInfo{UUID: "DEVICE-123"}))
+
+	assert.False(t, handler.validateCredentials("wrong-user", "s3cret"))
+	assert.False(t, handler.validateCredentials("wrong-user", "wrong-pass"))
+}
+
+// Candidates shorter and longer than the stored credential must still be
+// rejected without taking a different code path based on length, since
+// subtle.ConstantTimeCompare alone returns early on a length mismatch.
+func TestAPFHandler_validateCredentials_DifferingLengthCandidates(t *testing.T) {
+	t.Parallel()
+
+	ctrl := gomock.NewController(t)
+	mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+	mockDevices.EXPECT().GetByGUID(gomock.Any(), "device-123", true).Return(&dto.Device{
+		MPSUsername: "admin",
+		MPSPassword: "s3cret",
+	}, nil).AnyTimes()
+
+	handler := NewAPFHandler(mockDevices, logger.New("debug"))
+	require.NoError(t, handler.OnProtocolVersion(apf.ProtocolVersionInfo{UUID: "DEVICE-123"}))
+
+	assert.False(t, handler.validateCredentials("admin", "s3cre"))
+	assert.False(t, handler.validateCredentials("admin", "s3cret-and-more"))
+	assert.False(t, handler.validateCredentials("adm", "s3cret"))
+	assert.False(t, handler.validateCredentials("admin-and-more", "s3cret"))
+	assert.False(t, handler.validateCredentials("", ""))
+}
+
+// Values at or beyond maxCredentialLen must never authenticate, even when
+// they share every byte within the bound with the stored credential, since
+// truncating instead of rejecting them would let such a prefix collide.
+func TestAPFHandler_validateCredentials_OverLengthBoundRejected(t *testing.T) {
+	t.Parallel()
+
+	longPassword := strings.Repeat("a", maxCredentialLen+1)
+	samePrefix := strings.Repeat("a", maxCredentialLen)
+
+	ctrl := gomock.NewController(t)
+	mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+	mockDevices.EXPECT().GetByGUID(gomock.Any(), "device-123", true).Return(&dto.Device{
+		MPSUsername: "admin",
+		MPSPassword: longPassword,
+	}, nil).AnyTimes()
+
+	handler := NewAPFHandler(mockDevices, logger.New("debug"))
+	require.NoError(t, handler.OnProtocolVersion(apf.ProtocolVersionInfo{UUID: "DEVICE-123"}))
+
+	assert.False(t, handler.validateCredentials("admin", samePrefix))
+	assert.False(t, handler.validateCredentials("admin", longPassword))
+}
+
+func TestAPFHandler_validateCredentials_FailurePaths(t *testing.T) {
+	t.Parallel()
+
+	t.Run("device id not set", func(t *testing.T) {
+		t.Parallel()
+
+		handler := NewAPFHandler(nil, logger.New("error"))
+
+		assert.False(t, handler.validateCredentials("admin", "s3cret"))
+	})
+
+	t.Run("lookup error", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+		mockDevices.EXPECT().GetByGUID(gomock.Any(), "dev-err", true).Return(nil, errors.New("db error"))
+
+		handler := NewAPFHandler(mockDevices, logger.New("error"))
+		handler.deviceID = "dev-err"
+
+		assert.False(t, handler.validateCredentials("admin", "s3cret"))
+	})
+
+	t.Run("device not found", func(t *testing.T) {
+		t.Parallel()
+
+		ctrl := gomock.NewController(t)
+		mockDevices := mocks.NewMockDeviceManagementFeature(ctrl)
+		mockDevices.EXPECT().GetByGUID(gomock.Any(), "dev-missing", true).Return(nil, nil)
+
+		handler := NewAPFHandler(mockDevices, logger.New("error"))
+		handler.deviceID = "dev-missing"
+
+		assert.False(t, handler.validateCredentials("admin", "s3cret"))
+	})
 }
 
 // fakeConn is a minimal net.Conn implementation for tests.

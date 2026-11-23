@@ -2,6 +2,7 @@ package cira
 
 import (
 	"context"
+	"crypto/subtle"
 	"strings"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
@@ -102,22 +103,60 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 		return false
 	}
 
-	// Compare credentials
-	// MPSUsername is the field used for CIRA authentication
-	if device.MPSUsername != username {
-		h.log.Debug("Username mismatch for device %s", h.deviceID)
+	// Both comparisons always run, over fixed-size digests, so the response time
+	// does not reveal which field failed or the length of the stored credential.
+	// MPSUsername is the field used for CIRA authentication.
+	usernameMatches := constantTimeEqual(device.MPSUsername, username)
+	passwordMatches := constantTimeEqual(device.MPSPassword, password)
 
-		return false
-	}
-
-	// Compare password
-	if device.MPSPassword != password {
-		h.log.Debug("Password mismatch for device %s", h.deviceID)
+	if usernameMatches&passwordMatches != 1 {
+		h.log.Debug("Credential mismatch for device %s", h.deviceID)
 
 		return false
 	}
 
 	return true
+}
+
+// maxCredentialLen bounds the buffers constantTimeEqual compares. MPS
+// usernames/passwords are short operator-chosen or generated strings, so this
+// is far larger than any legitimate value while still keeping the comparison
+// cost fixed.
+const maxCredentialLen = 256
+
+// constantTimeEqual reports whether a and b are equal without leaking their
+// length or content through timing. subtle.ConstantTimeCompare alone returns
+// early on a length mismatch, so both values are first copied into fixed-size
+// buffers and the lengths are compared separately in constant time. Truncating
+// to maxCredentialLen would let two values longer than the bound that share
+// that prefix compare equal, so any value over the bound is rejected outright
+// rather than silently truncated.
+func constantTimeEqual(a, b string) int {
+	withinBound := subtle.ConstantTimeLessOrEq(len(a), maxCredentialLen) &
+		subtle.ConstantTimeLessOrEq(len(b), maxCredentialLen)
+
+	lenEqual := subtle.ConstantTimeEq(clampedLen(a), clampedLen(b))
+
+	bufA := make([]byte, maxCredentialLen)
+	bufB := make([]byte, maxCredentialLen)
+
+	copy(bufA, a)
+	copy(bufB, b)
+
+	contentEqual := subtle.ConstantTimeCompare(bufA, bufB)
+
+	return withinBound & lenEqual & contentEqual
+}
+
+// clampedLen returns the length of s capped at maxCredentialLen, which keeps
+// the int -> int32 conversion below always in range.
+func clampedLen(s string) int32 {
+	n := len(s)
+	if n > maxCredentialLen {
+		n = maxCredentialLen
+	}
+
+	return int32(n)
 }
 
 // OnGlobalRequest is called when an APF_GLOBAL_REQUEST message is received.
