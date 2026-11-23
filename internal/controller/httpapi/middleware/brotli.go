@@ -3,6 +3,7 @@ package middleware
 import (
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 
 	"github.com/andybalholm/brotli"
@@ -26,13 +27,22 @@ var compressibleExtensions = []string{
 // main.js/styles.css and friends go over the wire uncompressed.
 func Brotli() gin.HandlerFunc {
 	return func(c *gin.Context) {
-		if !strings.Contains(c.GetHeader("Accept-Encoding"), "br") {
+		if !isCompressiblePath(c.Request.URL.Path) {
 			c.Next()
 
 			return
 		}
 
-		if !isCompressiblePath(c.Request.URL.Path) {
+		// Every compressible path varies on Accept-Encoding, including the
+		// identity response, otherwise a cache could hand an uncompressed
+		// copy to a Brotli client or vice versa. Append so that fields set by
+		// earlier middleware (CORS adds Vary: Origin) survive.
+		addVary(c.Writer.Header(), "Accept-Encoding")
+
+		// Range offsets must refer to the bytes of the selected representation.
+		// http.ServeContent slices the uncompressed file, so compressing that
+		// slice would leave Content-Range pointing into the wrong byte stream.
+		if c.GetHeader("Range") != "" || !acceptsBrotli(c.GetHeader("Accept-Encoding")) {
 			c.Next()
 
 			return
@@ -42,7 +52,6 @@ func Brotli() gin.HandlerFunc {
 		defer brWriter.Close()
 
 		c.Header("Content-Encoding", "br")
-		c.Header("Vary", "Accept-Encoding")
 		c.Writer = &brotliResponseWriter{ResponseWriter: c.Writer, writer: brWriter}
 
 		c.Next()
@@ -57,6 +66,60 @@ func isCompressiblePath(path string) bool {
 	}
 
 	return false
+}
+
+// addVary appends value to the Vary header unless it is already listed.
+func addVary(h http.Header, value string) {
+	for _, existing := range h.Values("Vary") {
+		for _, field := range strings.Split(existing, ",") {
+			if strings.EqualFold(strings.TrimSpace(field), value) {
+				return
+			}
+		}
+	}
+
+	h.Add("Vary", value)
+}
+
+// acceptsBrotli parses an Accept-Encoding header (RFC 9110 §12.5.3) and
+// reports whether brotli may be used. An explicit "br" entry wins over a
+// wildcard, and a quality of 0 (e.g. "br;q=0") forbids the encoding.
+func acceptsBrotli(acceptEncoding string) bool {
+	wildcardAllowed := false
+
+	for _, entry := range strings.Split(acceptEncoding, ",") {
+		coding, params, _ := strings.Cut(entry, ";")
+		coding = strings.ToLower(strings.TrimSpace(coding))
+
+		switch coding {
+		case "br":
+			return qualityAllows(params)
+		case "*":
+			wildcardAllowed = qualityAllows(params)
+		}
+	}
+
+	return wildcardAllowed
+}
+
+// qualityAllows returns false only when the parameters carry an explicit q=0
+// weight; absent or malformed weights are treated as acceptable.
+func qualityAllows(params string) bool {
+	for _, param := range strings.Split(params, ";") {
+		name, value, found := strings.Cut(param, "=")
+		if !found || !strings.EqualFold(strings.TrimSpace(name), "q") {
+			continue
+		}
+
+		q, err := strconv.ParseFloat(strings.TrimSpace(value), 64)
+		if err != nil {
+			return true
+		}
+
+		return q > 0
+	}
+
+	return true
 }
 
 // brotliResponseWriter wraps gin.ResponseWriter so writes go through brotli
