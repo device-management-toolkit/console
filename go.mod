@@ -27,11 +27,11 @@ require (
 	github.com/rs/zerolog v1.35.1
 	github.com/stretchr/testify v1.12.1
 	github.com/zsais/go-gin-prometheus v1.0.4
-	go.mongodb.org/mongo-driver/v2 v2.10.0
+	go.mongodb.org/mongo-driver/v2 v2.10.1
 	go.uber.org/mock v0.6.0
 	golang.org/x/mod v0.43.0
 	golang.org/x/sys v0.50.0
-	golang.org/x/term v0.47.0
+	golang.org/x/term v0.48.0
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.62.0
 	software.sslmate.com/src/go-pkcs12 v0.7.4
