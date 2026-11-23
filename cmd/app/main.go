@@ -97,7 +97,7 @@ func main() {
 	l := logger.New(cfg.Level)
 
 	handleEncryptionKey(cfg)
-	handleAdminPassword(cfg)
+	handleAdminCredentials(cfg)
 
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {

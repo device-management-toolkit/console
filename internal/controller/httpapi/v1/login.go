@@ -2,6 +2,7 @@ package v1
 
 import (
 	"context"
+	"crypto/subtle"
 	"crypto/tls"
 	"errors"
 	"fmt"
@@ -16,14 +17,17 @@ import (
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
+	"github.com/device-management-toolkit/console/pkg/secrets"
 )
 
 const (
 	// sessionCookiePath covers both the UI (/) and the API (/api).
 	sessionCookiePath = "/"
 
-	authorizationHeader = "Authorization"
-	bearerPrefix        = "Bearer "
+	authorizationHeader         = "Authorization"
+	bearerPrefix                = "Bearer "
+	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
+	loginFailureError           = "invalid credentials"
 )
 
 var (
@@ -85,15 +89,38 @@ func (lr LoginRoute) Login(c *gin.Context) {
 }
 
 func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
-	if !lr.credentialsAccepted(creds) {
-		c.JSON(http.StatusUnauthorized, gin.H{errorKey: "invalid credentials", messageKey: "Incorrect Username and/or Password!"})
+	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
+	if lr.Config.Disabled {
+		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
 
 		return
 	}
 
-	// Nothing verifies tokens with auth off, and a signed one would still pass once auth is enabled.
-	if lr.Config.Disabled {
-		c.JSON(http.StatusOK, gin.H{tokenKey: ""})
+	if lr.Config.ClientID != "" {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	if lr.Config.AdminPassword == "" {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	var passwordMatches bool
+
+	switch lr.Config.SecretBackend {
+	case "config":
+		passwordMatches = subtle.ConstantTimeCompare([]byte(creds.Password), []byte(lr.Config.AdminPassword)) == 1
+	case "keyring":
+		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
+	}
+
+	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(lr.Config.AdminUsername)) == 1
+
+	if !passwordMatches || !usernameMatches {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
 	}
@@ -122,27 +149,6 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	// Token stays in the body for bearer clients, which ignore Set-Cookie.
 	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
-}
-
-// credentialsAccepted decides whether creds may be issued a token.
-//
-// With auth disabled there is nothing to authenticate against: the JWT
-// middleware is not mounted (see router.go) and validateRedirectionToken
-// short-circuits, so every route is already open. The UI still renders a login
-// form in that mode, so anything it posts is accepted.
-//
-// With auth enabled an empty configured password never matches, otherwise a
-// blank auth.adminPassword would let any caller in with an empty password.
-func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
-	if lr.Config.Disabled {
-		return true
-	}
-
-	if lr.Config.AdminPassword == "" {
-		return false
-	}
-
-	return creds.Username == lr.Config.AdminUsername && creds.Password == lr.Config.AdminPassword
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can
