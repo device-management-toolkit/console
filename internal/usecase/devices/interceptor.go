@@ -45,6 +45,7 @@ type DeviceConnection struct {
 	cancel        context.CancelFunc
 	lastActivity  time.Time
 	lastDataRecv  time.Time // Track last data received from device
+	lastDataSent  time.Time // Track last data forwarded to device (e.g. SOL keep-alives)
 	mu            sync.RWMutex
 	healthTicker  *time.Ticker
 }
@@ -376,6 +377,10 @@ func (uc *UseCase) ListenToBrowser(deviceConnection *DeviceConnection) {
 
 			return
 		}
+
+		deviceConnection.mu.Lock()
+		deviceConnection.lastDataSent = time.Now()
+		deviceConnection.mu.Unlock()
 	}
 }
 
@@ -390,12 +395,9 @@ func (uc *UseCase) MonitorConnectionHealth(deviceConnection *DeviceConnection, k
 		case <-deviceConnection.ctx.Done():
 			return
 		case <-deviceConnection.healthTicker.C:
-			deviceConnection.mu.RLock()
-			lastDataTime := deviceConnection.lastDataRecv
-			deviceConnection.mu.RUnlock()
-
-			// Check if device has been inactive for too long
-			if time.Since(lastDataTime) > InactivityTimeout {
+			// AMT stays silent while a SOL console is idle (e.g. a static BIOS menu),
+			// so only close when there has been no traffic in either direction.
+			if time.Since(deviceConnection.lastTraffic()) > InactivityTimeout {
 				// Device appears unresponsive, force close connection
 				deviceConnection.cancel()
 
@@ -407,6 +409,18 @@ func (uc *UseCase) MonitorConnectionHealth(deviceConnection *DeviceConnection, k
 			}
 		}
 	}
+}
+
+// lastTraffic returns when data last flowed between browser and device in either direction.
+func (dc *DeviceConnection) lastTraffic() time.Time {
+	dc.mu.RLock()
+	defer dc.mu.RUnlock()
+
+	if dc.lastDataSent.After(dc.lastDataRecv) {
+		return dc.lastDataSent
+	}
+
+	return dc.lastDataRecv
 }
 
 func processBrowserData(msg []byte, challenge *client.AuthChallenge) []byte {
