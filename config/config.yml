@@ -3,6 +3,9 @@ app:
   repo: device-management-toolkit/console
   version: DEVELOPMENT
   encryption_key: ""
+  # Offers non-forward-secret RSA cipher suites to older AMT generations, both
+  # on the CIRA listener (:4433) and on outbound WSMAN connections. Leave false
+  # unless a device fails to negotiate TLS without them.
   allow_insecure_ciphers: false
 http:
   host: localhost
