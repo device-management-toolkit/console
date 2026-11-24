@@ -422,7 +422,7 @@ func (r *DeviceRepo) GetDistinctTags(_ context.Context, tenantID string) ([]stri
 	return tags, nil
 }
 
-func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error) {
+func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, state entity.DeviceState, limit, offset int, tenantID string) ([]entity.Device, error) {
 	builder := r.Builder.
 		Select("guid",
 			"hostname",
@@ -453,6 +453,15 @@ func (r *DeviceRepo) GetByTags(_ context.Context, tags []string, method string, 
 		tagsCondition := strings.Join(conditions, " OR ")
 
 		builder = builder.Where("("+tagsCondition+") AND tenantId = ?", append(params, tenantID)...)
+	}
+
+	switch state {
+	case entity.DeviceStateActivated:
+		builder = builder.Where(activatedWhere)
+	case entity.DeviceStateDiscovered:
+		builder = builder.Where(discoveredWhere, true)
+	case entity.DeviceStateAny:
+		// no state filter
 	}
 
 	limitedLimit := uint64(0)

@@ -725,7 +725,7 @@ func TestDeviceRepo_GetByTags(t *testing.T) {
 
 			repo := sqldb.NewDeviceRepo(sqlConfig, mocks.NewMockLogger(nil))
 
-			devices, err := repo.GetByTags(context.Background(), tc.tags, tc.method, tc.limit, tc.offset, tc.tenantID)
+			devices, err := repo.GetByTags(context.Background(), tc.tags, tc.method, entity.DeviceStateAny, tc.limit, tc.offset, tc.tenantID)
 
 			if (err != nil) != tc.expectError {
 				t.Errorf("Expected error status %v, got %v", tc.expectError, err != nil)
@@ -1529,6 +1529,71 @@ func TestDeviceRepo_GetDiscovered(t *testing.T) {
 	assert.ElementsMatch(t, []string{
 		"guid-empty", "guid-null", "guid-notactivated", "guid-notactivated-caps", "guid-discovered-activated",
 	}, guids)
+}
+
+// seedTaggedDevices inserts rows that share tags but differ in discovery state.
+func seedTaggedDevices(t *testing.T, dbConn *sql.DB) {
+	t.Helper()
+
+	rows := []struct {
+		guid, tenantID, tags string
+		discovered           any
+	}{
+		{"guid-managed", "tenant1", "lab,gpu", false},
+		{"guid-legacy", "tenant1", "lab", nil}, // no discovery information -> managed
+		{"guid-discovered", "tenant1", "lab,gpu", true},
+		{"guid-untagged", "tenant1", "", true},
+		{"guid-othertenant", "tenant2", "lab", true},
+	}
+
+	for _, r := range rows {
+		_, err := dbConn.ExecContext(context.Background(),
+			`INSERT INTO devices (guid, tenantid, tags, deviceinfo, discovered) VALUES (?, ?, ?, ?, ?)`,
+			r.guid, r.tenantID, r.tags, "{}", r.discovered)
+		require.NoError(t, err)
+	}
+}
+
+func TestDeviceRepo_GetByTags_State(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		tags     []string
+		method   string
+		state    entity.DeviceState
+		expected []string
+	}{
+		{"any state, OR", []string{"lab"}, "OR", entity.DeviceStateAny, []string{"guid-managed", "guid-legacy", "guid-discovered"}},
+		{"activated, OR", []string{"lab"}, "OR", entity.DeviceStateActivated, []string{"guid-managed", "guid-legacy"}},
+		{"discovered, OR", []string{"lab"}, "OR", entity.DeviceStateDiscovered, []string{"guid-discovered"}},
+		{"activated, AND", []string{"lab", "gpu"}, "AND", entity.DeviceStateActivated, []string{"guid-managed"}},
+		{"discovered, AND", []string{"lab", "gpu"}, "AND", entity.DeviceStateDiscovered, []string{"guid-discovered"}},
+		{"discovered, OR across tags", []string{"gpu", "lab"}, "OR", entity.DeviceStateDiscovered, []string{"guid-discovered"}},
+	}
+
+	for _, tc := range tests {
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+
+			dbConn := setupDeviceTable(t)
+			defer dbConn.Close()
+
+			seedTaggedDevices(t, dbConn)
+
+			repo := sqldb.NewDeviceRepo(CreateSQLConfig(dbConn, false), mocks.NewMockLogger(nil))
+
+			result, err := repo.GetByTags(context.Background(), tc.tags, tc.method, tc.state, 25, 0, "tenant1")
+			require.NoError(t, err)
+
+			guids := make([]string, len(result))
+			for i, d := range result {
+				guids[i] = d.GUID
+			}
+
+			assert.ElementsMatch(t, tc.expected, guids)
+		})
+	}
 }
 
 func TestDeviceRepo_GetDeviceStateCounts(t *testing.T) {

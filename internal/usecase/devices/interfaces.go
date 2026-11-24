@@ -42,7 +42,7 @@ type (
 		GetByID(ctx context.Context, guid, tenantID string) (*entity.Device, error)
 		GetByGUID(ctx context.Context, guid string) (*entity.Device, error)
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
-		GetByTags(ctx context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error)
+		GetByTags(ctx context.Context, tags []string, method string, state entity.DeviceState, limit, offset int, tenantID string) ([]entity.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) (bool, error)
 		Update(ctx context.Context, d *entity.Device) (bool, error)
 		Insert(ctx context.Context, d *entity.Device) (string, error)
@@ -66,7 +66,7 @@ type (
 		UpdateConnectionStatus(ctx context.Context, guid string, status bool) error
 		UpdateLastSeen(ctx context.Context, guid string) error
 		GetDistinctTags(ctx context.Context, tenantID string) ([]string, error)
-		GetByTags(ctx context.Context, tags, method string, limit, offset int, tenantID string) ([]dto.Device, error)
+		GetByTags(ctx context.Context, tags, method string, state entity.DeviceState, limit, offset int, tenantID string) ([]dto.Device, error)
 		Delete(ctx context.Context, guid, tenantID string) error
 		Update(ctx context.Context, d *dto.Device, fields map[string]bool) (*dto.Device, error)
 		Insert(ctx context.Context, d *dto.Device) (*dto.Device, error)

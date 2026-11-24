@@ -183,7 +183,7 @@ func (r *DeviceRepo) GetDistinctTags(ctx context.Context, tenantID string) ([]st
 	return out, nil
 }
 
-func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string, limit, offset int, tenantID string) ([]entity.Device, error) {
+func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string, state entity.DeviceState, limit, offset int, tenantID string) ([]entity.Device, error) {
 	if tenantID != "" && !identifierRegex.MatchString(tenantID) {
 		return []entity.Device{}, nil
 	}
@@ -202,6 +202,15 @@ func (r *DeviceRepo) GetByTags(ctx context.Context, tags []string, method string
 		} else {
 			filter["$or"] = regexes
 		}
+	}
+
+	switch state {
+	case entity.DeviceStateActivated:
+		filter[opNor] = bson.A{discoveredStateFilter()}
+	case entity.DeviceStateDiscovered:
+		filter[fieldDiscovered] = true
+	case entity.DeviceStateAny:
+		// no state filter
 	}
 
 	// No DefaultTop here — limit<=0 means unbounded (matches sqldb GetByTags).
