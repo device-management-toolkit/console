@@ -5,6 +5,7 @@ import (
 	"errors"
 	"strings"
 
+	"github.com/go-playground/validator/v10"
 	"gopkg.in/yaml.v2"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/config"
@@ -49,9 +50,18 @@ var (
 
 const CIRADisabledHint = "Re-enable CIRA on this instance, or change the connection mode on this profile."
 
-// validateProfileCreate enforces password-required invariants that only apply on
-// POST: PATCH may omit either password to leave the stored value untouched.
-func validateProfileCreate(d *dto.Profile) error {
+var profileValidator = func() *validator.Validate {
+	validate := validator.New()
+	validate.SetTagName("binding")
+
+	if err := dto.RegisterProfileValidations(validate); err != nil {
+		panic(err)
+	}
+
+	return validate
+}()
+
+func validateProfilePasswords(d *dto.Profile) error {
 	if !d.GenerateRandomPassword && d.AMTPassword == "" {
 		return ErrAMTPasswordRequired
 	}
@@ -522,6 +532,17 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 			return nil, err
 		}
 
+		validationProfile := *merged
+		validationProfile.IEEE8021xProfile = nil
+
+		if err := profileValidator.Struct(&validationProfile); err != nil {
+			return nil, ErrNotValid.Wrap("Update", "validateProfile", err)
+		}
+
+		if err := validateProfilePasswords(merged); err != nil {
+			return nil, ErrNotValid.Wrap("Update", "validateProfile", err)
+		}
+
 		d = merged
 	}
 
@@ -568,8 +589,8 @@ func (uc *UseCase) Update(ctx context.Context, d *dto.Profile, fields map[string
 }
 
 func (uc *UseCase) Insert(ctx context.Context, d *dto.Profile) (*dto.Profile, error) {
-	if err := validateProfileCreate(d); err != nil {
-		return nil, ErrNotValid.Wrap("Insert", "validateProfileCreate", err)
+	if err := validateProfilePasswords(d); err != nil {
+		return nil, ErrNotValid.Wrap("Insert", "validateProfilePasswords", err)
 	}
 
 	if err := uc.validateCIRAConfig(d.CIRAConfigName); err != nil {

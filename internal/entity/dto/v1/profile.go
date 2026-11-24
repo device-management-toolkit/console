@@ -53,6 +53,23 @@ type Profile struct {
 	UEFIWiFiSyncEnabled        bool                 `json:"uefiWifiSyncEnabled" example:"true"`
 }
 
+func RegisterProfileValidations(validate *validator.Validate) error {
+	validations := map[string]validator.Func{
+		"genpasswordwone":       ValidateAMTPassOrGenRan,
+		"ciraortls":             ValidateCIRAOrTLS,
+		"wifidhcp":              ValidateWiFiDHCP,
+		"profilename":           ValidateProfileName,
+		"amtpasswordcomplexity": ValidateAMTPasswordComplexity,
+	}
+	for tag, validation := range validations {
+		if err := validate.RegisterValidation(tag, validation); err != nil {
+			return err
+		}
+	}
+
+	return nil
+}
+
 // ValidateProfileName rejects only the characters that break the ":name" routes (profileNameDisallowedChars).
 var ValidateProfileName validator.Func = func(fl validator.FieldLevel) bool {
 	return !strings.ContainsAny(fl.Field().String(), profileNameDisallowedChars)

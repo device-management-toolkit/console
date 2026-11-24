@@ -2826,7 +2826,7 @@
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
 									"    var result = pm.response.json();\r",
-									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'required_if' tag\\nKey: 'Profile.Activation' Error:Field validation for 'Activation' failed on the 'oneof' tag\")\r",
+									"    pm.expect(result.error).to.contain(\"'Activation' failed on the 'oneof' tag\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -2875,7 +2875,7 @@
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
 									"    var result = pm.response.json();\r",
-									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'containsany' tag\")\r",
+									"    pm.expect(result.error).to.contain(\"'AMTPassword' failed on the 'amtpasswordcomplexity' tag\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -3085,7 +3085,7 @@
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
 									"var result = pm.response.json();\r",
-									"pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'required_if' tag\")\r",
+									"pm.expect(result.error).to.contain(\"amtPassword is required when generateRandomPassword is false\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -3378,7 +3378,7 @@
 									"});\r",
 									"pm.test(\"Update (PATCH->edit) should not succeed\", function () {\r",
 									"    var result = pm.response.json();\r",
-									"    pm.expect(result.error).to.eql(\"Invalid input: Key: 'Profile.AMTPassword' Error:Field validation for 'AMTPassword' failed on the 'required_if' tag\\nKey: 'Profile.MEBXPassword' Error:Field validation for 'MEBXPassword' failed on the 'required_if=Activation acmactivate|required_if=GenerateRandomMEBxPassword false' tag\")\r",
+									"    pm.expect(result.error).to.contain(\"mebxPassword is required when activation is acmactivate and generateRandomMEBxPassword is false\")\r",
 									"});"
 								],
 								"type": "text/javascript",
@@ -3396,7 +3396,7 @@
 						],
 						"body": {
 							"mode": "raw",
-							"raw": "{\r\n    \"profileName\": \"profile6\",\r\n    \"activation\": \"acmactivate\",\r\n    \"generateRandomPassword\": false,\r\n    \"generateRandomMEBxPassword\": false\r\n}"
+							"raw": "{\r\n    \"profileName\": \"profile6\",\r\n    \"activation\": \"acmactivate\",\r\n    \"amtPassword\": \"Intel123!\",\r\n    \"generateRandomPassword\": false,\r\n    \"generateRandomMEBxPassword\": false\r\n}"
 						},
 						"url": {
 							"raw": "{{protocol}}://{{host}}/api/v1/admin/profiles/",
@@ -4490,7 +4490,7 @@
 											"});\r",
 											"pm.test(\"Creation should fail\", function () {\r",
 											"    var result = pm.response.json();\r",
-											"    pm.expect(result.error).to.contain(\"'WiFiConfigs' failed on the 'excluded_if' tag\")\r",
+											"    pm.expect(result.error).to.contain(\"'WiFiConfigs' failed on the 'wifidhcp' tag\")\r",
 											"});"
 										],
 										"type": "text/javascript",
@@ -4647,20 +4647,12 @@
 									"listen": "test",
 									"script": {
 										"exec": [
-											"var result = pm.response.json();\r",
-											"pm.globals.set(\"wifiProfileVersion\", result.version);\r",
-											"\r",
-											"pm.test(\"Status code is 200\", function () {\r",
-											"    pm.response.to.have.status(200);\r",
+											"pm.test(\"Status code is 400\", function () {\r",
+											"    pm.response.to.have.status(400);\r",
 											"});\r",
-											"pm.test(\"Creation should succeed\", function () {\r",
+											"pm.test(\"Update should reject stored WiFi configs without DHCP\", function () {\r",
 											"    var result = pm.response.json();\r",
-											"    pm.expect(result.profileName).to.eql(\"wifi-profile\"),\r",
-											"    pm.expect(result.amtPassword).to.match(/^.+$/);\r",
-											"    pm.expect(result.mebxPassword).to.match(/^.+$/);\r",
-											"    pm.expect(result.activation).to.eql(\"ccmactivate\")\r",
-											"    pm.expect(result.tags.length).to.equal(1)\r",
-											"    pm.expect(result.dhcpEnabled).to.equal(false)\r",
+											"    pm.expect(result.error).to.contain(\"'WiFiConfigs' failed on the 'wifidhcp' tag\")\r",
 											"});"
 										],
 										"type": "text/javascript",
@@ -4703,18 +4695,19 @@
 							"response": []
 						},
 						{
-							"name": "Update AMT Profile - with wificonfigs and without DHCP enabled",
+							"name": "Update AMT Profile - with wifiConfigs and DHCP omitted",
 							"event": [
 								{
 									"listen": "test",
 									"script": {
 										"exec": [
-											"pm.test(\"Status code is 400\", function () {\r",
-											"    pm.response.to.have.status(400);\r",
+											"pm.test(\"Status code is 200\", function () {\r",
+											"    pm.response.to.have.status(200);\r",
 											"});\r",
-											"pm.test(\"Creation should fail\", function () {\r",
+											"pm.test(\"Update preserves DHCP and WiFi configs\", function () {\r",
 											"    var result = pm.response.json();\r",
-											"    pm.expect(result.error).to.contain(\"'WiFiConfigs' failed on the 'excluded_if' tag\")\r",
+											"    pm.expect(result.dhcpEnabled).to.equal(true);\r",
+											"    pm.expect(result.wifiConfigs.map(function (wifi) { return wifi.profileName; })).to.have.members([\"home\", \"office\"]);\r",
 											"});"
 										],
 										"type": "text/javascript",
