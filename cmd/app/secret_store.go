@@ -30,14 +30,12 @@ var (
 	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete Console's administrator credentials from the OS keyring and restart Console")
 	errInvalidAdminUsername    = errors.New("administrator username must be 1-64 ASCII letters, digits, dots, underscores, or hyphens, and start with a letter or digit")
 	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
-	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain at least 4 distinct characters")
+	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain a lowercase letter, an uppercase letter, a digit, and a symbol")
 	errAdminPasswordWhitespace = errors.New("administrator password must not have leading or trailing whitespace")
 )
 
 const (
-	minAdminPasswordLength        = 8
-	minAdminPasswordDistinctChars = 4
-	maxPasswordAttempts           = 3
+	maxPasswordAttempts = 3
 )
 
 const maxPasswordConfirmationAttempts = 3
@@ -165,7 +163,7 @@ func promptForAdminPassword(reader *bufio.Reader) (string, error) {
 		switch {
 		case strings.TrimSpace(password) != password:
 			validationErr = errAdminPasswordWhitespace
-		case utf8.RuneCountInString(password) >= minAdminPasswordLength && distinctCharCount(password) >= minAdminPasswordDistinctChars:
+		case isStrongAdminPassword(password):
 			return password, nil
 		default:
 			validationErr = errWeakAdminPassword
@@ -207,15 +205,6 @@ func isValidAdminUsername(username string) bool {
 	}
 
 	return true
-}
-
-func distinctCharCount(s string) int {
-	seen := make(map[rune]struct{})
-	for _, r := range s {
-		seen[r] = struct{}{}
-	}
-
-	return len(seen)
 }
 
 func promptForCredential(reader *bufio.Reader, prompt string) string {
