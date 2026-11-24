@@ -523,7 +523,7 @@ func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
 
 //nolint:paralleltest // temporarily replaces process stdin and stdout
 func TestBootstrapKeyringAdminCredentialsRejectsPasswordMismatch(t *testing.T) {
-	finishStdio := withStdio(t, "admin\nfirst-password\nsecond-password\nsecond-password\nsecond-password\n")
+	finishStdio := withStdio(t, "admin\nFirst-Pass1\nSecond-Pass1\nSecond-Pass1\nSecond-Pass1\n")
 
 	cfg := &config.Config{}
 	store := &mockCredentialStore{values: map[string]string{}}
@@ -538,7 +538,7 @@ func TestBootstrapKeyringAdminCredentialsRejectsPasswordMismatch(t *testing.T) {
 
 //nolint:paralleltest // temporarily replaces process stdin and stdout
 func TestBootstrapKeyringAdminCredentialsRejectsWeakPassword(t *testing.T) {
-	for _, password := range []string{"weak", "aaaaaaaa", "éñøü"} {
+	for _, password := range []string{"weak", "aaaaaaaa", "éñøü", "password", "Password1", "password1!", "PASSWORD1!", "Passwords!"} {
 		t.Run(password, func(t *testing.T) {
 			finishStdio := withStdio(t, "admin\n"+strings.Repeat(password+"\n", maxPasswordAttempts))
 
@@ -557,20 +557,20 @@ func TestBootstrapKeyringAdminCredentialsRejectsWeakPassword(t *testing.T) {
 
 //nolint:paralleltest // temporarily replaces process stdin
 func TestBootstrapKeyringAdminCredentialsRetriesWeakPassword(t *testing.T) {
-	finishStdio := withStdio(t, "admin\nweak\naaaaaaaa\nvalid-password\nvalid-password\n")
+	finishStdio := withStdio(t, "admin\nweak\npassword\nValid-Pass1\nValid-Pass1\n")
 
 	cfg := &config.Config{}
 	store := &mockCredentialStore{values: map[string]string{}}
 	require.NoError(t, bootstrapKeyringAdminCredentials(cfg, store))
 	assert.Equal(t, "admin", cfg.AdminUsername)
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "valid-password"))
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "Valid-Pass1"))
 	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
 	finishStdio()
 }
 
 //nolint:paralleltest // temporarily replaces process stdin and stdout
 func TestBootstrapKeyringAdminCredentialsRetriesInvalidUsername(t *testing.T) {
-	finishStdio := withStdio(t, "\nbad name\nvalid_user\nvalid-password\nvalid-password\n")
+	finishStdio := withStdio(t, "\nbad name\nvalid_user\nValid-Pass1\nValid-Pass1\n")
 	cfg := &config.Config{}
 	store := &mockCredentialStore{values: map[string]string{}}
 
@@ -604,18 +604,18 @@ func TestIsValidAdminUsername(t *testing.T) {
 
 //nolint:paralleltest // temporarily replaces process stdin and stdout
 func TestBootstrapKeyringAdminCredentialsRejectsPasswordWhitespace(t *testing.T) {
-	finishStdio := withStdio(t, "admin\n valid-password\nvalid-password \nvalid-password\nvalid-password\n")
+	finishStdio := withStdio(t, "admin\n Valid-Pass1\nValid-Pass1 \nValid-Pass1\nValid-Pass1\n")
 	cfg := &config.Config{}
 	store := &mockCredentialStore{values: map[string]string{}}
 
 	require.NoError(t, bootstrapKeyringAdminCredentials(cfg, store))
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "valid-password"))
+	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "Valid-Pass1"))
 	finishStdio()
 }
 
 //nolint:paralleltest // temporarily replaces process stdin and stdout
 func TestBootstrapKeyringAdminCredentialsRollsBackUsernameOnPasswordWriteFailure(t *testing.T) {
-	finishStdio := withStdio(t, "admin\nvalid-password\nvalid-password\n")
+	finishStdio := withStdio(t, "admin\nValid-Pass1\nValid-Pass1\n")
 	storeErr := errors.New("keyring write failed")
 	store := &mockCredentialStore{
 		values: map[string]string{},
@@ -714,7 +714,7 @@ func TestBootstrapKeyringAdminCredentialsFailsAfterConfirmationRetries(t *testin
 	oldStdin := os.Stdin
 	reader, writer, err := os.Pipe()
 	require.NoError(t, err)
-	_, err = writer.WriteString("admin\npassword\nwrong-1\nwrong-2\nwrong-3\n")
+	_, err = writer.WriteString("admin\nValid-Pass1\nwrong-1\nwrong-2\nwrong-3\n")
 	require.NoError(t, err)
 	require.NoError(t, writer.Close())
 
