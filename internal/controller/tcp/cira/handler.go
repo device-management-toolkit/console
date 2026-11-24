@@ -2,6 +2,7 @@ package cira
 
 import (
 	"context"
+	"crypto/subtle"
 	"strings"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/apf"
@@ -102,17 +103,14 @@ func (h *APFHandler) validateCredentials(username, password string) bool {
 		return false
 	}
 
-	// Compare credentials
-	// MPSUsername is the field used for CIRA authentication
-	if device.MPSUsername != username {
-		h.log.Debug("Username mismatch for device %s", h.deviceID)
+	// Compare both fields unconditionally so timing does not reveal which
+	// field, or how many leading bytes of it, mismatched. ConstantTimeCompare
+	// returns early on a length mismatch, so credential length is not hidden.
+	usernameMatches := subtle.ConstantTimeCompare([]byte(username), []byte(device.MPSUsername))
+	passwordMatches := subtle.ConstantTimeCompare([]byte(password), []byte(device.MPSPassword))
 
-		return false
-	}
-
-	// Compare password
-	if device.MPSPassword != password {
-		h.log.Debug("Password mismatch for device %s", h.deviceID)
+	if usernameMatches&passwordMatches != 1 {
+		h.log.Debug("Credential mismatch for device %s", h.deviceID)
 
 		return false
 	}
