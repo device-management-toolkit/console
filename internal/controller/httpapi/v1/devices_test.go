@@ -257,12 +257,81 @@ func TestDevicesRoutes(t *testing.T) {
 				}
 				conflict := devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", sqldb.ErrDeviceNotUnique)
 				device.EXPECT().Insert(context.Background(), deviceTest).Return(nil, conflict)
+				device.EXPECT().GetByGUID(context.Background(), "guid", false).Return(&dto.Device{GUID: "guid", TenantID: "tenantId"}, nil)
 				device.EXPECT().Update(context.Background(), deviceTest, gomock.Any()).Return(deviceTest, nil)
 			},
 			response:     responseDevice,
 			requestBody:  requestDevice,
 			tenantID:     "tenantId",
 			expectedCode: http.StatusOK,
+		},
+		{
+			// A GUID collision with another tenant's device is a real conflict,
+			// not something this tenant can merge into.
+			name:   "insert device - existing guid belongs to another tenant",
+			method: http.MethodPost,
+			url:    "/api/v1/devices",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				deviceTest := &dto.Device{
+					ConnectionStatus: true,
+					MPSInstance:      "mpsInstance",
+					Hostname:         "hostname",
+					GUID:             "guid",
+					MPSUsername:      "mpsusername",
+					Tags:             []string{"tag1", "tag2"},
+					TenantID:         "tenantId",
+					FriendlyName:     "friendlyName",
+					DNSSuffix:        "dnsSuffix",
+					Username:         "admin",
+					Password:         "password",
+					UseTLS:           true,
+					AllowSelfSigned:  true,
+					LastConnected:    &timeNow,
+					LastSeen:         &timeNow,
+					LastDisconnected: &timeNow,
+				}
+				conflict := devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", sqldb.ErrDeviceNotUnique)
+				device.EXPECT().Insert(context.Background(), deviceTest).Return(nil, conflict)
+				device.EXPECT().GetByGUID(context.Background(), "guid", false).Return(&dto.Device{GUID: "guid", TenantID: "otherTenantId"}, nil)
+			},
+			response:     devices.ErrDatabase,
+			requestBody:  requestDevice,
+			tenantID:     "tenantId",
+			expectedCode: http.StatusConflict,
+		},
+		{
+			// The GUID lookup itself can fail independently of the original
+			// duplicate error (e.g. the database going away between the two calls).
+			name:   "insert device - lookup after duplicate fails",
+			method: http.MethodPost,
+			url:    "/api/v1/devices",
+			mock: func(device *mocks.MockDeviceManagementFeature) {
+				deviceTest := &dto.Device{
+					ConnectionStatus: true,
+					MPSInstance:      "mpsInstance",
+					Hostname:         "hostname",
+					GUID:             "guid",
+					MPSUsername:      "mpsusername",
+					Tags:             []string{"tag1", "tag2"},
+					TenantID:         "tenantId",
+					FriendlyName:     "friendlyName",
+					DNSSuffix:        "dnsSuffix",
+					Username:         "admin",
+					Password:         "password",
+					UseTLS:           true,
+					AllowSelfSigned:  true,
+					LastConnected:    &timeNow,
+					LastSeen:         &timeNow,
+					LastDisconnected: &timeNow,
+				}
+				conflict := devices.ErrDatabase.Wrap("Insert", "uc.repo.Insert", sqldb.ErrDeviceNotUnique)
+				device.EXPECT().Insert(context.Background(), deviceTest).Return(nil, conflict)
+				device.EXPECT().GetByGUID(context.Background(), "guid", false).Return(nil, devices.ErrDatabase)
+			},
+			response:     devices.ErrDatabase,
+			requestBody:  requestDevice,
+			tenantID:     "tenantId",
+			expectedCode: http.StatusBadRequest,
 		},
 		{
 			name:   "insert device - failed",

@@ -278,7 +278,7 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 		// RPS posts the same device more than once, and a 409 fails its CIRA flow.
 		// Upsert on GUID, as MPS does.
 		if isDuplicateDevice(err) {
-			dr.upsert(c, &device, body)
+			dr.upsertOrConflict(c, &device, body, err)
 
 			return
 		}
@@ -290,6 +290,30 @@ func (dr *deviceRoutes) insert(c *gin.Context) {
 	}
 
 	c.JSON(http.StatusCreated, newDevice)
+}
+
+// upsertOrConflict resolves the GUID that collided on insert without a tenant
+// filter, because the devices table's GUID uniqueness is global rather than
+// per-tenant. A collision with the caller's own tenant merges as an upsert; a
+// collision with another tenant's device is a genuine conflict (409), not a
+// 404 - the row exists, it's just not this tenant's to merge into.
+func (dr *deviceRoutes) upsertOrConflict(c *gin.Context, device *dto.Device, body []byte, duplicateErr error) {
+	existing, err := dr.t.GetByGUID(c.Request.Context(), device.GUID, false)
+	if err != nil {
+		dr.l.Error(err, "http - devices - v1 - insert - lookup")
+		ErrorResponse(c, err)
+
+		return
+	}
+
+	if existing.TenantID != device.TenantID {
+		dr.l.Error(duplicateErr, "http - devices - v1 - insert - cross-tenant conflict")
+		ErrorResponse(c, duplicateErr)
+
+		return
+	}
+
+	dr.upsert(c, device, body)
 }
 
 func readJSONBody(c *gin.Context) ([]byte, error) {
