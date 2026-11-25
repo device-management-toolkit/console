@@ -20,10 +20,20 @@ func launchBrowser(cfg *config.Config) {
 
 	host := navigableHost(cfg.Host)
 
-	url := scheme + "://" + net.JoinHostPort(host, cfg.Port)
-	log.Printf("launchBrowser: opening %s", url)
+	browserURL := scheme + "://" + net.JoinHostPort(host, cfg.Port)
 
-	if err := openBrowser(url, runtime.GOOS); err != nil {
+	logURL := browserURL
+
+	// Open the token-free setup page. The setup token remains in the
+	// permissions-restricted file and must be entered manually.
+	if cfg.SetupToken != "" && cfg.SetupAPIBase != "" {
+		browserURL = cfg.SetupAPIBase + "/setup"
+		logURL = cfg.SetupAPIBase + "/setup"
+	}
+
+	log.Printf("launchBrowser: opening %s", logURL)
+
+	if err := openBrowser(browserURL, runtime.GOOS); err != nil {
 		log.Printf("Skipping browser launch: %v", err)
 	}
 }
@@ -49,7 +59,7 @@ const (
 // Global command executor, can be replaced in tests.
 var cmdExecutor CommandExecutor = &RealCommandExecutor{}
 
-func openBrowser(url, currentOS string) error {
+func openBrowser(targetURL, currentOS string) error {
 	var cmd string
 
 	var args []string
@@ -57,13 +67,13 @@ func openBrowser(url, currentOS string) error {
 	switch currentOS {
 	case "darwin":
 		cmd = "open"
-		args = []string{url}
+		args = []string{targetURL}
 	case "windows":
 		cmd = "rundll32"
-		args = []string{windowsURLHandler, url}
+		args = []string{windowsURLHandler, targetURL}
 	default:
 		cmd = "xdg-open"
-		args = []string{url}
+		args = []string{targetURL}
 	}
 
 	return cmdExecutor.Execute(cmd, args...)
