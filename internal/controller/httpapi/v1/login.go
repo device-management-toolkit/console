@@ -2,11 +2,15 @@ package v1
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
+	"os"
 	"strings"
 	"time"
 
@@ -14,7 +18,10 @@ import (
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
 	"github.com/device-management-toolkit/console/pkg/consoleerrors"
 	"github.com/device-management-toolkit/console/pkg/secrets"
@@ -28,28 +35,48 @@ const (
 	bearerPrefix                = "Bearer "
 	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
 	loginFailureError           = "invalid credentials"
+	keyringAdminPassword        = "admin-password-hash"
+	secretBackendKeyring        = "keyring"
+	credentialTagClaim          = "cred"
 )
 
 var (
 	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
 	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+	errPasswordRollbackFailed  = errors.New("password revocation failed and credential rollback failed")
+	errCredentialsChanged      = errors.New("administrator credentials changed during login")
 )
 
 type LoginRoute struct {
-	Config   *config.Config
-	Verifier *oidc.IDTokenVerifier
+	Config            *config.Config
+	Verifier          *oidc.IDTokenVerifier
+	SaveAdminPassword func(string) error
+	AuthState         *authsetup.Manager
 }
 
 // NewVersionRoute creates a new version route
-func NewLoginRoute(configData *config.Config) *LoginRoute {
-	lr := &LoginRoute{
-		Config: configData,
+func NewLoginRoute(configData *config.Config, authState ...*authsetup.Manager) *LoginRoute {
+	saveAdminPassword := config.SaveAdminPassword
+
+	if configData.SecretBackend == secretBackendKeyring {
+		store := security.NewKeyRingStorage(authsetup.KeyringServiceName)
+		saveAdminPassword = func(passwordHash string) error {
+			return store.SetKeyValue(keyringAdminPassword, passwordHash)
+		}
 	}
 
-	if config.ConsoleConfig.ClientID != "" {
+	lr := &LoginRoute{
+		Config:            configData,
+		SaveAdminPassword: saveAdminPassword,
+	}
+	if len(authState) > 0 {
+		lr.AuthState = authState[0]
+	}
+
+	if configData.ClientID != "" {
 		ctx := context.Background()
 
-		if config.ConsoleConfig.TLSSkipVerify {
+		if configData.TLSSkipVerify {
 			transport, _ := http.DefaultTransport.(*http.Transport)
 			transport = transport.Clone()
 			transport.TLSClientConfig = &tls.Config{
@@ -60,17 +87,184 @@ func NewLoginRoute(configData *config.Config) *LoginRoute {
 			ctx = oidc.ClientContext(ctx, &http.Client{Transport: transport})
 		}
 
-		provider, err := oidc.NewProvider(ctx, config.ConsoleConfig.Issuer)
+		provider, err := oidc.NewProvider(ctx, configData.Issuer)
 		if err != nil {
 			return nil
 		}
 
 		lr.Verifier = provider.Verifier(&oidc.Config{
-			ClientID: config.ConsoleConfig.ClientID,
+			ClientID: configData.ClientID,
 		})
 	}
 
 	return lr
+}
+
+// ChangePassword updates standalone credentials after verifying the current password.
+func (lr LoginRoute) ChangePassword(c *gin.Context) {
+	var request dto.PasswordChangeRequest
+	if err := c.ShouldBindJSON(&request); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "invalid request"})
+
+		return
+	}
+
+	if message := validatePasswordChange(request); message != "" {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: message})
+
+		return
+	}
+
+	if _, managed := os.LookupEnv("AUTH_ADMIN_PASSWORD"); managed && lr.Config.SecretBackend != secretBackendKeyring {
+		c.JSON(http.StatusConflict, gin.H{errorKey: "password is managed by AUTH_ADMIN_PASSWORD; update the deployment environment and restart Console"})
+
+		return
+	}
+
+	authsetup.CredentialCacheMutex.Lock()
+	defer authsetup.CredentialCacheMutex.Unlock()
+
+	if lr.SaveAdminPassword == nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "password storage is unavailable"})
+
+		return
+	}
+
+	result, err := lr.persistPasswordChange(request)
+	if err != nil {
+		message := "could not safely persist password revocation state"
+		if errors.Is(err, errPasswordRollbackFailed) {
+			message = "password revocation failed and credential rollback failed; administrator recovery is required"
+		}
+
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: message})
+
+		return
+	}
+
+	if result.samePassword {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "new password must differ from current password"})
+
+		return
+	}
+
+	if !result.currentPasswordValid {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	lr.Config.AdminPassword = result.storedPassword
+
+	c.JSON(http.StatusOK, dto.PasswordChangeResponse{Message: "password changed"})
+}
+
+type passwordChangeResult struct {
+	storedPassword       string
+	currentPasswordValid bool
+	samePassword         bool
+}
+
+func validatePasswordChange(request dto.PasswordChangeRequest) string {
+	switch {
+	case request.CurrentPassword == "" || request.NewPassword == "" || request.ConfirmPassword == "":
+		return "current password, new password, and confirmation are required"
+	case request.NewPassword != request.ConfirmPassword:
+		return "password confirmation does not match"
+	case !secrets.IsAdminPasswordStrong(request.NewPassword):
+		return "new password must be at least 8 characters and contain at least 4 distinct characters"
+	default:
+		return ""
+	}
+}
+
+func (lr LoginRoute) persistPasswordChange(request dto.PasswordChangeRequest) (passwordChangeResult, error) {
+	var result passwordChangeResult
+
+	var previousPassword string
+
+	passwordStored := false
+
+	err := lr.withAuthVersion(func(version uint64) (uint64, error) {
+		_, currentPassword, err := lr.currentCredentials()
+		if err != nil {
+			return version, err
+		}
+
+		previousPassword = currentPassword
+
+		result.currentPasswordValid = matchesStoredPassword(lr.Config.SecretBackend, currentPassword, request.CurrentPassword)
+		if !result.currentPasswordValid {
+			return version, nil
+		}
+
+		if request.NewPassword == request.CurrentPassword {
+			result.samePassword = true
+
+			return version, nil
+		}
+
+		result.storedPassword, err = lr.newStoredPassword(request.NewPassword)
+		if err != nil {
+			return version, err
+		}
+
+		if err := lr.SaveAdminPassword(result.storedPassword); err != nil {
+			return version, fmt.Errorf("store new administrator password: %w", err)
+		}
+
+		passwordStored = true
+
+		return version + 1, nil
+	})
+	// Only the auth_version bump (not the preceding keyring/config write) can
+	// fail at this point, since passwordStored is already true. The rollback
+	// re-enters withAuthVersion and only restores the previous password if the
+	// store still holds the value this request wrote, so it can never clobber a
+	// concurrent change that completed in between.
+	//
+	// Revocation does not depend on this rollback or on auth_version alone:
+	// every token also carries a tag bound to the stored credential, so a crash
+	// between the keyring write and the SQLite commit still invalidates tokens
+	// issued against the old password.
+	if err != nil && passwordStored {
+		if rollbackErr := lr.rollbackStoredPassword(result.storedPassword, previousPassword); rollbackErr != nil {
+			return result, errors.Join(errPasswordRollbackFailed, err, rollbackErr)
+		}
+	}
+
+	return result, err
+}
+
+// rollbackStoredPassword restores previousPassword only while the store still
+// holds writtenPassword, so a concurrent change that completed in between is
+// never overwritten.
+func (lr LoginRoute) rollbackStoredPassword(writtenPassword, previousPassword string) error {
+	return lr.withAuthVersion(func(version uint64) (uint64, error) {
+		_, current, err := lr.currentCredentials()
+		if err != nil {
+			return version, err
+		}
+
+		if current != writtenPassword {
+			return version, nil
+		}
+
+		return version, lr.SaveAdminPassword(previousPassword)
+	})
+}
+
+func (lr LoginRoute) newStoredPassword(password string) (string, error) {
+	if lr.Config.SecretBackend != secretBackendKeyring {
+		return password, nil
+	}
+
+	hash, err := secrets.GeneratePBKDF2Hash(password)
+	if err != nil {
+		return "", fmt.Errorf("hash new administrator password: %w", err)
+	}
+
+	return hash, nil
 }
 
 // Login checks configured credentials and returns a JWT token for basic auth
@@ -102,33 +296,83 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
-	if lr.Config.AdminPassword == "" {
+	authsetup.CredentialCacheMutex.RLock()
+
+	username, storedPassword, err := lr.currentCredentials()
+
+	authsetup.CredentialCacheMutex.RUnlock()
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "authentication state is unavailable"})
+
+		return
+	}
+
+	// PBKDF2 verification (expensive by design) runs here, outside the
+	// SQLite-backed auth-state lock, so a flood of failed login attempts
+	// can't serialize every other request that needs that lock (token
+	// verification, password changes).
+	usernameMatches := subtle.ConstantTimeCompare([]byte(username), []byte(creds.Username)) == 1
+	if !usernameMatches || !matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
 	}
 
-	var passwordMatches bool
+	var tokenString string
 
-	switch lr.Config.SecretBackend {
-	case "config":
-		passwordMatches = subtle.ConstantTimeCompare([]byte(creds.Password), []byte(lr.Config.AdminPassword)) == 1
-	case "keyring":
-		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
-	}
+	var expirationTime time.Time
 
-	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(lr.Config.AdminUsername)) == 1
+	// Re-read the stored credential under the auth-state lock so a password
+	// change that landed between verification and issuance yields a token
+	// bound to the new credential (which the supplied password would then
+	// fail against on the next request) rather than the stale one.
+	err = lr.withAuthVersion(func(version uint64) (uint64, error) {
+		_, lockedPassword, credErr := lr.currentCredentials()
+		if credErr != nil {
+			return version, credErr
+		}
 
-	if !passwordMatches || !usernameMatches {
+		if lockedPassword != storedPassword {
+			return version, errCredentialsChanged
+		}
+
+		var tokenErr error
+
+		tokenString, expirationTime, tokenErr = lr.createSessionToken(version, lockedPassword)
+
+		return version, tokenErr
+	})
+
+	if errors.Is(err, errCredentialsChanged) {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
 	}
 
-	// Create JWT token
-	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "authentication state is unavailable"})
+
+		return
+	}
+
+	setSessionCookies(c, tokenString, expirationTime)
+	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
+}
+
+func (lr LoginRoute) createSessionToken(version uint64, storedPassword string) (string, time.Time, error) {
+	expirationTime := time.Now().Add(lr.Config.JWTExpiration)
 	claims := jwt.MapClaims{
-		"exp": expirationTime.Unix(),
+		"exp":          expirationTime.Unix(),
+		"auth_version": version,
+	}
+
+	// Bind the token to the credential it was issued against. A password
+	// change (or keyring recovery, or a crash between the credential write and
+	// the auth_version commit) changes the stored value, so every earlier token
+	// fails this check even if auth_version did not advance.
+	if lr.AuthState != nil {
+		claims[credentialTagClaim] = lr.credentialTag(storedPassword)
 	}
 
 	// Conditional so the claim set still matches what callers saw before.
@@ -139,16 +383,59 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	token := jwt.NewWithClaims(jwt.SigningMethodHS256, claims)
 
 	tokenString, err := token.SignedString([]byte(lr.Config.JWTKey))
-	if err != nil {
-		c.JSON(http.StatusInternalServerError, gin.H{errorKey: errTokenCreation})
 
-		return
+	return tokenString, expirationTime, err
+}
+
+// credentialTag derives a keyed, non-reversible tag from the stored credential
+// so the token can be checked against the current credential without
+// embedding the hash itself.
+func (lr LoginRoute) credentialTag(storedPassword string) string {
+	mac := hmac.New(sha256.New, []byte(lr.Config.JWTKey))
+	mac.Write([]byte(storedPassword))
+
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+func (lr LoginRoute) credentialsAccepted(creds dto.Credentials) bool {
+	authsetup.CredentialCacheMutex.RLock()
+	defer authsetup.CredentialCacheMutex.RUnlock()
+
+	username, storedPassword, err := lr.currentCredentials()
+
+	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(username)) == 1
+
+	return err == nil && matchesStoredPassword(lr.Config.SecretBackend, storedPassword, creds.Password) &&
+		usernameMatches
+}
+
+func (lr LoginRoute) currentCredentials() (username, password string, err error) {
+	if lr.AuthState != nil {
+		return lr.AuthState.CurrentCredentials()
 	}
 
-	setSessionCookies(c, tokenString, expirationTime)
+	return lr.Config.AdminUsername, lr.Config.AdminPassword, nil
+}
 
-	// Token stays in the body for bearer clients, which ignore Set-Cookie.
-	c.JSON(http.StatusOK, gin.H{tokenKey: tokenString})
+func (lr LoginRoute) withAuthVersion(fn func(uint64) (uint64, error)) error {
+	if lr.AuthState != nil {
+		return lr.AuthState.WithAuthVersion(fn)
+	}
+
+	_, err := fn(0)
+
+	return err
+}
+
+func matchesStoredPassword(backend, storedPassword, suppliedPassword string) bool {
+	switch backend {
+	case secretBackendKeyring:
+		return secrets.IsPBKDF2Hash(storedPassword) && secrets.VerifyPBKDF2Hash(storedPassword, suppliedPassword)
+	case "config":
+		return storedPassword != "" && subtle.ConstantTimeCompare([]byte(suppliedPassword), []byte(storedPassword)) == 1
+	default:
+		return false
+	}
 }
 
 // Logout expires the session cookies. Public, so an already-expired session can
@@ -223,7 +510,35 @@ func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
 		return []byte(lr.Config.JWTKey), nil
 	})
 
-	return err == nil && token.Valid
+	if err != nil || !token.Valid {
+		return false
+	}
+
+	if lr.AuthState == nil {
+		return true
+	}
+
+	version, ok := (*claims)["auth_version"].(float64)
+	if !ok || version < 0 {
+		return false
+	}
+
+	currentVersion, err := lr.AuthState.AuthVersion()
+	if err != nil || uint64(version) != currentVersion {
+		return false
+	}
+
+	tag, ok := (*claims)[credentialTagClaim].(string)
+	if !ok || tag == "" {
+		return false
+	}
+
+	_, storedPassword, err := lr.currentCredentials()
+	if err != nil || storedPassword == "" {
+		return false
+	}
+
+	return subtle.ConstantTimeCompare([]byte(tag), []byte(lr.credentialTag(storedPassword))) == 1
 }
 
 // cookieAuthEnabled reports whether session cookies are in use. An unconfigured
