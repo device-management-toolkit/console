@@ -8,10 +8,15 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
 func HasUI() bool { return false }
+
+func NewLocalSetupHandler(_ *config.Config, _ logger.Interface, manager *authsetup.Manager) http.Handler {
+	return authsetup.NewHandler(manager)
+}
 
 // setupUIRoutes handles UI routes when building with the noui tag.
 // If UI.ExternalURL is configured, requests to UI paths will be redirected there.

@@ -31,7 +31,6 @@ require (
 	go.uber.org/mock v0.6.0
 	golang.org/x/mod v0.43.0
 	golang.org/x/sys v0.50.0
-	golang.org/x/term v0.48.0
 	gopkg.in/yaml.v2 v2.4.0
 	modernc.org/sqlite v1.62.0
 	software.sslmate.com/src/go-pkcs12 v0.7.4
