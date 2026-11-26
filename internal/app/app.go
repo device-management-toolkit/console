@@ -2,8 +2,10 @@
 package app
 
 import (
+	"context"
 	"fmt"
 	"io"
+	"net"
 	"net/http"
 	"net/url"
 	"os"
@@ -20,6 +22,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/internal/controller/tcp/cira"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
@@ -55,7 +58,16 @@ func Run(cfg *config.Config, log logger.Interface) {
 	// Use case
 	usecases := usecase.NewUseCases(repos, log, CertStore)
 
-	handler := setupHTTPHandler(cfg, log, usecases)
+	authSetupManager, authSetupServer := setupAuthBootstrapOrFatal(cfg, log)
+	if authSetupManager != nil {
+		defer func() {
+			if cerr := authSetupManager.Close(); cerr != nil {
+				log.Error(fmt.Errorf("app - Run - authSetupManager.Close: %w", cerr))
+			}
+		}()
+	}
+
+	handler := setupHTTPHandler(cfg, log, usecases, authSetupManager)
 
 	ciraServer := setupCIRAServer(cfg, log, repos.Closer, usecases)
 
@@ -66,11 +78,116 @@ func Run(cfg *config.Config, log logger.Interface) {
 		httpserver.Logger(log),
 	)
 
-	waitForShutdown(log, httpServer, ciraServer)
-	shutdownServers(log, httpServer, ciraServer)
+	waitForShutdown(log, httpServer, authSetupServer, ciraServer)
+	shutdownServers(log, httpServer, authSetupServer, ciraServer)
 }
 
-func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases) *gin.Engine {
+func setupAuthBootstrap(cfg *config.Config, log logger.Interface) (*authsetup.Manager, *httpserver.Server, error) {
+	if cfg.Disabled || cfg.ClientID != "" {
+		return nil, nil, nil
+	}
+
+	manager, err := authsetup.NewManager(cfg, cfg.StatePath)
+	if err != nil {
+		return nil, nil, err
+	}
+
+	if cfg.SecretBackend != "keyring" {
+		return manager, nil, nil
+	}
+
+	required, err := manager.SetupRequired()
+	if err != nil {
+		_ = manager.Close()
+		_ = closeConfiguredSetupListener(cfg)
+
+		return nil, nil, err
+	}
+
+	if !required {
+		cfg.SetupToken = ""
+
+		cfg.SetupAPIBase = ""
+		if err := closeConfiguredSetupListener(cfg); err != nil {
+			_ = manager.Close()
+
+			return nil, nil, fmt.Errorf("close unused loopback setup listener: %w", err)
+		}
+
+		return manager, nil, nil
+	}
+
+	listener, err := getSetupListener(cfg.SetupListener)
+	if err != nil {
+		_ = manager.Close()
+
+		return nil, nil, err
+	}
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		_ = listener.Close()
+		_ = manager.Close()
+
+		return nil, nil, fmt.Errorf("resolve loopback setup listener address: %w", err)
+	}
+
+	cfg.SetupAPIBase = "https://localhost:" + port
+	if cfg.SetupToken == "" {
+		cfg.SetupToken = manager.SetupToken()
+	}
+
+	log.Info("app - Run - administrator setup required; open " + cfg.SetupAPIBase + "/setup to configure credentials")
+
+	server := httpserver.New(
+		httpapi.NewLocalSetupHandler(cfg, log, manager),
+		httpserver.Listener(listener),
+		httpserver.TLS(true, "", ""),
+		httpserver.Logger(log),
+	)
+
+	return manager, server, nil
+}
+
+func closeConfiguredSetupListener(cfg *config.Config) error {
+	if cfg.SetupListener == nil {
+		return nil
+	}
+
+	if err := cfg.SetupListener.Close(); err != nil {
+		return err
+	}
+
+	cfg.SetupListener = nil
+
+	return nil
+}
+
+func getSetupListener(listener net.Listener) (net.Listener, error) {
+	if listener != nil {
+		return listener, nil
+	}
+
+	var listenConfig net.ListenConfig
+
+	listener, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		return nil, fmt.Errorf("bind loopback setup listener: %w", err)
+	}
+
+	return listener, nil
+}
+
+func setupAuthBootstrapOrFatal(cfg *config.Config, log logger.Interface) (*authsetup.Manager, *httpserver.Server) {
+	manager, server, err := setupAuthBootstrap(cfg, log)
+	if err != nil {
+		log.Fatal(fmt.Errorf("app - Run - setupAuthBootstrap: %w", err))
+	}
+
+	return manager, server
+}
+
+func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases, authState ...*authsetup.Manager) *gin.Engine {
 	if os.Getenv("GIN_MODE") != "debug" {
 		gin.SetMode(gin.ReleaseMode)
 	}
@@ -93,7 +210,7 @@ func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecas
 	defaultConfig.AllowCredentials = cfg.AllowCredentials && !wildcardOrigin
 
 	handler.Use(cors.New(defaultConfig))
-	httpapi.NewRouter(handler, log, *usecases, cfg)
+	httpapi.NewRouter(handler, log, *usecases, cfg, authState...)
 
 	// Optionally enable pprof endpoints (e.g., for staging) via env ENABLE_PPROF=true
 	if os.Getenv("ENABLE_PPROF") == "true" {
@@ -230,7 +347,7 @@ func setupCIRAServer(cfg *config.Config, log logger.Interface, closer io.Closer,
 	return ciraServer
 }
 
-func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraServer *cira.Server) {
+func waitForShutdown(log logger.Interface, httpServer, authSetupServer *httpserver.Server, ciraServer *cira.Server) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
@@ -240,6 +357,8 @@ func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraSe
 			log.Info("app - Run - signal: " + s.String())
 		case err := <-httpServer.Notify():
 			log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+		case err := <-serverNotify(authSetupServer):
+			log.Error(fmt.Errorf("app - Run - authSetupServer.Notify: %w", err))
 		case ciraErr := <-ciraServer.Notify():
 			log.Error(fmt.Errorf("app - Run - ciraServer.Notify: %w", ciraErr))
 		}
@@ -249,13 +368,29 @@ func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraSe
 			log.Info("app - Run - signal: " + s.String())
 		case err := <-httpServer.Notify():
 			log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+		case err := <-serverNotify(authSetupServer):
+			log.Error(fmt.Errorf("app - Run - authSetupServer.Notify: %w", err))
 		}
 	}
 }
 
-func shutdownServers(log logger.Interface, httpServer *httpserver.Server, ciraServer *cira.Server) {
+func serverNotify(server *httpserver.Server) <-chan error {
+	if server == nil {
+		return nil
+	}
+
+	return server.Notify()
+}
+
+func shutdownServers(log logger.Interface, httpServer, authSetupServer *httpserver.Server, ciraServer *cira.Server) {
 	if err := httpServer.Shutdown(); err != nil {
 		log.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
+	}
+
+	if authSetupServer != nil {
+		if err := authSetupServer.Shutdown(); err != nil {
+			log.Error(fmt.Errorf("app - Run - authSetupServer.Shutdown: %w", err))
+		}
 	}
 
 	if ciraServer != nil {

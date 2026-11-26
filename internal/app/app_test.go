@@ -1,9 +1,11 @@
 package app
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
+	"path/filepath"
 	"testing"
 
 	"github.com/gin-gonic/gin"
@@ -36,6 +38,69 @@ func TestSecurityHeadersSetsNoSniff(t *testing.T) {
 
 		require.Equal(t, "nosniff", w.Header().Get("X-Content-Type-Options"), path)
 	}
+}
+
+func TestSetupAuthBootstrapUsesConfigBackendWithoutStartingServer(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	cfg.SecretBackend = "config"
+	cfg.StatePath = filepath.Join(t.TempDir(), "auth-state.db")
+
+	manager, server, err := setupAuthBootstrap(cfg, logger.New("error"))
+
+	require.NoError(t, err)
+	require.NotNil(t, manager)
+	require.Nil(t, server)
+	require.NoError(t, manager.Close())
+}
+
+func TestSetupAuthBootstrapSkipsDisabledAndOIDCAuth(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name string
+		cfg  *config.Config
+	}{
+		{name: "disabled auth", cfg: &config.Config{}},
+		{name: "OIDC auth", cfg: &config.Config{}},
+	}
+	tests[0].cfg.Disabled = true
+	tests[1].cfg.ClientID = "oidc-client"
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+
+			manager, server, err := setupAuthBootstrap(tt.cfg, logger.New("error"))
+
+			require.NoError(t, err)
+			require.Nil(t, manager)
+			require.Nil(t, server)
+		})
+	}
+}
+
+func TestSetupListenerHelpers(t *testing.T) {
+	t.Parallel()
+
+	listener, err := getSetupListener(nil)
+	require.NoError(t, err)
+	require.Contains(t, listener.Addr().String(), "127.0.0.1:")
+	require.NoError(t, listener.Close())
+
+	provided, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	cfg := &config.Config{}
+	cfg.SetupListener = provided
+
+	got, err := getSetupListener(provided)
+	require.NoError(t, err)
+	require.Same(t, provided, got)
+	require.NoError(t, closeConfiguredSetupListener(cfg))
+	require.Nil(t, cfg.SetupListener)
+	require.NoError(t, closeConfiguredSetupListener(cfg))
 }
 
 // The nosniff middleware has to sit ahead of CORS in the engine chain: the CORS

@@ -4,6 +4,7 @@ package httpapi
 
 import (
 	"embed"
+	"encoding/json"
 	"fmt"
 	"io/fs"
 	"log"
@@ -16,6 +17,7 @@ import (
 	"github.com/gin-gonic/gin"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/pkg/logger"
 )
 
@@ -26,6 +28,18 @@ func HasUI() bool {
 	_, err := fs.Stat(content, "ui/index.html")
 
 	return err == nil
+}
+
+func NewLocalSetupHandler(cfg *config.Config, l logger.Interface, manager *authsetup.Manager) http.Handler {
+	handler := gin.New()
+	handler.Use(gin.Recovery())
+
+	setupAPI := authsetup.NewHandler(manager)
+	handler.Any("/api/v1/auth/setup", gin.WrapH(setupAPI))
+	handler.Any("/api/v1/auth/setup/status", gin.WrapH(setupAPI))
+	setupUIRoutes(handler, l, cfg)
+
+	return handler
 }
 
 const (
@@ -169,7 +183,28 @@ func applyUIConfig(data []byte, cfg *config.Config) []byte {
 		"##CONSOLE_SERVER_API##": consoleServerAPIBase(protocol, cfg.Host, cfg.Port),
 	})
 
-	return data
+	setupAPIBase, err := json.Marshal(cfg.SetupAPIBase)
+	if err != nil {
+		return data
+	}
+
+	signInURL, err := json.Marshal(consoleSignInURL(protocol, cfg.Host, cfg.Port))
+	if err != nil {
+		return data
+	}
+
+	runtimeConfig := []byte("window.__CONSOLE_SETUP_API__=" + string(setupAPIBase) + ";\n" +
+		"window.__CONSOLE_SIGN_IN_URL__=" + string(signInURL) + ";\n")
+
+	return append(runtimeConfig, data...)
+}
+
+func consoleSignInURL(protocol, host, port string) string {
+	if isWildcardHost(host) {
+		host = "localhost"
+	}
+
+	return protocol + net.JoinHostPort(unbracket(host), port) + "/login"
 }
 
 // Returns "" on wildcard hosts so the UI uses same-origin requests matching the user's URL/SNI.

@@ -31,6 +31,12 @@ func runWithTray(cfg *config.Config, l logger.Interface) {
 	urls := listenURLs(cfg)
 	primaryURL := urls[0]
 
+	// Route the tray's "Open" action through the local setup page while
+	// administrator credentials haven't been configured yet.
+	if setupURL := setupPageURL(cfg); setupURL != "" {
+		primaryURL = setupURL
+	}
+
 	// Must run before re-exec so the parent surfaces the duplicate, not the soon-to-exit child.
 	ensureSingleInstance(primaryURL)
 

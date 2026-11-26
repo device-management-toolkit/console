@@ -12,6 +12,14 @@ import (
 	"github.com/device-management-toolkit/console/config"
 )
 
+func setupPageURL(cfg *config.Config) string {
+	if cfg.SetupToken == "" || cfg.SetupAPIBase == "" {
+		return ""
+	}
+
+	return cfg.SetupAPIBase + "/setup#" + cfg.SetupToken
+}
+
 func launchBrowser(cfg *config.Config) {
 	scheme := "http"
 	if cfg.TLS.Enabled {
@@ -20,10 +28,19 @@ func launchBrowser(cfg *config.Config) {
 
 	host := navigableHost(cfg.Host)
 
-	url := scheme + "://" + net.JoinHostPort(host, cfg.Port)
-	log.Printf("launchBrowser: opening %s", url)
+	browserURL := scheme + "://" + net.JoinHostPort(host, cfg.Port)
 
-	if err := openBrowser(url, runtime.GOOS); err != nil {
+	logURL := browserURL
+
+	// The fragment is not sent in HTTP requests, and the UI clears it on load.
+	if setupURL := setupPageURL(cfg); setupURL != "" {
+		browserURL = setupURL
+		logURL = cfg.SetupAPIBase + "/setup"
+	}
+
+	log.Printf("launchBrowser: opening %s", logURL)
+
+	if err := openBrowser(browserURL, runtime.GOOS); err != nil {
 		log.Printf("Skipping browser launch: %v", err)
 	}
 }
@@ -49,7 +66,7 @@ const (
 // Global command executor, can be replaced in tests.
 var cmdExecutor CommandExecutor = &RealCommandExecutor{}
 
-func openBrowser(url, currentOS string) error {
+func openBrowser(targetURL, currentOS string) error {
 	var cmd string
 
 	var args []string
@@ -57,13 +74,13 @@ func openBrowser(url, currentOS string) error {
 	switch currentOS {
 	case "darwin":
 		cmd = "open"
-		args = []string{url}
+		args = []string{targetURL}
 	case "windows":
 		cmd = "rundll32"
-		args = []string{windowsURLHandler, url}
+		args = []string{windowsURLHandler, targetURL}
 	default:
 		cmd = "xdg-open"
-		args = []string{url}
+		args = []string{targetURL}
 	}
 
 	return cmdExecutor.Execute(cmd, args...)

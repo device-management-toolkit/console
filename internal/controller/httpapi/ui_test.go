@@ -45,6 +45,7 @@ func TestUIServesFiles(t *testing.T) {
 		{name: "media file is served", path: "/media/dmt-logo_dark.svg", want: "<svg/>"},
 		{name: "every media file is served, not a fixed list", path: "/media/font.woff2", want: "font"},
 		{name: "client-side route gets the HTML shell", path: "/devices", want: testUIShell},
+		{name: "password management route gets the HTML shell", path: "/account/password", want: testUIShell},
 	}
 
 	engine := newUITestEngine(t)
@@ -158,6 +159,28 @@ func TestConsoleServerAPIBase(t *testing.T) {
 	}
 }
 
+func TestConsoleSignInURL(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name     string
+		protocol string
+		host     string
+		port     string
+		want     string
+	}{
+		{name: "wildcard uses localhost", protocol: "https://", host: "0.0.0.0", port: "8181", want: "https://localhost:8181/login"},
+		{name: "specific host is preserved", protocol: "https://", host: "console.example.com", port: "8181", want: "https://console.example.com:8181/login"},
+	}
+
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			t.Parallel()
+			require.Equal(t, tt.want, consoleSignInURL(tt.protocol, tt.host, tt.port))
+		})
+	}
+}
+
 func TestApplyUIConfigAuthMode(t *testing.T) {
 	t.Parallel()
 
@@ -183,11 +206,13 @@ func TestApplyUIConfigAuthMode(t *testing.T) {
 			cfg := &config.Config{}
 			cfg.Disabled = tc.disabled
 			cfg.ClientID = tc.clientID
+			cfg.Port = "8181"
 
 			got := string(applyUIConfig([]byte(bundle), cfg))
 
 			require.Equal(t, tc.wantDisabled, strings.Contains(got, ",authDisabled:!0,"))
 			require.Equal(t, tc.wantOAuth, strings.Contains(got, ",useOAuth:!0,"))
+			require.Contains(t, got, "window.__CONSOLE_SIGN_IN_URL__=\"http://localhost:8181/login\";")
 		})
 	}
 }

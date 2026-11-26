@@ -1,44 +1,28 @@
 package main
 
 import (
-	"bufio"
 	"errors"
 	"fmt"
-	"io"
 	"log"
-	"os"
 	"strings"
-	"unicode/utf8"
-
-	"golang.org/x/term"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/pkg/secrets"
 )
 
 const (
-	keyringServiceName   = "device-management-toolkit"
 	keyringAdminUsername = "admin-username"
 	keyringAdminPassword = "admin-password-hash"
 )
 
 var (
 	errKeystoreUnavailable     = errors.New("OS keyring is unavailable; ensure a supported keyring is installed, unlocked, and accessible to this user before restarting Console")
-	errPartialAdminCredentials = errors.New("partial administrator credentials are present; delete Console's administrator credentials from the OS keyring and restart Console")
-	errInvalidAdminCredentials = errors.New("administrator credentials are incomplete or invalid; delete Console's administrator credentials from the OS keyring and restart Console")
-	errInvalidAdminUsername    = errors.New("administrator username must be 1-64 ASCII letters, digits, dots, underscores, or hyphens, and start with a letter or digit")
-	errPasswordConfirmation    = errors.New("password confirmation did not match after 3 attempts")
-	errWeakAdminPassword       = errors.New("administrator password must be at least 8 characters and contain a lowercase letter, an uppercase letter, a digit, and a symbol")
-	errAdminPasswordWhitespace = errors.New("administrator password must not have leading or trailing whitespace")
+	errPartialAdminCredentials = authsetup.ErrIncompleteStore
+	errInvalidAdminCredentials = authsetup.ErrIncompleteStore
 )
-
-const (
-	maxPasswordAttempts = 3
-)
-
-const maxPasswordConfirmationAttempts = 3
 
 type credentialStore interface {
 	GetKeyValue(key string) (string, error)
@@ -47,7 +31,7 @@ type credentialStore interface {
 }
 
 var newKeyringStorageFunc = func() credentialStore {
-	return security.NewKeyRingStorage(keyringServiceName)
+	return security.NewKeyRingStorage(authsetup.KeyringServiceName)
 }
 
 func handleAdminCredentials(cfg *config.Config) {
@@ -66,15 +50,23 @@ func handleAdminCredentials(cfg *config.Config) {
 	switch cfg.SecretBackend {
 	case "config":
 		handleAdminPassword(cfg)
-	case "keyring":
-		if err := loadKeyringAdminCredentials(cfg, newKeyringStorageFunc()); err != nil {
+	case authsetup.SecretBackendKeyring:
+		manager, err := authsetup.NewManagerWithStore(cfg, cfg.StatePath, newKeyringStorageFunc())
+		if err != nil {
 			log.Fatalf("keyring admin credentials: %v", err)
+		}
+
+		cfg.SetupToken = manager.SetupToken()
+		if err := manager.Close(); err != nil {
+			log.Fatalf("close keyring setup state: %v", err)
 		}
 	default:
 		log.Fatalf("%v", config.ErrAuthSecretBackendInvalid)
 	}
 }
 
+// loadKeyringAdminCredentials remains a read-only helper for startup diagnostics.
+// First-run credential creation is handled through the local setup API.
 func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) error {
 	if store == nil {
 		return errKeystoreUnavailable
@@ -87,11 +79,11 @@ func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) erro
 
 	switch {
 	case usernameErr != nil && !usernameMissing:
-		return fmt.Errorf("reading administrator username from OS keyring; ensure the keyring is available and unlocked: %w", usernameErr)
+		return fmt.Errorf("reading administrator username from OS keyring: %w (ensure the keyring is available and unlocked)", usernameErr)
 	case passwordErr != nil && !passwordMissing:
-		return fmt.Errorf("reading administrator password hash from OS keyring; ensure the keyring is available and unlocked: %w", passwordErr)
+		return fmt.Errorf("reading administrator password hash from OS keyring: %w (ensure the keyring is available and unlocked)", passwordErr)
 	case usernameMissing && passwordMissing:
-		return bootstrapKeyringAdminCredentials(cfg, store)
+		return authsetup.ErrSetupRequired
 	case usernameMissing || passwordMissing:
 		return errPartialAdminCredentials
 	case strings.TrimSpace(username) == "" || !secrets.IsPBKDF2Hash(passwordHash):
@@ -102,176 +94,4 @@ func loadKeyringAdminCredentials(cfg *config.Config, store credentialStore) erro
 	cfg.AdminPassword = passwordHash
 
 	return nil
-}
-
-func bootstrapKeyringAdminCredentials(cfg *config.Config, store credentialStore) error {
-	reader := bufio.NewReader(os.Stdin)
-	username := promptForAdminUsername(reader)
-
-	password, err := promptForAdminPassword(reader)
-	if err != nil {
-		return err
-	}
-
-	confirmed := false
-
-	for attempt := 0; attempt < maxPasswordConfirmationAttempts; attempt++ {
-		confirmation := promptForSecret(reader, "Confirm Console admin password: ")
-		if password == confirmation {
-			confirmed = true
-
-			break
-		}
-
-		if attempt+1 < maxPasswordConfirmationAttempts {
-			log.Print("Password confirmation did not match. Please try again.")
-		}
-	}
-
-	if !confirmed {
-		return errPasswordConfirmation
-	}
-
-	hash, err := secrets.GeneratePBKDF2Hash(password)
-	if err != nil {
-		return fmt.Errorf("hashing administrator password: %w", err)
-	}
-
-	if err := store.SetKeyValue(keyringAdminUsername, username); err != nil {
-		return fmt.Errorf("storing administrator username: %w", err)
-	}
-
-	if err := store.SetKeyValue(keyringAdminPassword, hash); err != nil {
-		if rollbackErr := store.DeleteKeyValue(keyringAdminUsername); rollbackErr != nil && !errors.Is(rollbackErr, security.ErrKeyNotFound) {
-			return fmt.Errorf("storing administrator password hash: %w (also failed to roll back username: %w)", err, rollbackErr)
-		}
-
-		return fmt.Errorf("storing administrator password hash: %w", err)
-	}
-
-	cfg.AdminUsername = username
-	cfg.AdminPassword = hash
-
-	return nil
-}
-
-func promptForAdminPassword(reader *bufio.Reader) (string, error) {
-	var validationErr error
-
-	for attempt := 0; attempt < maxPasswordAttempts; attempt++ {
-		password := promptForSecret(reader, "Enter Console admin password: ")
-		switch {
-		case strings.TrimSpace(password) != password:
-			validationErr = errAdminPasswordWhitespace
-		case isStrongAdminPassword(password):
-			return password, nil
-		default:
-			validationErr = errWeakAdminPassword
-		}
-
-		if attempt+1 < maxPasswordAttempts {
-			log.Printf("%v. Please try again.", validationErr)
-		}
-	}
-
-	return "", fmt.Errorf("%w; failed after %d attempts; restart Console to try again", validationErr, maxPasswordAttempts)
-}
-
-func promptForAdminUsername(reader *bufio.Reader) string {
-	for {
-		username := promptForCredential(reader, "Enter Console admin username: ")
-		if isValidAdminUsername(username) {
-			return username
-		}
-
-		log.Print(errInvalidAdminUsername)
-	}
-}
-
-func isValidAdminUsername(username string) bool {
-	if utf8.RuneCountInString(username) == 0 || utf8.RuneCountInString(username) > 64 {
-		return false
-	}
-
-	for index, char := range username {
-		isLetterOrDigit := char >= 'a' && char <= 'z' || char >= 'A' && char <= 'Z' || char >= '0' && char <= '9'
-		if index == 0 && !isLetterOrDigit {
-			return false
-		}
-
-		if !isLetterOrDigit && char != '.' && char != '_' && char != '-' {
-			return false
-		}
-	}
-
-	return true
-}
-
-func promptForCredential(reader *bufio.Reader, prompt string) string {
-	for {
-		fmt.Fprint(os.Stdout, prompt)
-
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				log.Fatal("failed to read credential from console: EOF (non-interactive keyring setup). Use AUTH_SECRET_BACKEND=config for unattended deployments.")
-			}
-
-			log.Fatalf("failed to read credential from console: %v", err)
-		}
-
-		value := removePromptLineEnding(input)
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-
-		log.Println("Value cannot be empty.")
-	}
-}
-
-func promptForSecret(reader *bufio.Reader, prompt string) string {
-	for {
-		fmt.Fprint(os.Stdout, prompt)
-
-		if term.IsTerminal(int(os.Stdin.Fd())) {
-			input, err := term.ReadPassword(int(os.Stdin.Fd()))
-
-			fmt.Fprintln(os.Stdout)
-
-			if err != nil {
-				log.Fatalf("failed to read credential from console: %v", err)
-			}
-
-			value := string(input)
-			if strings.TrimSpace(value) != "" {
-				return value
-			}
-
-			log.Println("Value cannot be empty.")
-
-			continue
-		}
-
-		input, err := reader.ReadString('\n')
-		if err != nil {
-			if errors.Is(err, io.EOF) {
-				log.Fatal("failed to read credential from console: EOF (non-interactive keyring setup). Use AUTH_SECRET_BACKEND=config for unattended deployments.")
-			}
-
-			log.Fatalf("failed to read credential from console: %v", err)
-		}
-
-		value := removePromptLineEnding(input)
-		if strings.TrimSpace(value) != "" {
-			return value
-		}
-
-		log.Println("Value cannot be empty.")
-	}
-}
-
-func removePromptLineEnding(input string) string {
-	input = strings.TrimSuffix(input, "\n")
-
-	return strings.TrimSuffix(input, "\r")
 }

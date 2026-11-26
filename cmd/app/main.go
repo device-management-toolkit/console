@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"net"
 	"os"
 	"regexp"
 	"strings"
@@ -99,6 +101,11 @@ func main() {
 	handleEncryptionKey(cfg)
 	handleAdminCredentials(cfg)
 
+	if err := prepareSetupListener(cfg); err != nil {
+		log.Fatal(err)
+	}
+	logSetupURLIfUIUnavailable(cfg.SetupAPIBase, cfg.SetupToken, httpapi.HasUI())
+
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
 		log.Fatal("--tray was specified but this binary was built without tray support. Rebuild with `make build-tray` (or `go build -tags=tray`).")
@@ -110,6 +117,54 @@ func main() {
 		handleDebugMode(cfg, l)
 		runAppFunc(cfg, l)
 	}
+}
+
+func prepareSetupListener(cfg *config.Config) error {
+	if cfg.SetupToken == "" {
+		return nil
+	}
+
+	var listenConfig net.ListenConfig
+
+	listener, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		return fmt.Errorf("start local setup listener: %w", err)
+	}
+
+	_, port, err := net.SplitHostPort(listener.Addr().String())
+	if err != nil {
+		_ = listener.Close()
+
+		return fmt.Errorf("resolve local setup listener address: %w", err)
+	}
+
+	cfg.SetupListener = listener
+	cfg.SetupAPIBase = "https://localhost:" + port
+
+	return nil
+}
+
+func logSetupURLIfUIUnavailable(setupAPIBase, token string, uiAvailable bool) {
+	if uiAvailable || setupAPIBase == "" || token == "" {
+		return
+	}
+
+	color := false
+	if file, ok := log.Writer().(*os.File); ok && os.Getenv("NO_COLOR") == "" {
+		if info, err := file.Stat(); err == nil {
+			color = info.Mode()&os.ModeCharDevice != 0
+		}
+	}
+
+	log.Print(setupURLLogMessage(setupAPIBase, token, color))
+}
+
+func setupURLLogMessage(setupAPIBase, token string, color bool) string {
+	if color {
+		return fmt.Sprintf("\033[1;36mHeadless setup URL\033[0m (one-time token expires in 10 minutes): \033[1;33m%s/setup#%s\033[0m", setupAPIBase, token)
+	}
+
+	return fmt.Sprintf("Headless setup URL (one-time token expires in 10 minutes): %s/setup#%s", setupAPIBase, token)
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
@@ -137,7 +192,7 @@ func handleDebugMode(cfg *config.Config, l logger.Interface) {
 		return
 	}
 
-	if os.Getenv("GIN_MODE") != "debug" {
+	if cfg.SetupToken != "" || os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	}
 }
