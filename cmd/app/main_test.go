@@ -28,6 +28,27 @@ type mockCredentialStore struct {
 	deletedKeys []string
 }
 
+func TestLogSetupURLOnlyWhenUIUnavailable(t *testing.T) {
+	var output bytes.Buffer
+	originalOutput := log.Writer()
+	log.SetOutput(&output)
+	t.Cleanup(func() { log.SetOutput(originalOutput) })
+
+	logSetupURLIfUIUnavailable("https://localhost:44283", "one-time-token", false)
+	assert.Contains(t, output.String(), "Headless setup URL (one-time token expires in 10 minutes): https://localhost:44283/setup#one-time-token")
+
+	output.Reset()
+	logSetupURLIfUIUnavailable("https://localhost:44283", "one-time-token", true)
+	assert.Empty(t, output.String())
+}
+
+func TestSetupURLLogMessageCanBeColored(t *testing.T) {
+	message := setupURLLogMessage("https://localhost:44283", "one-time-token", true)
+
+	assert.Contains(t, message, "\033[1;36mHeadless setup URL\033[0m")
+	assert.Contains(t, message, "\033[1;33mhttps://localhost:44283/setup#one-time-token\033[0m")
+}
+
 func (m *mockCredentialStore) GetKeyValue(key string) (string, error) {
 	if err, ok := m.errMap[key]; ok {
 		return "", err

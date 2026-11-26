@@ -22,11 +22,13 @@ Setup returns `409 SETUP_ALREADY_COMPLETED` when credentials already exist and
 partially populated keyring remains fail-closed and requires the keyring
 recovery procedure below.
 
-For a headless installation, the short-lived token is written to a
-permissions-restricted `<config-path>.auth-state.db.setup-token` file. Read it
-from that file and send the JSON body from a protected file or standard input;
-do not place the token or credentials in command-line arguments. The API does
-not log request bodies. The token file is removed after successful setup.
+For a headless installation, Console prints the short-lived setup token to the
+CLI at startup. It is also written to a permissions-restricted
+`<config-path>.auth-state.db.setup-token` file as a fallback. Send the JSON
+request body through standard input or a protected file; do not put the token
+or credentials in command-line arguments. The API does not log request bodies.
+The token expires after 10 minutes and its file is removed after successful
+setup.
 
 When standalone authentication is enabled, an authenticated administrator can
 open `/account/password` in the Console browser to change their password. The
