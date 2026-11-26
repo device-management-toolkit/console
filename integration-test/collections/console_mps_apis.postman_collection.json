@@ -1980,6 +1980,40 @@
 					"response": []
 				},
 				{
+					"name": "Filter and sort devices",
+					"request": {
+						"method": "GET",
+						"header": [],
+						"url": {
+							"raw": "{{protocol}}://{{host}}/api/v1/devices?%24filter=skuType+eq+%27vPro%27+and+contains%28os%2C%27Windows%27%29&%24orderby=amtVersion+desc&%24count=true",
+							"protocol": "{{protocol}}",
+							"host": [
+								"{{host}}"
+							],
+							"path": [
+								"api",
+								"v1",
+								"devices"
+							],
+							"query": [
+								{
+									"key": "$filter",
+									"value": "skuType eq 'vPro' and contains(os,'Windows')"
+								},
+								{
+									"key": "$orderby",
+									"value": "amtVersion desc"
+								},
+								{
+									"key": "$count",
+									"value": "true"
+								}
+							]
+						}
+					},
+					"response": []
+				},
+				{
 					"name": "Device Stats",
 					"event": [
 						{

@@ -68,7 +68,7 @@ func (r *DeviceRepo) GetCount(_ context.Context, tenantID string) (int, error) {
 }
 
 // Get -.
-func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+func (r *DeviceRepo) Get(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
 	const defaultTop = 100
 
 	if top == 0 {
@@ -111,13 +111,9 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, tenantID)
+	rows, err := r.Pool.QueryContext(ctx, sqlQuery, tenantID)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap("Get", "r.Pool.Query", err)
-	}
-
-	if rows.Err() != nil {
-		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", rows.Err())
 	}
 
 	defer rows.Close()
@@ -135,17 +131,21 @@ func (r *DeviceRepo) Get(_ context.Context, top, skip int, tenantID string) ([]e
 		devices = append(devices, d)
 	}
 
+	if err := rows.Err(); err != nil {
+		return nil, ErrDeviceDatabase.Wrap("Get", "rows.Err", err)
+	}
+
 	return devices, nil
 }
 
 // GetActivated returns managed devices: anything not left in Discovered.
-func (r *DeviceRepo) GetActivated(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
-	return r.getFiltered("GetActivated", activatedWhere, nil, top, skip, tenantID)
+func (r *DeviceRepo) GetActivated(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	return r.getFiltered(ctx, "GetActivated", activatedWhere, nil, top, skip, tenantID)
 }
 
 // GetDiscovered returns devices found by discovery that have not been moved to Managed.
-func (r *DeviceRepo) GetDiscovered(_ context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
-	return r.getFiltered("GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
+func (r *DeviceRepo) GetDiscovered(ctx context.Context, top, skip int, tenantID string) ([]entity.Device, error) {
+	return r.getFiltered(ctx, "GetDiscovered", discoveredWhere, []any{true}, top, skip, tenantID)
 }
 
 // GetDeviceStateCounts returns the number of activated and discovered devices for a tenant.
@@ -164,7 +164,7 @@ func (r *DeviceRepo) GetDeviceStateCounts(_ context.Context, tenantID string) (a
 }
 
 // getFiltered runs a paginated device query constrained by an extra WHERE clause.
-func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, skip int, tenantID string) ([]entity.Device, error) {
+func (r *DeviceRepo) getFiltered(ctx context.Context, op, whereClause string, whereArgs []any, top, skip int, tenantID string) ([]entity.Device, error) {
 	const defaultTop = 100
 
 	limitedTop := uint64(defaultTop)
@@ -206,7 +206,7 @@ func (r *DeviceRepo) getFiltered(op, whereClause string, whereArgs []any, top, s
 		return nil, ErrDeviceDatabase.Wrap(op, "r.Builder: ", err)
 	}
 
-	rows, err := r.Pool.QueryContext(context.Background(), sqlQuery, args...)
+	rows, err := r.Pool.QueryContext(ctx, sqlQuery, args...)
 	if err != nil {
 		return nil, ErrDeviceDatabase.Wrap(op, "r.Pool.Query", err)
 	}
