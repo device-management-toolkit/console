@@ -275,7 +275,7 @@ func TestLaunchBrowserBracketedIPv6LoopbackStrippedThenRewrapped(t *testing.T) {
 	mockCmdExecutor.AssertExpectations(t)
 }
 
-func TestLaunchBrowserSetupOpensTokenlessURL(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
+func TestLaunchBrowserSetupOpensURLWithSetupToken(t *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying executor.
 	mockCmdExecutor := new(MockCommandExecutor)
 	original := cmdExecutor
 
@@ -291,7 +291,7 @@ func TestLaunchBrowserSetupOpensTokenlessURL(t *testing.T) { //nolint:parallelte
 		},
 	}
 
-	cmd, args := expectedOpenBrowserArgs("https://localhost:12345/setup")
+	cmd, args := expectedOpenBrowserArgs("https://localhost:12345/setup#super-secret-token")
 	mockCmdExecutor.On("Execute", cmd, args).Return(nil)
 
 	launchBrowser(cfg)

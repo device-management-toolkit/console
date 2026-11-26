@@ -12,6 +12,14 @@ import (
 	"github.com/device-management-toolkit/console/config"
 )
 
+func setupPageURL(cfg *config.Config) string {
+	if cfg.SetupToken == "" || cfg.SetupAPIBase == "" {
+		return ""
+	}
+
+	return cfg.SetupAPIBase + "/setup#" + cfg.SetupToken
+}
+
 func launchBrowser(cfg *config.Config) {
 	scheme := "http"
 	if cfg.TLS.Enabled {
@@ -24,10 +32,9 @@ func launchBrowser(cfg *config.Config) {
 
 	logURL := browserURL
 
-	// Open the token-free setup page. The setup token remains in the
-	// permissions-restricted file and must be entered manually.
-	if cfg.SetupToken != "" && cfg.SetupAPIBase != "" {
-		browserURL = cfg.SetupAPIBase + "/setup"
+	// The fragment is not sent in HTTP requests, and the UI clears it on load.
+	if setupURL := setupPageURL(cfg); setupURL != "" {
+		browserURL = setupURL
 		logURL = cfg.SetupAPIBase + "/setup"
 	}
 
