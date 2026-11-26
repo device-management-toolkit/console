@@ -127,15 +127,23 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 		return
 	}
 
-	tags := c.Query("tags")
-	hostname := c.Query("hostname")
-	friendlyName := c.Query("friendlyName")
-	activated := c.Query("activated")
-	discovered := c.Query("discovered")
+	query, err := parseDeviceListQuery(c.Request.URL.Query())
+	if err != nil {
+		c.AbortWithStatusJSON(http.StatusBadRequest, response{Error: err.Error(), Message: err.Error()})
+
+		return
+	}
+
+	if query.expanded(odata.Count) {
+		items, count, err := dr.listMatchingDevices(c.Request.Context(), middleware.TenantID(c), query, odata)
+		dr.respondDeviceList(c, odata.Count, items, count, err)
+
+		return
+	}
+
+	tags, hostname, friendlyName := query.tags, query.hostname, query.friendlyName
 
 	var items []dto.Device
-
-	var err error
 
 	ctx := c.Request.Context()
 	tenantID := middleware.TenantID(c)
@@ -152,16 +160,25 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 
 	// "activated" means managed: any device not left in Discovered, including
 	// legacy devices with no discovery information.
-	case activated == "true":
+	case query.managed:
 		items, err = dr.t.GetActivated(ctx, odata.Top, odata.Skip, tenantID)
 
-	case discovered == "true":
+	case query.discovered:
 		items, err = dr.t.GetDiscovered(ctx, odata.Top, odata.Skip, tenantID)
 
 	default:
 		items, err = dr.t.Get(ctx, odata.Top, odata.Skip, tenantID)
 	}
 
+	var count int
+	if err == nil && odata.Count {
+		count, err = dr.t.GetCount(ctx, tenantID)
+	}
+
+	dr.respondDeviceList(c, odata.Count, items, count, err)
+}
+
+func (dr *deviceRoutes) respondDeviceList(c *gin.Context, includeCount bool, items []dto.Device, count int, err error) {
 	if err != nil {
 		dr.l.Error(err, "http - devices - v1 - get")
 		ErrorResponse(c, err)
@@ -169,21 +186,8 @@ func (dr *deviceRoutes) get(c *gin.Context) {
 		return
 	}
 
-	if odata.Count {
-		count, err := dr.t.GetCount(c.Request.Context(), tenantID)
-		if err != nil {
-			dr.l.Error(err, "http - devices - v1 - get")
-			ErrorResponse(c, err)
-
-			return
-		}
-
-		countResponse := dto.DeviceCountResponse{
-			Count: count,
-			Data:  items,
-		}
-
-		c.JSON(http.StatusOK, countResponse)
+	if includeCount {
+		c.JSON(http.StatusOK, dto.DeviceCountResponse{Count: count, Data: items})
 	} else {
 		c.JSON(http.StatusOK, items)
 	}
