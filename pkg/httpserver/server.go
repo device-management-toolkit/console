@@ -16,6 +16,7 @@ import (
 	"net/http"
 	"os"
 	"path/filepath"
+	"sync"
 	"time"
 
 	appLogger "github.com/device-management-toolkit/console/pkg/logger"
@@ -125,21 +126,37 @@ func (s *Server) serveTLS() error {
 	return s.generateAndServeSelfSignedTLS()
 }
 
+// selfSignedCertMu serializes check-exists/generate/write of the shared,
+// fixed-path self-signed cert so two Server instances started concurrently
+// (e.g. the main server and the loopback auth-setup server) don't race on it.
+var selfSignedCertMu sync.Mutex
+
 func (s *Server) generateAndServeSelfSignedTLS() error {
 	// Temp file paths
 	certPath := filepath.Join(os.TempDir(), "console_selfsigned.crt")
 	keyPath := filepath.Join(os.TempDir(), "console_selfsigned.key")
+
+	if err := s.ensureSelfSignedCert(certPath, keyPath); err != nil {
+		return err
+	}
+
+	if s.listener != nil {
+		return s.server.ServeTLS(s.listener, certPath, keyPath)
+	}
+
+	return s.server.ListenAndServeTLS(certPath, keyPath)
+}
+
+func (s *Server) ensureSelfSignedCert(certPath, keyPath string) error {
+	selfSignedCertMu.Lock()
+	defer selfSignedCertMu.Unlock()
 
 	// Reuse if previously generated files exist
 	if _, err := os.Stat(certPath); err == nil {
 		if _, err2 := os.Stat(keyPath); err2 == nil {
 			s.log.Info(fmt.Sprintf("TLS: using existing self-signed certificate cert=%s key=%s", certPath, keyPath))
 
-			if s.listener != nil {
-				return s.server.ServeTLS(s.listener, certPath, keyPath)
-			}
-
-			return s.server.ListenAndServeTLS(certPath, keyPath)
+			return nil
 		}
 	}
 
@@ -159,11 +176,7 @@ func (s *Server) generateAndServeSelfSignedTLS() error {
 
 	s.log.Info(fmt.Sprintf("TLS: generated self-signed certificate cert=%s key=%s", certPath, keyPath))
 
-	if s.listener != nil {
-		return s.server.ServeTLS(s.listener, certPath, keyPath)
-	}
-
-	return s.server.ListenAndServeTLS(certPath, keyPath)
+	return nil
 }
 
 // Notify -.

@@ -1,6 +1,7 @@
 package app
 
 import (
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"os"
@@ -10,7 +11,10 @@ import (
 	"github.com/stretchr/testify/require"
 	"go.uber.org/mock/gomock"
 
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
+
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/mocks"
 	"github.com/device-management-toolkit/console/internal/usecase"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -309,3 +313,33 @@ func TestRun(t *testing.T) { //nolint:tparallel // t.Setenv is incompatible with
 		})
 	}
 }
+
+func TestNewAuthSetupServer(t *testing.T) { //nolint:paralleltest // mutates package-level AuthSetup
+	require.Nil(t, newAuthSetupServer(&config.Config{}, logger.New("error")),
+		"no setup server unless keyring setup is pending")
+	require.Nil(t, serverNotify(nil), "a missing setup server never signals shutdown")
+
+	manager, err := authsetup.NewManager(emptyKeyring{})
+	require.NoError(t, err)
+
+	AuthSetup = manager
+
+	t.Cleanup(func() { AuthSetup = nil })
+
+	listener, err := net.Listen("tcp", "127.0.0.1:0")
+	require.NoError(t, err)
+
+	cfg := &config.Config{}
+	cfg.SetupListener = listener
+
+	server := newAuthSetupServer(cfg, logger.New("error"))
+	require.NotNil(t, server)
+	require.NotNil(t, serverNotify(server))
+	require.NoError(t, server.Shutdown())
+}
+
+type emptyKeyring struct{}
+
+func (emptyKeyring) GetKeyValue(string) (string, error) { return "", security.ErrKeyNotFound }
+func (emptyKeyring) SetKeyValue(string, string) error   { return nil }
+func (emptyKeyring) DeleteKeyValue(string) error        { return nil }

@@ -5,11 +5,10 @@ import (
 	"crypto/rsa"
 	"crypto/x509"
 	"errors"
-	"flag"
-	"io"
 	"log"
+	"net"
 	"os"
-	"path/filepath"
+	"strconv"
 	"strings"
 	"testing"
 
@@ -19,6 +18,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/app"
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	"github.com/device-management-toolkit/console/pkg/secrets"
@@ -28,6 +28,47 @@ type mockCredentialStore struct {
 	values      map[string]string
 	errMap      map[string]error
 	deletedKeys []string
+}
+
+func TestLogSetupURLOnlyWhenUIUnavailable(t *testing.T) {
+	var output bytes.Buffer
+
+	originalOutput := log.Writer()
+	originalIsTerminal := logWriterIsTerminal
+
+	log.SetOutput(&output)
+	t.Cleanup(func() {
+		log.SetOutput(originalOutput)
+
+		logWriterIsTerminal = originalIsTerminal
+	})
+	t.Setenv("NO_COLOR", "1")
+
+	// Interactive terminal: same line as before, token included for copy/paste.
+	logWriterIsTerminal = func() bool { return true }
+
+	logSetupURLIfUIUnavailable("https://localhost:44283", "one-time-token", false)
+	assert.Contains(t, output.String(), "Headless setup URL (one-time token expires in 10 minutes): https://localhost:44283/setup#one-time-token")
+
+	output.Reset()
+	logSetupURLIfUIUnavailable("https://localhost:44283", "one-time-token", true)
+	assert.Empty(t, output.String())
+
+	// Redirected output (file, pipe, journal): the token must not be written.
+	logWriterIsTerminal = func() bool { return false }
+
+	logSetupURLIfUIUnavailable("https://localhost:44283", "one-time-token", false)
+	assert.NotContains(t, output.String(), "one-time-token")
+	assert.Contains(t, output.String(), "https://localhost:44283/setup/redirect")
+}
+
+func TestSetupURLLogMessageCanBeColored(t *testing.T) {
+	t.Parallel()
+
+	message := setupURLLogMessage("https://localhost:44283", "one-time-token", true)
+
+	assert.Contains(t, message, "\033[1;36mHeadless setup URL\033[0m")
+	assert.Contains(t, message, "\033[1;33mhttps://localhost:44283/setup#one-time-token\033[0m")
 }
 
 func (m *mockCredentialStore) GetKeyValue(key string) (string, error) {
@@ -65,48 +106,6 @@ func (m *mockCredentialStore) DeleteKeyValue(key string) error {
 	delete(m.values, key)
 
 	return nil
-}
-
-func withStdio(t *testing.T, input string) func() string {
-	t.Helper()
-
-	stdinReader, stdinWriter, err := os.Pipe()
-	require.NoError(t, err)
-	_, err = stdinWriter.WriteString(input)
-	require.NoError(t, err)
-	require.NoError(t, stdinWriter.Close())
-
-	stdoutReader, stdoutWriter, err := os.Pipe()
-	require.NoError(t, err)
-
-	oldStdin, oldStdout := os.Stdin, os.Stdout
-	os.Stdin, os.Stdout = stdinReader, stdoutWriter
-
-	finished := false
-	finish := func() string {
-		if finished {
-			return ""
-		}
-
-		finished = true
-		os.Stdin, os.Stdout = oldStdin, oldStdout
-		_ = stdoutWriter.Close()
-		output, err := io.ReadAll(stdoutReader)
-		require.NoError(t, err)
-
-		_ = stdinReader.Close()
-		_ = stdoutReader.Close()
-
-		return string(output)
-	}
-
-	t.Cleanup(func() {
-		if !finished {
-			finish()
-		}
-	})
-
-	return finish
 }
 
 func TestMainFunction(_ *testing.T) { //nolint:paralleltest // cannot have simultaneous tests modifying env variables.
@@ -486,211 +485,26 @@ func TestLoadKeyringAdminCredentialsRejectsPartialState(t *testing.T) {
 	assert.Equal(t, "config-password", cfg.AdminPassword)
 }
 
-//nolint:paralleltest // temporarily replaces process stdin and stdout
-func TestBootstrapKeyringAdminCredentialsRejectsPasswordMismatch(t *testing.T) {
-	finishStdio := withStdio(t, "admin\nFirst-Pass1\nSecond-Pass1\nSecond-Pass1\nSecond-Pass1\n")
-
-	cfg := &config.Config{}
-	store := &mockCredentialStore{values: map[string]string{}}
-
-	err := bootstrapKeyringAdminCredentials(cfg, store)
-	require.ErrorIs(t, err, errPasswordConfirmation)
-	assert.Empty(t, store.values, "mismatched input must not write credentials")
-	assert.Empty(t, cfg.AdminUsername)
-	assert.Empty(t, cfg.AdminPassword)
-	finishStdio()
-}
-
-//nolint:paralleltest // temporarily replaces process stdin and stdout
-func TestBootstrapKeyringAdminCredentialsRejectsWeakPassword(t *testing.T) {
-	for _, password := range []string{"weak", "aaaaaaaa", "éñøü", "password", "Password1", "password1!", "PASSWORD1!", "Passwords!"} {
-		t.Run(password, func(t *testing.T) {
-			finishStdio := withStdio(t, "admin\n"+strings.Repeat(password+"\n", maxPasswordAttempts))
-
-			cfg := &config.Config{}
-			store := &mockCredentialStore{values: map[string]string{}}
-
-			err := bootstrapKeyringAdminCredentials(cfg, store)
-			require.ErrorIs(t, err, errWeakAdminPassword)
-			assert.Empty(t, store.values, "weak input must not write credentials")
-			assert.Empty(t, cfg.AdminUsername)
-			assert.Empty(t, cfg.AdminPassword)
-			finishStdio()
-		})
-	}
-}
-
-//nolint:paralleltest // temporarily replaces process stdin
-func TestBootstrapKeyringAdminCredentialsRetriesWeakPassword(t *testing.T) {
-	finishStdio := withStdio(t, "admin\nweak\npassword\nValid-Pass1\nValid-Pass1\n")
-
-	cfg := &config.Config{}
-	store := &mockCredentialStore{values: map[string]string{}}
-	require.NoError(t, bootstrapKeyringAdminCredentials(cfg, store))
-	assert.Equal(t, "admin", cfg.AdminUsername)
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "Valid-Pass1"))
-	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
-	finishStdio()
-}
-
-//nolint:paralleltest // temporarily replaces process stdin and stdout
-func TestBootstrapKeyringAdminCredentialsRetriesInvalidUsername(t *testing.T) {
-	finishStdio := withStdio(t, "\nbad name\nvalid_user\nValid-Pass1\nValid-Pass1\n")
-	cfg := &config.Config{}
-	store := &mockCredentialStore{values: map[string]string{}}
-
-	require.NoError(t, bootstrapKeyringAdminCredentials(cfg, store))
-	assert.Equal(t, "valid_user", cfg.AdminUsername)
-	finishStdio()
-}
-
-func TestIsValidAdminUsername(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		username string
-		want     bool
-	}{
-		{name: "valid", username: "admin_user-1.test", want: true},
-		{name: "empty", username: "", want: false},
-		{name: "too long", username: strings.Repeat("a", 65), want: false},
-		{name: "whitespace", username: "admin user", want: false},
-		{name: "non-ASCII", username: "管理员", want: false},
-		{name: "invalid leading character", username: ".admin", want: false},
-	}
-	for _, tt := range tests {
-		t.Run(tt.name, func(t *testing.T) {
-			t.Parallel()
-			assert.Equal(t, tt.want, isValidAdminUsername(tt.username))
-		})
-	}
-}
-
-//nolint:paralleltest // temporarily replaces process stdin and stdout
-func TestBootstrapKeyringAdminCredentialsRejectsPasswordWhitespace(t *testing.T) {
-	finishStdio := withStdio(t, "admin\n Valid-Pass1\nValid-Pass1 \nValid-Pass1\nValid-Pass1\n")
-	cfg := &config.Config{}
-	store := &mockCredentialStore{values: map[string]string{}}
-
-	require.NoError(t, bootstrapKeyringAdminCredentials(cfg, store))
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, "Valid-Pass1"))
-	finishStdio()
-}
-
-//nolint:paralleltest // temporarily replaces process stdin and stdout
-func TestBootstrapKeyringAdminCredentialsRollsBackUsernameOnPasswordWriteFailure(t *testing.T) {
-	finishStdio := withStdio(t, "admin\nValid-Pass1\nValid-Pass1\n")
-	storeErr := errors.New("keyring write failed")
-	store := &mockCredentialStore{
-		values: map[string]string{},
-		errMap: map[string]error{keyringAdminPassword + ":set": storeErr},
-	}
-	cfg := &config.Config{}
-
-	err := bootstrapKeyringAdminCredentials(cfg, store)
-	require.ErrorIs(t, err, storeErr)
-	assert.Empty(t, store.values)
-	assert.Equal(t, []string{keyringAdminUsername}, store.deletedKeys)
-	assert.Empty(t, cfg.AdminUsername)
-	assert.Empty(t, cfg.AdminPassword)
-	finishStdio()
-}
-
-//nolint:paralleltest // temporarily replaces process stdin and stdout
-func TestLoadKeyringAdminCredentialsReusesStoredCredentialsWithoutPrompting(t *testing.T) {
-	hash, err := secrets.GeneratePBKDF2Hash("valid-password")
-	require.NoError(t, err)
-
-	store := &mockCredentialStore{values: map[string]string{
-		keyringAdminUsername: "valid_user",
-		keyringAdminPassword: hash,
-	}}
-	cfg := &config.Config{}
-	finishStdio := withStdio(t, "")
-
-	require.NoError(t, loadKeyringAdminCredentials(cfg, store))
-	assert.Equal(t, "valid_user", cfg.AdminUsername)
-	assert.Equal(t, hash, cfg.AdminPassword)
-	assert.Empty(t, finishStdio(), "reusing keyring credentials must not prompt")
-}
-
-//nolint:paralleltest // mutates global config and flag state
-func TestHandleAdminCredentials_FirstRunBootstrapsAndPersistsToKeyring(t *testing.T) {
-	configFile := filepath.Join(t.TempDir(), "config.yml")
-	initialConfig := []byte("auth:\n  jwtExpiration: 24h\n")
-	require.NoError(t, os.WriteFile(configFile, initialConfig, 0o600))
-
-	flagValue := flag.Lookup("config")
-	if flagValue == nil {
-		flag.String("config", "", "path to config file")
-
-		flagValue = flag.Lookup("config")
-	}
-
-	oldConfigValue := flagValue.Value.String()
-
-	require.NoError(t, flag.Set("config", configFile))
-
-	t.Cleanup(func() {
-		_ = flag.Set("config", oldConfigValue)
-	})
-
-	const plaintextPassword = "Valid-Setup9"
-
-	finishStdio := withStdio(t, "admin\n\n"+plaintextPassword+"\nwrong\n"+plaintextPassword+"\n")
-
-	var logOutput bytes.Buffer
-
-	oldLogOutput := log.Writer()
-
-	log.SetOutput(&logOutput)
-
-	t.Cleanup(func() { log.SetOutput(oldLogOutput) })
-
+//nolint:paralleltest // mutates the global keyring factory
+func TestHandleAdminCredentials_FirstRunCreatesSetupTokenWithoutPrompting(t *testing.T) {
 	store := &mockCredentialStore{values: map[string]string{}}
 	origFunc := newKeyringStorageFunc
 	newKeyringStorageFunc = func() credentialStore { return store }
 
-	t.Cleanup(func() { newKeyringStorageFunc = origFunc })
+	t.Cleanup(func() {
+		newKeyringStorageFunc = origFunc
+		app.AuthSetup = nil
+	})
 
 	cfg := &config.Config{Auth: config.Auth{SecretBackend: "keyring"}}
 	handleAdminCredentials(cfg)
 
-	stdout := finishStdio()
-
-	assert.Equal(t, "admin", cfg.AdminUsername)
-	assert.True(t, secrets.VerifyPBKDF2Hash(cfg.AdminPassword, plaintextPassword))
-	assert.Equal(t, "admin", store.values[keyringAdminUsername])
-	assert.Equal(t, cfg.AdminPassword, store.values[keyringAdminPassword])
-	assert.NotEqual(t, plaintextPassword, store.values[keyringAdminPassword])
-	assert.Len(t, store.values, 2)
-	assert.NotContains(t, stdout, plaintextPassword)
-	assert.NotContains(t, logOutput.String(), plaintextPassword)
-
-	configData, err := os.ReadFile(configFile)
-	require.NoError(t, err)
-	assert.Equal(t, initialConfig, configData, "keyring setup must not modify config.yml")
-	assert.NotContains(t, string(configData), plaintextPassword)
-}
-
-//nolint:paralleltest // mutates os.Stdin
-func TestBootstrapKeyringAdminCredentialsFailsAfterConfirmationRetries(t *testing.T) {
-	oldStdin := os.Stdin
-	reader, writer, err := os.Pipe()
-	require.NoError(t, err)
-	_, err = writer.WriteString("admin\nValid-Pass1\nwrong-1\nwrong-2\nwrong-3\n")
-	require.NoError(t, err)
-	require.NoError(t, writer.Close())
-
-	os.Stdin = reader
-
-	t.Cleanup(func() { os.Stdin = oldStdin; _ = reader.Close() })
-
-	store := &mockCredentialStore{values: map[string]string{}}
-	err = bootstrapKeyringAdminCredentials(&config.Config{}, store)
-	require.ErrorIs(t, err, errPasswordConfirmation)
-	assert.Empty(t, store.values, "credentials must not be stored after failed confirmation")
+	assert.Empty(t, store.values, "first-run startup must not write credentials")
+	assert.Empty(t, cfg.AdminUsername)
+	assert.Empty(t, cfg.AdminPassword)
+	assert.NotEmpty(t, cfg.SetupToken)
+	require.NotNil(t, app.AuthSetup)
+	assert.Equal(t, cfg.SetupToken, app.AuthSetup.SetupToken())
 }
 
 //nolint:paralleltest // mutates the global newKeyringStorageFunc
@@ -740,4 +554,23 @@ func TestHandleAdminCredentials_ConfigBackendDoesNotUseKeyring(t *testing.T) {
 	assert.Zero(t, callCount)
 	assert.Equal(t, "config-user", cfg.AdminUsername)
 	assert.Equal(t, "config-password", cfg.AdminPassword)
+}
+
+func TestPrepareSetupListener(t *testing.T) {
+	t.Parallel()
+
+	cfg := &config.Config{}
+	require.NoError(t, prepareSetupListener(cfg))
+	require.Nil(t, cfg.SetupListener, "no listener unless setup is pending")
+
+	cfg.SetupToken = "pending"
+	require.NoError(t, prepareSetupListener(cfg))
+	require.NotNil(t, cfg.SetupListener)
+
+	t.Cleanup(func() { _ = cfg.SetupListener.Close() })
+
+	addr, ok := cfg.SetupListener.Addr().(*net.TCPAddr)
+	require.True(t, ok)
+	require.True(t, addr.IP.IsLoopback(), "setup listener must bind to loopback only")
+	require.Equal(t, "https://localhost:"+strconv.Itoa(addr.Port), cfg.SetupAPIBase)
 }

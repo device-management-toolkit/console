@@ -1,11 +1,13 @@
 package main
 
 import (
+	"context"
 	"crypto/rand"
 	"errors"
 	"fmt"
 	"log"
 	"math/big"
+	"net"
 	"os"
 	"strings"
 
@@ -13,6 +15,7 @@ import (
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/app"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/pkg/logger"
@@ -88,6 +91,10 @@ func main() {
 	handleEncryptionKey(cfg)
 	handleAdminCredentials(cfg)
 
+	if err := prepareSetupListener(cfg); err != nil {
+		log.Fatal(err)
+	}
+
 	// Run with system tray (if built with tray tag and --tray flag) or standard mode
 	if config.TrayMode && !trayBuildEnabled {
 		log.Fatal("--tray was specified but this binary was built without tray support. Rebuild with `make build-tray` (or `go build -tags=tray`).")
@@ -96,9 +103,86 @@ func main() {
 	if trayBuildEnabled && config.TrayMode {
 		runWithTray(cfg, l)
 	} else {
+		logSetupURLIfUIUnavailable(cfg.SetupAPIBase, cfg.SetupToken, httpapi.HasUI())
 		handleDebugMode(cfg, l)
 		runAppFunc(cfg, l)
 	}
+}
+
+func prepareSetupListener(cfg *config.Config) error {
+	if cfg.SetupToken == "" {
+		return nil
+	}
+
+	var listenConfig net.ListenConfig
+
+	listener, err := listenConfig.Listen(context.Background(), "tcp", "127.0.0.1:0")
+	if err != nil {
+		return fmt.Errorf("start local setup listener: %w", err)
+	}
+
+	// A bound TCP listener's address always has a port.
+	_, port, _ := net.SplitHostPort(listener.Addr().String())
+
+	cfg.SetupListener = listener
+	cfg.SetupAPIBase = "https://localhost:" + port
+
+	return nil
+}
+
+// setupPageURL returns the token-free loopback URL that opens the setup page
+// while first-run setup is pending. The setup listener redirects it to the
+// token-bearing page server-side, so the token never appears in the launched
+// browser's (or tray's) process arguments.
+func setupPageURL(cfg *config.Config) string {
+	if cfg.SetupToken == "" || cfg.SetupAPIBase == "" {
+		return ""
+	}
+
+	return cfg.SetupAPIBase + authsetup.SetupRedirectPath
+}
+
+// logWriterIsTerminal reports whether log output goes to an interactive
+// terminal rather than a file, pipe, or journal. Replaceable in tests.
+var logWriterIsTerminal = func() bool {
+	file, ok := log.Writer().(*os.File)
+	if !ok {
+		return false
+	}
+
+	info, err := file.Stat()
+
+	return err == nil && info.Mode()&os.ModeCharDevice != 0
+}
+
+func logSetupURLIfUIUnavailable(setupAPIBase, token string, uiAvailable bool) {
+	if uiAvailable || setupAPIBase == "" || token == "" {
+		return
+	}
+
+	// The token must never reach a file. When output is redirected (log file,
+	// pipe, service journal), print only how to fetch it from the loopback
+	// redirect instead.
+	if !logWriterIsTerminal() {
+		log.Print(setupRedirectHintMessage(setupAPIBase))
+
+		return
+	}
+
+	log.Print(setupURLLogMessage(setupAPIBase, token, os.Getenv("NO_COLOR") == ""))
+}
+
+func setupRedirectHintMessage(setupAPIBase string) string {
+	return fmt.Sprintf("Headless setup required (one-time token expires in 10 minutes). The token is not written to logs; "+
+		"on this host run: curl -sk -o /dev/null -w '%%{redirect_url}\\n' %s%s", setupAPIBase, authsetup.SetupRedirectPath)
+}
+
+func setupURLLogMessage(setupAPIBase, token string, color bool) string {
+	if color {
+		return fmt.Sprintf("\033[1;36mHeadless setup URL\033[0m (one-time token expires in 10 minutes): \033[1;33m%s/setup#%s\033[0m", setupAPIBase, token)
+	}
+
+	return fmt.Sprintf("Headless setup URL (one-time token expires in 10 minutes): %s/setup#%s", setupAPIBase, token)
 }
 
 func setupCIRACertificates(cfg *config.Config, secretsClient security.Storager) error {
@@ -126,7 +210,7 @@ func handleDebugMode(cfg *config.Config, l logger.Interface) {
 		return
 	}
 
-	if os.Getenv("GIN_MODE") != "debug" {
+	if cfg.SetupToken != "" || os.Getenv("GIN_MODE") != "debug" {
 		go launchBrowser(cfg)
 	}
 }
