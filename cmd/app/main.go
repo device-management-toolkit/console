@@ -7,9 +7,7 @@ import (
 	"log"
 	"math/big"
 	"os"
-	"regexp"
 	"strings"
-	"unicode/utf8"
 
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
@@ -18,6 +16,7 @@ import (
 	"github.com/device-management-toolkit/console/internal/certificates"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/pkg/logger"
+	standaloneSecrets "github.com/device-management-toolkit/console/pkg/secrets"
 	secrets "github.com/device-management-toolkit/console/pkg/secrets/vault"
 )
 
@@ -32,17 +31,7 @@ var (
 const adminPasswordLength = 16
 
 // adminPasswordMinLength is the floor, in runes, for the warning and the generator.
-// No ceiling: this password is only compared against the login request in httpapi/v1.
-const adminPasswordMinLength = 8
-
-// RE2 has no lookahead, so complexity is one regex per required class. The last is
-// "not a letter or digit", broader than the !@#$%^&* AMT profiles require.
-var adminPasswordComplexity = []*regexp.Regexp{
-	regexp.MustCompile(`[a-z]`),
-	regexp.MustCompile(`[A-Z]`),
-	regexp.MustCompile(`\d`),
-	regexp.MustCompile(`[^a-zA-Z0-9]`),
-}
+const adminPasswordMinLength = standaloneSecrets.MinAdminPasswordLength
 
 // Classes used to generate a password. Only @ and * survive being pasted verbatim:
 // $ ! expand in sh, # truncates in make (-include .env), % ^ & break cmd.exe's set.
@@ -355,7 +344,7 @@ func handleKeyNotFound(toolkitCrypto security.Crypto, _, _ security.Storager) st
 }
 
 // generateRandomPassword returns a cryptographically secure password of exactly
-// length characters that satisfies isStrongAdminPassword.
+// length characters that satisfies standaloneSecrets.IsStrongAdminPassword.
 func generateRandomPassword(length int) (string, error) {
 	if length < adminPasswordMinLength {
 		return "", ErrPasswordLengthTooShort
@@ -451,7 +440,7 @@ func handleAdminPassword(cfg *config.Config) {
 // warnOnWeakAdminPassword warns but does not stop startup: migrated MPS/RPS
 // credentials predate this policy, and refusing to boot would lock operators out.
 func warnOnWeakAdminPassword(password string) {
-	if isStrongAdminPassword(password) {
+	if standaloneSecrets.IsStrongAdminPassword(password) {
 		return
 	}
 
@@ -464,18 +453,4 @@ func warnOnWeakAdminPassword(password string) {
 			"and it cuts the value at # regardless of quoting.",
 		adminPasswordMinLength,
 	)
-}
-
-func isStrongAdminPassword(password string) bool {
-	if utf8.RuneCountInString(password) < adminPasswordMinLength {
-		return false
-	}
-
-	for _, rule := range adminPasswordComplexity {
-		if !rule.MatchString(password) {
-			return false
-		}
-	}
-
-	return true
 }

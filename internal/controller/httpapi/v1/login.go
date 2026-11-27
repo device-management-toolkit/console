@@ -2,17 +2,23 @@ package v1
 
 import (
 	"context"
+	"crypto/hmac"
+	"crypto/sha256"
 	"crypto/subtle"
 	"crypto/tls"
+	"encoding/base64"
 	"errors"
 	"fmt"
 	"net/http"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/coreos/go-oidc/v3/oidc"
 	"github.com/gin-gonic/gin"
 	"github.com/golang-jwt/jwt/v5"
+
+	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
 	"github.com/device-management-toolkit/console/internal/entity/dto/v1"
@@ -28,22 +34,36 @@ const (
 	bearerPrefix                = "Bearer "
 	incorrectCredentialsMessage = "Incorrect Username and/or Password!"
 	loginFailureError           = "invalid credentials"
+
+	// credentialTagClaim binds a keyring-mode token to the stored password hash.
+	credentialTagClaim = "cred"
 )
 
 var (
 	ErrLogin                   = consoleerrors.CreateConsoleError("LoginHandler")
 	ErrUnexpectedSigningMethod = errors.New("unexpected signing method")
+
+	// passwordChangeMu serializes password changes.
+	passwordChangeMu sync.Mutex
 )
 
 type LoginRoute struct {
 	Config   *config.Config
 	Verifier *oidc.IDTokenVerifier
+	// Keyring is the OS keyring holding the administrator credentials. It is
+	// set only for AUTH_SECRET_BACKEND=keyring; other backends leave it nil
+	// and keep their existing behavior.
+	Keyring security.Storager
 }
 
 // NewVersionRoute creates a new version route
 func NewLoginRoute(configData *config.Config) *LoginRoute {
 	lr := &LoginRoute{
 		Config: configData,
+	}
+
+	if configData.SecretBackend == "keyring" && !configData.Disabled && configData.ClientID == "" {
+		lr.Keyring = security.NewKeyRingStorage(secrets.KeyringServiceName)
 	}
 
 	if config.ConsoleConfig.ClientID != "" {
@@ -102,7 +122,9 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 		return
 	}
 
-	if lr.Config.AdminPassword == "" {
+	adminUsername, adminPassword := lr.adminCredentials()
+
+	if adminPassword == "" {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
 
 		return
@@ -112,12 +134,12 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 
 	switch lr.Config.SecretBackend {
 	case "config":
-		passwordMatches = subtle.ConstantTimeCompare([]byte(creds.Password), []byte(lr.Config.AdminPassword)) == 1
+		passwordMatches = subtle.ConstantTimeCompare([]byte(creds.Password), []byte(adminPassword)) == 1
 	case "keyring":
-		passwordMatches = secrets.VerifyPBKDF2Hash(lr.Config.AdminPassword, creds.Password)
+		passwordMatches = secrets.VerifyPBKDF2Hash(adminPassword, creds.Password)
 	}
 
-	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(lr.Config.AdminUsername)) == 1
+	usernameMatches := subtle.ConstantTimeCompare([]byte(creds.Username), []byte(adminUsername)) == 1
 
 	if !passwordMatches || !usernameMatches {
 		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
@@ -129,6 +151,12 @@ func (lr LoginRoute) handleBasicAuth(creds dto.Credentials, c *gin.Context) {
 	expirationTime := time.Now().Add(config.ConsoleConfig.JWTExpiration)
 	claims := jwt.MapClaims{
 		"exp": expirationTime.Unix(),
+	}
+
+	// Keyring mode only: a password change replaces the stored hash, so the
+	// tag no longer matches and every earlier token is rejected.
+	if lr.Keyring != nil {
+		claims[credentialTagClaim] = lr.credentialTag(adminPassword)
 	}
 
 	// Conditional so the claim set still matches what callers saw before.
@@ -223,7 +251,110 @@ func (lr LoginRoute) verifyToken(c *gin.Context, tokenString string) bool {
 		return []byte(lr.Config.JWTKey), nil
 	})
 
-	return err == nil && token.Valid
+	if err != nil || !token.Valid {
+		return false
+	}
+
+	if lr.Keyring == nil {
+		return true
+	}
+
+	tag, _ := (*claims)[credentialTagClaim].(string)
+
+	storedHash, err := lr.Keyring.GetKeyValue(secrets.KeyringAdminPasswordKey)
+	if err != nil || tag == "" {
+		return false
+	}
+
+	return hmac.Equal([]byte(tag), []byte(lr.credentialTag(storedHash)))
+}
+
+// adminCredentials returns the administrator username and stored password.
+// Keyring mode reads the keyring on every call, so a password change takes
+// effect immediately.
+func (lr LoginRoute) adminCredentials() (username, password string) {
+	if lr.Keyring == nil {
+		return lr.Config.AdminUsername, lr.Config.AdminPassword
+	}
+
+	username, usernameErr := lr.Keyring.GetKeyValue(secrets.KeyringAdminUsernameKey)
+	password, passwordErr := lr.Keyring.GetKeyValue(secrets.KeyringAdminPasswordKey)
+
+	if usernameErr != nil || passwordErr != nil {
+		return "", ""
+	}
+
+	return username, password
+}
+
+// credentialTag is a keyed, non-reversible tag of the stored password hash.
+func (lr LoginRoute) credentialTag(storedHash string) string {
+	mac := hmac.New(sha256.New, []byte(lr.Config.JWTKey))
+	mac.Write([]byte(storedHash))
+
+	return base64.RawURLEncoding.EncodeToString(mac.Sum(nil))
+}
+
+// ChangePassword replaces the keyring administrator password after verifying
+// the current one. Registered only when Keyring is set.
+func (lr LoginRoute) ChangePassword(c *gin.Context) {
+	var req dto.PasswordChangeRequest
+	if err := c.ShouldBindJSON(&req); err != nil {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "invalid request"})
+
+		return
+	}
+
+	switch {
+	case req.CurrentPassword == "" || req.NewPassword == "" || req.ConfirmPassword == "":
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "current password, new password, and confirmation are required"})
+
+		return
+	case req.NewPassword != req.ConfirmPassword:
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "password confirmation does not match"})
+
+		return
+	case !secrets.IsStrongAdminPassword(req.NewPassword):
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "new password must be at least 8 characters and contain " +
+			"a lowercase letter, an uppercase letter, a digit, and a symbol"})
+
+		return
+	}
+
+	passwordChangeMu.Lock()
+	defer passwordChangeMu.Unlock()
+
+	storedHash, err := lr.Keyring.GetKeyValue(secrets.KeyringAdminPasswordKey)
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "password storage is unavailable"})
+
+		return
+	}
+
+	if !secrets.VerifyPBKDF2Hash(storedHash, req.CurrentPassword) {
+		c.JSON(http.StatusUnauthorized, gin.H{errorKey: loginFailureError, messageKey: incorrectCredentialsMessage})
+
+		return
+	}
+
+	if req.NewPassword == req.CurrentPassword {
+		c.JSON(http.StatusBadRequest, gin.H{errorKey: "new password must differ from current password"})
+
+		return
+	}
+
+	newHash, err := secrets.GeneratePBKDF2Hash(req.NewPassword)
+	if err == nil {
+		err = lr.Keyring.SetKeyValue(secrets.KeyringAdminPasswordKey, newHash)
+	}
+
+	if err != nil {
+		c.JSON(http.StatusInternalServerError, gin.H{errorKey: "password storage is unavailable"})
+
+		return
+	}
+
+	c.JSON(http.StatusOK, dto.PasswordChangeResponse{Message: "password changed"})
 }
 
 // cookieAuthEnabled reports whether session cookies are in use. An unconfigured
