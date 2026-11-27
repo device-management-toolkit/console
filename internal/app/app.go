@@ -20,6 +20,7 @@ import (
 	"github.com/device-management-toolkit/go-wsman-messages/v2/pkg/security"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/authsetup"
 	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/internal/controller/tcp/cira"
 	wsv1 "github.com/device-management-toolkit/console/internal/controller/ws/v1"
@@ -30,6 +31,10 @@ import (
 
 // CertStore holds the certificate store for domain certificates (set during Init).
 var CertStore security.Storager
+
+// AuthSetup is the keyring first-run setup Manager created by cmd/app, or nil.
+// It holds the in-memory setup token, so Run must serve setup with it.
+var AuthSetup *authsetup.Manager
 
 var Version = "DEVELOPMENT"
 
@@ -56,6 +61,7 @@ func Run(cfg *config.Config, log logger.Interface) {
 	usecases := usecase.NewUseCases(repos, log, CertStore)
 
 	handler := setupHTTPHandler(cfg, log, usecases)
+	authSetupServer := newAuthSetupServer(cfg, log)
 
 	ciraServer := setupCIRAServer(cfg, log, repos.Closer, usecases)
 
@@ -66,8 +72,23 @@ func Run(cfg *config.Config, log logger.Interface) {
 		httpserver.Logger(log),
 	)
 
-	waitForShutdown(log, httpServer, ciraServer)
-	shutdownServers(log, httpServer, ciraServer)
+	waitForShutdown(log, httpServer, authSetupServer, ciraServer)
+	shutdownServers(log, httpServer, authSetupServer, ciraServer)
+}
+
+// newAuthSetupServer serves first-run setup on the loopback listener that
+// cmd/app bound for it. It is nil unless keyring setup is pending.
+func newAuthSetupServer(cfg *config.Config, log logger.Interface) *httpserver.Server {
+	if AuthSetup == nil || cfg.SetupListener == nil {
+		return nil
+	}
+
+	return httpserver.New(
+		httpapi.NewLocalSetupHandler(cfg, log, AuthSetup),
+		httpserver.Listener(cfg.SetupListener),
+		httpserver.TLS(true, "", ""),
+		httpserver.Logger(log),
+	)
 }
 
 func setupHTTPHandler(cfg *config.Config, log logger.Interface, usecases *usecase.Usecases) *gin.Engine {
@@ -230,7 +251,7 @@ func setupCIRAServer(cfg *config.Config, log logger.Interface, closer io.Closer,
 	return ciraServer
 }
 
-func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraServer *cira.Server) {
+func waitForShutdown(log logger.Interface, httpServer, authSetupServer *httpserver.Server, ciraServer *cira.Server) {
 	interrupt := make(chan os.Signal, 1)
 	signal.Notify(interrupt, os.Interrupt, syscall.SIGTERM)
 
@@ -240,6 +261,8 @@ func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraSe
 			log.Info("app - Run - signal: " + s.String())
 		case err := <-httpServer.Notify():
 			log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+		case err := <-serverNotify(authSetupServer):
+			log.Error(fmt.Errorf("app - Run - authSetupServer.Notify: %w", err))
 		case ciraErr := <-ciraServer.Notify():
 			log.Error(fmt.Errorf("app - Run - ciraServer.Notify: %w", ciraErr))
 		}
@@ -249,13 +272,29 @@ func waitForShutdown(log logger.Interface, httpServer *httpserver.Server, ciraSe
 			log.Info("app - Run - signal: " + s.String())
 		case err := <-httpServer.Notify():
 			log.Error(fmt.Errorf("app - Run - httpServer.Notify: %w", err))
+		case err := <-serverNotify(authSetupServer):
+			log.Error(fmt.Errorf("app - Run - authSetupServer.Notify: %w", err))
 		}
 	}
 }
 
-func shutdownServers(log logger.Interface, httpServer *httpserver.Server, ciraServer *cira.Server) {
+func serverNotify(server *httpserver.Server) <-chan error {
+	if server == nil {
+		return nil
+	}
+
+	return server.Notify()
+}
+
+func shutdownServers(log logger.Interface, httpServer, authSetupServer *httpserver.Server, ciraServer *cira.Server) {
 	if err := httpServer.Shutdown(); err != nil {
 		log.Error(fmt.Errorf("app - Run - httpServer.Shutdown: %w", err))
+	}
+
+	if authSetupServer != nil {
+		if err := authSetupServer.Shutdown(); err != nil {
+			log.Error(fmt.Errorf("app - Run - authSetupServer.Shutdown: %w", err))
+		}
 	}
 
 	if ciraServer != nil {

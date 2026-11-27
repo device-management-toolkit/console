@@ -11,6 +11,7 @@ import (
 	"syscall"
 
 	"github.com/device-management-toolkit/console/config"
+	"github.com/device-management-toolkit/console/internal/controller/httpapi"
 	"github.com/device-management-toolkit/console/pkg/logger"
 	"github.com/device-management-toolkit/console/pkg/tray"
 )
@@ -31,10 +32,19 @@ func runWithTray(cfg *config.Config, l logger.Interface) {
 	urls := listenURLs(cfg)
 	primaryURL := urls[0]
 
+	// Route the tray's "Open" action through the local setup page while
+	// administrator credentials haven't been configured yet.
+	if setupURL := setupPageURL(cfg); setupURL != "" {
+		primaryURL = setupURL
+	}
+
 	// Must run before re-exec so the parent surfaces the duplicate, not the soon-to-exit child.
 	ensureSingleInstance(primaryURL)
 
-	if os.Getenv("DMT_BACKGROUND") == "" && isTerminal() {
+	// While first-run setup is pending, stay in the foreground: the setup token
+	// lives only in this process and must be shown on this terminal, never in
+	// the background log file.
+	if os.Getenv("DMT_BACKGROUND") == "" && isTerminal() && cfg.SetupToken == "" {
 		// Print before re-exec; after fork, stderr is the log file.
 		for _, u := range urls {
 			log.Printf("DMT Console running at %s", u)
@@ -42,6 +52,10 @@ func runWithTray(cfg *config.Config, l logger.Interface) {
 
 		relaunchInBackground()
 	}
+
+	// Logged here, not in main: the setup token lives only in memory, so only
+	// the process that serves setup (the relaunched child) can print a valid URL.
+	logSetupURLIfUIUnavailable(cfg.SetupAPIBase, cfg.SetupToken, httpapi.HasUI())
 
 	trayManager := tray.New(tray.Config{
 		AppName:  "DMT Console",

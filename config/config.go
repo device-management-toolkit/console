@@ -152,6 +152,9 @@ type (
 		CookieSecure             bool          `yaml:"cookieSecure" env:"AUTH_COOKIE_SECURE"`
 		CookieSameSite           string        `yaml:"cookieSameSite" env:"AUTH_COOKIE_SAME_SITE"`
 		UI                       UIAuthConfig  `yaml:"ui"`
+		SetupAPIBase             string        `yaml:"-" env:"-"`
+		SetupToken               string        `yaml:"-" env:"-"`
+		SetupListener            net.Listener  `yaml:"-" env:"-"`
 	}
 
 	// UIAuthConfig -.

@@ -21,6 +21,10 @@ import (
 	appLogger "github.com/device-management-toolkit/console/pkg/logger"
 )
 
+// selfSignedStartupTimeout bounds how long a test waits for a server that must
+// first generate an RSA-3072 self-signed certificate.
+const selfSignedStartupTimeout = 30 * time.Second
+
 func TestGenerateSelfSignedCert_UsesRSA3072AndSHA384(t *testing.T) {
 	t.Parallel()
 
@@ -193,8 +197,9 @@ func TestTLS_SelfSigned_GeneratesAndServes(t *testing.T) { //nolint:paralleltest
 	addr := l.Addr().String()
 	client := &http.Client{Transport: &http.Transport{TLSClientConfig: &tls.Config{InsecureSkipVerify: true}}}
 
-	// try for a short while to allow server goroutine to start
-	deadline := time.Now().Add(2 * time.Second)
+	// Self-signed startup generates an RSA-3072 key, which can take several
+	// seconds on a loaded CI runner, so allow well beyond the usual 2s.
+	deadline := time.Now().Add(selfSignedStartupTimeout)
 
 	var (
 		resp *http.Response
