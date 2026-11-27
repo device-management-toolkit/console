@@ -19,9 +19,9 @@ import (
 )
 
 const (
-	keyringServiceName   = "device-management-toolkit"
-	keyringAdminUsername = "admin-username"
-	keyringAdminPassword = "admin-password-hash"
+	keyringServiceName   = secrets.KeyringServiceName
+	keyringAdminUsername = secrets.KeyringAdminUsernameKey
+	keyringAdminPassword = secrets.KeyringAdminPasswordKey
 )
 
 var (
@@ -163,7 +163,7 @@ func promptForAdminPassword(reader *bufio.Reader) (string, error) {
 		switch {
 		case strings.TrimSpace(password) != password:
 			validationErr = errAdminPasswordWhitespace
-		case isStrongAdminPassword(password):
+		case secrets.IsStrongAdminPassword(password):
 			return password, nil
 		default:
 			validationErr = errWeakAdminPassword

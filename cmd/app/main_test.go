@@ -174,7 +174,7 @@ func TestGenerateRandomPassword_SatisfiesPolicy(t *testing.T) {
 		for range 100 {
 			password, err := generateRandomPassword(length)
 			require.NoError(t, err)
-			assert.True(t, isStrongAdminPassword(password), "generated %q fails the policy", password)
+			assert.True(t, secrets.IsStrongAdminPassword(password), "generated %q fails the policy", password)
 		}
 	}
 }
@@ -262,41 +262,6 @@ func TestHandleAdminPassword_AlreadyConfigured(t *testing.T) {
 	handleAdminPassword(cfg)
 
 	assert.Equal(t, "already-set", cfg.AdminPassword)
-}
-
-func TestIsStrongAdminPassword(t *testing.T) {
-	t.Parallel()
-
-	tests := []struct {
-		name     string
-		password string
-		want     bool
-	}{
-		{"meets every rule", "P@ssw0rdd", true},
-		{"exactly min length", "P@ssw0rd", true},
-		{"empty", "", false},
-		{"one under min length", "P@ss0rd", false},
-		{"no lowercase", "P@SSW0RD", false},
-		{"no uppercase", "p@ssw0rd", false},
-		{"no digit", "P@ssword", false},
-		{"no symbol", "Passw0rdd", false},
-		// AMT requires the special to come from !@#$%^&*; these do not, but the
-		// admin password never reaches AMT, so they count as a symbol here.
-		{"symbol AMT would not accept as its special", "Passw0rd(", true},
-		{"hyphen counts as a symbol", "Passw0rd-x", true},
-		{"underscore counts as a symbol", "Passw0rd_x", true},
-		// No upper length bound: a long passphrase must not be reported as weak.
-		{"long passphrase", "P@ssw0rd" + strings.Repeat("a", 40), true},
-		{"length counts runes not bytes", "P@ssw0ré", true},
-	}
-
-	for _, tc := range tests {
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
-
-			assert.Equal(t, tc.want, isStrongAdminPassword(tc.password))
-		})
-	}
 }
 
 func TestWarnOnWeakAdminPassword(t *testing.T) { //nolint:paralleltest // rebinds the global log output.

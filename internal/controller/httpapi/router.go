@@ -70,6 +70,11 @@ func NewRouter(handler *gin.Engine, l logger.Interface, t usecase.Usecases, cfg 
 
 	registerCustomValidators(l)
 
+	// Keyring-backed standalone auth only; other modes keep their existing routes.
+	if login.Keyring != nil {
+		protected.POST("/v1/authorize/password", login.ChangePassword)
+	}
+
 	// Routers
 	h2 := protected.Group("/v1")
 	{
